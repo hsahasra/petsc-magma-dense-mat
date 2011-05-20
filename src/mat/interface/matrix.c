@@ -1496,6 +1496,8 @@ PetscErrorCode  MatSetStencil(Mat mat,PetscInt dim,const PetscInt dims[],const P
 {
   PetscInt i;
 
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
   PetscValidIntPointer(dims,3);
@@ -1509,6 +1511,13 @@ PetscErrorCode  MatSetStencil(Mat mat,PetscInt dim,const PetscInt dims[],const P
   mat->stencil.dims[dim]   = dof;
   mat->stencil.starts[dim] = 0;
   mat->stencil.noc         = (PetscBool)(dof == 1);
+
+  if(*mat->ops->setstencil)
+    {
+      ierr = (*mat->ops->setstencil)(mat,dim,dims,starts,dof);CHKERRQ(ierr);
+    }
+
+
   PetscFunctionReturn(0);
 }
 

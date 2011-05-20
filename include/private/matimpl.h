@@ -171,6 +171,10 @@ struct _MatOps {
   PetscErrorCode (*dummy4)(Mat,Vec,Vec,Vec);
   PetscErrorCode (*getsubmatricesparallel)(Mat,PetscInt,const IS[], const IS[], MatReuse, Mat**);
   /*129*/
+  PetscErrorCode (*setstencil)(Mat, PetscInt, const PetscInt[],const PetscInt[], PetscInt);
+  PetscErrorCode (*setgrid)(Mat,PetscInt, PetscInt, PetscInt);
+
+
 };
 /*
     If you add MatOps entries above also add them to the MATOP enum

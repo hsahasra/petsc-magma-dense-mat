@@ -334,6 +334,9 @@
       PetscEnum MATOP_GETMULTIPROCBLOCK
       PetscEnum MATOP_GETCOLUMNNORMS
       PetscEnum MATOP_GET_SUBMATRICES_PARALLEL
+      
+      PetscEnum MATOP_SET_STENCIL
+      PetscEnum MATOP_SET_GRID
 
       parameter(MATOP_SET_VALUES=0)
       parameter(MATOP_GET_ROW=1)
@@ -461,6 +464,10 @@
       parameter(MATOP_GETMULTIPROCBLOCK=123)
       parameter(MATOP_GETCOLUMNNORMS=125)
       parameter(MATOP_GET_SUBMATRICES_PARALLEL=128)
+      parameter(MATOP_SET_STENCIL=129)
+      parameter(MATOP_SET_GRID=130)
+
+
 !
 !  
 !

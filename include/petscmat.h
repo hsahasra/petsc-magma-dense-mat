@@ -82,6 +82,8 @@ E*/
 #define MATLOCALREF        "localref"
 #define MATNEST            "nest"
 
+#define MATSTRUCTGRID      "structgrid"
+
 /*E
     MatSolverPackage - String with the name of a PETSc matrix solver type. 
 
@@ -1573,7 +1575,10 @@ typedef enum { MATOP_SET_VALUES=0,
                MATOP_MULTHERMITIANTRANSPOSEADD=122,
                MATOP_GETMULTIPROCBLOCK=123,
                MATOP_GETCOLUMNNORMS=125,
-	       MATOP_GET_SUBMATRICES_PARALLEL=128
+	       MATOP_GET_SUBMATRICES_PARALLEL=128,
+	       MATOP_SET_STENCIL=129,
+               MATOP_SET_GRID=130
+
              } MatOperation;
 extern PetscErrorCode  MatHasOperation(Mat,MatOperation,PetscBool *);
 extern PetscErrorCode  MatShellSetOperation(Mat,MatOperation,void(*)(void));

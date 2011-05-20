@@ -136,4 +136,6 @@
 #define MATSOLVERBAS          'bas'
 #define MATSOLVERBSTRM        'bstrm'
 #define MATSOLVERSBSTRM       'sbstrm'
+
+#define MATSRUCTGRID          'structgrid'
 #endif
