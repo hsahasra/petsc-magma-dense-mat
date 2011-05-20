@@ -87,7 +87,9 @@ typedef const char* MatType;
 #define MATLOCALREF        "localref"
 #define MATNEST            "nest"
 
+#define MATSTRUCTGRID      "structgrid"
 /*J
+
     MatSolverPackage - String with the name of a PETSc matrix solver type.
 
     For example: "petsc" indicates what PETSc provides, "superlu" indicates either

@@ -503,6 +503,10 @@ extern PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_2d_MPISBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_3d_MPISBAIJ(DM,Mat);
 
+extern PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM,Mat);
+extern PetscErrorCode MatSetValuesBlocked_StructGrid(Mat,PetscScalar*,InsertMode);
+
+
 #undef __FUNCT__
 #define __FUNCT__ "MatSetupDM"
 /*@C
@@ -619,6 +623,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
   MatType        Atype;
   PetscSection   section, sectionGlobal;
   void           (*aij)(void)=NULL,(*baij)(void)=NULL,(*sbaij)(void)=NULL;
+  void           (*sg)(void)=NULL;
   MatType        ttype[256];
   PetscBool      flg;
   PetscMPIInt    size;
@@ -749,7 +754,13 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
       if (!sbaij) {
         ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSBAIJSetPreallocation_C",&sbaij);CHKERRQ(ierr);
       }
+    } else {
+      ierr = PetscObjectQueryFunction((PetscObject)A,"MatMPISGSetPreallocation_C",&sg);CHKERRQ(ierr);
+      if (!sg) {
+        ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSGSetPreallocation_C",&sg);CHKERRQ(ierr);
+      }
     }
+    
   }
   if (aij) {
     if (dim == 1) {
@@ -783,6 +794,8 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
     } else if (dim == 3) {
       ierr = DMCreateMatrix_DA_3d_MPISBAIJ(da,A);CHKERRQ(ierr);
     } else SETERRQ3(PetscObjectComm((PetscObject)da),PETSC_ERR_SUP,"Not implemented for %D dimension and Matrix Type: %s in %D dimension! Send mail to petsc-maint@mcs.anl.gov for code",dim,Atype,dim);
+  } else if (sg) {
+    ierr = DMGetMatrix_DA_3d_StructGrid(da,A);CHKERRQ(ierr);
   } else {
     ISLocalToGlobalMapping ltog,ltogb;
     ierr = DMGetLocalToGlobalMapping(da,&ltog);CHKERRQ(ierr);
@@ -791,6 +804,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
     ierr = MatSetLocalToGlobalMapping(A,ltog,ltog);CHKERRQ(ierr);
     ierr = MatSetLocalToGlobalMappingBlock(A,ltogb,ltogb);CHKERRQ(ierr);
   }
+
   ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
   ierr = MatSetStencil(A,dim,dims,starts,dof);CHKERRQ(ierr);
   ierr = MatSetDM(A,da);CHKERRQ(ierr);
@@ -1564,6 +1578,91 @@ PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM da,Mat J)
   ierr = PetscFree(cols);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+
+
+
+#undef __FUNCT__  
+#define __FUNCT__ "DMGetMatrix_DA_3d_StructGrid" 
+PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM da,Mat J)
+{
+
+  PetscErrorCode         ierr;
+  PetscInt               xs,ys,nx,ny,i,j,slot,gxs,gys,gnx,gny;
+  PetscInt               l,m,n,dim,s,*rows,*cols,k,nc,col,cnt,p,*dnz,*onz;
+  PetscInt              dof,dims[3],starts[3];
+  PetscInt               istart,iend,jstart,jend,kstart,kend,zs,nz,gzs,gnz,ii,jj,kk;
+  MPI_Comm               comm;
+  PetscScalar            *values;
+  DMDABoundaryType       bx,by,bz;;
+  DMDAStencilType        st;
+  ISLocalToGlobalMapping ltog,ltogb;
+  DM_DA                  *dd = (DM_DA*)da->data;
+
+  PetscFunctionBegin;
+  /*     
+         nc - number of components per grid point 
+         col - number of colors needed in one direction for single component problem
+  
+  */
+  ierr = DMDAGetInfo(da,&dim,&m,&n,&p,0,0,0,&nc,&s,&bx,&by,&bz,&st);CHKERRQ(ierr);
+   ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
+        if(*J->ops->setgrid)
+        {
+                ierr = (*J->ops->setgrid)(J,m,n,p); CHKERRQ(ierr);
+        }
+  ierr = MatSetStencil(J,dim,dims,starts,nc);CHKERRQ(ierr);
+  col    = 2*s + 1;
+
+  ierr = DMDAGetCorners(da,&xs,&ys,&zs,&nx,&ny,&nz);CHKERRQ(ierr);
+  ierr = DMDAGetGhostCorners(da,&gxs,&gys,&gzs,&gnx,&gny,&gnz);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
+
+ ierr = PetscMalloc2(nc,PetscInt,&rows,col*col*col*nc*nc,PetscInt,&cols);CHKERRQ(ierr);
+  ierr = DMGetLocalToGlobalMapping(da,&ltog);CHKERRQ(ierr);
+  ierr = DMGetLocalToGlobalMappingBlock(da,&ltogb);CHKERRQ(ierr);
+
+  /* determine the matrix preallocation information */
+
+ierr = MatPreallocateInitialize(comm,nc*nx*ny*nz,nc*nx*ny*nz,dnz,onz);CHKERRQ(ierr);
+  for (i=xs; i<xs+nx; i++) {
+    istart = (bx == DMDA_BOUNDARY_PERIODIC) ? -s : (PetscMax(-s,-i));
+    iend   = (bx == DMDA_BOUNDARY_PERIODIC) ?  s : (PetscMin(s,m-i-1));
+    for (j=ys; j<ys+ny; j++) {
+      jstart = (by == DMDA_BOUNDARY_PERIODIC) ? -s : (PetscMax(-s,-j));
+      jend   = (by == DMDA_BOUNDARY_PERIODIC) ?  s : (PetscMin(s,n-j-1));
+      for (k=zs; k<zs+nz; k++) {
+        kstart = (bz == DMDA_BOUNDARY_PERIODIC) ? -s : (PetscMax(-s,-k));
+        kend   = (bz == DMDA_BOUNDARY_PERIODIC) ?  s : (PetscMin(s,p-k-1));
+
+        slot = i - gxs + gnx*(j - gys) + gnx*gny*(k - gzs);
+
+        cnt  = 0;
+        for (l=0; l<nc; l++) {
+          for (ii=istart; ii<iend+1; ii++) {
+            for (jj=jstart; jj<jend+1; jj++) {
+              for (kk=kstart; kk<kend+1; kk++) {
+                if ((st == DMDA_STENCIL_BOX) || ((!ii && !jj) || (!jj && !kk) || (!ii && !kk))) {/* entries on star*/
+                  cols[cnt++]  = l + nc*(slot + ii + gnx*jj + gnx*gny*kk);
+                }
+              }
+            }
+          }
+          rows[l] = l + nc*(slot);
+        }
+        ierr = MatPreallocateSetLocal(ltog,nc,rows,ltog,cnt,cols,dnz,onz);CHKERRQ(ierr);
+      }
+    }
+  }
+
+  ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
+  ierr = MatSetLocalToGlobalMapping(J,ltog,ltog);CHKERRQ(ierr);
+  ierr = MatSetLocalToGlobalMappingBlock(J,ltogb,ltogb);CHKERRQ(ierr);
+  ierr = MatZeroEntries(J); CHKERRQ(ierr);
+  ierr = PetscFree2(rows,cols);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 
 #undef __FUNCT__
 #define __FUNCT__ "L2GFilterUpperTriangular"
