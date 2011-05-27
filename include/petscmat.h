@@ -88,6 +88,8 @@ typedef const char* MatType;
 #define MATNEST            "nest"
 
 #define MATSTRUCTGRID      "structgrid"
+#define MATSTRUCTGRIDGPU   "structgridgpu"
+
 /*J
 
     MatSolverPackage - String with the name of a PETSc matrix solver type.

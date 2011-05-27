@@ -30,7 +30,6 @@
 #endif
 
 
-
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
 	PetscInt i,j,k,l,xdisp,ydisp,zdisp;

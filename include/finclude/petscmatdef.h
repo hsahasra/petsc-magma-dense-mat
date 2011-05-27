@@ -140,8 +140,8 @@
 #define MATSOLVERBSTRM        'bstrm'
 #define MATSOLVERSBSTRM       'sbstrm'
 
-#define MATSRUCTGRID          'structgrid'
-
+#define MATSTRUCTGRID          'structgrid'
+#define MATSTRUCTGRIDGPU       'structgridgpu' 
 !
 ! GPU Storage Formats for CUSP and CUSPARSE
 !
