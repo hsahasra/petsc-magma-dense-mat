@@ -53,6 +53,9 @@ extern PetscErrorCode  MatCreate_FFTW(Mat);
 #endif
 
 extern PetscErrorCode MatCreate_SeqSG(Mat);
+extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
+
+
 
 EXTERN_C_END
   
@@ -145,8 +148,12 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterDynamic(MATFFTW,           path,"MatCreate_FFTW",        MatCreate_FFTW);CHKERRQ(ierr);
 #endif
 
-
+ 
  ierr = MatRegisterDynamic(MATSTRUCTGRID,     path,"MatCreate_SeqSG",MatCreate_SeqSG);CHKERRQ(ierr);
+ 
+ ierr = MatRegisterDynamic(MATSTRUCTGRIDGPU,     path,"MatCreate_SeqSGGPU",MatCreate_SeqSGGPU);CHKERRQ(ierr);  
+
+ 
  
  PetscFunctionReturn(0);
 }

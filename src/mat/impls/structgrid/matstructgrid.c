@@ -89,6 +89,8 @@ PetscErrorCode MatCreate_SeqSG(Mat B)
 	PetscFunctionReturn(0);	
 }
 
+
+
 #undef __FUNCT__
 #define __FUNCT__ "MatDestroy_SeqSG"
 PetscErrorCode MatDestroy_SeqSG(Mat A)
@@ -124,11 +126,13 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
+	
 	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 
-        //ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+	//ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
        	
         //ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+	
 	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
 	ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
