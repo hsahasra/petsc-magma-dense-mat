@@ -2,6 +2,17 @@
 
 #include "../src/mat/impls/structgrid/matstructgrid.h"
 
+/*  -------------------------------------------------------------------- 
+     This file implements matrix multiplication for the structgrid data type. 
+     The routine employs SSE/AVX intrinsics if they are available on the machine.
+     Otherwise, the computations default to normal PetscScalar operations. 
+     The instruction for fused addmultiply has not been implemented of date.
+
+     Author: Chekuri S. Choudary, RNET
+*/
+
+
+
 /** transparent short vector at compile time**/
 
 #ifdef __AVX__ //Use 256 AVX intrinsics

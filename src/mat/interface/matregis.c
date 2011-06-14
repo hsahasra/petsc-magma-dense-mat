@@ -52,6 +52,12 @@ extern PetscErrorCode  MatCreate_IM(Mat);
 extern PetscErrorCode  MatCreate_FFTW(Mat);
 #endif
 
+
+/*The following two functions are declared to enable dynamic registration
+  of new datatypes structgrid and structgridgpu. 
+  AUTHOR: Chekuri S. Choudary
+*/
+
 extern PetscErrorCode MatCreate_SeqSG(Mat);
 extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
 
