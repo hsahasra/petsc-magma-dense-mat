@@ -4,9 +4,14 @@
 
 #include "petsc-private/matimpl.h"
 
+
+/*
+The following structure defines the structgrid datatype. It is a subclass 
+of generic matrix datatype and makes an implementation inheritance. 
+*/
 typedef struct 
-{
-PetscScalar * a; 		//data
+{                             
+PetscScalar * a; 	//data
 PetscInt * idx;		//x indices
 PetscInt * idy;		//y indices
 PetscInt * idz;		//z indices

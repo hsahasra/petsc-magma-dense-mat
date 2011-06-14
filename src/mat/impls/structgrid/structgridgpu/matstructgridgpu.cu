@@ -1,3 +1,12 @@
+
+/*  -------------------------------------------------------------------- 
+
+     This file extends structgrid data type to make use of GPUS. The new data type
+     is structgridgpu. The implementation of the new datatype emulates the seqaijcusp
+     implementation which is an extension to aij matrix format. 
+     Author: Chekuri S. Choudary, RNET
+*/
+
 #define PETSCMAT_DLL
 #include "../src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
 
@@ -12,6 +21,12 @@
 
 #define size 64
 
+
+/*  -------------------------------------------------------------------- 
+     This function creates a datatype of structgridgpu. It first creates a 
+     structgrid datatype and overrides the matrix multiplication method. 
+     Author: Chekuri S. Choudary, RNET
+*/
 
 EXTERN_C_BEGIN
 #undef __FUNCT__  
@@ -32,6 +47,13 @@ EXTERN_C_END
 
 
 
+
+/*  -------------------------------------------------------------------- 
+     This function implements matrix vector multiplication for the 
+     structgridgpu datatype. It calls a CUDA kernel to do matrix 
+     multiplication on the GPU.  
+     Author: Chekuri S. Choudary, RNET
+*/
 EXTERN_C_BEGIN
 #undef __FUNCT__
 #define __FUNCT__ "MatMult_SeqSGGPU"
@@ -57,6 +79,12 @@ CHKERRQ(ierr);
 EXTERN_C_END
 
 
+/*  -------------------------------------------------------------------- 
+     The following is a CUDA kernel for matrix vector multiplication on 
+     the GPU. The matrix is in a custom layout that facilitates better 
+     memory accesses and vectorization. 
+     Author: Chekuri S. Choudary, RNET
+*/
 __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
 {
 int tx=  blockDim.x * blockIdx.x + threadIdx.x;

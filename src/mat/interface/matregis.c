@@ -57,6 +57,12 @@ PETSC_EXTERN PetscErrorCode MatCreate_FFTW(Mat);
 #endif
 PETSC_EXTERN PetscErrorCode MatCreate_Elemental(Mat);
 
+
+/*The following two functions are declared to enable dynamic registration
+  of new datatypes structgrid and structgridgpu. 
+  AUTHOR: Chekuri S. Choudary
+*/
+
 extern PetscErrorCode MatCreate_SeqSG(Mat);
 extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
 

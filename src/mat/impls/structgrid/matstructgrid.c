@@ -1,12 +1,28 @@
+
+/* -------------------------------------------------------------------- 
+
+     This file implements a new data type and corresponding operations
+     for structured grids. It makes an implementation inheritence of a PETSc
+     matrix type, i.e, constructing a new matrix type (strcutgrid), changing some
+     of the methods of the previous type, adding additional data, and
+     additional methods.
+     Author: Deepan Karthik, OSU
+*/
+
 #define PETSCMAT_DLL
 
+/*
+     Defines the data structure for the structured grids (structgrid)
+*/
 #include "../src/mat/impls/structgrid/matstructgrid.h"
+
 #include "petscblaslapack.h"
 #include "petscbt.h"
 
 #include <immintrin.h>
 
 #include <stdio.h>
+
 
 static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_SeqSG,MatGetRow_SeqSG,MatRestoreRow_SeqSG,MatMult_SeqSG,0,
