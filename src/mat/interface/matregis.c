@@ -1,5 +1,9 @@
 
 #include <petscmat.h>  /*I "petscmat.h" I*/
+#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
+#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
+
+
 
 PETSC_EXTERN PetscErrorCode MatCreate_MFFD(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MAIJ(Mat);
