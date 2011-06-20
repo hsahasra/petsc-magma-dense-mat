@@ -171,7 +171,9 @@ struct _MatOps {
   PetscErrorCode (*dummy4)(Mat,Vec,Vec,Vec);
   PetscErrorCode (*getsubmatricesparallel)(Mat,PetscInt,const IS[], const IS[], MatReuse, Mat**);
   /*129*/
+/* Sets the stencil displacements for 3-d grid. Currently supports star stencil */
   PetscErrorCode (*setstencil)(Mat, PetscInt, const PetscInt[],const PetscInt[], PetscInt);
+/* Sets the 3-D physical grid information onto the matrix representation */
   PetscErrorCode (*setgrid)(Mat,PetscInt, PetscInt, PetscInt);
 
 

@@ -464,7 +464,10 @@
       parameter(MATOP_GETMULTIPROCBLOCK=123)
       parameter(MATOP_GETCOLUMNNORMS=125)
       parameter(MATOP_GET_SUBMATRICES_PARALLEL=128)
+/* Two new functions added specific to StructGrid representation  */
+/* Sets the stencil points displacements for the 3-D structure  . currently : start stencil.  */
       parameter(MATOP_SET_STENCIL=129)
+/* Sets the 3-D physical structure onto the matrix representation  */
       parameter(MATOP_SET_GRID=130)
 
 

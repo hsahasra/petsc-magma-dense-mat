@@ -1511,7 +1511,7 @@ PetscErrorCode  MatSetStencil(Mat mat,PetscInt dim,const PetscInt dims[],const P
   mat->stencil.dims[dim]   = dof;
   mat->stencil.starts[dim] = 0;
   mat->stencil.noc         = (PetscBool)(dof == 1);
-
+/* Sets the stencil nieghbours locations. currently available only for struct grid representation.*/
   if(*mat->ops->setstencil)
     {
       ierr = (*mat->ops->setstencil)(mat,dim,dims,starts,dof);CHKERRQ(ierr);

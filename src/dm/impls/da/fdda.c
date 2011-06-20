@@ -714,7 +714,9 @@ PetscErrorCode  DMGetMatrix_DA(DM da, const MatType mtype,Mat *J)
       SETERRQ3(((PetscObject)da)->comm,PETSC_ERR_SUP,"Not implemented for %D dimension and Matrix Type: %s in %D dimension!\n" \
 	       "Send mail to petsc-maint@mcs.anl.gov for code",dim,Atype,dim);
     }
-  }else if(!aij && !baij && !sbaij)
+  }
+/* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
+else if(!aij && !baij && !sbaij)
     {
      ierr = DMGetMatrix_DA_3d_StructGrid(da,A); CHKERRQ(ierr);
     }

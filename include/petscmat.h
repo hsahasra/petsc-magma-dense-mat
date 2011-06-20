@@ -1576,7 +1576,10 @@ typedef enum { MATOP_SET_VALUES=0,
                MATOP_GETMULTIPROCBLOCK=123,
                MATOP_GETCOLUMNNORMS=125,
 	       MATOP_GET_SUBMATRICES_PARALLEL=128,
+/* two new operations specific for struct grid representation */
+/* Sets the stencil displacement points for a 3 - d grid. Currently only start stencil is supported */
 	       MATOP_SET_STENCIL=129,
+/* Sets the 3d physical Grid information onto the matrix representation */
                MATOP_SET_GRID=130
 
              } MatOperation;
