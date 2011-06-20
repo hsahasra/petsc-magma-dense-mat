@@ -795,6 +795,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
       ierr = DMCreateMatrix_DA_3d_MPISBAIJ(da,A);CHKERRQ(ierr);
     } else SETERRQ3(PetscObjectComm((PetscObject)da),PETSC_ERR_SUP,"Not implemented for %D dimension and Matrix Type: %s in %D dimension! Send mail to petsc-maint@mcs.anl.gov for code",dim,Atype,dim);
   } else if (sg) {
+  /* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
     ierr = DMGetMatrix_DA_3d_StructGrid(da,A);CHKERRQ(ierr);
   } else {
     ISLocalToGlobalMapping ltog,ltogb;

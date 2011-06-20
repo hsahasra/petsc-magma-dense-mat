@@ -4,7 +4,7 @@
 #include "petscblaslapack.h"
 #include "petscbt.h"
 
-//#include <immintrin.h>
+#include <immintrin.h>
 
 #include <stdio.h>
 
@@ -38,6 +38,9 @@ static struct _MatOps MatOps_Values = {
 /*130*/ MatSetGrid_SeqSG
 };
 
+
+/** MatSetGrid_SeqSG : Sets the 3d physical grid information
+Added by Deepan */
 #undef __FUNCT__ 
 #define __FUNCT__ "MatSetGrid_SeqSG"
 
@@ -57,6 +60,8 @@ PetscErrorCode MatSetGrid_SeqSG(Mat B, PetscInt m, PetscInt n, PetscInt p)
 	PetscFunctionReturn(0);
 }
 
+/** MatCreate_SeqSG : Creates the struct grid representation 
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatCreate_SeqSG"
 
@@ -89,6 +94,8 @@ PetscErrorCode MatCreate_SeqSG(Mat B)
 	PetscFunctionReturn(0);	
 }
 
+/** MatDestroy_SeqSG : Destroys the struct grid representation
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatDestroy_SeqSG"
 PetscErrorCode MatDestroy_SeqSG(Mat A)
@@ -111,6 +118,8 @@ PetscErrorCode MatDestroy_SeqSG(Mat A)
 	PetscFunctionReturn(0);
 }
 
+/** MatMult_SeqSG : Performs the Matrix - Vector multiplication y= mat*x on the struct grid representation
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatMult_SeqSG"
 PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
@@ -124,11 +133,11 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
-	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+//	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 
-        //ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+//        ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
        	
-        //ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+        ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
 	ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
@@ -137,7 +146,9 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 
 
 
-/*
+
+/** SG_MatMult : Performs the matrix vector multiplication on linearized matrix representation coeff and the vector x
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "SG_MatMult"
 PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
@@ -152,6 +163,8 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,
 	{
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset = l*lda1;
 	 	xval = xdisp + ydisp*lda3 + zdisp*lda2;
+/** vbeg and vend specifies the starting and ending indices of the y vector that gets updated.
+Added by Deepan */
 			vbeg = 0;
 			vend = m*dof*n*p;
 		if(xval > 0) 
@@ -176,7 +189,7 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,
 	}
 	PetscFunctionReturn(0);
 }
-*/
+
 
 
 
@@ -244,6 +257,8 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * x
 */
 
 
+/** MatSetValuesBlocked_SeqSG : Sets the values in the matrix
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetValuesBlocked_SeqSG"
 
@@ -267,6 +282,8 @@ PetscErrorCode MatSetValuesBlocked_SeqSG(Mat A, PetscInt nrow,const PetscInt iro
 	PetscFunctionReturn(0);
 }	
 
+/** MatSetValuesBlocked_SeqSG : Sets the values in the matrix
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetValues_SeqSG"
 
@@ -321,6 +338,8 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	PetscFunctionReturn(0);
 }
 
+/** MatSetValuesBlocked_SeqSG : Sets the values in the matrix with the 3d indices supplied
+Added by Deepan */
 PetscErrorCode SetValues_SeqSG(Mat_SeqSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[],const  PetscScalar data[], InsertMode is)
 {
 	PetscInt i, mx = mat->m, ny= mat->n, pz = mat->p, dof = mat->dof;
@@ -339,6 +358,8 @@ PetscErrorCode SetValues_SeqSG(Mat_SeqSG *  mat, PetscInt n , const PetscInt idx
 }
 
 
+/** MatSetStencil_SeqSG : Sets the stencil neighbor points
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetStencil_SeqSG"
 
@@ -413,6 +434,8 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
  	PetscFunctionReturn(0);	
 }
 
+/** MatSetUpPreallocation_SeqSG : Allocates space for coefficient matrix
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetUpPreallocation_SeqSG"
 
@@ -428,6 +451,8 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 	PetscFunctionReturn(0);
 }
 
+/** MatZeroEntries_SeqSG : Sets the values in the matrix to be zero
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatZeroEntries_SeqSG"
 
@@ -439,6 +464,8 @@ PetscErrorCode MatZeroEntries_SeqSG(Mat A)
 	PetscFunctionReturn(0);
 }
 
+/** MatGetDiagonal_SeqSG : Returns the diagonal elements of the matrix
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatGetDiagonal_SeqSG"
 
@@ -452,12 +479,16 @@ PetscErrorCode MatGetDiagonal_SeqSG(Mat A, Vec v)
 	ierr = VecGetLocalSize(v,&n);CHKERRQ(ierr);
   	if (n != (a->nz)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Nonconforming matrix and vector");
 	ierr = VecGetArray(v,&x);CHKERRQ(ierr);
+/** Coefficients corresponding to the stencil 0,0,0(a[0] to a[n]) is returned
+Added by Deepan */
 	for(i=0;i<n;i++)
 	 	x[i] = a->a[i];
 	ierr = VecRestoreArray(v,&x);CHKERRQ(ierr);
  	PetscFunctionReturn(0);
 }
 
+/** MatGetRow_SeqSG : Returns the element corresponding to a single row in the matrix
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatGetRow_SeqSG"
 
@@ -478,6 +509,8 @@ PetscErrorCode MatGetRow_SeqSG(Mat A, PetscInt row, PetscInt * nz, PetscInt **id
 	PetscFunctionReturn(0);
 }
 
+/** MatRestoreRow_SeqSG : Used in conjunction with MatGetRow to clear temporary data
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatRestoreRow_SeqSG"
 
@@ -489,6 +522,8 @@ PetscErrorCode MatRestoreRow_SeqSG(Mat A, PetscInt row, PetscInt *nz, PetscInt *
 	PetscFunctionReturn(0);
 }
 
+/** MatGetRowMaxAbs_SeqSG : Gets the absolute maximum of the elements in a particular row
+Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatGetRowMaxAbs_SeqSG"
 
@@ -517,3 +552,4 @@ PetscErrorCode MatGetRowMaxAbs_SeqSG(Mat A, Vec v, PetscInt idx[])
 	ierr = VecRestoreArray(v,&x);CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
+
