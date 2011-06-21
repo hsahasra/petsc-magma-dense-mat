@@ -1,6 +1,19 @@
 #include <string.h>
 
+
+
 #include "../src/mat/impls/structgrid/matstructgrid.h"
+
+/*  -------------------------------------------------------------------- 
+     This file implements matrix multiplication for the structgrid data type. 
+     The routine employs SSE/AVX intrinsics if they are available on the machine.
+     Otherwise, the computations default to normal PetscScalar operations. 
+     The instruction for fused addmultiply has not been implemented of date.
+
+     Author: Chekuri S. Choudary, RNET
+*/
+
+
 
 /** transparent short vector at compile time**/
 
@@ -28,7 +41,6 @@
 #define _sv_mul_pd(a,b) ((a)*(b))
 #define _sv_storeu_pd(a,b) (*(a)=(b))
 #endif
-
 
 
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )

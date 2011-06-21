@@ -1,5 +1,9 @@
 
 #include <petscmat.h>  /*I "petscmat.h" I*/
+#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
+#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
+
+
 
 EXTERN_C_BEGIN
 extern PetscErrorCode  MatCreate_MFFD(Mat);
@@ -52,7 +56,16 @@ extern PetscErrorCode  MatCreate_IM(Mat);
 extern PetscErrorCode  MatCreate_FFTW(Mat);
 #endif
 
+
+/*The following two functions are declared to enable dynamic registration
+  of new datatypes structgrid and structgridgpu. 
+  AUTHOR: Chekuri S. Choudary
+*/
+
 extern PetscErrorCode MatCreate_SeqSG(Mat);
+extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
+
+
 
 EXTERN_C_END
   
@@ -145,8 +158,12 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterDynamic(MATFFTW,           path,"MatCreate_FFTW",        MatCreate_FFTW);CHKERRQ(ierr);
 #endif
 
-
+ 
  ierr = MatRegisterDynamic(MATSTRUCTGRID,     path,"MatCreate_SeqSG",MatCreate_SeqSG);CHKERRQ(ierr);
+ 
+ ierr = MatRegisterDynamic(MATSTRUCTGRIDGPU,     path,"MatCreate_SeqSGGPU",MatCreate_SeqSGGPU);CHKERRQ(ierr);  
+
+ 
  
  PetscFunctionReturn(0);
 }

@@ -84,6 +84,9 @@ E*/
 
 #define MATSTRUCTGRID      "structgrid"
 
+#define MATSTRUCTGRIDGPU   "structgridgpu"
+
+
 /*E
     MatSolverPackage - String with the name of a PETSc matrix solver type. 
 

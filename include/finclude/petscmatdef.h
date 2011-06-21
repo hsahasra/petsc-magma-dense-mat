@@ -137,5 +137,15 @@
 #define MATSOLVERBSTRM        'bstrm'
 #define MATSOLVERSBSTRM       'sbstrm'
 
-#define MATSRUCTGRID          'structgrid'
+
+/* Two new datatypes are being added namely, structgrid and 
+   structgridgpu. These datatypes use a special format for 
+   storing the  matrix created in structured grid problems.
+   This new layout facilitaties rapid vectorization and SIMD
+   parallelism.
+   AUTHOR: Chekuri S. Choudary
+*/
+
+#define MATSTRUCTGRID          'structgrid'
+#define MATSTRUCTGRIDGPU       'structgridgpu' 
 #endif
