@@ -165,7 +165,7 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 
 
 /** SG_MatMult : Performs the matrix vector multiplication on linearized matrix representation coeff and the vector x
-Added by Deepan */
+ Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "SG_MatMult"
 PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
@@ -179,9 +179,10 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,
 	for(l=0;l<nos;l++)
 	{
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset = l*lda1;
+                printf("offset: %d\n",offset);
 	 	xval = xdisp + ydisp*lda3 + zdisp*lda2;
-/** vbeg and vend specifies the starting and ending indices of the y vector that gets updated.
-Added by Deepan */
+// vbeg and vend specifies the starting and ending indices of the y vector that gets updated.
+//Added by Deepan 
 			vbeg = 0;
 			vend = m*dof*n*p;
 		if(xval > 0) 
