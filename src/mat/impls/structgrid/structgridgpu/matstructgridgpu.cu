@@ -242,7 +242,6 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
                    Ys[tz][ty][tx]+=A[Aindex]*X[Xindex];
                 }else Ys[tz][ty][tx]+=0.;
        }
-       __syncthreads();
    }
 
    __syncthreads();
