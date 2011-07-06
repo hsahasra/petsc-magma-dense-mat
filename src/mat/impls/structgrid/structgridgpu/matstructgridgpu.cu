@@ -19,7 +19,7 @@
 #include "matstructgridgpu.h"
 
 
-#define size 64
+//#define size 64
 
 
 /*  -------------------------------------------------------------------- 
@@ -96,7 +96,7 @@ int lda1=m*n*p,lda2=m*n,lda3=m;
 for (l=0;l<nos;l++)
         {
         xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
-        if (l==1 && tx==size-1 && ty==size-1)
+        if (l==1 && tx==n-1 && ty==m-1)
         {
         	continue;
         }
@@ -104,7 +104,7 @@ for (l=0;l<nos;l++)
         {
         	continue;
         }
-        if (l==3 && ty==size-1)
+        if (l==3 && ty==m-1)
         {
         	continue;
         }
@@ -163,20 +163,37 @@ cudaMemcpy(d_idz, idz, size_id, cudaMemcpyHostToDevice);
 
 //cutilCheckError(cutStopTimer(timer1));
 // kernel Configuration
-
+if (m > 16){
 dim3 dimBlock(16,16);
-dim3 dimGrid((size/16),(size/16));
+dim3 dimGrid((m/16),(n/16));
+
+    // cutilCheckError(cutCreateTimer(&timer));
+    // cutilCheckError(cutStartTimer(timer));
+
+MatMult_Kernel<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, d_idy, d_idz, m, n, p, nos);
+
+}
+else
+{
+dim3 dimBlock(m,n);
+dim3 dimGrid(1,1);
+   
+    // cutilCheckError(cutCreateTimer(&timer));
+    // cutilCheckError(cutStartTimer(timer));
+
+MatMult_Kernel<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, d_idy, d_idz, m, n, p, nos);
+
+
+}
 
 //Cuda Printf
 //cudaPrintfInit();
 
 //tbegin4 = rtclock();
 // create and start timer
-    unsigned int timer = 0;
+    //unsigned int timer = 0;
     //cutilCheckError(cutCreateTimer(&timer));
     //cutilCheckError(cutStartTimer(timer));
-
-	MatMult_Kernel<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, d_idy, d_idz, m, n, p, nos);
 
    // check if kernel execution generated and error
     	//cutilCheckMsg("Kernel execution failed");
@@ -204,15 +221,15 @@ cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost);
 // printf("\n");
 // printf("Matrix cuda y\n");
 
-  for(i=0;i<size;i++)
-  {
-    for(j=0;j<size;j++) 
-    {
-      printf("%.2f\n",y[i*size+j]);
-    }
-   printf("\n");
-  }
- 
+//  for(i=0;i<m;i++)
+//  {
+//    for(j=0;j<n;j++) 
+//    {
+//      printf("%.2f\n",y[i*n+j]);
+//    }
+//   printf("\n");
+//  }
+
 
 //Free Device Memory
 cudaFree(d_coeff);
