@@ -33,7 +33,7 @@
 #define SHDSIZE 16
 
 
-// -----------------------------------------------
+#define size 64
 // Structure for Constant Device memory
 // storing constants and indices and index limits
 // stencile size is hard coded

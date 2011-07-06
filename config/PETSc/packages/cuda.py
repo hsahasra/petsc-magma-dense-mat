@@ -11,7 +11,7 @@ class Configure(PETSc.package.NewPackage):
     self.cxx              = 0
     self.requires32bitint = 0
 
-    self.CUDAVersion   = '3020' # Version 3.2
+    self.CUDAVersion   = '3010' # Version 3.2
     self.CUSPVersion   = '200' #Version 0.2.0
     self.ThrustVersion = '100400' #Version 1.4.0
 #

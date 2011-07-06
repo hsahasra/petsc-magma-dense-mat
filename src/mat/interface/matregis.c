@@ -1,7 +1,7 @@
 
 #include <petscmat.h>  /*I "petscmat.h" I*/
-#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
-#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
+#include "/nfs/06/osu6070/mercurial/mercurial-1.8/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
+#include "/nfs/06/osu6070/mercurial/mercurial-1.8/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
 
 
 
