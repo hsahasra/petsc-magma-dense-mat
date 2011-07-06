@@ -129,7 +129,7 @@ PetscScalar* d_y;
 PetscInt *d_idx, *d_idy, *d_idz;
 PetscInt i,j;
 
-fprintf(stdout,"%d\t%d\t%d\t%d\n",m,n,p,nos);
+//fprintf(stdout,"%d\t%d\t%d\t%d\n",m,n,p,nos);
 
 //loading the coeff, x, y, idx, idy, idz to device memory
 
@@ -137,7 +137,7 @@ fprintf(stdout,"%d\t%d\t%d\t%d\n",m,n,p,nos);
   //cutilCheckError(cutCreateTimer(&timer1));
   //cutilCheckError(cutStartTimer(timer1));
 
-  fprintf(stdout,"In SGCUDA_MatMult\n");
+  //  fprintf(stdout,"In SGCUDA_MatMult\n");
 	
 //tbegin3 = rtclock();
 size_coeff=nos*m*n*p*sizeof(PetscScalar);
