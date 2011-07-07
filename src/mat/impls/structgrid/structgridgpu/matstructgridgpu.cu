@@ -30,7 +30,7 @@
 // shared memory scheme
 // written by: dlowell ANL-MCS
 // ----------------------------------------------------------
-#define SHDSIZE 16
+#define SHDSIZE 32
 
 
 // -----------------------------------------------
@@ -55,7 +55,9 @@ struct Stencilparams{
        int idx[STLSIZE];
        int idy[STLSIZE];
        int idz[STLSIZE];
-};//812 bytes
+       int numtiles;
+       int tilesize;
+};//820 bytes
 
 __constant__ Stencilparams devparams;//device memory
 
@@ -103,7 +105,7 @@ EXTERN_C_BEGIN
 PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 {
 
-  printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
+  //printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -163,14 +165,14 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 
         /// Debugging block .....................................................
             /*int xsize,ysize;
-            printf("Matrix A ::: m: %d, n: %d, p: %d, nos: %d dof: %d nz: %d\n",
-                a->m,a->n,a->p,a->stpoints,a->dof,a->nz);
-            VecGetLocalSize(x,&xsize);
-            VecGetLocalSize(y,&ysize);
-            printf("Amat size: %d, Xvec size: %d, Yvec size: %d\n",sparams.matsize,xsize,ysize);
+            //printf("Matrix A ::: m: %d, n: %d, p: %d, nos: %d dof: %d nz: %d\n",
+            //    a->m,a->n,a->p,a->stpoints,a->dof,a->nz);
+            //VecGetLocalSize(x,&xsize);
+            //VecGetLocalSize(y,&ysize);
+            //printf("Amat size: %d, Xvec size: %d, Yvec size: %d\n",sparams.matsize,xsize,ysize);
             */
-            static PetscInt count = 1;// running count of function calls
-            printf("MatMult_SeqSGGPU(Mat mat, Vec x, Vec y): %d\n",count++);
+            //static PetscInt count = 1;// running count of function calls
+            //printf("MatMult_SeqSGGPU(Mat mat, Vec x, Vec y): %d\n",count++);
         ///....................................................................
 
 
@@ -196,57 +198,56 @@ EXTERN_C_END
 
 //-------------------------------------------------------------------------------
 //   This function is the matrix vector multiplication kernel
-//   structgridgpu datatype. This version uses shared memory for the write 
-//   back vector Y. Constant memory for reused constants and indices. 
+//   structgridgpu datatype. This version uses shared memory for the write
+//   back vector Y. Constant memory for reused constants and indices.
 //   More offloading to registers might be possible as well.
 //   written by: dlowell, ANL-MCS
 //-------------------------------------------------------------------------------
 __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
    // indices for global accesses
-   int btx = blockDim.x*blockIdx.x+threadIdx.x;
-   int bty = blockDim.y*blockIdx.y+threadIdx.y;
-   int btz = blockDim.z*blockIdx.z+threadIdx.z;
-   //cuPrintf("Bxyz: %d %d %d\n",btx,bty,btz);
+   int btid = blockDim.x*blockIdx.x+threadIdx.x;
 
    //indices for local accesses
-   int tx = threadIdx.x;
-   int ty = threadIdx.y;
-   int tz = threadIdx.z;
+   int tid = threadIdx.x;
 
-   int j;
+   int i,j;
+
    int nos  = devparams.nos; // set to register
    int lda1 = devparams.lda1;//  "   "
    int lda2 = devparams.lda2;//  "   "
    int lda3 = devparams.lda3;//  "   "
+   int numtiles = devparams.numtiles;
 
    int Aindex;
-   int Yindex;
    int Xindex;
+   int index;
 
-   // Min shared mem byte count: (gridDim.x*gridDim.y*gridDim.z)*SHDSIZE^3*8 byte double
-   __shared__ double Ys[SHDSIZE][SHDSIZE][SHDSIZE];
-   Ys[tz][ty][tx]=0;
-   __syncthreads();
+   __shared__ double Ys[SHDSIZE];
+  
+
+   //------------------------------------------------------------------------
 
    for(j=0;j<nos;j++){
-       Aindex = j*lda1 + btz*lda2 + bty*lda3 + btx;
-       Xindex = (btz+devparams.idz[j])*lda2 + (bty+devparams.idy[j])*lda3 + (btx+devparams.idx[j]);
+       for(i=0;i<numtiles;i++){
+           index = (devparams.tilesize*i)+btid;
+           Ys[tid]=0.;
+           Aindex = j*lda1 + index;
+           Xindex = (devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
+           __syncthreads();
+
+           if (!((j==1 && ((index%(devparams.m))+(index%(devparams.n)))==0)||
+                (j==2 && index==0)||
+                (j==3 && index%(devparams.n)==0)||
+                (j==4 && index<devparams.m))){
+                 if(Aindex<devparams.matsize && Xindex<devparams.vecsize_x) Ys[tid]=A[Aindex]*X[Xindex];
+           }//end if
+
+           if(index<devparams.vecsize_y) Y[index]+=Ys[tid];//global write back
+       }//end i-for
        __syncthreads();
+   }//end j-for
 
-        if (!((j==1 && tx==devparams.m-1 && ty==devparams.n-1)||
-             (j==2 && tx==0 && ty==0)||
-             (j==3 && ty==devparams.n-1)||
-             (j==4 && ty==0))){
-                if(Aindex<devparams.matsize && Xindex < devparams.vecsize_x) {
-                   Ys[tz][ty][tx]+=A[Aindex]*X[Xindex];
-                }else Ys[tz][ty][tx]+=0.;
-       }
-   }
-
-   __syncthreads();
-   Yindex = btz*lda2+bty*lda3+btx;
-   if(Yindex<devparams.vecsize_y) Y[Yindex]=Ys[tz][ty][tx];//global write back
 }
 
 
@@ -254,14 +255,14 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
 //------------------------------------------------------------------------------------
 //   This function is the wrapper function which sets up the device memory, transfers
-//   data to and from the device, and calls the kernel. Error checking is done at 
+//   data to and from the device, and calls the kernel. Error checking is done at
 //   each step. Timing stats are recorded using static vars.
 //   written by: Daniel Lowell, ANL-MCS
 //------------------------------------------------------------------------------------
 PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y, struct Stencilparams P){
 
         // vars for testing
-        //int i;
+        int i;
         static double cumtime=0.;//cummalitive call time
         static unsigned int kcalls=0;//number of kernel calls
 
@@ -324,6 +325,24 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
           PetscFunctionReturn(PETSC_ERR_MEM);
 	}
 
+        //Set up blocks and thread numbers
+        P.tilesize = floor(49152.0/(float)sizeof(double));///max shared elements
+        if(P.vecsize_y < P.tilesize) P.tilesize = P.vecsize_y;
+        P.numtiles = ceil((float)P.vecsize_y/P.tilesize);
+
+        int blocks = ceil((float)P.tilesize/(float)SHDSIZE);//number of blocks
+        int threads = SHDSIZE;//number of threads per block
+
+        dim3 dimGrid(blocks,1);
+	dim3 dimBlock(threads,1);
+
+        static unsigned char dbgflag = 1;
+        if(dbgflag){
+           printf("blocks: %d, threads: %d, Tnum: %d, Tsize: %d,  P.vecsize_y: %d\n",
+                        blocks,threads,P.numtiles,P.tilesize,P.vecsize_y);
+                dbgflag=0;
+        }
+
         // update constant memory with structured grid parameters
 	cudastatus6=cudaMemcpyToSymbol("devparams",&P,sizeof(Stencilparams));
 	if(cudastatus6!=cudaSuccess){
@@ -336,43 +355,8 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
 	}
 
 
-	ce=getclock();
+	ce=getclock();//end setup timer
 	temp=ce-cs;
-
-
-        int bx,by,bz;//number of blocks in 3-D
-        int tx,ty,tz;//number of threads ber block in 3-D
-
-        //Set up blocks and thread numbers
-        if(P.m < SHDSIZE){
-           tx = P.m;
-           bx = 1;
-        }else{
-           tx = SHDSIZE;
-           bx = ceil((float)P.m/(float)SHDSIZE);
-        }
-
-        if(P.n < SHDSIZE){
-           ty = P.n;
-           by = 1;
-        }else{
-           ty = SHDSIZE;
-           by = ceil((float)P.n/(float)SHDSIZE);
-        }
-
-        if(P.p < SHDSIZE){
-           tz = P.p;
-           bz = 1;
-        }else{
-           tz = SHDSIZE;
-           bz = ceil((float)P.p/(float)SHDSIZE);
-        }
-
-        dim3 dimGrid(bx,by,bz);
-	dim3 dimBlock(tx,ty,tz);
-        //dim3 dimBlock(SHDSIZE,SHDSIZE,1);//testing
-
-        //printf("numblocks xyz: (%d, %d, %d), numthreads: (%d, %d, %d)\n",bx,by,bz,tx,ty,tz);
 
         cudaPrintfInit();//start cuda printf environ.
 	cudaEventRecord(start,0);//begin recording kernel
@@ -397,7 +381,7 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
 	  if(devX) cudaFree(devX);
           PetscFunctionReturn(PETSC_ERR_MEM);
         }
-       // for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
+        //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 
 
         //Free device memory
@@ -408,10 +392,10 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
 	ce=getclock();
 	temp+=ce-cs;
         cumtime+=(elapsedtime/1000)+temp;
-        kcalls++;
-        printf("Cumilative kernel time (including setup): %lf msec.\n", cumtime);
-        printf("Kernel call #: %d, setup+teardown: %f msec., elapsed time: %f msec.\n\n",
-                       kcalls,temp,elapsedtime/1000);
+       // kcalls++;
+       // printf("Cumilative kernel time (including setup): %lf msec.\n", cumtime);
+      //  printf("Kernel call #: %d, setup+teardown: %f msec., elapsed time: %f msec.\n\n",
+      //                 kcalls,temp,elapsedtime/1000);
         PetscFunctionReturn(0);
 }
 
