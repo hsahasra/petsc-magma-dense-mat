@@ -72,10 +72,10 @@ __constant__ Stencilparams devparams;//device memory
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
-    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
-    exit(EXIT_FAILURE); 
+    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) );
+    exit(EXIT_FAILURE);
   }
-} 
+}
 
 
 
@@ -164,17 +164,15 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
         sparams.matsize=a->m*a->n*a->p*a->stpoints;
 
         /// Debugging block .....................................................
-            /*int xsize,ysize;
+            //int xsize,ysize;
             //printf("Matrix A ::: m: %d, n: %d, p: %d, nos: %d dof: %d nz: %d\n",
             //    a->m,a->n,a->p,a->stpoints,a->dof,a->nz);
             //VecGetLocalSize(x,&xsize);
             //VecGetLocalSize(y,&ysize);
             //printf("Amat size: %d, Xvec size: %d, Yvec size: %d\n",sparams.matsize,xsize,ysize);
-            */
             //static PetscInt count = 1;// running count of function calls
             //printf("MatMult_SeqSGGPU(Mat mat, Vec x, Vec y): %d\n",count++);
         ///....................................................................
-
 
 // Call to dlowell's version
         ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams); CHKERRQ(ierr);
@@ -224,9 +222,6 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
    int index;
 
    __shared__ double Ys[SHDSIZE];
-  
-
-   //------------------------------------------------------------------------
 
    for(j=0;j<nos;j++){
        for(i=0;i<numtiles;i++){
@@ -236,7 +231,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
            Xindex = (devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
            __syncthreads();
 
-           if (!((j==1 && ((index%(devparams.m))+(index%(devparams.n)))==0)||
+           if (!((j==1 && ((index%devparams.m)+(index%devparams.n))==0)||
                 (j==2 && index==0)||
                 (j==3 && index%(devparams.n)==0)||
                 (j==4 && index<devparams.m))){
@@ -264,6 +259,7 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
         // vars for testing
         int i;
         static double cumtime=0.;//cummalitive call time
+        static double cumkern=0.;//cummalitive kernel time
         static unsigned int kcalls=0;//number of kernel calls
 
         // using CUDA device timer
@@ -383,21 +379,58 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
         }
         //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 
-
         //Free device memory
 	if(devA) cudaFree(devA);
 	if(devY) cudaFree(devY);
 	if(devX) cudaFree(devX);
 
 	ce=getclock();
-	temp+=ce-cs;
-        cumtime+=(elapsedtime/1000)+temp;
-       // kcalls++;
-       // printf("Cumilative kernel time (including setup): %lf msec.\n", cumtime);
-      //  printf("Kernel call #: %d, setup+teardown: %f msec., elapsed time: %f msec.\n\n",
-      //                 kcalls,temp,elapsedtime/1000);
+	temp+=1000.0*(ce-cs);
+        cumkern+=(elapsedtime);
+        cumtime+=(elapsedtime)+temp;
+        kcalls++;
+        printf("Kernel call #: %d\n",kcalls);
+        printf("Cumilative function call time: %lf msec.\n", cumtime);
+        printf("Cumilative kernel time: %lf msec.\n", cumkern);
+        printf("Current call: setup+copyback: %lf msec., kernel time: %f msec.\n",temp,elapsedtime);
+        printf("-------------------------------------------------------------------------\n\n");
+
         PetscFunctionReturn(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
