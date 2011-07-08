@@ -30,7 +30,9 @@
 // shared memory scheme
 // written by: dlowell ANL-MCS
 // ----------------------------------------------------------
-#define SHDSIZE 32
+
+#define SHDSIZE 12
+
 
 
 // -----------------------------------------------
@@ -61,6 +63,8 @@ struct Stencilparams{
 
 __constant__ Stencilparams devparams;//device memory
 
+static double* devA;
+static PetscScalar* d_coeff;
 
 
 
@@ -77,10 +81,6 @@ void checkCUDAError(const char *msg) {
   }
 }
 
-
-
-
-
 //------------------------------------------------------
 // general timer function using unix system call
 // dlowell ANL-MCS
@@ -91,6 +91,38 @@ double getclock(){
       gettimeofday (&tp, &tzp);
       return (tp.tv_sec + tp.tv_usec*1.0e-6);
 }
+
+
+/*  --------------------------------------------------------------------
+     This function destroys the matrix of type structgridgpu. It first 
+     deallocates the memory on GPU and then calls the MatDestroy_SeqSG 
+     function.
+     Author: Chekuri S. Choudary, RNET
+*/
+
+EXTERN_C_BEGIN
+#undef __FUNCT__
+#define __FUNCT__ "MatDestroy_SeqSGGPU"
+PetscErrorCode  MatDestroy_SeqSGGPU(Mat B)
+{
+  printf("Call to MatDestroy_SeqSGGPU(Mat B)\n");
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if (B->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED) 
+	{
+  	if (devA) cudaFree(devA);
+	if (d_coeff) cudaFree(d_coeff);
+	}
+
+  B->valid_GPU_matrix = PETSC_CUSP_UNALLOCATED;
+
+  ierr             = MatDestroy_SeqSG(B);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+EXTERN_C_END
+
 
 
 /*  --------------------------------------------------------------------
@@ -105,12 +137,14 @@ EXTERN_C_BEGIN
 PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 {
 
-  //printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
+  printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
+
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
   ierr             = MatCreate_SeqSG(B);CHKERRQ(ierr);
   B->ops->mult     = MatMult_SeqSGGPU;
+  B->ops->destroy  = MatDestroy_SeqSGGPU;
 
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSTRUCTGRIDGPU);CHKERRQ(ierr);
   B->valid_GPU_matrix = PETSC_CUSP_UNALLOCATED;
@@ -132,7 +166,6 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "MatMult_SeqSGGPU"
 PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 {
-
         int i;
 	PetscErrorCode ierr;
 	Mat_SeqSG * a = (Mat_SeqSG *) mat->data;
@@ -175,11 +208,13 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
         ///....................................................................
 
 // Call to dlowell's version
-        ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams); CHKERRQ(ierr);
+      ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix)); 
+//	CHKERRQ(ierr);
 
 // Call to Jeswin's version
-//        ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints);
-//        CHKERRQ(ierr);
+//        ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints, 
+//	                     &(mat->valid_GPU_matrix));
+        CHKERRQ(ierr);
 
        	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
@@ -187,11 +222,6 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 	PetscFunctionReturn(0);
 }
 EXTERN_C_END
-
-
-
-
-
 
 
 //-------------------------------------------------------------------------------
@@ -254,7 +284,8 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 //   each step. Timing stats are recorded using static vars.
 //   written by: Daniel Lowell, ANL-MCS
 //------------------------------------------------------------------------------------
-PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y, struct Stencilparams P){
+PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, 
+PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 
         // vars for testing
         int i;
@@ -282,16 +313,38 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
 // 	allocate GPU device memory
 	cs=getclock();
 
-        // Allocate and Memcpy Structured Matrix A
-	double* devA;
-	cudastatus0=cudaMalloc((void**)&devA,matsize);
-	cudastatus1=cudaMemcpy(devA,A,matsize,cudaMemcpyHostToDevice);
-	if(cudastatus0!=cudaSuccess|cudastatus1!=cudaSuccess){
-	  printf("Error in devA memory allocation:\nstatus0: %s, status1: %s\n",
-  			cudaGetErrorString(cudastatus0),
-			cudaGetErrorString(cudastatus1));
-	  if(devA) cudaFree(devA);
-          PetscFunctionReturn(PETSC_ERR_MEM);
+        //Allocate and Memcpy Structured Matrix A
+	//The matrix remains the same throughout one iteration
+        //of the linear solver. The following uses a flag
+        //defined in the base class to check the status of the
+        //matrix. The matrix is copied to the GPU only if
+        //it has been changed on the CPU side
+        //This feature added by Chekuri S. Choudary  
+	
+      if ((*fp == PETSC_CUSP_UNALLOCATED) ||
+	  (*fp == PETSC_CUSP_CPU) )
+	{
+		if (*fp == PETSC_CUSP_UNALLOCATED)
+		{
+	   	cudastatus0=cudaMalloc((void**)&devA,matsize);
+	   	if(cudastatus0!=cudaSuccess)
+			{
+		  printf("Error in devA memory allocation:\nstatus0: %s\n",
+  			cudaGetErrorString(cudastatus0));
+          	  PetscFunctionReturn(PETSC_ERR_MEM);
+			}
+		}
+
+           	cudastatus1=cudaMemcpy(devA,A,matsize,cudaMemcpyHostToDevice);
+	   	if(cudastatus1!=cudaSuccess)
+		{
+		  if(devA) cudaFree(devA);
+		  printf("Error in devA memory copying:\nstatus1: %s\n",
+  			cudaGetErrorString(cudastatus1));
+          	  PetscFunctionReturn(PETSC_ERR_MEM);
+		}
+
+	       *fp = PETSC_CUSP_BOTH;
 	}
 
         // Allocate and Memcpy Vector X
@@ -380,7 +433,7 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
         //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 
         //Free device memory
-	if(devA) cudaFree(devA);
+	//if(devA) cudaFree(devA);
 	if(devY) cudaFree(devY);
 	if(devX) cudaFree(devX);
 
@@ -397,45 +450,6 @@ PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* X, PetscScalar* Y,
 
         PetscFunctionReturn(0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /*  -------------------------------------------------------------------- 
@@ -477,31 +491,64 @@ for (l=0;l<nos;l++)
 }
 
 
-int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
+int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
+PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos, PetscCUSPFlag* fp)
 {
 
 //double tbegin3, tbegin4, tend3, tend4;
-PetscInt size_coeff, size_xy, size_id; 
-PetscScalar* d_coeff;
+static PetscInt size_coeff; 
+PetscInt size_xy, size_id; 
+
 PetscScalar* d_x;
 PetscScalar* d_y;
 PetscInt *d_idx, *d_idy, *d_idz;
-PetscInt i,j;
 
 //fprintf(stdout,"%d\t%d\t%d\t%d\n",m,n,p,nos);
 
 //loading the coeff, x, y, idx, idy, idz to device memory
 
-  unsigned int timer1 = 0;
+  //unsigned int timer1 = 0;
   //cutilCheckError(cutCreateTimer(&timer1));
   //cutilCheckError(cutStartTimer(timer1));
 
   //  fprintf(stdout,"In SGCUDA_MatMult\n");
 	
+      if ((*fp == PETSC_CUSP_UNALLOCATED) ||
+	  (*fp == PETSC_CUSP_CPU) )
+	{
+		if (*fp == PETSC_CUSP_UNALLOCATED)
+		{
+		size_coeff=nos*m*n*p*sizeof(PetscScalar);	
+		cudaMalloc((void**)&d_coeff,size_coeff);
+	
+	   	//cudastatus0=cudaMalloc((void**)&devA,matsize);
+	   	//if(cudastatus0!=cudaSuccess)
+		//	{
+		//  printf("Error in devA memory allocation:\nstatus0: %s\n",
+  		//	cudaGetErrorString(cudastatus0));
+          	//  PetscFunctionReturn(PETSC_ERR_MEM);
+		//	}
+		}
+	
+		cudaMemcpy(d_coeff, coeff, size_coeff, cudaMemcpyHostToDevice);
+	
+           	//cudastatus1=cudaMemcpy(devA,A,matsize,cudaMemcpyHostToDevice);
+	   	//if(cudastatus1!=cudaSuccess)
+		//{
+		// if(devA) cudaFree(devA);
+		//  printf("Error in devA memory copying:\nstatus1: %s\n",
+  		//	cudaGetErrorString(cudastatus1));
+          	//  PetscFunctionReturn(PETSC_ERR_MEM);
+		//}
+	
+	        *fp = PETSC_CUSP_BOTH;
+	}
+
 //tbegin3 = rtclock();
-size_coeff=nos*m*n*p*sizeof(PetscScalar);
-cudaMalloc((void**)&d_coeff,size_coeff);
-cudaMemcpy(d_coeff, coeff, size_coeff, cudaMemcpyHostToDevice);
+//size_coeff=nos*m*n*p*sizeof(PetscScalar);
+//cudaMalloc((void**)&d_coeff,size_coeff);
+//cudaMemcpy(d_coeff, coeff, size_coeff, cudaMemcpyHostToDevice);
+
 
 size_xy = m*n*p*sizeof(PetscScalar);
 cudaMalloc((void**)&d_x,size_xy); 
@@ -591,7 +638,7 @@ cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost);
 
 
 //Free Device Memory
-cudaFree(d_coeff);
+//cudaFree(d_coeff);
 cudaFree(d_x);
 cudaFree(d_y);
 cudaFree(d_idx);

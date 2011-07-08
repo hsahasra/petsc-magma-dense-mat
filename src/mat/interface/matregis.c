@@ -1,9 +1,5 @@
 
 #include <petscmat.h>  /*I "petscmat.h" I*/
-#include "/nfs/06/osu6070/mercurial/mercurial-1.8/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
-#include "/nfs/06/osu6070/mercurial/mercurial-1.8/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
-
-
 
 PETSC_EXTERN PetscErrorCode MatCreate_MFFD(Mat);
 PETSC_EXTERN PetscErrorCode MatCreate_MAIJ(Mat);

@@ -19,7 +19,7 @@
 #include "petscblaslapack.h"
 #include "petscbt.h"
 
-#include <immintrin.h>
+//#include <immintrin.h>
 
 #include <stdio.h>
 
@@ -353,6 +353,14 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	free(idx);
 	free(idy); 
 	free(idz);
+
+	
+	//Set the flag that indicates that matrix has changed on the CPU side.
+        //This flag is used while copying the matrix to GPU.
+        //Added by Chekuri S. Choudary 
+	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
+	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
+
 	PetscFunctionReturn(0);
 }
 
@@ -479,6 +487,10 @@ PetscErrorCode MatZeroEntries_SeqSG(Mat A)
 	Mat_SeqSG * a = (Mat_SeqSG *)A->data;
 	PetscFunctionBegin;
 	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->stpoints);
+       
+	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
+	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
+
 	PetscFunctionReturn(0);
 }
 
