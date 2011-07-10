@@ -30,9 +30,7 @@
 // shared memory scheme
 // written by: dlowell ANL-MCS
 // ----------------------------------------------------------
-
-#define SHDSIZE 12
-
+#define SHDSIZE 4
 
 
 // -----------------------------------------------
@@ -57,7 +55,9 @@ struct Stencilparams{
        int idx[STLSIZE];
        int idy[STLSIZE];
        int idz[STLSIZE];
-       int numtiles;
+       int tile_x;
+       int tile_y;
+       int tile_z;
        int tilesize;
 };//820 bytes
 
@@ -76,10 +76,10 @@ static PetscScalar* d_coeff;
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
-    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) );
-    exit(EXIT_FAILURE);
+    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
+    exit(EXIT_FAILURE); 
   }
-}
+} 
 
 //------------------------------------------------------
 // general timer function using unix system call
@@ -153,8 +153,6 @@ PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 EXTERN_C_END
 
 
-
-
 //---------------------------------------------------------------------
 //     This function implements matrix vector multiplication for the
 //     structgridgpu datatype. It calls a CUDA kernel to do matrix
@@ -197,15 +195,17 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
         sparams.matsize=a->m*a->n*a->p*a->stpoints;
 
         /// Debugging block .....................................................
-            //int xsize,ysize;
+            /*int xsize,ysize;
             //printf("Matrix A ::: m: %d, n: %d, p: %d, nos: %d dof: %d nz: %d\n",
             //    a->m,a->n,a->p,a->stpoints,a->dof,a->nz);
             //VecGetLocalSize(x,&xsize);
             //VecGetLocalSize(y,&ysize);
             //printf("Amat size: %d, Xvec size: %d, Yvec size: %d\n",sparams.matsize,xsize,ysize);
+            */
             //static PetscInt count = 1;// running count of function calls
             //printf("MatMult_SeqSGGPU(Mat mat, Vec x, Vec y): %d\n",count++);
         ///....................................................................
+
 
 // Call to dlowell's version
       ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix)); 
@@ -234,43 +234,73 @@ EXTERN_C_END
 __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
    // indices for global accesses
-   int btid = blockDim.x*blockIdx.x+threadIdx.x;
+   int btx = blockDim.x*blockIdx.x+threadIdx.x;
+   int bty = blockDim.y*blockIdx.y+threadIdx.y;
+   int btz = blockDim.z*blockIdx.z+threadIdx.z;
 
    //indices for local accesses
-   int tid = threadIdx.x;
-
-   int i,j;
+   int tx = threadIdx.x;
+   int ty = threadIdx.y;
+   int tz = threadIdx.z;
+   int tbtx, tbty, tbtz;
+   int ix,iy,iz,j;
 
    int nos  = devparams.nos; // set to register
    int lda1 = devparams.lda1;//  "   "
    int lda2 = devparams.lda2;//  "   "
    int lda3 = devparams.lda3;//  "   "
-   int numtiles = devparams.numtiles;
+   int tilex = devparams.tile_x;
+   int tiley = devparams.tile_y;
+   int tilez = devparams.tile_z;
 
    int Aindex;
+   int Yindex;
    int Xindex;
+
    int index;
 
-   __shared__ double Ys[SHDSIZE];
+
+   // Min shared mem byte count: (gridDim.x*gridDim.y*gridDim.z)*SHDSIZE^3*8 byte double
+   __shared__ double Ys[SHDSIZE][SHDSIZE][SHDSIZE];
+   __shared__ double As[SHDSIZE][SHDSIZE][SHDSIZE];
+
+//------------------------------------------------------------------------
 
    for(j=0;j<nos;j++){
-       for(i=0;i<numtiles;i++){
-           index = (devparams.tilesize*i)+btid;
-           Ys[tid]=0.;
+
+       for(ix=0;ix<tilex;ix+=devparams.tilesize){
+       for(iy=0;iy<tiley;iy+=devparams.tilesize){
+       for(iz=0;iz<tilez;iz+=devparams.tilesize){
+
+           tbtx = btx + ix;
+           tbty = bty + iy;
+           tbtz = btz + iz;
+           index = tbtz*lda2 + tbty*lda3 + tbtx;//tile width indices
+
+           Ys[tz][ty][tx]=0.;
            Aindex = j*lda1 + index;
+           As[tz][ty][tx]=A[Aindex];
            Xindex = (devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
            __syncthreads();
 
-           if (!((j==1 && ((index%devparams.m)+(index%devparams.n))==0)||
-                (j==2 && index==0)||
-                (j==3 && index%(devparams.n)==0)||
-                (j==4 && index<devparams.m))){
-                 if(Aindex<devparams.matsize && Xindex<devparams.vecsize_x) Ys[tid]=A[Aindex]*X[Xindex];
+           if (!((j==1 && tbtx==devparams.n-1 && tbty==devparams.m-1)||
+                (j==2 && tbtx==0 && tbty==0)||
+                (j==3 && tbty==devparams.m-1)||
+                (j==4 && tbty==0))){
+                   if(Aindex<devparams.matsize && Xindex < devparams.vecsize_x) {
+                      Ys[tz][ty][tx]=As[tz][ty][tx]*X[Xindex];
+                   }else Ys[tz][ty][tx]=0.;
            }//end if
 
-           if(index<devparams.vecsize_y) Y[index]+=Ys[tid];//global write back
-       }//end i-for
-       __syncthreads();
+           Yindex = index;
+           if(Yindex<devparams.vecsize_y) Y[Yindex]+=Ys[tz][ty][tx];//global write back
+
+       }//end ix-for
+           __syncthreads();
+       }//end iy-for
+           __syncthreads();
+       }//end iz-for
+           __syncthreads();
    }//end j-for
 
 }
@@ -280,7 +310,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
 //------------------------------------------------------------------------------------
 //   This function is the wrapper function which sets up the device memory, transfers
-//   data to and from the device, and calls the kernel. Error checking is done at
+//   data to and from the device, and calls the kernel. Error checking is done at 
 //   each step. Timing stats are recorded using static vars.
 //   written by: Daniel Lowell, ANL-MCS
 //------------------------------------------------------------------------------------
@@ -290,7 +320,6 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
         // vars for testing
         int i;
         static double cumtime=0.;//cummalitive call time
-        static double cumkern=0.;//cummalitive kernel time
         static unsigned int kcalls=0;//number of kernel calls
 
         // using CUDA device timer
@@ -374,24 +403,59 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
           PetscFunctionReturn(PETSC_ERR_MEM);
 	}
 
+
         //Set up blocks and thread numbers
-        P.tilesize = floor(49152.0/(float)sizeof(double));///max shared elements
-        if(P.vecsize_y < P.tilesize) P.tilesize = P.vecsize_y;
-        P.numtiles = ceil((float)P.vecsize_y/P.tilesize);
+        unsigned int maxshared = floor(49152.0/(float)2*sizeof(double));///max shared elements (2*arrays)
+        P.tilesize = ceil(pow(maxshared,(1.0/3.0)));
 
-        int blocks = ceil((float)P.tilesize/(float)SHDSIZE);//number of blocks
-        int threads = SHDSIZE;//number of threads per block
+        int bx,by,bz;//number of blocks in 3-D
+        int tx,ty,tz;//number of threads ber block in 3-D
 
-        dim3 dimGrid(blocks,1);
-	dim3 dimBlock(threads,1);
+        //Set up blocks and thread numbers
+        if(P.m < SHDSIZE){
+           tx = P.m;
+           bx = 1;
+           P.tile_x = 1;
+        }else{
+           tx = SHDSIZE;
+           bx = ceil((float)P.m/(float)SHDSIZE);
+           P.tile_x=ceil((float)bx*tx/(float)P.tilesize);
+        }
+
+        if(P.n < SHDSIZE){
+           ty = P.n;
+           by = 1;
+           P.tile_y = 1;
+        }else{
+           ty = SHDSIZE;
+           by = ceil((float)P.n/(float)SHDSIZE);
+           P.tile_y=ceil((float)by*ty/(float)P.tilesize);
+        }
+
+        if(P.p < SHDSIZE){
+           tz = P.p;
+           bz = 1;
+           P.tile_z = 1;
+        }else{
+           tz = SHDSIZE;
+           bz = ceil((float)P.p/(float)SHDSIZE);
+           P.tile_z=ceil((float)bz*tz/(float)P.tilesize);
+        }
+
+        dim3 dimGrid(bx,by,bz);
+	dim3 dimBlock(tx,ty,tz);
+
+        unsigned int sharesize = tx*ty*tz*bx*by*bz;
+        unsigned int sharebytes = tx*ty*tz*bx*by*bz*sizeof(double);
+
+
 
         static unsigned char dbgflag = 1;
         if(dbgflag){
-           printf("blocks: %d, threads: %d, Tnum: %d, Tsize: %d,  P.vecsize_y: %d\n",
-                        blocks,threads,P.numtiles,P.tilesize,P.vecsize_y);
+           printf("blocks: %d, threads: %d, Snum: %d SB: %d, Tile x,y,z: (%d, %d, %d),  tileEdge: %d\n",
+                        bx*by*bz,tx*ty*tz,sharesize,sharebytes,P.tile_x,P.tile_y,P.tile_z,P.tilesize);
                 dbgflag=0;
         }
-
         // update constant memory with structured grid parameters
 	cudastatus6=cudaMemcpyToSymbol("devparams",&P,sizeof(Stencilparams));
 	if(cudastatus6!=cudaSuccess){
@@ -432,22 +496,19 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
         }
         //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 
+
         //Free device memory
 	//if(devA) cudaFree(devA);
 	if(devY) cudaFree(devY);
 	if(devX) cudaFree(devX);
 
 	ce=getclock();
-	temp+=1000.0*(ce-cs);
-        cumkern+=(elapsedtime);
-        cumtime+=(elapsedtime)+temp;
-        kcalls++;
-        printf("Kernel call #: %d\n",kcalls);
-        printf("Cumilative function call time: %lf msec.\n", cumtime);
-        printf("Cumilative kernel time: %lf msec.\n", cumkern);
-        printf("Current call: setup+copyback: %lf msec., kernel time: %f msec.\n",temp,elapsedtime);
-        printf("-------------------------------------------------------------------------\n\n");
-
+	temp+=ce-cs;
+        cumtime+=(elapsedtime/1000)+temp;
+       // kcalls++;
+       // printf("Cumilative kernel time (including setup): %lf msec.\n", cumtime);
+      //  printf("Kernel call #: %d, setup+teardown: %f msec., elapsed time: %f msec.\n\n",
+      //                 kcalls,temp,elapsedtime/1000);
         PetscFunctionReturn(0);
 }
 
