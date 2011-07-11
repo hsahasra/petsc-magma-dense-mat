@@ -59,7 +59,10 @@ struct Stencilparams{
        int tile_y;
        int tile_z;
        int tilesize;
-};//820 bytes
+       int tsizex;
+       int tsizey;
+       int tsizez;
+};//840 bytes
 
 __constant__ Stencilparams devparams;//device memory
 
@@ -208,11 +211,11 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 
 
 // Call to dlowell's version
-      ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix)); 
+      ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
 //	CHKERRQ(ierr);
 
 // Call to Jeswin's version
-//        ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints, 
+//        ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,
 //	                     &(mat->valid_GPU_matrix));
         CHKERRQ(ierr);
 
@@ -233,15 +236,7 @@ EXTERN_C_END
 //-------------------------------------------------------------------------------
 __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
-   // indices for global accesses
-   int btx = blockDim.x*blockIdx.x+threadIdx.x;
-   int bty = blockDim.y*blockIdx.y+threadIdx.y;
-   int btz = blockDim.z*blockIdx.z+threadIdx.z;
-
    //indices for local accesses
-   int tx = threadIdx.x;
-   int ty = threadIdx.y;
-   int tz = threadIdx.z;
    int tbtx, tbty, tbtz;
    int ix,iy,iz,j;
 
@@ -249,63 +244,79 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
    int lda1 = devparams.lda1;//  "   "
    int lda2 = devparams.lda2;//  "   "
    int lda3 = devparams.lda3;//  "   "
-   int tilex = devparams.tile_x;
-   int tiley = devparams.tile_y;
-   int tilez = devparams.tile_z;
+   int tilex = devparams.tile_x*devparams.tsizex;
+   int tiley = devparams.tile_y*devparams.tsizey;
+   int tilez = devparams.tile_z*devparams.tsizez;
 
    int Aindex;
-   int Yindex;
    int Xindex;
-
    int index;
 
 
-   // Min shared mem byte count: (gridDim.x*gridDim.y*gridDim.z)*SHDSIZE^3*8 byte double
+   //Min shared mem byte count: 2*(gridDim.x*gridDim.y*gridDim.z)*SHDSIZE^3*8 byte double
    __shared__ double Ys[SHDSIZE][SHDSIZE][SHDSIZE];
    __shared__ double As[SHDSIZE][SHDSIZE][SHDSIZE];
 
 //------------------------------------------------------------------------
 
-   for(j=0;j<nos;j++){
+   for(iz=0;iz<tilez;iz+=devparams.tsizez){// tiles Z loop
+        tbtz = blockDim.z*blockIdx.z+threadIdx.z + iz;
 
-       for(ix=0;ix<tilex;ix+=devparams.tilesize){
-       for(iy=0;iy<tiley;iy+=devparams.tilesize){
-       for(iz=0;iz<tilez;iz+=devparams.tilesize){
+   for(iy=0;iy<tiley;iy+=devparams.tsizey){// tiles Y loop
+        tbty = blockDim.y*blockIdx.y+threadIdx.y + iy;
 
-           tbtx = btx + ix;
-           tbty = bty + iy;
-           tbtz = btz + iz;
-           index = tbtz*lda2 + tbty*lda3 + tbtx;//tile width indices
+   for(ix=0;ix<tilex;ix+=devparams.tsizex){// tiles X loop
+        tbtx = blockDim.x*blockIdx.x+threadIdx.x + ix;
+        __syncthreads();
 
-           Ys[tz][ty][tx]=0.;
-           Aindex = j*lda1 + index;
-           As[tz][ty][tx]=A[Aindex];
-           Xindex = (devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
+        //cuPrintf("tid xyz: %d, %d, %d\n",tbtx,tbty,tbtz);
+        //initialize current return-tile
+        Ys[threadIdx.z][threadIdx.y][threadIdx.x]=0.;
+
+        //adjusted index for global access
+        index = tbtz*lda2 + tbty*lda3 + tbtx;
+
+        __syncthreads();
+
+//......STENCIL...........................................
+        for(j=0;j<nos;j++){//loop over stencil pattern
+
+           Aindex=j*lda1+index;//set up Aindex and read from global A into As tile
+           if(Aindex<devparams.matsize) As[threadIdx.z][threadIdx.y][threadIdx.x]=A[Aindex];//needs to be coalesced
+           else As[threadIdx.z][threadIdx.y][threadIdx.x]=0.;
+
            __syncthreads();
 
-           if (!((j==1 && tbtx==devparams.n-1 && tbty==devparams.m-1)||
-                (j==2 && tbtx==0 && tbty==0)||
-                (j==3 && tbty==devparams.m-1)||
+           if(!((j==1 && tbtx==devparams.m-1 && tbty==devparams.n-1)||
+                (j==2 && tbtx==0 && tbty==0)|| (j==3 && tbty==devparams.n-1)||
                 (j==4 && tbty==0))){
-                   if(Aindex<devparams.matsize && Xindex < devparams.vecsize_x) {
-                      Ys[tz][ty][tx]=As[tz][ty][tx]*X[Xindex];
-                   }else Ys[tz][ty][tx]=0.;
+
+              //set up Xindex for element-wise operation using stencil pattern
+              Xindex=(devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
+              if(Xindex<devparams.vecsize_x)
+                 Ys[threadIdx.z][threadIdx.y][threadIdx.x]+=As[threadIdx.z][threadIdx.y][threadIdx.x]*X[Xindex];
+
            }//end if
-
-           Yindex = index;
-           if(Yindex<devparams.vecsize_y) Y[Yindex]+=Ys[tz][ty][tx];//global write back
-
-       }//end ix-for
            __syncthreads();
-       }//end iy-for
-           __syncthreads();
-       }//end iz-for
-           __syncthreads();
-   }//end j-for
 
-}
+        }//end j-for
+
+        __syncthreads();
+        if(index<devparams.vecsize_y) Y[index]=Ys[threadIdx.z][threadIdx.y][threadIdx.x];//global write back
+
+   }//end ix-for
+   }//end iy-for
+   }//end iz-for
+}//end kernel_v2
 
 
+
+
+
+
+//   int Xoffset;
+              //Xoffset=(devparams.idz[j]*lda2+devparams.idy[j]*lda3+devparams.idx[j]);
+              //  cuPrintf("Xindex: %d, Xoffset: %d, Xsize: %d idx: %d, idy: %d, idz: %d, j: %d nos: %d\n",Xindex,Xoffset,devparams.vecsize_x,devparams.idx[j],devparams.idy[j],devparams.idz[j],j,nos);
 
 
 //------------------------------------------------------------------------------------
@@ -405,57 +416,90 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 
 
         //Set up blocks and thread numbers
-        unsigned int maxshared = floor(49152.0/(float)2*sizeof(double));///max shared elements (2*arrays)
+        double maxshared = 49152.0/(double)(sizeof(double));
         P.tilesize = ceil(pow(maxshared,(1.0/3.0)));
 
         int bx,by,bz;//number of blocks in 3-D
         int tx,ty,tz;//number of threads ber block in 3-D
+        int maxblocks = P.tilesize/SHDSIZE;
 
-        //Set up blocks and thread numbers
-        if(P.m < SHDSIZE){
+        //Set up blocks and thread numbers for columns
+        if(P.m <= SHDSIZE){
            tx = P.m;
            bx = 1;
            P.tile_x = 1;
+           P.tsizex=1;
         }else{
            tx = SHDSIZE;
-           bx = ceil((float)P.m/(float)SHDSIZE);
-           P.tile_x=ceil((float)bx*tx/(float)P.tilesize);
+           bx = ceil((float)P.m/(float)SHDSIZE);//create enough blocks
+           if(bx>maxblocks){                    //too many blocks created
+              bx = maxblocks;                   //set to max number of blocks allowed
+              P.tile_x=ceil((float)P.m/(float)(bx*SHDSIZE));//number of tiles
+              P.tsizex=bx*SHDSIZE;              //tilesize is block-thread coverage
+           }else{
+            P.tile_x=1;
+            P.tsizex=1;
+           }
         }
 
-        if(P.n < SHDSIZE){
+        //Set up blocks and thread numbers for rows
+        if(P.n <= SHDSIZE){
            ty = P.n;
            by = 1;
            P.tile_y = 1;
+           P.tsizey=1;
         }else{
            ty = SHDSIZE;
            by = ceil((float)P.n/(float)SHDSIZE);
-           P.tile_y=ceil((float)by*ty/(float)P.tilesize);
+           if(by > maxblocks){
+              by = maxblocks;
+              P.tile_y=ceil((float)P.n/(float)(by*SHDSIZE));
+              P.tsizey=by*SHDSIZE;
+           }else{
+            P.tile_y=1;
+            P.tsizey=1;
+           }
         }
 
-        if(P.p < SHDSIZE){
+        //Set up blocks and thread numbers for z
+        if(P.p <= SHDSIZE){
            tz = P.p;
            bz = 1;
            P.tile_z = 1;
+           P.tsizez=1;
         }else{
            tz = SHDSIZE;
            bz = ceil((float)P.p/(float)SHDSIZE);
-           P.tile_z=ceil((float)bz*tz/(float)P.tilesize);
+           if(bz > maxblocks){
+              bz = maxblocks;
+              P.tile_z=ceil((float)P.p/(float)(bz*SHDSIZE));
+              P.tsizez=bz*SHDSIZE;
+           }else{
+            P.tile_z=1;
+            P.tsizez=1;
+           }
         }
 
         dim3 dimGrid(bx,by,bz);
 	dim3 dimBlock(tx,ty,tz);
 
-        unsigned int sharesize = tx*ty*tz*bx*by*bz;
-        unsigned int sharebytes = tx*ty*tz*bx*by*bz*sizeof(double);
-
-
-
+        //...................................................................................
+        unsigned int sharebytes = 2*tx*ty*tz*bx*by*bz*sizeof(double);
         static unsigned char dbgflag = 1;
         if(dbgflag){
-           printf("blocks: %d, threads: %d, Snum: %d SB: %d, Tile x,y,z: (%d, %d, %d),  tileEdge: %d\n",
-                        bx*by*bz,tx*ty*tz,sharesize,sharebytes,P.tile_x,P.tile_y,P.tile_z,P.tilesize);
-                dbgflag=0;
+          printf("(m, n, p, nos): (%d, %d, %d, %d)\n",P.m,P.n,P.p,P.nos);
+          printf("MAXBLOCKS: %d maxshared: %lf\n",maxblocks,maxshared);
+          printf("blocks: (%d, %d, %d), threads per block: %d\n", bx,by,bz,tx*ty*tz );
+          printf("Shared elements occupied: %0.3f SharedOccupied in Bytes: %d\n",sharebytes/49152.0,sharebytes);
+          printf("Blocks x,y,z: (%d, %d, %d)\n",bx,by,bz);
+          printf("Blocks*ThreadsPer size x,y,z: (%d, %d, %d)\n",bx*tx,by*ty,bz*tz);
+          printf("Tiles (x,y,z): (%d, %d, %d)\n",P.tile_x,P.tile_y,P.tile_z);
+          printf("Tile Size (x,y,z): (%d, %d, %d)\n",P.tsizex,P.tsizey,P.tsizez);
+          dbgflag=0;
         }
+        //....................................................................................
+
+
         // update constant memory with structured grid parameters
 	cudastatus6=cudaMemcpyToSymbol("devparams",&P,sizeof(Stencilparams));
 	if(cudastatus6!=cudaSuccess){
@@ -466,7 +510,6 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 	  if(devX) cudaFree(devX);
           PetscFunctionReturn(PETSC_ERR_MEM);
 	}
-
 
 	ce=getclock();//end setup timer
 	temp=ce-cs;
@@ -494,7 +537,11 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 	  if(devX) cudaFree(devX);
           PetscFunctionReturn(PETSC_ERR_MEM);
         }
-        //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
+
+        if(dbgflag){
+           for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
+           dbgflag=0;
+        }
 
 
         //Free device memory
@@ -511,6 +558,17 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
       //                 kcalls,temp,elapsedtime/1000);
         PetscFunctionReturn(0);
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*  -------------------------------------------------------------------- 
