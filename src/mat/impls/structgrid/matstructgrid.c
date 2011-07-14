@@ -149,12 +149,15 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
-	
 
+//......matmultintrinsic
+	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+
+// version 2 below
 	//ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
        	
-        ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
-	
+// version 1 below
+//        ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
 	ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
@@ -164,9 +167,9 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 
 
 
-/** SG_MatMult : Performs the matrix vector multiplication on linearized matrix representation coeff and the vector x
+/** SG_MatMult : (version 1) Performs the matrix vector multiplication on linearized matrix representation coeff and the vector x
  Added by Deepan */
-#undef __FUNCT__
+/*#undef __FUNCT__
 #define __FUNCT__ "SG_MatMult"
 PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
@@ -179,7 +182,7 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,
 	for(l=0;l<nos;l++)
 	{
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset = l*lda1;
-                printf("offset: %d\n",offset);
+                //printf("offset: %d\n",offset);
 	 	xval = xdisp + ydisp*lda3 + zdisp*lda2;
 // vbeg and vend specifies the starting and ending indices of the y vector that gets updated.
 //Added by Deepan 
@@ -207,7 +210,7 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y,
 	}
 	PetscFunctionReturn(0);
 }
-
+*/
 
 
 
