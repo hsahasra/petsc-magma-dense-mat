@@ -359,8 +359,8 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
         //defined in the base class to check the status of the
         //matrix. The matrix is copied to the GPU only if
         //it has been changed on the CPU side
-        //This feature added by Chekuri S. Choudary  
-	
+        //This feature added by Chekuri S. Choudary
+
       if ((*fp == PETSC_CUSP_UNALLOCATED) ||
 	  (*fp == PETSC_CUSP_CPU) )
 	{
@@ -416,8 +416,9 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 
 
         //Set up blocks and thread numbers
-        double maxshared = 49152.0/(double)(sizeof(double));
-        P.tilesize = ceil(pow(maxshared,(1.0/3.0)));
+        double maxshared = 49152.0/(double)(2.0*sizeof(double));
+        if(P.p==1) P.tilesize = pow(maxshared,0.5);//square blocks
+        else P.tilesize = pow(maxshared,(1.0/3.0));//cube blocks
 
         int bx,by,bz;//number of blocks in 3-D
         int tx,ty,tz;//number of threads ber block in 3-D
