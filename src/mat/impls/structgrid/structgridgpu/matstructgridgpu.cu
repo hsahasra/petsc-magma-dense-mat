@@ -23,6 +23,8 @@
 #include "matstructgridgpu.h"
 #include "cuPrintf.cu"
 
+#define _DBGFLAG 0
+
 // ----------------------------------------------------------
 // hardcodiing the shared memory size this should be set
 // to give maximum performance, however should be
@@ -58,16 +60,20 @@ struct Stencilparams{
        int tile_x;
        int tile_y;
        int tile_z;
-       int tilesize;
        int tsizex;
        int tsizey;
        int tsizez;
-};//840 bytes
+};//836 bytes
 
 __constant__ Stencilparams devparams;//device memory
 
+
+
 static double* devA;
 static PetscScalar* d_coeff;
+static double* devX;
+static double* devY;
+
 
 
 
@@ -116,6 +122,8 @@ PetscErrorCode  MatDestroy_SeqSGGPU(Mat B)
 	{
   	if (devA) cudaFree(devA);
 	if (d_coeff) cudaFree(d_coeff);
+	if(devY) cudaFree(devY);
+	if(devX) cudaFree(devX);
 	}
 
   B->valid_GPU_matrix = PETSC_CUSP_UNALLOCATED;
@@ -330,15 +338,22 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 
         // vars for testing
         int i;
+        static double cumktime=0.;//cummalitive kernel time
         static double cumtime=0.;//cummalitive call time
         static unsigned int kcalls=0;//number of kernel calls
-
-        // using CUDA device timer
-	float elapsedtime;
-	cudaEvent_t start,stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
 	double cs,ce,temp;
+	float elapsedtime;        // using CUDA device timer
+	cudaEvent_t start,stop;
+
+        static unsigned char allocflag = 1;
+        static double maxshared;
+        static int bx,by,bz;//number of blocks in 3-D
+        static int tx,ty,tz;//number of threads ber block in 3-D
+        static int maxblocks_xy;
+        static int maxblocks_z;
+        static dim3 dimGrid;
+	static dim3 dimBlock;
+        static int xytile;
 
 	cudaError_t cudastatus0,cudastatus1,
 	            cudastatus2,cudastatus3,
@@ -346,12 +361,19 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
            	    cudastatus6,cudastatus7;
 
 
+        //size in bytes to be allocated onto device
         int matsize =P.matsize*sizeof(double);
         int vecsize_x = P.vecsize_x*sizeof(double);
         int vecsize_y = P.vecsize_y*sizeof(double);
 
-// 	allocate GPU device memory
-	cs=getclock();
+
+        if(_DBGFLAG){//create CUDA events for timer
+           cudaEventCreate(&start);
+           cudaEventCreate(&stop);
+        }
+
+
+	if(_DBGFLAG) cs=getclock();
 
         //Allocate and Memcpy Structured Matrix A
 	//The matrix remains the same throughout one iteration
@@ -361,23 +383,18 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
         //it has been changed on the CPU side
         //This feature added by Chekuri S. Choudary
 
-      if ((*fp == PETSC_CUSP_UNALLOCATED) ||
-	  (*fp == PETSC_CUSP_CPU) )
-	{
-		if (*fp == PETSC_CUSP_UNALLOCATED)
-		{
-	   	cudastatus0=cudaMalloc((void**)&devA,matsize);
-	   	if(cudastatus0!=cudaSuccess)
-			{
-		  printf("Error in devA memory allocation:\nstatus0: %s\n",
+        if ((*fp == PETSC_CUSP_UNALLOCATED) || (*fp == PETSC_CUSP_CPU)){
+		if (*fp == PETSC_CUSP_UNALLOCATED){
+	   	   cudastatus0=cudaMalloc((void**)&devA,matsize);
+	   	   if(cudastatus0!=cudaSuccess){
+                        printf("Error in devA memory allocation:\nstatus0: %s\n",
   			cudaGetErrorString(cudastatus0));
-          	  PetscFunctionReturn(PETSC_ERR_MEM);
-			}
+          	        PetscFunctionReturn(PETSC_ERR_MEM);
+		   }
 		}
 
            	cudastatus1=cudaMemcpy(devA,A,matsize,cudaMemcpyHostToDevice);
-	   	if(cudastatus1!=cudaSuccess)
-		{
+	   	if(cudastatus1!=cudaSuccess){
 		  if(devA) cudaFree(devA);
 		  printf("Error in devA memory copying:\nstatus1: %s\n",
   			cudaGetErrorString(cudastatus1));
@@ -387,146 +404,185 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 	       *fp = PETSC_CUSP_BOTH;
 	}
 
-        // Allocate and Memcpy Vector X
-	double* devX;
-	cudastatus2=cudaMalloc((void**)&devX,vecsize_x);
-	cudastatus3=cudaMemcpy(devX,X,vecsize_x,cudaMemcpyHostToDevice);
-	if(cudastatus2!=cudaSuccess|cudastatus3!=cudaSuccess){
-	  printf("Error in devX memory allocation:\nstatus2: %s, status3: %s.\n",
-  			cudaGetErrorString(cudastatus2),
-			cudaGetErrorString(cudastatus3));
-	  if(devA) cudaFree(devA);
-	  if(devX) cudaFree(devX);
-          PetscFunctionReturn(PETSC_ERR_MEM);
-	}
 
-        // Allocate and Memset(0.) Vector Y
-	double* devY;
-	cudastatus4=cudaMalloc((void**)&devY,vecsize_y);
-	cudastatus5=cudaMemset(devY,0.0,vecsize_y);
-	if(cudastatus4!=cudaSuccess|cudastatus5!=cudaSuccess){
-	  printf("Error in devY memory allocation:\nstatus4: %s, status5: %s\n",
-	  		cudaGetErrorString(cudastatus4),
-			cudaGetErrorString(cudastatus5));
-	  if(devA) cudaFree(devA);
-	  if(devY) cudaFree(devY);
-          if(devX) cudaFree(devX);
-          PetscFunctionReturn(PETSC_ERR_MEM);
-	}
+        //Allocate device memory for X and Y, and shape grid and blocks
+        if(allocflag){
+                cudastatus2=cudaMalloc((void**)&devX,vecsize_x);//allocate X on device
+	        if(cudastatus2!=cudaSuccess){
+                        printf("Error in devX memory allocation: %s\n",cudaGetErrorString(cudastatus2));
+	                if(devA) cudaFree(devA);
+                        PetscFunctionReturn(PETSC_ERR_MEM);
+                }
+
+                cudastatus3=cudaMalloc((void**)&devY,vecsize_y);//allocate Y on device
+                if(cudastatus3!=cudaSuccess){
+                        printf("Error in devY memory allocation: %s\n",cudaGetErrorString(cudastatus3));
+	                if(devA) cudaFree(devA);
+	                if(devX) cudaFree(devX);
+                        PetscFunctionReturn(PETSC_ERR_MEM);
+	        }
 
 
-        //Set up blocks and thread numbers
-        double maxshared = 49152.0/(double)(2.0*sizeof(double));
-        if(P.p==1) P.tilesize = pow(maxshared,0.5);//square blocks
-        else P.tilesize = pow(maxshared,(1.0/3.0));//cube blocks
 
-        int bx,by,bz;//number of blocks in 3-D
-        int tx,ty,tz;//number of threads ber block in 3-D
-        int maxblocks = P.tilesize/SHDSIZE;
+                //Set up blocks and thread numbers
+                maxshared = 49152.0/(double)(2.0*sizeof(double));
+                if(P.p==1){
+                    xytile = pow(maxshared,0.5);//square blocks
+                    maxblocks_z = 1;
+                }else{
+                    temp=maxshared/P.p;//lop off z
+                    xytile = pow(temp,0.5);//xyblocks
+                    maxblocks_z=ceil((float)SHDSIZE/(float)P.p);
+                }
+                maxblocks_xy = xytile/SHDSIZE;
 
-        //Set up blocks and thread numbers for columns
-        if(P.m <= SHDSIZE){
-           tx = P.m;
-           bx = 1;
-           P.tile_x = 1;
-           P.tsizex=1;
-        }else{
-           tx = SHDSIZE;
-           bx = ceil((float)P.m/(float)SHDSIZE);//create enough blocks
-           if(bx>maxblocks){                    //too many blocks created
-              bx = maxblocks;                   //set to max number of blocks allowed
-              P.tile_x=ceil((float)P.m/(float)(bx*SHDSIZE));//number of tiles
-              P.tsizex=bx*SHDSIZE;              //tilesize is block-thread coverage
-           }else{
-            P.tile_x=1;
-            P.tsizex=1;
-           }
-        }
 
-        //Set up blocks and thread numbers for rows
-        if(P.n <= SHDSIZE){
-           ty = P.n;
-           by = 1;
-           P.tile_y = 1;
-           P.tsizey=1;
-        }else{
-           ty = SHDSIZE;
-           by = ceil((float)P.n/(float)SHDSIZE);
-           if(by > maxblocks){
-              by = maxblocks;
-              P.tile_y=ceil((float)P.n/(float)(by*SHDSIZE));
-              P.tsizey=by*SHDSIZE;
-           }else{
-            P.tile_y=1;
-            P.tsizey=1;
-           }
-        }
+                //Set up blocks and thread numbers for columns
+                if(P.m <= SHDSIZE){
+                       tx = P.m;
+                       bx = 1;
+                       P.tile_x = 1;
+                       P.tsizex=1;
+                }else{
+                       tx = SHDSIZE;
+                       bx = ceil((float)P.m/(float)SHDSIZE);//create enough blocks
+                       if(bx>maxblocks_xy){                    //too many blocks created
+                          bx = maxblocks_xy;                   //set to max number of blocks allowed
+                          P.tile_x=ceil((float)P.m/(float)(bx*SHDSIZE));//number of tiles
+                          P.tsizex=bx*SHDSIZE;              //tilesize is block-thread coverage
+                       }else{
+                          P.tile_x=1;
+                          P.tsizex=1;
+                       }
+                }
 
-        //Set up blocks and thread numbers for z
-        if(P.p <= SHDSIZE){
-           tz = P.p;
-           bz = 1;
-           P.tile_z = 1;
-           P.tsizez=1;
-        }else{
-           tz = SHDSIZE;
-           bz = ceil((float)P.p/(float)SHDSIZE);
-           if(bz > maxblocks){
-              bz = maxblocks;
-              P.tile_z=ceil((float)P.p/(float)(bz*SHDSIZE));
-              P.tsizez=bz*SHDSIZE;
-           }else{
-            P.tile_z=1;
-            P.tsizez=1;
-           }
-        }
+                //Set up blocks and thread numbers for rows
+                if(P.n <= SHDSIZE){
+                       ty = P.n;
+                       by = 1;
+                       P.tile_y = 1;
+                       P.tsizey=1;
+                }else{
+                       ty = SHDSIZE;
+                       by = ceil((float)P.n/(float)SHDSIZE);
+                       if(by > maxblocks_xy){
+                          by = maxblocks_xy;
+                          P.tile_y=ceil((float)P.n/(float)(by*SHDSIZE));
+                          P.tsizey=by*SHDSIZE;
+                       }else{
+                          P.tile_y=1;
+                          P.tsizey=1;
+                       }
+                }
 
-        dim3 dimGrid(bx,by,bz);
-	dim3 dimBlock(tx,ty,tz);
+                //Set up blocks and thread numbers for z
+                if(P.p <= SHDSIZE){
+                       tz = P.p;
+                       bz = 1;
+                       P.tile_z = 1;
+                       P.tsizez=1;
+                }else{
+                       tz = SHDSIZE;
+                       bz = ceil((float)P.p/(float)SHDSIZE);
+                       if(bz > maxblocks_z){
+                          bz = maxblocks_z;
+                          P.tile_z=ceil((float)P.p/(float)(bz*SHDSIZE));
+                          P.tsizez=bz*SHDSIZE;
+                       }else{
+                          P.tile_z=1;
+                          P.tsizez=1;
+                       }
+                }
 
-        //...................................................................................
+                //set grid shape
+                dimGrid.x = bx;
+                dimGrid.y = by;
+                dimGrid.z = bz;
+
+                //set block shape
+                dimBlock.x = tx;
+                dimBlock.y = ty;
+                dimBlock.z = tz;
+
+                // update constant memory with structured grid parameters
+	        cudastatus6=cudaMemcpyToSymbol("devparams",&P,sizeof(Stencilparams));
+	        if(cudastatus6!=cudaSuccess){
+                        printf("Error in symbol copy to device: %s.\n",cudaGetErrorString(cudastatus6));
+                        if(devA) cudaFree(devA);
+	                if(devY) cudaFree(devY);
+	                if(devX) cudaFree(devX);
+                        PetscFunctionReturn(PETSC_ERR_MEM);
+	        }
+
+                //toggle off allocation flag
+                allocflag = 0;
+
+        }//end allocflag-if
+
+        //grid and block shape & device config. debugging.....................................
         unsigned int sharebytes = 2*tx*ty*tz*bx*by*bz*sizeof(double);
         static unsigned char dbgflag = 1;
         if(dbgflag){
-          printf("(m, n, p, nos): (%d, %d, %d, %d)\n",P.m,P.n,P.p,P.nos);
-          printf("MAXBLOCKS: %d maxshared: %lf\n",maxblocks,maxshared);
-          printf("blocks: (%d, %d, %d), threads per block: %d\n", bx,by,bz,tx*ty*tz );
-          printf("Shared elements occupied: %0.3f SharedOccupied in Bytes: %d\n",sharebytes/49152.0,sharebytes);
-          printf("Blocks x,y,z: (%d, %d, %d)\n",bx,by,bz);
-          printf("Blocks*ThreadsPer size x,y,z: (%d, %d, %d)\n",bx*tx,by*ty,bz*tz);
-          printf("Tiles (x,y,z): (%d, %d, %d)\n",P.tile_x,P.tile_y,P.tile_z);
-          printf("Tile Size (x,y,z): (%d, %d, %d)\n",P.tsizex,P.tsizey,P.tsizez);
-          dbgflag=0;
+           printf("(m, n, p, nos): (%d, %d, %d, %d)\n",P.m,P.n,P.p,P.nos);
+           printf("MAXBLOCKS: %d maxshared: %lf\n",maxblocks_xy+maxblocks_z,maxshared);
+           printf("blocks: (%d, %d, %d), threads per block: %d\n", bx,by,bz,tx*ty*tz );
+           printf("Shared elements occupied: %0.3f SharedOccupied in Bytes: %d\n",sharebytes/49152.0,sharebytes);
+           printf("Blocks x,y,z: (%d, %d, %d)\n",bx,by,bz);
+           printf("Blocks*ThreadsPer size x,y,z: (%d, %d, %d)\n",bx*tx,by*ty,bz*tz);
+           printf("Tiles (x,y,z): (%d, %d, %d)\n",P.tile_x,P.tile_y,P.tile_z);
+           printf("Tile Size (x,y,z): (%d, %d, %d)\n",P.tsizex,P.tsizey,P.tsizez);
+           dbgflag=0;
         }
-        //....................................................................................
+        //...End config. debug section.................................................................
 
 
-        // update constant memory with structured grid parameters
-	cudastatus6=cudaMemcpyToSymbol("devparams",&P,sizeof(Stencilparams));
-	if(cudastatus6!=cudaSuccess){
-	  printf("Error in symbol copy: status6: %s.\n",
-	  		cudaGetErrorString(cudastatus6));
-	  if(devA) cudaFree(devA);
-	  if(devY) cudaFree(devY);
-	  if(devX) cudaFree(devX);
-          PetscFunctionReturn(PETSC_ERR_MEM);
+
+
+       //copy over values of X to device memory
+	cudastatus4=cudaMemcpy(devX,X,vecsize_x,cudaMemcpyHostToDevice);
+	if(cudastatus4!=cudaSuccess){
+                printf("Error in devX memory copy to device: status: %s\n",cudaGetErrorString(cudastatus4));
+	        if(devA) cudaFree(devA);
+	        if(devX) cudaFree(devX);
+	        if(devY) cudaFree(devY);
+                PetscFunctionReturn(PETSC_ERR_MEM);
 	}
 
-	ce=getclock();//end setup timer
-	temp=ce-cs;
+/*//probably an unnecessary step.
+        // memset to 0. Vector Y on device
+	cudastatus5=cudaMemset(devY,0.0,vecsize_y);
+	if(cudastatus5!=cudaSuccess){
+                printf("Error in devY memset to device: %s\n",cudaGetErrorString(cudastatus5));
+	        if(devA) cudaFree(devA);
+                if(devY) cudaFree(devY);
+                if(devX) cudaFree(devX);
+                PetscFunctionReturn(PETSC_ERR_MEM);
+	}
+*/
 
-        cudaPrintfInit();//start cuda printf environ.
-	cudaEventRecord(start,0);//begin recording kernel
+        //toggle timer and debug settings
+        if(_DBGFLAG){
+                ce=getclock();//end setup timer
+	        temp=ce-cs;
+                cudaPrintfInit();//start cuda printf environ.
+	        cudaEventRecord(start,0);//begin recording kernel
+        }
+
+        //Launch the kernel..........................................
 	MatMul_Kernel_v2<<<dimGrid,dimBlock>>>(devA,devX,devY);
         checkCUDAError("CUDA Kernel launch...");//check for failure
-        cudaPrintfDisplay(stdout, true);//choose output
-        cudaPrintfEnd();//kill cuda printf environ
-	cudaEventRecord(stop,0);
-	cudaEventSynchronize(stop); // event barrier
-	cudaEventElapsedTime(&elapsedtime,start,stop);
-        cudaEventDestroy(start);
-	cudaEventDestroy(stop);
+        //...........................................................
 
+        //toggle timer and debug settings
+        if(_DBGFLAG){
+                cudaPrintfDisplay(stdout, true);//choose output
+                cudaPrintfEnd();//kill cuda printf environ
+	        cudaEventRecord(stop,0);
+	        cudaEventSynchronize(stop); // event barrier
+	        cudaEventElapsedTime(&elapsedtime,start,stop);
+                cudaEventDestroy(start);
+	        cudaEventDestroy(stop);
+        }
 
         // Copy back Vector Y from Kernel
 	cs=getclock();
@@ -539,24 +595,23 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
           PetscFunctionReturn(PETSC_ERR_MEM);
         }
 
-        if(dbgflag){
-           for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
-           dbgflag=0;
-        }
 
 
-        //Free device memory
-	//if(devA) cudaFree(devA);
-	if(devY) cudaFree(devY);
-	if(devX) cudaFree(devX);
+        if(_DBGFLAG){
+          //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
+	  ce=getclock();
+	  temp+=ce-cs;
+          cumktime+=(elapsedtime/1000);
+          cumtime+=(elapsedtime/1000)+temp;
+          kcalls++;
+          printf("Kernel call #: %d\n",kcalls);
+          printf("setup+copyback: %f sec.\nelapsed time: %f sec.\ntotal call time: %f sec.\n",
+                  temp,elapsedtime/1000,(elapsedtime/1000)+temp);
+          printf("Cum. kernel time: %lf sec.\n", cumktime);
+          printf("Cum. call time (with setup): %lf sec.\n", cumtime);
+          printf(".........................................\n\n");
+        }//end _DBGFLAG-if
 
-	ce=getclock();
-	temp+=ce-cs;
-        cumtime+=(elapsedtime/1000)+temp;
-       // kcalls++;
-       // printf("Cumilative kernel time (including setup): %lf msec.\n", cumtime);
-      //  printf("Kernel call #: %d, setup+teardown: %f msec., elapsed time: %f msec.\n\n",
-      //                 kcalls,temp,elapsedtime/1000);
         PetscFunctionReturn(0);
 }
 
