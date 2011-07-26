@@ -272,7 +272,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
    for(ix=0;ix<tilex;ix+=devparams.tsizex){// tiles X loop
         tbtx = blockDim.x*blockIdx.x+threadIdx.x + ix;
-        __syncthreads();
+        //__syncthreads();
 
         //cuPrintf("tid xyz: %d, %d, %d\n",tbtx,tbty,tbtz);
         //initialize current return-tile
@@ -281,7 +281,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
         //adjusted index for global access
         index = tbtz*lda2 + tbty*lda3 + tbtx;
 
-        __syncthreads();
+        //__syncthreads();
 
 //......STENCIL...........................................
         for(j=0;j<nos;j++){//loop over stencil pattern
@@ -306,7 +306,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
         }//end j-for
 
-        __syncthreads();
+        //__syncthreads();
         if(index<devparams.vecsize_y) Y[index]=Ys[threadIdx.z][threadIdx.y][threadIdx.x];//global write back
 
    }//end ix-for

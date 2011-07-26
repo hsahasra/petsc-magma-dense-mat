@@ -1763,6 +1763,9 @@ PetscErrorCode MatZeroRowsColumns_SeqAIJ(Mat A,PetscInt N,const PetscInt rows[],
 #define __FUNCT__ "MatGetRow_SeqAIJ"
 PetscErrorCode MatGetRow_SeqAIJ(Mat A,PetscInt row,PetscInt *nz,PetscInt **idx,PetscScalar **v)
 {
+
+  printf(".....................in MatGetRow_SeqAIJ()\n");
+
   Mat_SeqAIJ *a = (Mat_SeqAIJ*)A->data;
   PetscInt   *itmp;
 
