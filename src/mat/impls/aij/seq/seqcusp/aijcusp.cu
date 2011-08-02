@@ -14,7 +14,8 @@ PETSC_CUDA_EXTERN_C_BEGIN
 PETSC_CUDA_EXTERN_C_END
 #undef VecType
 #include "../src/mat/impls/aij/seq/seqcusp/cuspmatimpl.h"
-
+#include <cuda.h>
+#include <sys/time.h>
 
 #ifdef PETSC_HAVE_TXPETSCGPU
 
@@ -959,21 +960,35 @@ PetscErrorCode MatGetVecs_SeqAIJCUSP(Mat mat, Vec *right, Vec *left)
   PetscFunctionReturn(0);
 }
 
+double rtclock(){
+      struct timezone tzp;
+      struct timeval tp;
+      gettimeofday (&tp, &tzp);
+      return (tp.tv_sec + tp.tv_usec*1.0e-6);
+}
+
+		
+
 #undef __FUNCT__  
 #define __FUNCT__ "MatMult_SeqAIJCUSP"
 PetscErrorCode MatMult_SeqAIJCUSP(Mat A,Vec xx,Vec yy)
 {
   Mat_SeqAIJ     *a = (Mat_SeqAIJ*)A->data;
   PetscErrorCode ierr;
+  static unsigned int kcalls =0;
   PetscInt       nonzerorow=0;
   PetscBool      usecprow    = a->compressedrow.use;
   Mat_SeqAIJCUSP *cuspstruct = (Mat_SeqAIJCUSP *)A->spptr;
   CUSPARRAY      *xarray,*yarray;
-
+  double tbegin1, tend1;
+  double tkernel;
+  static double temp1;
   PetscFunctionBegin;
   ierr = MatCUSPCopyToGPU(A);CHKERRQ(ierr);
   ierr = VecCUSPGetArrayRead(xx,&xarray);CHKERRQ(ierr);
   ierr = VecCUSPGetArrayWrite(yy,&yarray);CHKERRQ(ierr);
+  
+  tbegin1=rtclock();
   if (usecprow){ /* use compressed row format */
     try {
       cusp::multiply(*cuspstruct->mat,*xarray,*cuspstruct->tempvec);
@@ -989,6 +1004,23 @@ PetscErrorCode MatMult_SeqAIJCUSP(Mat A,Vec xx,Vec yy)
       SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
     } 
   }
+  cudaThreadSynchronize();
+  tend1=rtclock();
+  
+  temp1+=tend1-tbegin1;
+  if (kcalls==0)
+			{
+			printf("\nCSR MatrixMul Kernel Permormance for m *%d* and n size *%d* \n",(int)A->stencil.dims[0],(int)A->stencil.dims[1]);
+			}
+  if (kcalls==1000)
+		{
+		tkernel=tend1-tbegin1;
+		printf("Kernel time(sec) : %f\n",tkernel);
+		printf("Performance in Megaflops for %d Kernel calls\n",kcalls);
+		printf("Performance in Megaflops without copy time = %f\n",(2*5*(A->stencil.dims[0])*(A->stencil.dims[1])*1.0e-6)/(temp1/(kcalls+1)));
+		}
+
+kcalls++;
   ierr = VecCUSPRestoreArrayRead(xx,&xarray);CHKERRQ(ierr);
   ierr = VecCUSPRestoreArrayWrite(yy,&yarray);CHKERRQ(ierr);
   ierr = WaitForGPU();CHKERRCUSP(ierr);
