@@ -23,7 +23,7 @@
 #include "matstructgridgpu.h"
 #include "cuPrintf.cu"
 
-#define _DBGFLAG 0
+#define _DBGFLAG 1
 
 // ----------------------------------------------------------
 // hardcodiing the shared memory size this should be set
@@ -219,12 +219,12 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 
 
 // Call to dlowell's version
-      ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
-//	CHKERRQ(ierr);
+     // ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
+	// CHKERRQ(ierr);
 
 // Call to Jeswin's version
-//        ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,
-//	                     &(mat->valid_GPU_matrix));
+        ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,
+	                     &(mat->valid_GPU_matrix));
         CHKERRQ(ierr);
 
        	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
@@ -619,21 +619,13 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 
 
 
-
-
-
-
-
-
-
-
 /*  -------------------------------------------------------------------- 
      The following is a CUDA kernel for matrix vector multiplication on 
      the GPU. The matrix is in a custom layout that facilitates better 
      memory accesses and vectorization. 
      Author: Chekuri S. Choudary, RNET
 */
-__global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
+/*  __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
 {
 int tx=  blockDim.x * blockIdx.x + threadIdx.x;
 int ty=  blockDim.y * blockIdx.y + threadIdx.y;
@@ -641,46 +633,130 @@ int l,i;
 int xdisp,ydisp,zdisp,offset;
 int lda1=m*n*p,lda2=m*n,lda3=m;
 
-for (l=0;l<nos;l++)
-        {
-        xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
-        if (l==1 && tx==n-1 && ty==m-1)
-        {
-        	continue;
-        }
-        if (l==2 && tx==0 && ty==0)
-        {
-        	continue;
-        }
-        if (l==3 && ty==m-1)
-        {
-        	continue;
-        }
-        if (l==4 && ty==0)
-        {
-        	continue;
-        }
-        for(i=0;i<p;i++)
-        	ptr_y[ i*lda2 + ty*lda3 + tx]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * ptr_x[(i+zdisp)*lda2 + (ty+ydisp)*lda3 + (tx+xdisp)]);
-        }
+	for (l=0;l<nos;l++)
+		{
+			xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
+			if (l==1 && tx==n-1 && ty==m-1)
+				{
+				continue;
+				}
+			if (l==2 && tx==0 && ty==0)
+				{
+				continue;
+				}
+			if (l==3 && ty==m-1)
+				{
+				continue;
+				}
+			if (l==4 && ty==0)
+				{
+				continue;
+				}
+			for(i=0;i<p;i++)
+				ptr_y[ i*lda2 + ty*lda3 + tx]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * ptr_x[(i+zdisp)*lda2 + (ty+ydisp)*lda3 + (tx+xdisp)]);
+		}
 }
+ */ 
+#define BLOCKWIDTH 16
+ 
+ __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt* idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
+{
+
+int tx= blockDim.x * blockIdx.x + threadIdx.x;
+int ty= blockDim.y * blockIdx.y + threadIdx.y;
+int l,i;
+int xdisp,ydisp,zdisp,offset;
+int lda1=m*n*p,lda2=m*n,lda3=m;
+__shared__ double y_sm[256];
+__shared__ double x_sm[324];
+
+// copying a Tile from Y into the shared Memory
+y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x]=0;
+
+// Copying a tile x into the shared Memory with 2 steps.
+
+// Copying without the Ghost Cells  
+x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + (threadIdx.x+1)]=ptr_x[ty*lda3 + tx];
 
 
+// Copying the Ghost Cells
+if (tx!=0 || ty!=0 || tx != n-1 || ty != m-1)
+{
+	if (threadIdx.x==0)
+	x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x]=ptr_x[ty*lda3 + tx-1];
+
+	if (threadIdx.y==0)
+	x_sm[(threadIdx.y)* (BLOCKWIDTH+2) + threadIdx.x+1]=ptr_x[(ty-1)*lda3 + tx];
+
+	if (threadIdx.x==BLOCKWIDTH-1)
+	x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x + 2]=ptr_x[ty*lda3 + tx + 1];
+
+	if (threadIdx.y==BLOCKWIDTH-1)
+	x_sm[(threadIdx.y+2)*(BLOCKWIDTH+2) + threadIdx.x +1]=ptr_x[(ty+1)*lda3 + tx];
+}
+__syncthreads();
+
+// if (tx==2 && ty==2)
+// {
+// cuPrintf("\nPrinting the X from Shared Memory \n ");
+
+// for (int j=0;j<324;j++)
+// {
+// if(j % 16 ==0)
+// {
+// cuPrintf("\n");
+// }
+// cuPrintf("%f  ",  x_sm[j]);
+// }
+// }
+// MATMUL
+for (l=0;l<nos;l++)
+	{
+	xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
+	if (tx > n-1)
+	{
+		break; //use Break and test performance later(divergence)
+	}
+	if (ty > m-1)
+	{
+		break; //use Break and test performance later(divergence)
+	}
+	if (l==1 && tx==n-1 && ty==m-1)
+	{
+		continue;
+	}
+	if (l==2 && tx==0 && ty==0)
+	{
+		continue;
+	}
+	if (l==3 && ty==m-1)
+	{
+		continue;
+	}
+	if (l==4 && ty==0)
+	{
+		continue;
+	}
+	for(i=0;i<p;i++)
+	y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * x_sm[(i+zdisp)*lda2 + (threadIdx.y+ydisp +1)*(BLOCKWIDTH+2) + (threadIdx.x+xdisp+1)]); //forgetting Z currently.. I have to Fix it.
+	}
+	// removing i tempararily
+	ptr_y[ty*lda3 + tx]= y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x];
+}
+  
 int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
 PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos, PetscCUSPFlag* fp)
 {
 
-//double tbegin3, tbegin4, tend3, tend4;
+double tbegin1, tbegin2, tend1, tend2;
 static PetscInt size_coeff; 
+double tsetup,tkernel;
+static unsigned int kcalls=0;
 PetscInt size_xy, size_id; 
-
+static double temp=0;
 PetscScalar* d_x;
 PetscScalar* d_y;
 PetscInt *d_idx, *d_idy, *d_idz;
-
-//fprintf(stdout,"%d\t%d\t%d\t%d\n",m,n,p,nos);
-
-//loading the coeff, x, y, idx, idy, idz to device memory
 
   //unsigned int timer1 = 0;
   //cutilCheckError(cutCreateTimer(&timer1));
@@ -688,7 +764,9 @@ PetscInt *d_idx, *d_idy, *d_idz;
 
   //  fprintf(stdout,"In SGCUDA_MatMult\n");
 	
-      if ((*fp == PETSC_CUSP_UNALLOCATED) ||
+      if(_DBGFLAG) tbegin1=getclock();
+	  
+	  if ((*fp == PETSC_CUSP_UNALLOCATED) ||
 	  (*fp == PETSC_CUSP_CPU) )
 	{
 		if (*fp == PETSC_CUSP_UNALLOCATED)
@@ -719,7 +797,7 @@ PetscInt *d_idx, *d_idy, *d_idz;
 	        *fp = PETSC_CUSP_BOTH;
 	}
 
-//tbegin3 = rtclock();
+
 //size_coeff=nos*m*n*p*sizeof(PetscScalar);
 //cudaMalloc((void**)&d_coeff,size_coeff);
 //cudaMemcpy(d_coeff, coeff, size_coeff, cudaMemcpyHostToDevice);
@@ -742,11 +820,18 @@ cudaMemcpy(d_idy, idy, size_id, cudaMemcpyHostToDevice);
 cudaMalloc((void**)&d_idz,size_id); 
 cudaMemcpy(d_idz, idz, size_id, cudaMemcpyHostToDevice);
 
+if(_DBGFLAG) 
+	{
+		tend1=getclock();
+		tsetup=tend1-tbegin1;
+		tbegin2=getclock();
+	}
+
 //cutilCheckError(cutStopTimer(timer1));
 // kernel Configuration
-if (m > 16){
-dim3 dimBlock(16,16);
-dim3 dimGrid((m/16),(n/16));
+if (m > BLOCKWIDTH){
+dim3 dimBlock(BLOCKWIDTH,BLOCKWIDTH);
+dim3 dimGrid((int)ceil((float)m/(float)BLOCKWIDTH),((int)ceil((float)n/(float)BLOCKWIDTH)));
 
     // cutilCheckError(cutCreateTimer(&timer));
     // cutilCheckError(cutStartTimer(timer));
@@ -776,13 +861,21 @@ MatMult_Kernel<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, d_idy, d_idz, m, 
     //cutilCheckError(cutCreateTimer(&timer));
     //cutilCheckError(cutStartTimer(timer));
 
+	if(_DBGFLAG) 
+	{
+		cudaThreadSynchronize();
+		tend2=getclock();
+		tkernel=tend2-tbegin2;
+	}
+
+	
+	
    // check if kernel execution generated and error
     	//cutilCheckMsg("Kernel execution failed");
 
    // stop and destroy timer
     	//cutilCheckError(cutStopTimer(timer));
 		
-//tend4 = rtclock();
 //Read y from the Device Memory
 
 cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost); 
@@ -795,23 +888,24 @@ cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost);
     
 // cutilCheckError(cutDeleteTimer(timer));
 // cutilCheckError(cutDeleteTimer(timer1));
-// tend3 = rtclock();
-// printf("MFLOPS: GPU Structured Grid Matrix Mult kernel with copy time : %f; time: %f\n",2*stpoints*csr_size*csr_size*1.0e-6/(tend3-tbegin3),tend3-tbegin3);
-// printf("MFLOPS: GPU Structured Grid Matrix Mult kernel : %f; time: %f\n",2*stpoints*csr_size*csr_size*1.0e-6/(tend4-tbegin4),tend4-tbegin4);
-  
-// printf("\n");
-// printf("Matrix cuda y\n");
-
-//  for(i=0;i<m;i++)
-//  {
-//    for(j=0;j<n;j++) 
-//    {
-//      printf("%.2f\n",y[i*n+j]);
-//    }
-//   printf("\n");
-//  }
-
-
+if(_DBGFLAG)
+{
+temp+=tkernel;
+	if (kcalls==0)
+			{
+			printf("\n Structured Grid MatrixMul Kernel Permormance for m *%d* and n size *%d* \n",m,n);
+			}
+	if (kcalls==1000)
+		{
+		printf("\ncopy time (sec) : %f\n",tsetup);
+		printf("Kernel time (sec): %f\n",tkernel);
+		printf("Performance in Megaflops with for %dth Kernel call\n",kcalls);
+		printf("Performance in Megaflops with copy time = %f\n",(2*nos*n*m*p*1.0e-6)/(tsetup+tkernel));
+		printf("Performance in Megaflops without copy time = %f\n",(2*nos*n*m*p*1.0e-6)/tkernel);
+		printf("Culmative Performance in Megaflops for *%d* calls without copy time = %f\n",kcalls,(2*nos*n*m*p*1.0e-6)/(temp/(kcalls+1)));
+		}
+}
+kcalls++;
 //Free Device Memory
 //cudaFree(d_coeff);
 cudaFree(d_x);

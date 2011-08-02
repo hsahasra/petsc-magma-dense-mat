@@ -14,7 +14,7 @@ PETSC_CUDA_EXTERN_C_BEGIN
 PETSC_CUDA_EXTERN_C_END
 #undef VecType
 #include "../src/mat/impls/aij/seq/seqcusp/cuspmatimpl.h"
-
+#include <cuda.h>
 #if defined(PETSC_HAVE_TXPETSCGPU)
 const char *const MatCUSPStorageFormats[] = {"CSR","DIA","ELL","MatCUSPStorageFormat","MAT_CUSP_",0};
 
@@ -342,25 +342,36 @@ PetscErrorCode MatGetVecs_SeqAIJCUSP(Mat mat, Vec *right, Vec *left)
   PetscFunctionReturn(0);
 }
 
+double rtclock(){
+      struct timezone tzp;
+      struct timeval tp;
+      gettimeofday (&tp, &tzp);
+      return (tp.tv_sec + tp.tv_usec*1.0e-6);
+}
+
+		
+
 #undef __FUNCT__
 #define __FUNCT__ "MatMult_SeqAIJCUSP"
 PetscErrorCode MatMult_SeqAIJCUSP(Mat A,Vec xx,Vec yy)
 {
   Mat_SeqAIJ       *a = (Mat_SeqAIJ*)A->data;
   PetscErrorCode   ierr;
+  static unsigned int kcalls =0;
   Mat_SeqAIJCUSP   *cuspstruct = (Mat_SeqAIJCUSP*)A->spptr;
 #if !defined(PETSC_HAVE_TXPETSCGPU)
   PetscBool        usecprow = a->compressedrow.use;
 #endif
   CUSPARRAY        *xarray=NULL,*yarray=NULL;
   static PetscBool cite = PETSC_FALSE;
-
   PetscFunctionBegin;
   ierr = PetscCitationsRegister("@incollection{msk2013,\n  author = {Victor Minden and Barry F. Smith and Matthew G. Knepley},\n  title = {Preliminary Implementation of {PETSc} Using {GPUs}},\n  booktitle = {GPU Solutions to Multi-scale Problems in Science and Engineering},\n  series = {Lecture Notes in Earth System Sciences},\n  editor = {David A. Yuen and Long Wang and Xuebin Chi and Lennart Johnsson and Wei Ge and Yaolin Shi},\n  publisher = {Springer Berlin Heidelberg},\n  pages = {131--140},\n  year = {2013},\n}\n",&cite);CHKERRQ(ierr);
   /* The line below should not be necessary as it has been moved to MatAssemblyEnd_SeqAIJCUSP
      ierr = MatCUSPCopyToGPU(A);CHKERRQ(ierr); */
   ierr = VecCUSPGetArrayRead(xx,&xarray);CHKERRQ(ierr);
   ierr = VecCUSPGetArrayWrite(yy,&yarray);CHKERRQ(ierr);
+  
+  tbegin1=rtclock();
   try {
 #if defined(PETSC_HAVE_TXPETSCGPU)
     ierr = cuspstruct->mat->multiply(xarray, yarray);CHKERRCUSP(ierr);
@@ -371,6 +382,23 @@ PetscErrorCode MatMult_SeqAIJCUSP(Mat A,Vec xx,Vec yy)
       thrust::copy(cuspstruct->tempvec->begin(),cuspstruct->tempvec->end(),thrust::make_permutation_iterator(yarray->begin(),cuspstruct->indices->begin()));
     } else { /* do not use compressed row format */
       cusp::multiply(*cuspstruct->mat,*xarray,*yarray);
+  cudaThreadSynchronize();
+  tend1=rtclock();
+  
+  temp1+=tend1-tbegin1;
+  if (kcalls==0)
+			{
+			printf("\nCSR MatrixMul Kernel Permormance for m *%d* and n size *%d* \n",(int)A->stencil.dims[0],(int)A->stencil.dims[1]);
+			}
+  if (kcalls==1000)
+		{
+		tkernel=tend1-tbegin1;
+		printf("Kernel time(sec) : %f\n",tkernel);
+		printf("Performance in Megaflops for %d Kernel calls\n",kcalls);
+		printf("Performance in Megaflops without copy time = %f\n",(2*5*(A->stencil.dims[0])*(A->stencil.dims[1])*1.0e-6)/(temp1/(kcalls+1)));
+		}
+
+kcalls++;
     }
 #endif
 
