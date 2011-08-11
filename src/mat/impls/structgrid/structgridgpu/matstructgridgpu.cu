@@ -1,4 +1,3 @@
-
 /*  -------------------------------------------------------------------- 
 
      This file extends structgrid data type to make use of GPUS. The new data type
