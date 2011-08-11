@@ -11,6 +11,14 @@ MANSEC          = Mat
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
 
+test1: test1.o  chkopts
+	-${CLINKER}  -o test1 test1.o ${PETSC_MAT_LIB} 
+	${RM} test1.o
+
+test2: test2.o  chkopts
+	-${CLINKER}  -o test2 test2.o ${PETSC_MAT_LIB} 
+	${RM} test2.o
+
 ex1: ex1.o  chkopts
 	-${CLINKER}  -o ex1 ex1.o ${PETSC_MAT_LIB}
 	${RM} ex1.o
