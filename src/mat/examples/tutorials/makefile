@@ -11,6 +11,14 @@ MANSEC          = Mat
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
 
+test1: test1.o  chkopts
+	-${CLINKER}  -o test1 test1.o ${PETSC_MAT_LIB} 
+	${RM} test1.o
+
+test2: test2.o  chkopts
+	-${CLINKER}  -o test2 test2.o ${PETSC_MAT_LIB} 
+	${RM} test2.o
+
 ex1: ex1.o  chkopts
 	-${CLINKER}  -o ex1 ex1.o ${PETSC_MAT_LIB} 
 	${RM} ex1.o
@@ -58,6 +66,13 @@ ex15: ex15.o  chkopts
 	-${CLINKER}  -o ex15 ex15.o ${PETSC_MAT_LIB}
 	${RM} ex15.o
 # See http://www.mcs.anl.gov/petsc/petsc-as/documentation/faq.html#datafiles for how to obtain the datafiles used below
+
+runtest1: 
+	-@${MPIEXEC}  ./test1 
+
+runtest2: 
+	-@${MPIEXEC}  ./test2 
+
 runex1: 
 	-@${MPIEXEC} -n 1 ./ex1 -f0 ${DATAFILESPATH}/matrices/medium -viewer_binary_skip_info
 

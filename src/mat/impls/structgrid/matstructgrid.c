@@ -1,5 +1,7 @@
 #define PETSCMAT_DLL
 
+#define OPENMP
+
 #include "../src/mat/impls/structgrid/matstructgrid.h"
 #include "petscblaslapack.h"
 #include "petscbt.h"
@@ -133,9 +135,13 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
-
+#ifdef OPENMP
+	//openmp version
+	ierr = SG_MatMultOpenmp(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+#else
 //......matmultintrinsic
 	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+#endif
 
 // version 2 below
 //        ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
@@ -298,7 +304,6 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	Mat_SeqSG * mat = (Mat_SeqSG *) A->data;
 	PetscInt * idx, * idy, * idz;
 	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof, comp;
-
 	PetscFunctionBegin;	
 	
 	idx = malloc(nrow*ncol*sizeof(PetscInt));
@@ -312,6 +317,15 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	dis = mat->dis;
 	dof = mat->dof;
 	
+        //printf("In MatSetValues_SeqSG\n");
+        //printf("m=%d, n=%d, p=%d, stp=%d, dis=%d, dof=%d\n",m,n,p,stp,dis,dof);
+//	ierr = PetscIntView(m,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
+//        ierr = PetscIntView(n,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
+//        ierr = PetscIntView(p,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
+//        ierr = PetscIntView(stp,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
+//        ierr = PetscIntView(dis,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
+//        ierr = PetscIntView(dof,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
+	fflush(stdout);
 	
 	for(i=0;i< nrow ; i++)
 	{
@@ -385,7 +399,12 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	mat->dof = dof;
 	mat->stpoints = (2*dim+1)*(2*dof-1);
 	mat->dis = 1;
+	mat->m=dims[0];
+	mat->n=dims[1];
+	mat->p=dims[2];
 	mat->nz = mat->dof * mat->m * mat->n * mat->p;
+	printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
+
 	mat->idx =  malloc (sizeof(PetscInt)*mat->stpoints);
 	mat->idy =  malloc (sizeof(PetscInt)*mat->stpoints);
 	mat->idz =  malloc (sizeof(PetscInt)*mat->stpoints);
