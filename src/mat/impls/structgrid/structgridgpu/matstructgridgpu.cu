@@ -218,11 +218,11 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 
 
 // Call to dlowell's version
-      ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
+     ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
 	// CHKERRQ(ierr);
 
 // Call to Jeswin's version
-     //   ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,&(mat->valid_GPU_matrix));CHKERRQ(ierr);
+   //     ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,&(mat->valid_GPU_matrix));CHKERRQ(ierr);
 
        	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
@@ -252,6 +252,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
    int tilex = devparams.tile_x*devparams.tsizex;
    int tiley = devparams.tile_y*devparams.tsizey;
    int tilez = devparams.tile_z*devparams.tsizez;
+   //int offset = 0;
 
    int Aindex;
    int Xindex;
@@ -272,7 +273,6 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
    for(ix=0;ix<tilex;ix+=devparams.tsizex){// tiles X loop
         tbtx = blockDim.x*blockIdx.x+threadIdx.x + ix;
-        //__syncthreads();
 
         //cuPrintf("tid xyz: %d, %d, %d\n",tbtx,tbty,tbtz);
         //initialize current return-tile
@@ -281,7 +281,6 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
         //adjusted index for global access
         index = tbtz*lda2 + tbty*lda3 + tbtx;
 
-        //__syncthreads();
 
 //......STENCIL...........................................
         for(j=0;j<nos;j++){//loop over stencil pattern
@@ -298,15 +297,18 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
 
               //set up Xindex for element-wise operation using stencil pattern
               Xindex=(devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
-              if(Xindex<devparams.vecsize_x)
+              if(Xindex<devparams.vecsize_x && Xindex>=0){
                  Ys[threadIdx.z][threadIdx.y][threadIdx.x]+=As[threadIdx.z][threadIdx.y][threadIdx.x]*X[Xindex];
+                 //cuPrintf("Ys[%d][%d][%d]: %f\n",
+                 //threadIdx.z,threadIdx.y,threadIdx.z,
+                 //Ys[threadIdx.z][threadIdx.y][threadIdx.x]);
+                 //cuPrintf("X[%d]: %f, index: %d j: %d, preIndex: %d\n",
+                 //Xindex,X[Xindex],index,j,Xindex-index);
+              }
 
            }//end if
-           __syncthreads();
-
         }//end j-for
 
-        //__syncthreads();
         if(index<devparams.vecsize_y) Y[index]=Ys[threadIdx.z][threadIdx.y][threadIdx.x];//global write back
 
    }//end ix-for
@@ -545,7 +547,7 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
                 PetscFunctionReturn(PETSC_ERR_MEM);
 	}
 
-/*//probably an unnecessary step.
+//probably an unnecessary step.
         // memset to 0. Vector Y on device
 	cudastatus5=cudaMemset(devY,0.0,vecsize_y);
 	if(cudastatus5!=cudaSuccess){
@@ -555,7 +557,7 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
                 if(devX) cudaFree(devX);
                 PetscFunctionReturn(PETSC_ERR_MEM);
 	}
-*/
+
 
         //toggle timer and debug settings
         if(_DBGFLAG){
@@ -591,7 +593,6 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 	  if(devX) cudaFree(devX);
           PetscFunctionReturn(PETSC_ERR_MEM);
         }
-
 
 
         if(_DBGFLAG){
@@ -737,7 +738,7 @@ for (l=0;l<nos;l++)
 	for(i=0;i<p;i++)
 	y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * x_sm[(i+zdisp)*lda2 + (threadIdx.y+ydisp +1)*(BLOCKWIDTH+2) + (threadIdx.x+xdisp+1)]); //forgetting Z currently.. I have to Fix it.
 	}
-	// removing i tempararily
+	// removing i temporarily
 	ptr_y[ty*lda3 + tx]= y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x];
 }
   

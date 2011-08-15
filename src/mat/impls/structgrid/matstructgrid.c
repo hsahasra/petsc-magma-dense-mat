@@ -360,6 +360,7 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 				}
 			idx[count] = irow[i] % (m*dof);
 			idy[count] = (irow[i]/(m*dof))%n;
+			//printf("irow[%d]: %d, m: %d, n: %d, dof: %d\n",i,irow[i],m,n,dof);
 			idz[count] = (offset*p) + ((irow[i]/(m*dof*n)) %p) ;
 			count ++;
 		}	
