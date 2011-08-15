@@ -28,8 +28,8 @@ int main(int argc,char **args)
 
 	dof=1;nos = dim*2 + 1;
 
-	Vec            x, y, ysg, ysggpu;      
-  	Mat            mat, matsg, matsggpu;           
+	Vec            x, y, ysg, ygpu, ysggpu;      
+  	Mat            mat, matgpu, matsg, matsggpu;           
   	PetscErrorCode ierr;
   	PetscInt       i, nz=1, *dims, *starts, *rows, *cols;
 	PetscScalar    *vals, one=1.0;
@@ -66,6 +66,7 @@ int main(int argc,char **args)
   	ierr = VecDuplicate(x,&y);CHKERRQ(ierr);
   	ierr = VecDuplicate(x,&ysg);CHKERRQ(ierr);
 	ierr = VecDuplicate(x,&ysggpu);CHKERRQ(ierr);
+	ierr = VecDuplicate(x,&ygpu);CHKERRQ(ierr);
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Create matrices.
@@ -76,10 +77,13 @@ int main(int argc,char **args)
   	ierr = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
   	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
   	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
+  	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
+  	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
   	//ierr = MatSetFromOptions(matsg);CHKERRQ(ierr);
   	MatSetType(mat,MATSEQAIJ);
   	MatSetType(matsg,MATSTRUCTGRID);
   	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
+  	MatSetType(matgpu,MATSEQAIJCUSP);
   
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set stencils for Structgrid -matsg
@@ -128,6 +132,7 @@ int main(int argc,char **args)
    		ierr = MatSetValues(mat,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
    		ierr = MatSetValues(matsg,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
    		ierr = MatSetValues(matsggpu,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 			 
         }
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -139,6 +144,8 @@ int main(int argc,char **args)
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  	ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  	ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
@@ -154,28 +161,37 @@ int main(int argc,char **args)
   	ierr = MatMult(mat,x,y);CHKERRQ(ierr);
   	ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
 	ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
+	ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	if(info){
 	printf("\nOutput:\n");
+	printf("Y - AIJ:\n");
   	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	printf("Y - Structgrid:\n");
   	ierr = VecView(ysg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	printf("Y - AIJ CUSP(GPU):\n");
+        ierr = VecView(ygpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	printf("Y - Structgrid GPU:\n");
         ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
-	PetscReal norm, normsg,normsggpu;
+	PetscReal norm, normsg,normsggpu,normgpu;
  	ierr = VecNorm(y,NORM_2,&norm); 
  	ierr = VecNorm(ysg,NORM_2,&normsg); 
  	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
-	printf("Norm=%.3f\n",norm);
+ 	ierr = VecNorm(ygpu,NORM_2,&normgpu); 
+	printf("AIJ Norm=%.3f\n",norm);
 	printf("SG Norm=%.3f\n",normsg);
+	printf("AIJ GPU Norm=%.3f\n",normgpu);
 	printf("SGGPU Norm=%.3f\n",normsggpu);
+	printf("Normdiff =%.3f\n",normdiff);
 	if(abs(norm-normsg) > normdiff)
 		printf("SG AVX/Openmp Test Failed\n");
 	else 
 		printf("SG AVX/Openmp Test Passed\n");
-	if(abs(norm-normsggpu) > normdiff)
+	if(abs(normgpu-normsggpu) > normdiff)
 		printf("SG GPU Test Failed\n");
 	else 
 		printf("SG GPU Test Passed\n");
@@ -189,6 +205,8 @@ int main(int argc,char **args)
 	ierr = MatDestroy(&mat);CHKERRQ(ierr);
 	ierr = MatDestroy(&matsg);CHKERRQ(ierr);
 	ierr = MatDestroy(&matsggpu);CHKERRQ(ierr);
+	ierr = MatDestroy(&matgpu);CHKERRQ(ierr);
+	ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
 
   	ierr = PetscFinalize();
   return 0;
