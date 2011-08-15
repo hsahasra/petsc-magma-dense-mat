@@ -4,12 +4,16 @@ FFLAGS	        =
 CPPFLAGS        = 
 FPPFLAGS        =
 LOCDIR          = src/mat/examples/tutorials/
-EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c
+EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c exSG.c
 EXAMPLESF       =
 MANSEC          = Mat
 
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
+
+exSG: exSG.o  chkopts
+	-${CLINKER}  -o exSG exSG.o ${PETSC_MAT_LIB} 
+	${RM} exSG.o
 
 ex1: ex1.o  chkopts
 	-${CLINKER}  -o ex1 ex1.o ${PETSC_MAT_LIB} 
@@ -58,6 +62,10 @@ ex15: ex15.o  chkopts
 	-${CLINKER}  -o ex15 ex15.o ${PETSC_MAT_LIB}
 	${RM} ex15.o
 # See http://www.mcs.anl.gov/petsc/petsc-as/documentation/faq.html#datafiles for how to obtain the datafiles used below
+
+runexSG: 
+	-@${MPIEXEC}  ./exSG 
+
 runex1: 
 	-@${MPIEXEC} -n 1 ./ex1 -f0 ${DATAFILESPATH}/matrices/medium -viewer_binary_skip_info
 

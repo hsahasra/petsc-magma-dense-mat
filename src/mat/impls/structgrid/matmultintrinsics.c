@@ -1,4 +1,6 @@
 #include <string.h>
+#include<omp.h>
+#define NUM_THREADS 2
 
 
 
@@ -45,7 +47,7 @@
 
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
-//  printf("Start of SG_MatMult\n");
+  printf("Start of SG_MatMult\n");
 	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
 	PetscInt lda1 = m*n*p*dof;
 	PetscInt lda2 = m*n*dof;
@@ -118,4 +120,5 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 
 	PetscFunctionReturn(0);
 }
+
 
