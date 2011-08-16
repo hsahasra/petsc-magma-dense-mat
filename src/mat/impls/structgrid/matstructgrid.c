@@ -4,6 +4,9 @@
 #include "../src/mat/impls/structgrid/matstructgrid.h"
 #include "petscblaslapack.h"
 #include "petscbt.h"
+#include "petscmat.h"
+#include "../src/mat/impls/aij/seq/aij.h"  
+
 
 //#include <immintrin.h>
 
@@ -22,7 +25,7 @@ static struct _MatOps MatOps_Values = {
 /*45*/0,0,0,0,0,
 /*50*/0,0,0,0,0,
 /*55*/0,0,0,MatSetValuesBlocked_SeqSG,0,
-/*60*/MatDestroy_SeqSG,0,0,0,0,
+/*60*/MatDestroy_SeqSG,MatView_SeqSG,0,0,0,
 /*65*/0,0,MatSetValues_SeqSG,0,MatGetRowMaxAbs_SeqSG,
 /*70*/0,0,0,0,0,
 /*75*/0,0,0,0,0,
@@ -75,7 +78,7 @@ PetscErrorCode MatCreate_SeqSG(Mat B)
 
 	ierr = MPI_Comm_size(((PetscObject)B)->comm, &size); CHKERRQ(ierr);
 	if (size > 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
-	
+
 	b = malloc(sizeof(Mat_SeqSG));
 	B->data = (void *)b;
 	memcpy(B->ops,&MatOps_Values,sizeof(struct _MatOps));
@@ -295,7 +298,8 @@ Added by Deepan */
 #define __FUNCT__ "MatSetValues_SeqSG"
 
 PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], PetscInt ncol ,const PetscInt icol[],const PetscScalar y[], InsertMode is)
-{
+{//(*AIJ,1,&i,nz,cols,vals,INSERT_VALUES);
+  // printf("..............call to MatSetValues_SeqSG()\n");
 	PetscErrorCode ierr;
 	Mat_SeqSG * mat = (Mat_SeqSG *) A->data;
 	PetscInt * idx, * idy, * idz;
@@ -322,7 +326,6 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 //        ierr = PetscIntView(dis,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
 //        ierr = PetscIntView(dof,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
 	fflush(stdout);
-	
 	for(i=0;i< nrow ; i++)
 	{
 		comp = irow[i]%dof;
@@ -342,6 +345,7 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 				}
 			idx[count] = irow[i] % (m*dof);
 			idy[count] = (irow[i]/(m*dof))%n;
+			//printf("irow[%d]: %d, m: %d, n: %d, dof: %d\n",i,irow[i],m,n,dof);
 			idz[count] = (offset*p) + ((irow[i]/(m*dof*n)) %p) ;
 			count ++;
 		}	
@@ -377,6 +381,8 @@ PetscErrorCode SetValues_SeqSG(Mat_SeqSG *  mat, PetscInt n , const PetscInt idx
 		for(i=0;i<n;i++)
 			mat->a[lda1*idz[i]+lda2*idy[i]+idx[i]] = data[i];
 	}
+
+
 	PetscFunctionReturn(0);
 }
 
@@ -475,7 +481,7 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 	PetscFunctionBegin;
 	a->a = malloc(sizeof(PetscScalar)*a->nz*a->stpoints);
 	a->xt = malloc (sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));
-	memset(a->xt,0,sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));	
+	memset(a->xt,0,sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));
 	PetscFunctionReturn(0);
 }
 
@@ -489,7 +495,6 @@ PetscErrorCode MatZeroEntries_SeqSG(Mat A)
 	Mat_SeqSG * a = (Mat_SeqSG *)A->data;
 	PetscFunctionBegin;
 	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->stpoints);
-       
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
 
@@ -513,11 +518,19 @@ PetscErrorCode MatGetDiagonal_SeqSG(Mat A, Vec v)
 	ierr = VecGetArray(v,&x);CHKERRQ(ierr);
 /** Coefficients corresponding to the stencil 0,0,0(a[0] to a[n]) is returned
 Added by Deepan */
+	for(i=0;i<n;i++){
+          x[i] = a->a[i];
+          //printf("x[%d]: %f\n",i,x[i]);
+        }
 	for(i=0;i<n;i++)
 	 	x[i] = a->a[i];
 	ierr = VecRestoreArray(v,&x);CHKERRQ(ierr);
  	PetscFunctionReturn(0);
 }
+
+
+
+
 
 /** MatGetRow_SeqSG : Returns the element corresponding to a single row in the matrix
 Added by Deepan */
@@ -526,18 +539,33 @@ Added by Deepan */
 
 PetscErrorCode MatGetRow_SeqSG(Mat A, PetscInt row, PetscInt * nz, PetscInt **idx , PetscScalar ** v)
 {
+
+  //printf("..........MatGetRow_SeqSG() called\n");
 	Mat_SeqSG * a = (Mat_SeqSG *) A->data;
 	PetscInt j;
+        // printf("grA\n");
+        PetscErrorCode ierr;
 	PetscFunctionBegin;
-	if (row < 0 || row >= A->rmap->n) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D out of range",row);
+
+	if (row < 0 || row >= A->rmap->n) 
+          SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D out of range",row);
+        // printf("grB\n");
 	*nz = a->stpoints*a->dof;
-	*idx = malloc(sizeof(PetscInt)*a->stpoints*a->dof);
-	*v = malloc(sizeof(PetscScalar)*a->stpoints*a->dof);
-	for(j=0;j<a->stpoints;j++)
-	{
-		*idx[j] = j;
-		*v[j] = a->a[row+ j*a->nz];
+        // printf("grC\n");
+
+        if(idx!=PETSC_NULL){
+          //  printf("in idx malloc start.\n");
+          ierr = PetscMalloc(sizeof(PetscInt)*a->stpoints*a->dof,idx);CHKERRQ(ierr);
+          for(j=0;j<a->stpoints;j++)(*idx)[j] = j;
+
 	}
+        // printf("grD\n");
+        if(v!=PETSC_NULL){
+          //  printf("in v malloc start.\n");
+           ierr = PetscMalloc(sizeof(PetscScalar)*a->stpoints*a->dof,v);CHKERRQ(ierr);
+           for(j=0;j<a->stpoints;j++)(*v)[j] = a->a[row+ j*a->nz];
+         }
+        //  printf("grE\n");
 	PetscFunctionReturn(0);
 }
 
@@ -548,10 +576,12 @@ Added by Deepan */
 
 PetscErrorCode MatRestoreRow_SeqSG(Mat A, PetscInt row, PetscInt *nz, PetscInt **idx, PetscScalar **v)
 {
-	PetscFunctionBegin;
-	free(*idx);
-	free(*v);
-	PetscFunctionReturn(0);
+  //printf("..........MatRestoreRow_SeqSG() called\n");
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = PetscFree(*idx);CHKERRQ(ierr);
+  ierr = PetscFree(*v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 /** MatGetRowMaxAbs_SeqSG : Gets the absolute maximum of the elements in a particular row
@@ -577,11 +607,71 @@ PetscErrorCode MatGetRowMaxAbs_SeqSG(Mat A, Vec v, PetscInt idx[])
 		x[i] = 0.0;
 		for(j=0;j<a->stpoints;j++)
 		{
-			atmp = PetscAbsScalar(a->a[i+ j*a->nz]);	
+                  atmp = PetscAbsScalar(a->a[i+ j*a->nz]);
 			if(atmp > x[i]) x[i] = atmp;
 		}
 	}
 	ierr = VecRestoreArray(v,&x);CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
+
+
+
+
+#undef __FUNCT__
+#define __FUNCT__ "MatConvert_SGtoAIJ"
+/*
+  MatConvert_SGtoAIJ - Converts from any inputSeqstructgrid format to seqaij.
+  Daniel Lowell*/
+PetscErrorCode MatConvert_SGtoAIJ(Mat A, Mat *AIJ){
+  //printf(".................MatConvert_SGtoAIJ() called\n");
+  PetscFunctionBegin;
+  Mat_SeqSG * a = (Mat_SeqSG *) A->data;
+  PetscInt i,j;
+  PetscInt m = A->rmap->n,n = A->cmap->n,nz = a->nz;
+  PetscScalar *vals;
+  PetscInt *cols;
+  PetscErrorCode ierr;
+  PetscInt *nnz;
+  ierr = PetscMalloc(m*sizeof(PetscInt),&nnz); CHKERRQ(ierr);
+  for(i=0;i<m;i++)nnz[i]=a->stpoints*a->dof;
+  printf("m: %d, n: n: %d\n",m,n);
+  ierr = MatCreateSeqAIJ(MPI_COMM_WORLD,m,n,PETSC_NULL,PETSC_NULL,AIJ);CHKERRQ(ierr);
+  Mat_SeqAIJ     *aij = (Mat_SeqAIJ*)(*AIJ)->data;
+  PetscInt       *ai = aij->i;
+
+  for(i=0;i<m;i++){
+      nnz[i]=0;
+      ierr = MatGetRow_SeqSG(A,i,&nnz[i],&cols,&vals); CHKERRQ(ierr);
+      ierr = MatSetValues(*AIJ,1,&i,nnz[i],cols,vals,INSERT_VALUES);
+      ierr = MatRestoreRow_SeqSG(A,i,&nnz[i],&cols,&vals);CHKERRQ(ierr);
+  }
+  ierr = MatAssemblyBegin(*AIJ,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(*AIJ,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr=PetscFree(nnz);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+
+
+#undef __FUNCT__
+#define __FUNCT__ "MatView_SeqSG"
+PetscErrorCode MatView_SeqSG(Mat A,PetscViewer viewer){
+	//printf(".................MatView_SeqSG() called\n");
+	Mat_SeqSG * a = (Mat_SeqSG *) A->data;
+	PetscFunctionBegin;
+        PetscInt i,j;
+        PetscInt m = A->rmap->n,n = A->cmap->n,nz = a->nz;
+        PetscScalar *vals;
+        PetscInt *cols;
+	PetscErrorCode ierr;
+	const MatType mtype = MATSEQAIJ;
+	Mat AIJ;
+
+        ierr = MatConvert_SGtoAIJ(A,&AIJ); CHKERRQ(ierr);
+        ierr = MatView(AIJ,viewer);CHKERRQ(ierr);
+	PetscFunctionReturn(0);
+}
+
 

@@ -39,5 +39,7 @@ extern PetscErrorCode MatGetDiagonal_SeqSG(Mat, Vec);
 extern PetscErrorCode MatGetRow_SeqSG(Mat , PetscInt, PetscInt *, PetscInt *[] , PetscScalar *[]);
 extern PetscErrorCode MatRestoreRow_SeqSG(Mat , PetscInt, PetscInt *, PetscInt *[] , PetscScalar *[]);
 extern PetscErrorCode MatGetRowMaxAbs_SeqSG(Mat, Vec, PetscInt[]);
-
+extern PetscErrorCode MatView_SeqSG(Mat,PetscViewer);
+extern PetscErrorCode MatConvert_SGtoAIJ(Mat, Mat*);
 #endif
+

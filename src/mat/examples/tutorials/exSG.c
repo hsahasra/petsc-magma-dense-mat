@@ -180,6 +180,15 @@ int main(int argc,char **args)
 	PetscReal norm, normsg,normsggpu,normgpu;
  	ierr = VecNorm(y,NORM_2,&norm); 
  	ierr = VecNorm(ysg,NORM_2,&normsg); 
+
+        //PetscScalar *xvec;
+        //PetscInt xsize;
+        //ierr = VecGetSize(ysggpu,&xsize);CHKERRQ(ierr);
+        //ierr = VecGetArray(ysggpu,&xvec);CHKERRQ(ierr);
+        //printf("xsize: %d\n",xsize);
+        //if(xsize>10) xsize=10;
+        //for(i=0;i<xsize;i++)printf("Xgpu[%d]: %f\n",i,xvec[i]);
+
  	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
  	ierr = VecNorm(ygpu,NORM_2,&normgpu); 
 	printf("AIJ Norm=%.3f\n",norm);
