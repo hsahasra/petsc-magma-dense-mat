@@ -15,6 +15,10 @@ exSG: exSG.o  chkopts
 	-${CLINKER}  -o exSG exSG.o ${PETSC_MAT_LIB} 
 	${RM} exSG.o
 
+exSG2: exSG2.o  chkopts
+	-${CLINKER}  -o exSG2 exSG2.o ${PETSC_MAT_LIB} 
+	${RM} exSG2.o
+
 ex1: ex1.o  chkopts
 	-${CLINKER}  -o ex1 ex1.o ${PETSC_MAT_LIB}
 	${RM} ex1.o
