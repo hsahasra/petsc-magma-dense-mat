@@ -272,8 +272,8 @@ int main(int argc,char **args)
 		ierr = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysgomp,NORM_2,&normsgomp); 
 
-		printf("SG(AVX) Norm        = %.3f\n",normsg);
-		printf("SG(AVX+OPENMP) Norm = %.3f\n",normsgomp);
+		printf("SG(AVX) Norm        = %.6f\n",normsg);
+		printf("SG(AVX+OPENMP) Norm = %.6f\n",normsgomp);
 		if(normsg > normdiff)
 			printf("SG AVX Test Failed\n");
 		else 
@@ -286,7 +286,7 @@ int main(int argc,char **args)
 		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
-		printf("SG-GPU Norm         = %.3f\n",normsggpu);
+		printf("SG-GPU Norm         = %.6f\n",normsggpu);
 
 		if(normsggpu > normdiff)
 			printf("SG GPU Test Failed\n");
