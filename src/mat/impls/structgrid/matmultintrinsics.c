@@ -69,7 +69,6 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 if(OPENMP){
 	#pragma omp parallel private(coeff,coeffv1,coeffv2,coeffv3,x,xv1,xv2,xv3) shared(yv)
 	#pragma omp for schedule(static)
-
 }	for(k=0;(k+SV_DOUBLE_WIDTH)<lda1;k+=SV_DOUBLE_WIDTH)
 	{
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
@@ -117,8 +116,7 @@ if(OPENMP){
 		}
 		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
 	}
-if(OPENMP){
-}	for(;k<lda1;k++)
+	for(;k<lda1;k++)
 		for(l=0;l<nos;l++)
 	{
 			y[k] += (coeff[offset[l]+k] * x[lda2+(xval[l]+k)]);		
