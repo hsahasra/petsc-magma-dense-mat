@@ -199,10 +199,10 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
         VecGetLocalSize(y,&sparams.vecsize_y);
         sparams.nos = a->stpoints;
         sparams.dof = a->dof;
-        sparams.lda1=a->m*a->n*a->p;
-        sparams.lda2=a->m*a->n;
-        sparams.lda3=a->m;
-        sparams.matsize=a->m*a->n*a->p*a->stpoints;
+	sparams.lda3=a->m*a->dof;
+	sparams.lda2=sparams.lda3*a->n;
+        sparams.lda1=sparams.lda2*a->p;
+        sparams.matsize=sparams.lda1*a->stpoints;
 
         /// Debugging block .....................................................
             /*int xsize,ysize;
@@ -257,7 +257,7 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
    int Aindex;
    int Xindex;
    int index;
-
+   int offset;
 
    //Min shared mem byte count: 2*(gridDim.x*gridDim.y*gridDim.z)*SHDSIZE^3*8 byte double
    __shared__ double Ys[SHDSIZE][SHDSIZE][SHDSIZE];
@@ -281,32 +281,21 @@ __global__ void MatMul_Kernel_v2(double* A, double* X, double* Y){
         //adjusted index for global access
         index = tbtz*lda2 + tbty*lda3 + tbtx;
 
-
 //......STENCIL...........................................
         for(j=0;j<nos;j++){//loop over stencil pattern
-
-           Aindex=j*lda1+index;//set up Aindex and read from global A into As tile
+	   offset= j*lda1;
+           Aindex=offset+index;//set up Aindex and read from global A into As tile
            if(Aindex<devparams.matsize) As[threadIdx.z][threadIdx.y][threadIdx.x]=A[Aindex];//needs to be coalesced
            else As[threadIdx.z][threadIdx.y][threadIdx.x]=0.;
 
            __syncthreads();
 
-           if(!((j==1 && tbtx==devparams.m-1 && tbty==devparams.n-1)||
-                (j==2 && tbtx==0 && tbty==0)|| (j==3 && tbty==devparams.n-1)||
-                (j==4 && tbty==0))){
+           //set up Xindex for element-wise operation using stencil pattern
+           Xindex=(devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
+           if(Xindex<devparams.vecsize_x && Xindex>=0){
+              Ys[threadIdx.z][threadIdx.y][threadIdx.x]+=As[threadIdx.z][threadIdx.y][threadIdx.x]*X[Xindex];
+           }
 
-              //set up Xindex for element-wise operation using stencil pattern
-              Xindex=(devparams.idz[j]*lda2 + devparams.idy[j]*lda3 + devparams.idx[j]) + index;
-              if(Xindex<devparams.vecsize_x && Xindex>=0){
-                 Ys[threadIdx.z][threadIdx.y][threadIdx.x]+=As[threadIdx.z][threadIdx.y][threadIdx.x]*X[Xindex];
-                 //cuPrintf("Ys[%d][%d][%d]: %f\n",
-                 //threadIdx.z,threadIdx.y,threadIdx.z,
-                 //Ys[threadIdx.z][threadIdx.y][threadIdx.x]);
-                 //cuPrintf("X[%d]: %f, index: %d j: %d, preIndex: %d\n",
-                 //Xindex,X[Xindex],index,j,Xindex-index);
-              }
-
-           }//end if
         }//end j-for
 
         if(index<devparams.vecsize_y) Y[index]=Ys[threadIdx.z][threadIdx.y][threadIdx.x];//global write back
@@ -594,9 +583,11 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
           PetscFunctionReturn(PETSC_ERR_MEM);
         }
 
+	//for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
+
 
         if(_DBGFLAG){
-          //for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
+          for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 	  ce=getclock();
 	  temp+=ce-cs;
           cumktime+=(elapsedtime/1000);

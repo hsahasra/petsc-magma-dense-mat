@@ -273,7 +273,7 @@ int main(int argc,char **args)
 		ierr = VecAXPY(ysg,-1,y);CHKERRQ(ierr);
 //		ierr = VecView(ysg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysg,NORM_2,&normsg);CHKERRQ(ierr);
-		printf("SG(AVX) Norm        = %.3f\n",normsg);
+		printf("SG(AVX) Norm        = %.6f\n",normsg);
 		if(normsg > normdiff)
 			printf("SG AVX Test Failed\n");
 		else 
@@ -293,7 +293,7 @@ int main(int argc,char **args)
 /*		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
-		printf("SG-GPU Norm         = %.3f\n",normsggpu);
+		printf("SG-GPU Norm         = %.6f\n",normsggpu);
 
 		if(normsggpu > normdiff)
 			printf("SG GPU Test Failed\n");
