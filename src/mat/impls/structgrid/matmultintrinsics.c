@@ -64,8 +64,9 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset[l] = l*lda1;
 	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
 	}
-	for(k=0;k<(lda1-SV_DOUBLE_WIDTH);k+=SV_DOUBLE_WIDTH)
+	for(k=0;k<=(lda1-SV_DOUBLE_WIDTH);k+=SV_DOUBLE_WIDTH)
 	{
+	printf("In First loop, k=%d\n",k);
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
 		for(l=0;(l+SV_DOUBLE_WIDTH)<nos;l+=SV_DOUBLE_WIDTH)
 		{
@@ -111,12 +112,13 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 		}
 		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
 	}
-	for(;k<lda1;k++)
+	for(k=(lda1-(lda1%SV_DOUBLE_WIDTH));k<lda1;k++){
+		printf("In Second loop, k=%d\n",k);
 		for(l=0;l<nos;l++)
-	{
+		{
 			y[k] += (coeff[offset[l]+k] * x[lda2+(xval[l]+k)]);		
+		}
 	}
-
 	PetscFunctionReturn(0);
 }
 
