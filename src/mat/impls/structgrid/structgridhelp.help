@@ -1,0 +1,16 @@
+/*
+* Help file contains information about stencil neighbor and displacements
+* Added by Deepan
+*/
+
+For Dof = 3, the number of stpoints needed is given by 2*dof-1 = 5
+
+a b c . . .
+d a b . . .
+e d a . . .
+. . . a b c
+. . . d a b
+. . . e d a
+
+Elements marked as 'a' goes into stpoint k = 0, 'b' goes into k = 1, 'd' goes into k = 2, etc.
+Displacements corresponding to these (in-dof) neighbors occur only in x-dimension.

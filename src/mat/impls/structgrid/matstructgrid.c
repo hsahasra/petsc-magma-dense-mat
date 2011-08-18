@@ -403,6 +403,7 @@ PetscErrorCode SetValues_SeqSG(Mat_SeqSG *  mat, PetscInt n , const PetscInt idx
 
 
 /** MatSetStencil_SeqSG : Sets the stencil neighbor points
+ * sets various stencil related info such as neighbor points displacements and dimension of the grid
 Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetStencil_SeqSG"
@@ -414,7 +415,9 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	PetscErrorCode ierr;
 
 	mat->dof = dof;
+	// number of stencil displacements per stencil neighbor is given by 2*dof-1
 	mat->stpoints = (2*dim+1)*(2*dof-1);
+	// neighbors are considered to be one step away
 	mat->dis = 1;
 	mat->m=dims[0];
 	mat->n=dims[1];
