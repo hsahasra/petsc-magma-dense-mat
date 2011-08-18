@@ -48,7 +48,6 @@ int OPENMP;
 
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
-  //printf("Start of SG_MatMult\n");
 	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
 	PetscInt lda1 = m*n*p*dof;
 	PetscInt lda2 = m*n*dof;
@@ -63,13 +62,9 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 	for(l=0;l<nos;l++)
 	{
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset[l] = l*lda1;
-                //printf("offset[%d]: %d\n",l,offset[l]);
 	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
 	}
-if(OPENMP){
-	#pragma omp parallel private(coeff,coeffv1,coeffv2,coeffv3,x,xv1,xv2,xv3) shared(yv)
-	#pragma omp for schedule(static)
-}	for(k=0;(k+SV_DOUBLE_WIDTH)<lda1;k+=SV_DOUBLE_WIDTH)
+	for(k=0;k<(lda1-SV_DOUBLE_WIDTH);k+=SV_DOUBLE_WIDTH)
 	{
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
 		for(l=0;(l+SV_DOUBLE_WIDTH)<nos;l+=SV_DOUBLE_WIDTH)
