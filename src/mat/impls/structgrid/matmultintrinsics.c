@@ -45,6 +45,7 @@ int OPENMP;
 #define _sv_storeu_pd(a,b) (*(a)=(b))
 #endif
 
+//#define SV_DOUBLE_WIDTH 1
 
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
@@ -52,10 +53,6 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 	PetscInt lda1 = m*n*p*dof;
 	PetscInt lda2 = m*n*dof;
 	PetscInt lda3 = m*dof;
-	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
-#ifdef __AVX__
-	__sv_dtype xv2, coeffv2, xv3, coeffv3;
-#endif
 
 	PetscInt xval[nos], offset[nos];
 	memcpy(x+lda2,xi,sizeof(PetscScalar)*lda1);
@@ -64,12 +61,21 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset[l] = l*lda1;
 	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
 	}
+
+#pragma omp parallel
+{	
+	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
+#ifdef __AVX__
+	__sv_dtype xv2, coeffv2, xv3, coeffv3;
+#endif
+
+	#pragma omp for nowait private(l) 
 	for(k=0;k<=(lda1-SV_DOUBLE_WIDTH);k+=SV_DOUBLE_WIDTH)
 	{
-	printf("In First loop, k=%d\n",k);
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
-		for(l=0;(l+SV_DOUBLE_WIDTH)<nos;l+=SV_DOUBLE_WIDTH)
+		for(l=0;l<=(nos-SV_DOUBLE_WIDTH);l+=SV_DOUBLE_WIDTH)
 		{
+		//	printf("Tiled thread=%d k=%d l=%d\n",omp_get_thread_num(),k,l);
 			xv = _sv_loadu_pd((PetscScalar *)(x+lda2+xval[l]+k));
 
 #if (SV_DOUBLE_WIDTH > 1)
@@ -80,7 +86,6 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 			xv2 = _sv_loadu_pd((PetscScalar *)(x+lda2+xval[l+2]+k));
 			xv3 = _sv_loadu_pd((PetscScalar *)(x+lda2+xval[l+3]+k));
 #endif
-			
 			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
 
 #if (SV_DOUBLE_WIDTH > 1)
@@ -91,7 +96,6 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 			coeffv2 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+2]+k));
 			coeffv3 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+3]+k));
 #endif
-
 			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
 
 #if (SV_DOUBLE_WIDTH > 1)
@@ -102,23 +106,29 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv2,xv2));
 			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv3,xv3));
 #endif
-
 		}
 		for(;l<nos;l++)
 		{
+		//	printf("Tiled rest l:thread=%d k=%d l=%d\n",omp_get_thread_num(),k,l);
 			xv = _sv_loadu_pd((PetscScalar *)(x+lda2+xval[l]+k));
 			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
 			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
 		}
+		//#pragma omp critical
+		//{
 		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
+		//}
 	}
+}
+//	#pragma omp for
 	for(k=(lda1-(lda1%SV_DOUBLE_WIDTH));k<lda1;k++){
-		printf("In Second loop, k=%d\n",k);
 		for(l=0;l<nos;l++)
 		{
+		//	printf("Rest: thread=%d k=%d l=%d\n",omp_get_thread_num(),k,l);
 			y[k] += (coeff[offset[l]+k] * x[lda2+(xval[l]+k)]);		
 		}
 	}
+
 	PetscFunctionReturn(0);
 }
 
