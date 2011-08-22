@@ -62,14 +62,16 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
 	}
 
-#pragma omp parallel
-{	
+#pragma omp parallel if(OPENMP) firstprivate(lda1,lda2,xval,offset,nos,x,coeff) shared(y) default(none)
+{
+       	//printf("Thread=%d\n",omp_get_thread_num(),k,l);
+	
 	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
 #ifdef __AVX__
 	__sv_dtype xv2, coeffv2, xv3, coeffv3;
 #endif
 
-	#pragma omp for nowait private(l) 
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv) 
 	for(k=0;k<=(lda1-SV_DOUBLE_WIDTH);k+=SV_DOUBLE_WIDTH)
 	{
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
