@@ -6,7 +6,7 @@
 
 PetscInt SG_MatMultOpenmp(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
-//	printf("OpenMP Matmult\n");
+	//printf("In OpenMP Matmult\n");
 //	fflush(stdout);
 
 	PetscInt k,l;
