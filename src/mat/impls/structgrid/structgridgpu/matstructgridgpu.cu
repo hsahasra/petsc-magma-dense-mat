@@ -218,11 +218,11 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 
 
 // Call to dlowell's version
-     ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
+    ierr = SGCUDA_MatMult_v2(v,xx,yy,sparams,&(mat->valid_GPU_matrix));
 	// CHKERRQ(ierr);
 
 // Call to Jeswin's version
-   //     ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,&(mat->valid_GPU_matrix));CHKERRQ(ierr);
+       // ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->stpoints,&(mat->valid_GPU_matrix));CHKERRQ(ierr);
 
        	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
@@ -614,41 +614,126 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
      memory accesses and vectorization. 
      Author: Chekuri S. Choudary, RNET
 */
-/*  __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
+
+
+ //Version with Shared memory for X only supports rectangular tiles.
+ /* __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
 {
-int tx=  blockDim.x * blockIdx.x + threadIdx.x;
-int ty=  blockDim.y * blockIdx.y + threadIdx.y;
+
+int tx= blockDim.x * blockIdx.x + threadIdx.x;
+int ty= blockDim.y * blockIdx.y + threadIdx.y;
+
 int l,i;
 int xdisp,ydisp,zdisp,offset;
 int lda1=m*n*p,lda2=m*n,lda3=m;
 
-	for (l=0;l<nos;l++)
-		{
-			xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
-			if (l==1 && tx==n-1 && ty==m-1)
-				{
-				continue;
-				}
-			if (l==2 && tx==0 && ty==0)
-				{
-				continue;
-				}
-			if (l==3 && ty==m-1)
-				{
-				continue;
-				}
-			if (l==4 && ty==0)
-				{
-				continue;
-				}
-			for(i=0;i<p;i++)
-				ptr_y[ i*lda2 + ty*lda3 + tx]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * ptr_x[(i+zdisp)*lda2 + (ty+ydisp)*lda3 + (tx+xdisp)]);
-		}
+__shared__ PetscScalar y_sm[256];
+
+// initializing to the zero
+y_sm[threadIdx.y*BLOCKWIDTH_X + threadIdx.x]=0;
+for (l=0;l<nos;l++)
+	{
+	xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
+	if (tx > n-1)
+	{
+	break; //use Break and test performance later(divergence)
+	}
+	if (ty > m-1)
+	{
+	break; //use Break and test performance later(divergence)
+	}
+	if (l==1 && tx==n-1 && ty==m-1)
+	{
+	continue;
+	}
+	if (l==2 && tx==0 && ty==0)
+	{
+	continue;
+	}
+	if (l==3 && ty==m-1)
+	{
+	continue;
+	}
+	if (l==4 && ty==0)
+	{
+	continue;
+	}
+	for(i=0;i<p;i++)
+	y_sm[threadIdx.y*BLOCKWIDTH_X + threadIdx.x]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * ptr_x[(i+zdisp)*lda2 + (ty+ydisp)*lda3 + (tx+xdisp)]);
+	}
+	
+	ptr_y[ty*lda3 + tx]= y_sm[threadIdx.y*BLOCKWIDTH_X + threadIdx.x];
 }
- */ 
-#define BLOCKWIDTH 16
+  */
+ #define BLOCKWIDTH 8
+#define BLOCKWIDTH_X 8
+#define BLOCKWIDTH_Y 8
+#define BLOCKWIDTH_Z 8 
+  
+  __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
+{
+
+int tx= blockDim.x * blockIdx.x + threadIdx.x;
+int ty= blockDim.y * blockIdx.y + threadIdx.y;
+int tz= blockDim.z * blockIdx.z + threadIdx.z;
+int l,i;
+int xdisp,ydisp,zdisp,offset;
+int lda1=m*n*p,lda2=m*n,lda3=m;
+
+__shared__ PetscScalar y_sm[512];
+
+// initializing to the zero
+y_sm[threadIdx.z*BLOCKWIDTH_X*BLOCKWIDTH_Y + threadIdx.y*BLOCKWIDTH_X + threadIdx.x]=0;
+for (l=0;l<nos;l++)
+	{
+	xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
+	if (tx > n-1)
+	{
+	break; //use Break and test performance later(divergence)
+	}
+	if (ty > m-1)
+	{
+	break; //use Break and test performance later(divergence)
+	}
+	if (tz > p-1)
+	{
+	break;
+	}
+	if (l==1 && tx==n-1 && ty==m-1 && tz==p-1)
+	{
+	continue;
+	}
+	if (l==2 && tx==0 && ty==0 && tz==0)
+	{
+	continue;
+	}
+	if (l==3 && ty==m-1)
+	{
+	continue;
+	}
+	if (l==4 && ty==0)
+	{
+	continue;
+	}
+	if (l==5 && tz==p-1)
+	{
+	continue;
+	}
+	if (l==6 && tz==0)
+	{
+	continue;
+	}
+	//for(i=0;i<p;i++)
+	y_sm[threadIdx.z*BLOCKWIDTH_X*BLOCKWIDTH_Y + threadIdx.y*BLOCKWIDTH_X + threadIdx.x]+= (ptr_coeff[offset + tz*lda2 + ty*lda3 +tx] * ptr_x[(tz+zdisp)*lda2 + (ty+ydisp)*lda3 + (tx+xdisp)]);
+	}
+	
+	ptr_y[tz*lda2+ ty*lda3 + tx]= y_sm[threadIdx.z*BLOCKWIDTH_X*BLOCKWIDTH_Y +threadIdx.y*BLOCKWIDTH_X + threadIdx.x];
+}
+   
+  
+/*  
  
- __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt* idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
+ __global__ void MatMul_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
 {
 
 int tx= blockDim.x * blockIdx.x + threadIdx.x;
@@ -656,32 +741,58 @@ int ty= blockDim.y * blockIdx.y + threadIdx.y;
 int l,i;
 int xdisp,ydisp,zdisp,offset;
 int lda1=m*n*p,lda2=m*n,lda3=m;
-__shared__ double y_sm[256];
-__shared__ double x_sm[324];
+__shared__ PetscScalar y_sm[256];
+__shared__ PetscScalar x_sm[324];
+
+//initializing to the zero
 
 // copying a Tile from Y into the shared Memory
 y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x]=0;
 
-// Copying a tile x into the shared Memory with 2 steps.
+//Copying a tile x into the shared Memory with 2 steps.
 
-// Copying without the Ghost Cells  
+//Copying without the Ghost Cells  
 x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + (threadIdx.x+1)]=ptr_x[ty*lda3 + tx];
 
+//Copying the Ghost Cells
+// if (tx!=0)
+// {
+// if (threadIdx.x==0)
+// x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x]=ptr_x[ty*lda3 + tx-1];
+// }
 
-// Copying the Ghost Cells
-if (tx!=0 || ty!=0 || tx != n-1 || ty != m-1)
+// if (ty!=0)
+// {
+// if (threadIdx.y==0)
+// x_sm[(threadIdx.y)* (BLOCKWIDTH+2) + threadIdx.x+1]=ptr_x[(ty-1)*lda3 + tx];
+// }
+
+// if (tx != n-1) // not sure about this
+// {
+// if (threadIdx.x==BLOCKWIDTH-1)
+// x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x + 2]=ptr_x[ty*lda3 + tx + 1];
+// }
+
+// if (ty != m-1)
+// {
+// if (threadIdx.y==BLOCKWIDTH-1)
+// x_sm[(threadIdx.y+2)*(BLOCKWIDTH+2) + threadIdx.x +1]=ptr_x[(ty+1)*lda3 + tx];
+// }
+
+//Copying the Ghost Cells
+if (tx!=0 || ty!=0 || tx != n-1 || ty != m-1 || !(tx > n-1) || !(ty > m-1))
 {
-	if (threadIdx.x==0)
-	x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x]=ptr_x[ty*lda3 + tx-1];
+if (threadIdx.x==0)
+x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x]=ptr_x[ty*lda3 + tx-1];
 
-	if (threadIdx.y==0)
-	x_sm[(threadIdx.y)* (BLOCKWIDTH+2) + threadIdx.x+1]=ptr_x[(ty-1)*lda3 + tx];
+if (threadIdx.y==0)
+x_sm[(threadIdx.y)* (BLOCKWIDTH+2) + threadIdx.x+1]=ptr_x[(ty-1)*lda3 + tx];
 
-	if (threadIdx.x==BLOCKWIDTH-1)
-	x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x + 2]=ptr_x[ty*lda3 + tx + 1];
+if (threadIdx.x==BLOCKWIDTH-1)
+x_sm[(threadIdx.y+1)*(BLOCKWIDTH+2) + threadIdx.x + 2]=ptr_x[ty*lda3 + tx + 1];
 
-	if (threadIdx.y==BLOCKWIDTH-1)
-	x_sm[(threadIdx.y+2)*(BLOCKWIDTH+2) + threadIdx.x +1]=ptr_x[(ty+1)*lda3 + tx];
+if (threadIdx.y==BLOCKWIDTH-1)
+x_sm[(threadIdx.y+2)*(BLOCKWIDTH+2) + threadIdx.x +1]=ptr_x[(ty+1)*lda3 + tx];
 }
 __syncthreads();
 
@@ -698,42 +809,46 @@ __syncthreads();
 // cuPrintf("%f  ",  x_sm[j]);
 // }
 // }
-// MATMUL
+//MATMUL
 for (l=0;l<nos;l++)
 	{
 	xdisp = idx[l]; ydisp = idy[l]; zdisp = idz[l]; offset = l*lda1;
 	if (tx > n-1)
 	{
-		break; //use Break and test performance later(divergence)
+	break; //use Break and test performance later(divergence)
 	}
 	if (ty > m-1)
 	{
-		break; //use Break and test performance later(divergence)
+	break; //use Break and test performance later(divergence)
 	}
 	if (l==1 && tx==n-1 && ty==m-1)
 	{
-		continue;
+	continue;
 	}
 	if (l==2 && tx==0 && ty==0)
 	{
-		continue;
+	continue;
 	}
 	if (l==3 && ty==m-1)
 	{
-		continue;
+	continue;
 	}
 	if (l==4 && ty==0)
 	{
-		continue;
+	continue;
 	}
 	for(i=0;i<p;i++)
-	y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * x_sm[(i+zdisp)*lda2 + (threadIdx.y+ydisp +1)*(BLOCKWIDTH+2) + (threadIdx.x+xdisp+1)]); //forgetting Z currently.. I have to Fix it.
+	y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x]+= (ptr_coeff[offset + i*lda2 + ty*lda3 +tx] * x_sm[(i+zdisp)*lda2 + (threadIdx.y+ydisp +1)*
+	(BLOCKWIDTH+2) + (threadIdx.x+xdisp+1)]); //forgetting Z currently.. I have to Fix it.
 	}
-	// removing i temporarily
+	//removing i tempararily
 	ptr_y[ty*lda3 + tx]= y_sm[threadIdx.y*BLOCKWIDTH + threadIdx.x];
 }
-  
-int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
+ */  
+
+ 
+ 
+ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
 PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos, PetscCUSPFlag* fp)
 {
 
@@ -819,8 +934,11 @@ if(_DBGFLAG)
 //cutilCheckError(cutStopTimer(timer1));
 // kernel Configuration
 if (m > BLOCKWIDTH){
-dim3 dimBlock(BLOCKWIDTH,BLOCKWIDTH);
-dim3 dimGrid((int)ceil((float)m/(float)BLOCKWIDTH),((int)ceil((float)n/(float)BLOCKWIDTH)));
+// dim3 dimBlock(BLOCKWIDTH,BLOCKWIDTH);
+// dim3 dimGrid((int)ceil((float)m/(float)BLOCKWIDTH),((int)ceil((float)n/(float)BLOCKWIDTH)));
+
+dim3 dimBlock(BLOCKWIDTH,BLOCKWIDTH,BLOCKWIDTH);
+dim3 dimGrid((int)ceil((float)m/(float)BLOCKWIDTH),((int)ceil((float)n/(float)BLOCKWIDTH)),p/BLOCKWIDTH);
 
     // cutilCheckError(cutCreateTimer(&timer));
     // cutilCheckError(cutStartTimer(timer));
@@ -830,8 +948,9 @@ MatMult_Kernel<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, d_idy, d_idz, m, 
 }
 else
 {
-dim3 dimBlock(m,n);
-dim3 dimGrid(1,1);
+//dim3 dimBlock(m,n);
+dim3 dimBlock(m,n,p);
+dim3 dimGrid(1,1,1);
    
     // cutilCheckError(cutCreateTimer(&timer));
     // cutilCheckError(cutStartTimer(timer));
