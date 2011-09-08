@@ -500,6 +500,7 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 	a->a = malloc(sizeof(PetscScalar)*a->nz*a->stpoints);
 	a->xt = malloc (sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));
 	memset(a->xt,0,sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));
+	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }
 
