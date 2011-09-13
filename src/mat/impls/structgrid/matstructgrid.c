@@ -318,7 +318,7 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	PetscErrorCode ierr;
 	Mat_SeqSG * mat = (Mat_SeqSG *) A->data;
 	PetscInt * idx, * idy, * idz;
-	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof, comp;
+	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof,rshift,cshift;
 	PetscFunctionBegin;	
 	
 	idx = malloc(nrow*ncol*sizeof(PetscInt));
@@ -343,15 +343,17 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	fflush(stdout);
 	for(i=0;i< nrow ; i++)
 	{
-		comp = irow[i]%dof;
+		rshift = irow[i]%dof;
 		for(j=0;j<ncol;j++)
-		{	
-			cdis = (icol[j] - irow[i]);
-			zdis = (cdis+comp)/(m*n*dof);
-			cdis = (cdis+comp)%(m*n*dof);
+		{
+			cshift = icol[j]%dof;	
+			cdis = (icol[j] - irow[i]) + rshift - cshift;
+			zdis = (cdis)/(m*n*dof);
+			cdis = (cdis)%(m*n*dof);
 			ydis = (cdis)/(m*dof);
 			cdis = (cdis)%(m*dof);
-			xdis = (cdis-comp);
+			xdis = (cdis%dof);
+			xdis += cshift - rshift;
 			for(k=0;k<stp;k++)
 				if(mat->idx[k] == xdis &&  mat->idy[k] == ydis &&  mat->idz[k] == zdis)	
 				{
