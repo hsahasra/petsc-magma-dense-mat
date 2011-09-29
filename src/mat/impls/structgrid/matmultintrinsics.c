@@ -1,6 +1,7 @@
 #include <string.h>
 #include<omp.h>
 #define NUM_THREADS 4
+#define start(a,b) (a)>(b)?(a):(b)
 int OPENMP;
 
 
@@ -46,7 +47,7 @@ int OPENMP;
 #endif
 
 //#define SV_DOUBLE_WIDTH 1
-
+/*
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
 	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
@@ -133,5 +134,155 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 
 	PetscFunctionReturn(0);
 }
+*/
 
+
+PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
+{
+	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
+	PetscInt lda1 = m*n*p*dof;
+	PetscInt lda2 = m*n*dof;
+	PetscInt lda3 = m*dof;
+
+	PetscInt xval[nos], offset[nos], vbeg[nos], vend[nos];
+	for(l=0;l<nos;l++)
+	{
+		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset[l] = l*lda1;
+	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
+		vbeg[l] = 0; vend[l] = m*dof*n*p;
+		if(xval[l] > 0) vend[l] -= xval[l];
+		else
+		{
+			vbeg[l] -= xval[l];
+			xval[l] = 0;
+		}
+	}
+
+       	//printf("Thread=%d\n",omp_get_thread_num(),k,l);
+	
+	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
+#ifdef __AVX__
+	__sv_dtype xv2, coeffv2, xv3, coeffv3;
+#endif
+
+/* A Part */	
+	for(l=0;l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=vbeg[l+i];k<dof; k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+/* F Part */
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=vbeg[l+i];k<(lda2+(dof-1)); k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+/*   G part */
+	for(l=0;l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=(lda1-lda2-(dof-1));k<vend[l+i]; k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+/*   D part */
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=lda1-1-(dof-1);k<vend[l+i]; k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+/*   C part */
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=start(lda1-lda2-(dof-1),vbeg[l+i]);k<lda1-1-(dof-1); k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+/*   B part */
+	for(k=dof;k<lda2+(dof-1); k++)
+	{
+		for(l=0;l<nos;l+=2*(2*dof-1))
+		{
+			for(i=0;i<(2*dof-1);i++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);
+	
+			}
+		}
+	}
+/*   E part */
+	for(k=lda2+(dof-1);k<lda1-lda2-(dof-1)-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
+	{
+		yv = _sv_loadu_pd((PetscScalar *)(y+k));
+		for(l=0;l<=(nos-SV_DOUBLE_WIDTH);l+=SV_DOUBLE_WIDTH)
+		{
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+
+#if (SV_DOUBLE_WIDTH > 1)
+			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l+1]+k-vbeg[l+1]));
+#endif
+
+#if (SV_DOUBLE_WIDTH > 2)
+			xv2 = _sv_loadu_pd((PetscScalar *)(x+xval[l+2]+k-vbeg[l+2]));
+			xv3 = _sv_loadu_pd((PetscScalar *)(x+xval[l+3]+k-vbeg[l+3]));
+#endif
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+
+#if (SV_DOUBLE_WIDTH > 1)
+			coeffv1 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+1]+k));
+#endif
+
+#if (SV_DOUBLE_WIDTH > 2) 
+			coeffv2 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+2]+k));
+			coeffv3 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+3]+k));
+#endif
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+
+#if (SV_DOUBLE_WIDTH > 1)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv1,xv1));
+#endif
+
+#if (SV_DOUBLE_WIDTH > 2)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv2,xv2));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv3,xv3));
+#endif
+		}
+		for(;l<nos;l++)
+		{
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+		}
+		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
+	}
+	for(;k<lda1-lda2-(dof-1);k++){
+		for(l=0;l<nos;l++)
+		{
+			y[k] += (coeff[offset[l]+k] * x[(xval[l]+k-vbeg[l])]);		
+		}
+	}
+	PetscFunctionReturn(0);
+}
 
