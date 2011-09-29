@@ -154,8 +154,12 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
 	//openmp version
 	//ierr = SG_MatMultOpenmp(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+//......matmultintrinsic version 2
+	ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+
+
 //......matmultintrinsic
-	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+//	ierr = SG_MatMult(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 
 // version 2 below
 	//ierr = SG_MatMult(v,a->xt,yy,xx,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
@@ -352,8 +356,8 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 			cdis = (cdis)%(m*n*dof);
 			ydis = (cdis)/(m*dof);
 			cdis = (cdis)%(m*dof);
-			xdis = (cdis%dof);
-			xdis += cshift - rshift;
+	//		xdis = (cdis%dof);
+			xdis = cdis + cshift - rshift;
 			for(k=0;k<stp;k++)
 				if(mat->idx[k] == xdis &&  mat->idy[k] == ydis &&  mat->idz[k] == zdis)	
 				{
@@ -430,7 +434,7 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	mat->idx =  malloc (sizeof(PetscInt)*mat->stpoints);
 	mat->idy =  malloc (sizeof(PetscInt)*mat->stpoints);
 	mat->idz =  malloc (sizeof(PetscInt)*mat->stpoints);
-	
+/*Do not change the order of the stencil. MatMult depends on the order of these stencils.*/	
 	mat->idx[cnt] = 0; mat->idy[cnt]=0; mat->idz[cnt++]= 0;
 	for(i=1;i<dof;i++)
 	{
@@ -439,50 +443,50 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	}
 	if(dim>0)
 	{	
-		mat->idx[cnt] = dof; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
-		for(i=1;i<dof;i++)
-		{
-			mat->idx[cnt] = dof+i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
-			mat->idx[cnt] = dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
-		}
-			
 		mat->idx[cnt] = -dof; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
 		for(i=1;i<dof;i++)
 		{
 			mat->idx[cnt] = -dof+i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
 			mat->idx[cnt] = -dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+		}
+			
+		mat->idx[cnt] = dof; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = dof+i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+			mat->idx[cnt] = dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
 		}	
 	}
 	if(dim>1)
 	{
-		mat->idx[cnt] = 0; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
-		for(i=1;i<dof;i++)
-		{
-			mat->idx[cnt] = i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
-			mat->idx[cnt] = -i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
-		}
-			
 		mat->idx[cnt] = 0; mat->idy[cnt] = -1; mat->idz[cnt++] = 0;
 		for(i=1;i<dof;i++)
 		{
 			mat->idx[cnt] = i; mat->idy[cnt] = -1; mat->idz[cnt++] = 0;
 			mat->idx[cnt] = -i; mat->idy[cnt] = -1; mat->idz[cnt++] = 0;
+		}
+			
+		mat->idx[cnt] = 0; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
+			mat->idx[cnt] = -i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
 		}	
 	}
 	if(dim>2)
 	{
-		mat->idx[cnt] = 0; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
-		for(i=1;i<dof;i++)
-		{
-			mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
-			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
-		}
-			
 		mat->idx[cnt] = 0; mat->idy[cnt] = 0; mat->idz[cnt++] = -1;
 		for(i=1;i<dof;i++)
 		{
 			mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = -1;
 			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = -1;
+		}
+			
+		mat->idx[cnt] = 0; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
+			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
 		}	
 	}	
  	PetscFunctionReturn(0);	
@@ -500,8 +504,6 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 	Mat_SeqSG * a = (Mat_SeqSG *)mat->data;
 	PetscFunctionBegin;
 	a->a = malloc(sizeof(PetscScalar)*a->nz*a->stpoints);
-	a->xt = malloc (sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));
-	memset(a->xt,0,sizeof(PetscScalar)*(a->nz+(a->m*a->dof*a->n*2)));
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }

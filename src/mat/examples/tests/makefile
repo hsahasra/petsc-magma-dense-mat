@@ -754,7 +754,7 @@ runex4:
 	${RM} -f ex4_1.tmp;
 
 runex5:
-	-@${MPIEXEC} -n 1 ./ex5 -mat_type seqaij -rectA > ex5_1.tmp 2>&1; \
+	-@${MPIEXEC} -n 1 ./ex5 -mat_type structgrid -rectA > ex5_1.tmp 2>&1; \
 	if (${DIFF} output/ex5_11_A.out ex5_1.tmp) then true; \
 	else echo ${PWD} ; echo "Possible problem with ex5_11_A for seqaij, diffs above \n========================================="; fi; \
 	${RM} -f ex5_1.tmp;
@@ -764,7 +764,7 @@ runex5:
 	else echo ${PWD} ; echo "Possible problem with ex5_12_A for seqdense, diffs above \n========================================="; fi; \
 	${RM} -f ex5_1.tmp;
 
-	-@${MPIEXEC} -n 1 ./ex5 -mat_type seqaij -rectB > ex5_1.tmp 2>&1; \
+	-@${MPIEXEC} -n 1 ./ex5 -mat_type structgrid -rectB > ex5_1.tmp 2>&1; \
 	if (${DIFF} output/ex5_11_B.out ex5_1.tmp) then true; \
 	else echo ${PWD} ; echo "Possible problem with ex5_11_B for seqaij, diffs above \n========================================="; fi; \
 	${RM} -f ex5_1.tmp;
