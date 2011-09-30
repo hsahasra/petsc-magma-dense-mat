@@ -20,9 +20,13 @@ class Configure(config.base.Configure):
   def __str2__(self):
     desc = []
     desc.append('xxx=========================================================================xxx')
-    desc.append('   Configure stage complete. Now build PETSc libraries with:')
+    if self.getMakeMacro('PETSC_BUILD_USING_CMAKE'):
+      build_type = 'cmake build'
+    else:
+      build_type = 'legacy build'
+    desc.append(' Configure stage complete. Now build PETSc libraries with (%s):' % build_type)
     desc.append('   make PETSC_DIR='+self.petscdir.dir+' PETSC_ARCH='+self.arch.arch+' all')
-    desc.append(' or:')
+    desc.append(' or (experimental with python):')
     desc.append('   PETSC_DIR='+self.petscdir.dir+' PETSC_ARCH='+self.arch.arch+' ./config/builder.py')
     desc.append('xxx=========================================================================xxx')
     return '\n'.join(desc)+'\n'
@@ -69,6 +73,8 @@ class Configure(config.base.Configure):
         packageObj.installDirProvider = self.petscdir
         setattr(self, package.lower(), packageObj)
     # Force blaslapack to depend on scalarType so precision is set before BlasLapack is built
+    framework.require('PETSc.utilities.scalarTypes', self.f2cblaslapack)
+    self.f2cblaslapack.precisionProvider = self.scalartypes
     framework.require('PETSc.utilities.scalarTypes', self.blaslapack)
     self.blaslapack.precisionProvider = self.scalartypes
 
@@ -80,10 +86,10 @@ class Configure(config.base.Configure):
     self.blaslapack.headerPrefix = self.headerPrefix
     self.mpi.headerPrefix        = self.headerPrefix
     headersC = map(lambda name: name+'.h', ['dos', 'endian', 'fcntl', 'float', 'io', 'limits', 'malloc', 'pwd', 'search', 'strings',
-                                            'unistd', 'machine/endian', 'sys/param', 'sys/procfs', 'sys/resource',
+                                            'unistd', 'sys/sysinfo', 'machine/endian', 'sys/param', 'sys/procfs', 'sys/resource',
                                             'sys/systeminfo', 'sys/times', 'sys/utsname','string', 'stdlib','memory',
                                             'sys/socket','sys/wait','netinet/in','netdb','Direct','time','Ws2tcpip','sys/types',
-                                            'WindowsX', 'cxxabi','float','ieeefp','stdint','fenv'])
+                                            'WindowsX', 'cxxabi','float','ieeefp','stdint','fenv','sched','pthread'])
     functions = ['access', '_access', 'clock', 'drand48', 'getcwd', '_getcwd', 'getdomainname', 'gethostname', 'getpwuid',
                  'gettimeofday', 'getwd', 'memalign', 'memmove', 'mkstemp', 'popen', 'PXFGETARG', 'rand', 'getpagesize',
                  'readlink', 'realpath',  'sigaction', 'signal', 'sigset', 'nanosleep', 'usleep', 'sleep', '_sleep', 'socket', 
@@ -205,7 +211,7 @@ class Configure(config.base.Configure):
       self.addDefine('HAVE_CRAY_VECTOR','1')
 
 #-----------------------------------------------------------------------------------------------------
-    if self.functions.haveFunction('gethostbyname') and self.functions.haveFunction('socket'):
+    if self.functions.haveFunction('gethostbyname') and self.functions.haveFunction('socket') and self.headers.haveHeader('netinet/in.h'):
       self.addDefine('USE_SOCKET_VIEWER','1')
 
 #-----------------------------------------------------------------------------------------------------
@@ -308,7 +314,7 @@ class Configure(config.base.Configure):
       self.setCompilers.popLanguage()
     fd.write('\"-----------------------------------------\\n\";\n')
     fd.write('static const char *petsccompilerflagsinfo = \"\\n\"\n')
-    fd.write('\"Using include paths: %s %s %s\\n\"\n' % ('-I'+os.path.join(self.petscdir.dir, self.arch.arch, 'include'), '-I'+os.path.join(self.petscdir.dir, 'include'), self.PETSC_CC_INCLUDES))
+    fd.write('\"Using include paths: %s %s %s\\n\"\n' % ('-I'+os.path.join(self.petscdir.dir, self.arch.arch, 'include'), '-I'+os.path.join(self.petscdir.dir, 'include'), self.PETSC_CC_INCLUDES.replace('\\ ','\\\\ ')))
     fd.write('\"-----------------------------------------\\n\";\n')
     fd.write('static const char *petsclinkerinfo = \"\\n\"\n')
     self.setCompilers.pushLanguage(self.languages.clanguage)
@@ -318,7 +324,11 @@ class Configure(config.base.Configure):
       self.setCompilers.pushLanguage('FC')
       fd.write('\"Using Fortran linker: %s\\n\"\n' % (self.setCompilers.getLinker()))
       self.setCompilers.popLanguage()
-    fd.write('\"Using libraries: %s%s -L%s %s %s\\n\"\n' % (self.setCompilers.CSharedLinkerFlag, os.path.join(self.petscdir.dir, self.arch.arch, 'lib'), os.path.join(self.petscdir.dir, self.arch.arch, 'lib'), '-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetscsys', self.PETSC_EXTERNAL_LIB_BASIC))
+    if self.framework.argDB['with-single-library']:
+      petsclib = '-lpetsc'
+    else:
+      petsclib = '-lpetscts -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetscsys'
+    fd.write('\"Using libraries: %s%s -L%s %s %s\\n\"\n' % (self.setCompilers.CSharedLinkerFlag, os.path.join(self.petscdir.dir, self.arch.arch, 'lib'), os.path.join(self.petscdir.dir, self.arch.arch, 'lib'), petsclib, self.PETSC_EXTERNAL_LIB_BASIC.replace('\\ ','\\\\ ')))
     fd.write('\"-----------------------------------------\\n\";\n')
     fd.close()
     return
@@ -438,20 +448,33 @@ class Configure(config.base.Configure):
     if sys.version_info >= (2,5):
       import cmakegen
       try:
-        cmakegen.main(self.petscdir.dir)
+        cmakegen.main(self.petscdir.dir, log=self.framework.log)
       except (OSError), e:
         self.framework.logPrint('Generating CMakeLists.txt failed:\n' + str(e))
+    else:
+      self.framework.logPrint('Skipping cmakegen due to old python version: ' +str(sys.version_info) )
 
   def cmakeBoot(self):
     import sys
+    self.cmakeboot_success = False
     if sys.version_info >= (2,5) and hasattr(self.cmake,'cmake'):
       try:
         import cmakeboot
-        cmakeboot.main(petscdir=self.petscdir.dir,petscarch=self.arch.arch,argDB=self.argDB,framework=self.framework,log=self.framework.log)
+        self.cmakeboot_success = cmakeboot.main(petscdir=self.petscdir.dir,petscarch=self.arch.arch,argDB=self.argDB,framework=self.framework,log=self.framework.log)
       except (OSError), e:
         self.framework.logPrint('Booting CMake in PETSC_ARCH failed:\n' + str(e))
       except (ImportError, KeyError), e:
         self.framework.logPrint('Importing cmakeboot failed:\n' + str(e))
+      if self.cmakeboot_success:
+        if self.framework.argDB['with-cuda']: # Our CMake build does not support CUDA at this time
+          self.framework.logPrint('CMake configured successfully, but could not be used by default because --with-cuda was used\n')
+        else:
+          self.framework.logPrint('CMake configured successfully, using as default build\n')
+          self.addMakeMacro('PETSC_BUILD_USING_CMAKE',1)
+      else:
+        self.framework.logPrint('CMake configuration was unsuccessful\n')
+    else:
+      self.framework.logPrint('Skipping cmakeboot due to old python version: ' +str(sys.version_info) )
     return
 
   def configurePrefetch(self):
@@ -510,13 +533,25 @@ class Configure(config.base.Configure):
       self.addDefine('Prefetch(a,b,c)', ' ')
     self.popLanguage()
 
+  def configureFeatureTestMacros(self):
+    '''Checks if certain feature test macros are support'''
+    if self.checkCompile('#define _POSIX_C_SOURCE 200112L\n#include <stdlib.h>',''):
+       self.addDefine('_POSIX_C_SOURCE_200112L', '1')
+    if self.checkCompile('#define _BSD_SOURCE\n#include<stdlib.h>',''):
+       self.addDefine('_BSD_SOURCE', '1')
+
+  def configureAtoll(self):
+    '''Checks if atoll exists'''
+    if self.checkCompile('#define _POSIX_C_SOURCE 200112L\n#include <stdlib.h>','long v = atoll("25")') or self.checkCompile ('#include <stdlib.h>','long v = atoll("25")'):
+       self.addDefine('HAVE_ATOLL', '1')
+
   def configureUnused(self):
     '''Sees if __attribute((unused)) is supported'''
     if self.framework.argDB['with-iphone'] or self.framework.argDB['with-cuda']:
       self.addDefine('UNUSED', ' ')
       return
     self.pushLanguage(self.languages.clanguage)      
-    if self.checkLink('__attribute((unused)) static int myfunc(void){ return 1;}', 'int i = myfunc();\n'):
+    if self.checkLink('__attribute((unused)) static int myfunc(void){ return 1;}', 'int i = myfunc();\ntypedef void* atype;\n__attribute((unused))  atype a;\n'):
       self.addDefine('UNUSED', '__attribute((unused))')
     else:
       self.addDefine('UNUSED', ' ')
@@ -656,7 +691,7 @@ class Configure(config.base.Configure):
       self.addDefine('HAVE_LARGE_INTEGER_U',1)
 
     # Windows requires a Binary file creation flag when creating/opening binary files.  Is a better test in order?
-    if self.checkCompile('#include <Windows.h>\n', 'int flags = O_BINARY;'):
+    if self.checkCompile('#include <Windows.h>\n#include <fcntl.h>\n', 'int flags = O_BINARY;'):
       self.addDefine('HAVE_O_BINARY',1)
 
     if self.compilers.CC.find('win32fe') >= 0:
@@ -678,7 +713,7 @@ class Configure(config.base.Configure):
       fd = file(conffile, 'w')
       fd.write('PETSC_ARCH='+self.arch.arch+'\n')
       fd.write('PETSC_DIR='+self.petscdir.dir+'\n')
-      fd.write('include ${PETSC_DIR}/${PETSC_ARCH}/conf/petscvariables\n')
+      fd.write('include '+os.path.join(self.petscdir.dir,self.arch.arch,'conf','petscvariables')+'\n')
       fd.close()
       self.framework.actions.addArgument('PETSc', 'Build', 'Set default architecture to '+self.arch.arch+' in '+conffile)
     elif os.path.isfile(conffile):
@@ -780,6 +815,8 @@ class Configure(config.base.Configure):
     self.executeTest(self.configureInstall)
     self.executeTest(self.configureGCOV)
     self.executeTest(self.configureFortranFlush)
+    self.executeTest(self.configureFeatureTestMacros)
+    self.executeTest(self.configureAtoll)
     # dummy rules, always needed except for remote builds
     self.addMakeRule('remote','')
     self.addMakeRule('remoteclean','')

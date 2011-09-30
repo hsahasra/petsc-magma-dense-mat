@@ -12,7 +12,7 @@
 #if defined(PETSC_USE_LOG)
 extern PetscErrorCode PetscLogBegin_Private(void);
 #endif
-extern PetscBool  PetscOpenMPWorker;
+extern PetscBool  PetscHMPIWorker;
 
 /* -----------------------------------------------------------------------------------------*/
 
@@ -24,6 +24,13 @@ extern PetscErrorCode PetscFListDestroyAll(void);
 extern PetscErrorCode PetscSequentialPhaseBegin_Private(MPI_Comm,int);
 extern PetscErrorCode PetscSequentialPhaseEnd_Private(MPI_Comm,int);
 extern PetscErrorCode PetscCloseHistoryFile(FILE **);
+
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+extern int* ThreadCoreAffinity;
+extern PetscErrorCode (*PetscThreadFinalize)(void);
+extern PetscErrorCode (*PetscThreadInitialize)(PetscInt);
+extern PetscMPIInt PetscMaxThreads;
+#endif
 
 /* this is used by the _, __, and ___ macros (see include/petscerror.h) */
 PetscErrorCode __gierr = 0;
@@ -87,6 +94,8 @@ extern PetscBool PetscBeganMPI;
      indicate that it did NOT start MPI so that the PetscFinalize() does not end MPI, thus allowing PetscInitialize() to 
      be called multiple times from MATLAB without the problem of trying to initialize MPI more than once.
 
+     Turns off PETSc signal handling because that can interact with MATLAB's signal handling causing random crashes.
+
 .seealso: PetscInitialize(), PetscInitializeFortran(), PetscInitializeNoArguments()
 */
 PetscErrorCode  PetscInitializeMatlab(int argc,char **args,const char *filename,const char *help)
@@ -97,6 +106,7 @@ PetscErrorCode  PetscInitializeMatlab(int argc,char **args,const char *filename,
 
   PetscFunctionBegin;
   ierr = PetscInitialize(&myargc,&myargs,filename,help);
+  ierr = PetscPopSignalHandler();CHKERRQ(ierr);
   PetscBeganMPI = PETSC_FALSE;
   PetscFunctionReturn(ierr);
 }
@@ -353,7 +363,7 @@ void  PetscMax_Local(void *in,void *out,PetscMPIInt *cnt,MPI_Datatype *datatype)
   }
 
   for (i=0; i<count; i++) {
-    xout[i] += PetscMax(xout[i],xin[i]); 
+    xout[i] = PetscMax(xout[i],xin[i]); 
   }
   PetscFunctionReturnVoid();
 }
@@ -374,7 +384,7 @@ void  PetscMin_Local(void *in,void *out,PetscMPIInt *cnt,MPI_Datatype *datatype)
   }
 
   for (i=0; i<count; i++) {
-    xout[i] += PetscMin(xout[i],xin[i]); 
+    xout[i] = PetscMin(xout[i],xin[i]); 
   }
   PetscFunctionReturnVoid();
 }
@@ -387,7 +397,7 @@ EXTERN_C_BEGIN
 /*
    Private routine to delete internal tag/name counter storage when a communicator is freed.
 
-   This is called by MPI, not by users.
+   This is called by MPI, not by users. This is called by MPI_Comm_free() when the communicator that has this  data as an attribute is freed.
 
    Note: this is declared extern "C" because it is passed to MPI_Keyval_create()
 
@@ -407,21 +417,33 @@ EXTERN_C_BEGIN
 #undef __FUNCT__  
 #define __FUNCT__ "Petsc_DelComm"
 /*
-  This does not actually free anything, it simply marks when a reference count to an internal MPI_Comm reaches zero and the
-  the external MPI_Comm drops its reference to the internal MPI_Comm
+  This does not actually free anything, it simply marks when a reference count to an internal or external MPI_Comm reaches zero and the
+  the external MPI_Comm drops its reference to the internal or external MPI_Comm
 
-  This is called by MPI, not by users.
+  This is called by MPI, not by users. This is called when MPI_Comm_free() is called on the communicator.
 
   Note: this is declared extern "C" because it is passed to MPI_Keyval_create()
 
 */
 PetscMPIInt  MPIAPI Petsc_DelComm(MPI_Comm comm,PetscMPIInt keyval,void *attr_val,void *extra_state)
 {
-  PetscErrorCode ierr;
+  PetscErrorCode   ierr;
+  PetscMPIInt      flg;
+  MPI_Comm         icomm;
+  void             *ptr;
 
   PetscFunctionBegin;
-  ierr = PetscInfo1(0,"Deleting PETSc communicator imbedded in a user MPI_Comm %ld\n",(long)comm);if (ierr) PetscFunctionReturn((PetscMPIInt)ierr);
-  /* actually don't delete anything because we cannot increase the reference count of the communicator anyways */
+  ierr  = MPI_Attr_get(comm,Petsc_InnerComm_keyval,&ptr,&flg);CHKERRQ(ierr);
+  if (flg) {
+    /*  Use PetscMemcpy() because casting from pointer to integer of different size is not allowed with some compilers  */
+    ierr = PetscMemcpy(&icomm,&ptr,sizeof(MPI_Comm));CHKERRQ(ierr);
+    ierr = MPI_Attr_get(icomm,Petsc_OuterComm_keyval,&ptr,&flg);CHKERRQ(ierr);
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Inner MPI_Comm does not have expected reference to outer comm");
+    ierr = MPI_Attr_delete(icomm,Petsc_OuterComm_keyval);CHKERRQ(ierr);
+    ierr = PetscInfo1(0,"User MPI_Comm m %ld is being freed, removing reference from inner PETSc comm to this outer comm\n",(long)comm);if (ierr) PetscFunctionReturn((PetscMPIInt)ierr);
+  } else {
+    ierr = PetscInfo1(0,"Removing reference to PETSc communicator imbedded in a user MPI_Comm m %ld\n",(long)comm);if (ierr) PetscFunctionReturn((PetscMPIInt)ierr);
+  }
   PetscFunctionReturn(MPI_SUCCESS);
 }
 EXTERN_C_END
@@ -587,7 +609,8 @@ PetscErrorCode  PetscFreeArguments(char **args)
 .  -not_shared_tmp - each processor has own /tmp
 .  -tmp - alternative name of /tmp directory
 .  -get_total_flops - returns total flops done by all processors
--  -memory_info - Print memory usage at end of run
+.  -memory_info - Print memory usage at end of run
+-  -server <port> - start PETSc webserver (default port is 8080)
 
    Options Database Keys for Profiling:
    See the <a href="../../docs/manual.pdf#nameddest=ch_profiling">profiling chapter of the users manual</a> for details.
@@ -698,10 +721,10 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
   }
 
 #if !defined(PETSC_HAVE_MPI_C_DOUBLE_COMPLEX)
-  ierr = MPI_Type_contiguous(2,MPIU_REAL,&MPI_C_DOUBLE_COMPLEX);CHKERRQ(ierr);
-  ierr = MPI_Type_commit(&MPI_C_DOUBLE_COMPLEX);CHKERRQ(ierr);
-  ierr = MPI_Type_contiguous(2,MPI_FLOAT,&MPI_C_COMPLEX);CHKERRQ(ierr);
-  ierr = MPI_Type_commit(&MPI_C_COMPLEX);CHKERRQ(ierr);
+  ierr = MPI_Type_contiguous(2,MPIU_REAL,&MPIU_C_DOUBLE_COMPLEX);CHKERRQ(ierr);
+  ierr = MPI_Type_commit(&MPIU_C_DOUBLE_COMPLEX);CHKERRQ(ierr);
+  ierr = MPI_Type_contiguous(2,MPI_FLOAT,&MPIU_C_COMPLEX);CHKERRQ(ierr);
+  ierr = MPI_Type_commit(&MPIU_C_COMPLEX);CHKERRQ(ierr);
   ierr = MPI_Op_create(PetscSum_Local,1,&MPIU_SUM);CHKERRQ(ierr);
 #endif
 #endif
@@ -781,18 +804,19 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 #endif  
 #endif
 
-  ierr = PetscOptionsGetInt(PETSC_NULL,"-openmp_spawn_size",&nodesize,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(PETSC_NULL,"-hmpi_spawn_size",&nodesize,&flg);CHKERRQ(ierr);
   if (flg) {
 #if defined(PETSC_HAVE_MPI_COMM_SPAWN)
-    ierr = PetscOpenMPSpawn((PetscMPIInt) nodesize);CHKERRQ(ierr); /* worker nodes never return from here; they go directly to PetscEnd() */
+    ierr = PetscHMPISpawn((PetscMPIInt) nodesize);CHKERRQ(ierr); /* worker nodes never return from here; they go directly to PetscEnd() */
 #else
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"PETSc built without MPI 2 (MPI_Comm_spawn) support, use -openmp_merge_size instead");
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"PETSc built without MPI 2 (MPI_Comm_spawn) support, use -hmpi_merge_size instead");
 #endif
   } else {
-    ierr = PetscOptionsGetInt(PETSC_NULL,"-openmp_merge_size",&nodesize,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(PETSC_NULL,"-hmpi_merge_size",&nodesize,&flg);CHKERRQ(ierr);
     if (flg) {
-      ierr = PetscOpenMPMerge((PetscMPIInt) nodesize,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr); 
-      if (PetscOpenMPWorker) { /* if worker then never enter user code */
+      ierr = PetscHMPIMerge((PetscMPIInt) nodesize,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr); 
+      if (PetscHMPIWorker) { /* if worker then never enter user code */
+        PetscInitializeCalled = PETSC_TRUE;
         ierr = PetscEnd(); 
       }
     }
@@ -800,6 +824,32 @@ PetscErrorCode  PetscInitialize(int *argc,char ***args,const char file[],const c
 
 #if defined(PETSC_HAVE_CUDA)
   cublasInit();
+
+  ierr = PetscOptionsHasName(PETSC_NULL,"-cuda_show_devices",&flg);CHKERRQ(ierr);
+  if (flg) {
+    struct cudaDeviceProp prop;
+    int devCount;
+    int device;
+
+    ierr = cudaGetDeviceCount(&devCount);CHKERRQ(ierr);
+    for(device = 0; device < devCount; ++device) {
+      ierr = cudaGetDeviceProperties(&prop, device);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "CUDA device %d: %s\n", device, prop.name);CHKERRQ(ierr);
+    }
+  }
+  {
+    int device;
+
+    ierr = PetscOptionsGetInt(PETSC_NULL,"-cuda_set_device", &device, &flg);CHKERRQ(ierr);
+    if (flg) {
+      ierr = cudaSetDevice(device);CHKERRQ(ierr);
+    }
+  }
+#endif
+
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+  if(PetscThreadInitialize)
+    ierr = (*PetscThreadInitialize)(PetscMaxThreads);CHKERRQ(ierr);
 #endif
 
 #if defined(PETSC_HAVE_AMS)
@@ -893,7 +943,14 @@ PetscErrorCode  PetscFinalize(void)
   }  
 #endif
 
-  ierr = PetscOpenMPFinalize();CHKERRQ(ierr); 
+  ierr = PetscHMPIFinalize();CHKERRQ(ierr);
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+  if (PetscThreadFinalize) {
+    /* thread pool case */
+    ierr = (*PetscThreadFinalize)();CHKERRQ(ierr);
+  }
+  free(ThreadCoreAffinity);
+#endif
 
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-malloc_info",&flg2,PETSC_NULL);CHKERRQ(ierr);
@@ -997,7 +1054,7 @@ PetscErrorCode  PetscFinalize(void)
   ierr = PetscOptionsHasName(PETSC_NULL,"-nox_warning",&flg1);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-objects_left",&objects_left,PETSC_NULL);CHKERRQ(ierr);
 
-  if (!PetscOpenMPWorker) { /* worker processes skip this because they do not usually process options */
+  if (!PetscHMPIWorker) { /* worker processes skip this because they do not usually process options */
     flg3 = PETSC_FALSE; /* default value is required */
     ierr = PetscOptionsGetBool(PETSC_NULL,"-options_left",&flg3,&flg1);CHKERRQ(ierr);
     ierr = PetscOptionsAllUsed(&nopt);CHKERRQ(ierr);
@@ -1010,7 +1067,7 @@ PetscErrorCode  PetscFinalize(void)
       } else if (nopt == 1) {
 	ierr = PetscPrintf(PETSC_COMM_WORLD,"There is one unused database option. It is:\n");CHKERRQ(ierr);
       } else {
-	ierr = PetscPrintf(PETSC_COMM_WORLD,"There are %d unused database options. They are:\n",nopt);CHKERRQ(ierr);
+	ierr = PetscPrintf(PETSC_COMM_WORLD,"There are %D unused database options. They are:\n",nopt);CHKERRQ(ierr);
       }
     } 
 #if defined(PETSC_USE_DEBUG)
@@ -1136,8 +1193,8 @@ PetscErrorCode  PetscFinalize(void)
 #if defined(PETSC_USE_COMPLEX)
 #if !defined(PETSC_HAVE_MPI_C_DOUBLE_COMPLEX)
   ierr = MPI_Op_free(&MPIU_SUM);CHKERRQ(ierr);
-  ierr = MPI_Type_free(&MPI_C_DOUBLE_COMPLEX);CHKERRQ(ierr);
-  ierr = MPI_Type_free(&MPI_C_COMPLEX);CHKERRQ(ierr);
+  ierr = MPI_Type_free(&MPIU_C_DOUBLE_COMPLEX);CHKERRQ(ierr);
+  ierr = MPI_Type_free(&MPIU_C_COMPLEX);CHKERRQ(ierr);
 #endif
 #endif
   ierr = MPI_Type_free(&MPIU_2SCALAR);CHKERRQ(ierr);
@@ -1147,8 +1204,11 @@ PetscErrorCode  PetscFinalize(void)
   ierr = MPI_Op_free(&PetscADMin_Op);CHKERRQ(ierr);
 
   /* 
-     Destroy any known inner communicators and attributes pointing to them
-     Note this will not destroy any new communicators the user has created
+     Destroy any known inner MPI_Comm's and attributes pointing to them
+     Note this will not destroy any new communicators the user has created.
+
+     If all PETSc objects were not destroyed those left over objects will have hanging references to 
+     the MPI_Comms that were freed; but that is ok because those PETSc objects will never be used again
  */
   {
     PetscCommCounter *counter;
@@ -1162,10 +1222,9 @@ PetscErrorCode  PetscFinalize(void)
       ierr = MPI_Attr_get(icomm,Petsc_Counter_keyval,&counter,&flg);CHKERRQ(ierr);
       if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Inner MPI_Comm does not have expected tag/name counter, problem with corrupted memory");
 
-      ierr = MPI_Attr_delete(icomm,Petsc_Counter_keyval);CHKERRQ(ierr);
-      ierr = MPI_Attr_delete(icomm,Petsc_OuterComm_keyval);CHKERRQ(ierr);
-      ierr = MPI_Comm_free(&icomm);CHKERRQ(ierr);
       ierr = MPI_Attr_delete(PETSC_COMM_SELF,Petsc_InnerComm_keyval);CHKERRQ(ierr);
+      ierr = MPI_Attr_delete(icomm,Petsc_Counter_keyval);CHKERRQ(ierr);
+      ierr = MPI_Comm_free(&icomm);CHKERRQ(ierr);
     }
     ierr  = MPI_Attr_get(PETSC_COMM_WORLD,Petsc_InnerComm_keyval,&ptr,&flg);CHKERRQ(ierr);
     if (flg) {
@@ -1174,10 +1233,9 @@ PetscErrorCode  PetscFinalize(void)
       ierr = MPI_Attr_get(icomm,Petsc_Counter_keyval,&counter,&flg);CHKERRQ(ierr);
       if (!flg) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_CORRUPT,"Inner MPI_Comm does not have expected tag/name counter, problem with corrupted memory");
 
-      ierr = MPI_Attr_delete(icomm,Petsc_Counter_keyval);CHKERRQ(ierr);
-      ierr = MPI_Attr_delete(icomm,Petsc_OuterComm_keyval);CHKERRQ(ierr);
-      ierr = MPI_Comm_free(&icomm);CHKERRQ(ierr);
       ierr = MPI_Attr_delete(PETSC_COMM_WORLD,Petsc_InnerComm_keyval);CHKERRQ(ierr);
+      ierr = MPI_Attr_delete(icomm,Petsc_Counter_keyval);CHKERRQ(ierr);
+      ierr = MPI_Comm_free(&icomm);CHKERRQ(ierr);
     }
   }
 

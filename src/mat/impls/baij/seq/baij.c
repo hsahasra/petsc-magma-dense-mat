@@ -7,34 +7,10 @@
 #include <petscblaslapack.h>
 #include <../src/mat/blockinvert.h>
 
-#undef __FUNCT__
-#define __FUNCT__ "MatSeqBAIJInvertBlockDiagonal"
-/*@
-  MatSeqBAIJInvertBlockDiagonal - Inverts the block diagonal entries.
 
-  Collective on Mat
-
-  Input Parameters:
-. mat - the matrix
-
-  Level: advanced
-@*/
-PetscErrorCode  MatSeqBAIJInvertBlockDiagonal(Mat mat)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
-  if (!mat->assembled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for unassembled matrix");
-  if (mat->factortype) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix"); 
-  ierr = PetscUseMethod(mat,"MatSeqBAIJInvertBlockDiagonal_C",(Mat),(mat));CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-EXTERN_C_BEGIN
 #undef __FUNCT__  
 #define __FUNCT__ "MatInvertBlockDiagonal_SeqBAIJ"
-PetscErrorCode  MatInvertBlockDiagonal_SeqBAIJ(Mat A)
+PetscErrorCode  MatInvertBlockDiagonal_SeqBAIJ(Mat A,PetscScalar **values)
 {
   Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*) A->data;
   PetscErrorCode ierr;
@@ -43,15 +19,19 @@ PetscErrorCode  MatInvertBlockDiagonal_SeqBAIJ(Mat A)
   PetscReal      shift = 0.0;
 
   PetscFunctionBegin;
-  if (a->idiagvalid) PetscFunctionReturn(0);
+  if (a->idiagvalid) {
+    if (values)*values = a->idiag;
+    PetscFunctionReturn(0);
+  }
   ierr = MatMarkDiagonal_SeqBAIJ(A);CHKERRQ(ierr);
   diag_offset = a->diag;
   if (!a->idiag) {
     ierr = PetscMalloc(2*bs2*mbs*sizeof(PetscScalar),&a->idiag);CHKERRQ(ierr);
     ierr = PetscLogObjectMemory(A,2*bs2*mbs*sizeof(PetscScalar));CHKERRQ(ierr);
   }
-  diag  = a->idiag;
-  mdiag = a->idiag+bs2*mbs; 
+  diag    = a->idiag;
+  mdiag   = a->idiag+bs2*mbs; 
+  if (values) *values = a->idiag;
   /* factor and invert each block */
   switch (bs){
     case 1:
@@ -59,7 +39,7 @@ PetscErrorCode  MatInvertBlockDiagonal_SeqBAIJ(Mat A)
         odiag = v + 1*diag_offset[i];
         diag[0]  = odiag[0];
         mdiag[0] = odiag[0];
-        diag[0]  = 1.0 / (diag[0] + shift);
+        diag[0]  = (PetscScalar)1.0 / (diag[0] + shift);
         diag    += 1;
         mdiag   += 1;
       }
@@ -143,7 +123,6 @@ PetscErrorCode  MatInvertBlockDiagonal_SeqBAIJ(Mat A)
   a->idiagvalid = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
-EXTERN_C_END
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatSOR_SeqBAIJ_1"
@@ -166,7 +145,7 @@ PetscErrorCode MatSOR_SeqBAIJ_1(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -257,7 +236,7 @@ PetscErrorCode MatSOR_SeqBAIJ_2(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -361,7 +340,7 @@ PetscErrorCode MatSOR_SeqBAIJ_3(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -472,7 +451,7 @@ PetscErrorCode MatSOR_SeqBAIJ_4(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -590,7 +569,7 @@ PetscErrorCode MatSOR_SeqBAIJ_5(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -715,7 +694,7 @@ PetscErrorCode MatSOR_SeqBAIJ_6(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -847,7 +826,7 @@ PetscErrorCode MatSOR_SeqBAIJ_7(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -986,7 +965,7 @@ PetscErrorCode MatSOR_SeqBAIJ_N(Mat A,Vec bb,PetscReal omega,MatSORType flag,Pet
   if ((flag & SOR_APPLY_UPPER) || (flag & SOR_APPLY_LOWER)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support for applying upper or lower triangular parts");
   if (its > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Sorry, no support yet for multiple point block SOR iterations");
 
-  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal_SeqBAIJ(A);CHKERRQ(ierr);}
+  if (!a->idiagvalid){ierr = MatInvertBlockDiagonal(A,PETSC_NULL);CHKERRQ(ierr);}
 
   diag  = a->diag;
   idiag = a->idiag;
@@ -1455,7 +1434,7 @@ PetscErrorCode MatDestroy_SeqBAIJ(Mat A)
   ierr = PetscFree(A->data);CHKERRQ(ierr);
 
   ierr = PetscObjectChangeTypeName((PetscObject)A,0);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)A,"MatSeqBAIJInvertBlockDiagonal_C","",PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)A,"MatInvertBlockDiagonal_C","",PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatStoreValues_C","",PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatRetrieveValues_C","",PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatSeqBAIJSetColumnIndices_C","",PETSC_NULL);CHKERRQ(ierr);
@@ -1808,57 +1787,84 @@ static PetscErrorCode MatView_SeqBAIJ_Draw_Zoom(PetscDraw draw,void *Aa)
   PetscReal      xl,yl,xr,yr,x_l,x_r,y_l,y_r;
   MatScalar      *aa;
   PetscViewer    viewer;
+  PetscViewerFormat format;
 
-  PetscFunctionBegin; 
-
-  /* still need to add support for contour plot of nonzeros; see MatView_SeqAIJ_Draw_Zoom()*/
+  PetscFunctionBegin;
   ierr = PetscObjectQuery((PetscObject)A,"Zoomviewer",(PetscObject*)&viewer);CHKERRQ(ierr); 
+  ierr = PetscViewerGetFormat(viewer,&format);CHKERRQ(ierr);
 
   ierr = PetscDrawGetCoordinates(draw,&xl,&yl,&xr,&yr);CHKERRQ(ierr);
 
   /* loop over matrix elements drawing boxes */
-  color = PETSC_DRAW_BLUE;
-  for (i=0,row=0; i<mbs; i++,row+=bs) {
-    for (j=a->i[i]; j<a->i[i+1]; j++) {
-      y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
-      x_l = a->j[j]*bs; x_r = x_l + 1.0;
-      aa = a->a + j*bs2;
-      for (k=0; k<bs; k++) {
-        for (l=0; l<bs; l++) {
-          if (PetscRealPart(*aa++) >=  0.) continue;
-          ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
-        }
-      }
-    } 
-  }
-  color = PETSC_DRAW_CYAN;
-  for (i=0,row=0; i<mbs; i++,row+=bs) {
-    for (j=a->i[i]; j<a->i[i+1]; j++) {
-      y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
-      x_l = a->j[j]*bs; x_r = x_l + 1.0;
-      aa = a->a + j*bs2;
-      for (k=0; k<bs; k++) {
-        for (l=0; l<bs; l++) {
-          if (PetscRealPart(*aa++) != 0.) continue;
-          ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
-        }
-      }
-    } 
-  }
 
-  color = PETSC_DRAW_RED;
-  for (i=0,row=0; i<mbs; i++,row+=bs) {
-    for (j=a->i[i]; j<a->i[i+1]; j++) {
-      y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
-      x_l = a->j[j]*bs; x_r = x_l + 1.0;
-      aa = a->a + j*bs2;
-      for (k=0; k<bs; k++) {
-        for (l=0; l<bs; l++) {
-          if (PetscRealPart(*aa++) <= 0.) continue;
-          ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
+  if (format != PETSC_VIEWER_DRAW_CONTOUR) {
+    color = PETSC_DRAW_BLUE;
+    for (i=0,row=0; i<mbs; i++,row+=bs) {
+      for (j=a->i[i]; j<a->i[i+1]; j++) {
+        y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
+        x_l = a->j[j]*bs; x_r = x_l + 1.0;
+        aa = a->a + j*bs2;
+        for (k=0; k<bs; k++) {
+          for (l=0; l<bs; l++) {
+            if (PetscRealPart(*aa++) >=  0.) continue;
+            ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
+          }
+        }
+      } 
+    }
+    color = PETSC_DRAW_CYAN;
+    for (i=0,row=0; i<mbs; i++,row+=bs) {
+      for (j=a->i[i]; j<a->i[i+1]; j++) {
+        y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
+        x_l = a->j[j]*bs; x_r = x_l + 1.0;
+        aa = a->a + j*bs2;
+        for (k=0; k<bs; k++) {
+          for (l=0; l<bs; l++) {
+            if (PetscRealPart(*aa++) != 0.) continue;
+            ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
+          }
         }
       }
-    } 
+    }
+    color = PETSC_DRAW_RED;
+    for (i=0,row=0; i<mbs; i++,row+=bs) {
+      for (j=a->i[i]; j<a->i[i+1]; j++) {
+        y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
+        x_l = a->j[j]*bs; x_r = x_l + 1.0;
+        aa = a->a + j*bs2;
+        for (k=0; k<bs; k++) {
+          for (l=0; l<bs; l++) {
+            if (PetscRealPart(*aa++) <= 0.) continue;
+            ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
+          }
+        }
+      }
+    }
+  } else {
+    /* use contour shading to indicate magnitude of values */
+    /* first determine max of all nonzero values */
+    PetscDraw   popup;
+    PetscReal scale,maxv = 0.0;
+
+    for (i=0; i<a->nz*a->bs2; i++) {
+      if (PetscAbsScalar(a->a[i]) > maxv) maxv = PetscAbsScalar(a->a[i]);
+    }
+    scale = (245.0 - PETSC_DRAW_BASIC_COLORS)/maxv;
+    ierr  = PetscDrawGetPopup(draw,&popup);CHKERRQ(ierr);
+    if (popup) {ierr  = PetscDrawScalePopup(popup,0.0,maxv);CHKERRQ(ierr);}
+    for (i=0,row=0; i<mbs; i++,row+=bs) {
+      for (j=a->i[i]; j<a->i[i+1]; j++) {
+        y_l = A->rmap->N - row - 1.0; y_r = y_l + 1.0;
+        x_l = a->j[j]*bs; x_r = x_l + 1.0;
+        aa = a->a + j*bs2;
+        for (k=0; k<bs; k++) {
+          for (l=0; l<bs; l++) {
+            color = PETSC_DRAW_BASIC_COLORS + (PetscInt)(scale*PetscAbsScalar(*aa++));
+            ierr = PetscDrawRectangle(draw,x_l+k,y_l-l,x_r+k,y_r-l,color,color,color,color);CHKERRQ(ierr);
+          }
+        }
+      }
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -2231,7 +2237,7 @@ PetscErrorCode MatZeroRows_SeqBAIJ(Mat A,PetscInt is_n,const PetscInt is_idx[],P
     count = (baij->i[row/bs +1] - baij->i[row/bs])*bs;
     aa    = ((MatScalar*)(baij->a)) + baij->i[row/bs]*bs2 + (row%bs);
     if (sizes[i] == bs && !baij->keepnonzeropattern) {
-      if (diag != 0.0) {
+      if (diag != (PetscScalar)0.0) {
         if (baij->ilen[row/bs] > 0) {
           baij->ilen[row/bs]       = 1;
           baij->j[baij->i[row/bs]] = row/bs;
@@ -2252,7 +2258,7 @@ PetscErrorCode MatZeroRows_SeqBAIJ(Mat A,PetscInt is_n,const PetscInt is_idx[],P
         aa[0] =  zero; 
         aa    += bs;
       }
-      if (diag != 0.0) {
+      if (diag != (PetscScalar)0.0) {
         ierr = (*A->ops->setvalues)(A,1,rows+j,1,rows+j,&diag,INSERT_VALUES);CHKERRQ(ierr);
       }
     }
@@ -2323,7 +2329,7 @@ PetscErrorCode MatZeroRowsColumns_SeqBAIJ(Mat A,PetscInt is_n,const PetscInt is_
       aa[0] =  zero; 
       aa    += bs;
     }
-    if (diag != 0.0) {
+    if (diag != (PetscScalar)0.0) {
       ierr = (*A->ops->setvalues)(A,1,&row,1,&row,&diag,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -2611,12 +2617,13 @@ PetscErrorCode MatAXPY_SeqBAIJ(Mat Y,PetscScalar a,Mat X,MatStructure str)
 {
   Mat_SeqBAIJ    *x  = (Mat_SeqBAIJ *)X->data,*y = (Mat_SeqBAIJ *)Y->data;
   PetscErrorCode ierr;
-  PetscInt       i,bs=Y->rmap->bs,j,bs2;
-  PetscBLASInt   one=1,bnz = PetscBLASIntCast(x->nz);
+  PetscInt       i,bs=Y->rmap->bs,j,bs2=bs*bs;
+  PetscBLASInt   one=1;
 
   PetscFunctionBegin;
-  if (str == SAME_NONZERO_PATTERN) {   
+  if (str == SAME_NONZERO_PATTERN) {
     PetscScalar alpha = a;
+    PetscBLASInt bnz = PetscBLASIntCast(x->nz*bs2);
     BLASaxpy_(&bnz,&alpha,x->a,&one,y->a,&one);
   } else if (str == SUBSET_NONZERO_PATTERN) { /* nonzeros of X is a subset of Y's */
     if (y->xtoy && y->XtoY != X) {
@@ -2628,7 +2635,6 @@ PetscErrorCode MatAXPY_SeqBAIJ(Mat Y,PetscScalar a,Mat X,MatStructure str)
       y->XtoY = X;
       ierr = PetscObjectReference((PetscObject)X);CHKERRQ(ierr);
     }
-    bs2 = bs*bs;
     for (i=0; i<x->nz; i++) {
       j = 0;
       while (j < bs2){
@@ -2835,7 +2841,7 @@ PetscErrorCode  MatFDColoringApply_BAIJ(Mat J,MatFDColoring coloring,Vec x1,MatS
     } else {
       dx  = xx[col];
     }
-    if (dx == 0.0) dx = 1.0;
+    if (dx == (PetscScalar)0.0) dx = 1.0;
 #if !defined(PETSC_USE_COMPLEX)
     if (dx < umin && dx >= 0.0)      dx = umin;
     else if (dx < 0.0 && dx > -umin) dx = -umin;
@@ -2844,7 +2850,7 @@ PetscErrorCode  MatFDColoringApply_BAIJ(Mat J,MatFDColoring coloring,Vec x1,MatS
     else if (PetscRealPart(dx) < 0.0 && PetscAbsScalar(dx) < umin) dx = -umin;
 #endif
     dx               *= epsilon;
-    vscale_array[col] = 1.0/dx;
+    vscale_array[col] = (PetscScalar)1.0/dx;
   }     CHKMEMQ;
   if (ctype == IS_COLORING_GLOBAL)  vscale_array = vscale_array + start;      
   ierr = VecRestoreArray(coloring->vscale,&vscale_array);CHKERRQ(ierr);
@@ -2879,7 +2885,7 @@ PetscErrorCode  MatFDColoringApply_BAIJ(Mat J,MatFDColoring coloring,Vec x1,MatS
 	} else {
 	  dx  = xx[col];
 	}
-	if (dx == 0.0) dx = 1.0;
+	if (dx == (PetscScalar)0.0) dx = 1.0;
 #if !defined(PETSC_USE_COMPLEX)
 	if (dx < umin && dx >= 0.0)      dx = umin;
 	else if (dx < 0.0 && dx > -umin) dx = -umin;
@@ -3056,6 +3062,9 @@ static struct _MatOps MatOps_Values = {MatSetValues_SeqBAIJ,
        MatMultHermitianTranspose_SeqBAIJ,
        MatMultHermitianTransposeAdd_SeqBAIJ,
        0,
+/*124*/0,
+       0,
+       MatInvertBlockDiagonal_SeqBAIJ
 };
 
 EXTERN_C_BEGIN
@@ -3376,7 +3385,7 @@ PetscErrorCode  MatCreate_SeqBAIJ(Mat B)
 #if defined(PETSC_HAVE_MUMPS)
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)B,"MatGetFactor_mumps_C", "MatGetFactor_baij_mumps", MatGetFactor_baij_mumps);CHKERRQ(ierr);
 #endif
-  ierr = PetscObjectComposeFunctionDynamic((PetscObject)B,"MatSeqBAIJInvertBlockDiagonal_C",
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)B,"MatInvertBlockDiagonal_C",
                                      "MatInvertBlockDiagonal_SeqBAIJ",
                                       MatInvertBlockDiagonal_SeqBAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)B,"MatStoreValues_C",
@@ -3578,6 +3587,9 @@ PetscErrorCode MatLoad_SeqBAIJ(Mat newmat,PetscViewer viewer)
     ierr = MatSetSizes(newmat,PETSC_DECIDE,PETSC_DECIDE,M+extra_rows,N+extra_rows);CHKERRQ(ierr);
   } else { /* Check if the matrix global sizes are correct */
     ierr = MatGetSize(newmat,&rows,&cols);CHKERRQ(ierr);
+    if (rows < 0 && cols < 0){ /* user might provide local size instead of global size */
+      ierr = MatGetLocalSize(newmat,&rows,&cols);CHKERRQ(ierr);
+    } 
     if (M != rows ||  N != cols) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Matrix in file of different length (%d, %d) than the input matrix (%d, %d)",M,N,rows,cols);
   }
  

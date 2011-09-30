@@ -26,7 +26,7 @@ typedef struct _p_DM* DM;
 
 extern PetscClassId  DM_CLASSID;
 
-/*E
+/*J
     DMType - String with the name of a PETSc DM or the creation function
        with an optional dynamic library name, for example
        http://www.mcs.anl.gov/petsc/lib.a:myveccreate()
@@ -34,8 +34,7 @@ extern PetscClassId  DM_CLASSID;
    Level: beginner
 
 .seealso: DMSetType(), DM
-E*/
-
+J*/
 #define DMType char*
 #define DMDA        "da"
 #define DMADDA      "adda"
@@ -104,6 +103,7 @@ M*/
 #endif
 
 extern PetscErrorCode   DMView(DM,PetscViewer);
+extern PetscErrorCode   DMLoad(DM,PetscViewer);
 extern PetscErrorCode   DMDestroy(DM*);
 extern PetscErrorCode   DMCreateGlobalVector(DM,Vec*);
 extern PetscErrorCode   DMCreateLocalVector(DM,Vec*);
@@ -111,6 +111,7 @@ extern PetscErrorCode   DMGetLocalVector(DM,Vec *);
 extern PetscErrorCode   DMRestoreLocalVector(DM,Vec *);
 extern PetscErrorCode   DMGetGlobalVector(DM,Vec *);
 extern PetscErrorCode   DMRestoreGlobalVector(DM,Vec *);
+extern PetscErrorCode   DMClearGlobalVectors(DM);
 extern PetscErrorCode   DMGetLocalToGlobalMapping(DM,ISLocalToGlobalMapping*);
 extern PetscErrorCode   DMGetLocalToGlobalMappingBlock(DM,ISLocalToGlobalMapping*);
 extern PetscErrorCode   DMGetBlockSize(DM,PetscInt*);
@@ -135,8 +136,9 @@ extern PetscErrorCode   DMConvert(DM,const DMType,DM*);
 
 extern PetscErrorCode   DMSetOptionsPrefix(DM,const char []);
 extern PetscErrorCode   DMSetVecType(DM,const VecType);
-extern PetscErrorCode   DMSetContext(DM,void*);
-extern PetscErrorCode   DMGetContext(DM,void**);
+extern PetscErrorCode   DMSetApplicationContext(DM,void*);
+extern PetscErrorCode   DMSetApplicationContextDestroy(DM,PetscErrorCode (*)(void**));
+extern PetscErrorCode   DMGetApplicationContext(DM,void*);
 extern PetscErrorCode   DMSetInitialGuess(DM,PetscErrorCode (*)(DM,Vec));
 extern PetscErrorCode   DMSetFunction(DM,PetscErrorCode (*)(DM,Vec,Vec));
 extern PetscErrorCode   DMSetJacobian(DM,PetscErrorCode (*)(DM,Vec,Mat,Mat,MatStructure *));
@@ -148,6 +150,7 @@ extern PetscErrorCode   DMComputeFunction(DM,Vec,Vec);
 extern PetscErrorCode   DMComputeJacobian(DM,Vec,Mat,Mat,MatStructure *);
 extern PetscErrorCode   DMComputeJacobianDefault(DM,Vec,Mat,Mat,MatStructure *);
 
+extern PetscErrorCode   DMGetRefineLevel(DM,PetscInt*);
 extern PetscErrorCode   DMFinalizePackage(void);
 
 typedef struct NLF_DAAD* NLF;
@@ -160,5 +163,6 @@ extern PetscErrorCode  PetscViewerBinaryMatlabOutputBag(PetscViewer, const char 
 extern PetscErrorCode  PetscViewerBinaryMatlabOutputVec(PetscViewer, const char [], Vec);
 extern PetscErrorCode  PetscViewerBinaryMatlabOutputVecDA(PetscViewer, const char [], Vec, DM);
 
+#define DM_FILE_CLASSID 1211221
 PETSC_EXTERN_CXX_END
 #endif

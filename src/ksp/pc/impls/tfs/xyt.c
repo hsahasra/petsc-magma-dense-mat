@@ -424,7 +424,7 @@ static PetscInt xyt_generate(xyt_ADT xyt_handle)
       /* compute sqrt(alpha) = sqrt(u_l^T.u_l) - comm portion */
       grop_hc(&alpha, &alpha_w, 1, op, dim);
 
-      alpha = (PetscScalar) sqrt((double)alpha);
+      alpha = (PetscScalar) PetscSqrtReal((PetscReal)alpha);
 
       /* check for small alpha                             */
       /* LATER use this to detect and determine null space */
@@ -663,7 +663,7 @@ static PetscErrorCode det_separators(xyt_ADT xyt_handle)
   PetscInt  n=xyt_handle->mvi->n;
   PetscInt  m=xyt_handle->mvi->m;
   PetscInt level=xyt_handle->level;
-  PetscInt shared=FALSE; 
+  PetscInt shared=0; 
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -695,7 +695,7 @@ static PetscErrorCode det_separators(xyt_ADT xyt_handle)
 
       if (lhs[i]!=1.0)
 	{
-          shared=TRUE;
+          shared=1;
         }
     }
 

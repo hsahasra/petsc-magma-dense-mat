@@ -121,7 +121,7 @@ typedef struct {
   PetscInt     cycles;                       /* numbers of time steps for integration */ 
   PassiveReal  lidvelocity,prandtl,grashof;  /* physical parameters */
   PetscBool    draw_contours;                /* indicates drawing contours of solution */
-  PetscBool    PreLoading;
+  PetscBool    PetscPreLoading;
 } Parameter;
 
 typedef struct {
@@ -156,9 +156,9 @@ int main(int argc,char **argv)
   comm = PETSC_COMM_WORLD;
 
 
-  PreLoadBegin(PETSC_TRUE,"SetUp");
+  PetscPreLoadBegin(PETSC_TRUE,"SetUp");
 
-    param.PreLoading = PreLoading;
+    param.PetscPreLoading = PetscPreLoading;
     ierr = DMMGCreate(comm,2,&user,&dmmg);CHKERRQ(ierr);
     param.mglevels = DMMGGetLevels(dmmg);
 
@@ -236,7 +236,7 @@ int main(int argc,char **argv)
        - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     ierr = DMMGSetInitialGuess(dmmg,FormInitialGuess);CHKERRQ(ierr);
     
-    PreLoadStage("Solve");
+    PetscPreLoadStage("Solve");
     ierr = Initialize(dmmg);CHKERRQ(ierr);
     ierr = Update(dmmg);CHKERRQ(ierr);
     /*
@@ -258,7 +258,7 @@ int main(int argc,char **argv)
     }
     ierr = PetscFree(user);CHKERRQ(ierr);
     ierr = DMMGDestroy(dmmg);CHKERRQ(ierr);
-    PreLoadEnd();
+    PetscPreLoadEnd();
     
   ierr = PetscFinalize();
   return 0;
@@ -672,7 +672,7 @@ PetscErrorCode Update(DMMG *dmmg)
   PetscFunctionBegin;
   /* Note: print_flag displays diagnostic info, not convergence behavior. Use '-snes_monitor' for converges info. */
   ierr = PetscOptionsHasName(PETSC_NULL,"-print",&print_flag);CHKERRQ(ierr);
-  if (user->param->PreLoading) 
+  if (user->param->PetscPreLoading) 
    max_steps = 1;
   else
    max_steps = tsCtx->max_steps;
@@ -684,10 +684,10 @@ PetscErrorCode Update(DMMG *dmmg)
     ierr = DMMGSolve(dmmg);CHKERRQ(ierr); 
     snes = DMMGGetSNES(dmmg);CHKERRQ(ierr);
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of Newton iterations = %D\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %D\n", its);CHKERRQ(ierr);
     ierr = SNESGetNonlinearStepFailures(snes,&nfails);CHKERRQ(ierr);
     nfailsCum += nfails; nfails = 0;
-    if (nfailsCum >= 2) SETERRQ(PETSC_COMM_SELF,1,"Unable to find a Newton Step");
+    if (nfailsCum >= 2) SETERRQ(PETSC_COMM_SELF,1,"Unable to find a SNES Step");
     /*tsCtx->qcur = DMMGGetx(dmmg);
       ierr = VecCopy(tsCtx->qcur,tsCtx->qold);CHKERRQ(ierr);*/
    
@@ -716,7 +716,7 @@ PetscErrorCode Update(DMMG *dmmg)
 		     cpuloc,tsCtx->itstep);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"cfl = %G fnorm = %G\n",tsCtx->cfl,tsCtx->fnorm);CHKERRQ(ierr);
   }
-  if (user->param->PreLoading) {
+  if (user->param->PetscPreLoading) {
     tsCtx->fnorm_ini = 0.0;
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Preloading done ...\n");CHKERRQ(ierr);
   }

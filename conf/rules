@@ -63,6 +63,11 @@ chkopts: remote
 	fi; \
 	done
 
+#
+# uses the cmake infrastructure to build/rebuild the libraries
+cmake:
+	make -j ${MAKE_NP} -C ${PETSC_DIR}/${PETSC_ARCH}
+
 # Does nothing; needed for some rules that require actions.
 foo:
 
@@ -130,14 +135,18 @@ modcopy:
 
 # Removes garbage files
 clean::
-	@-${RM} *.o *.lo *~ ex[0-9] ex[0-9][0-9] ex[0-9]f ex[0-9][0-9]f \
-	       ${CLEANFILES} ${TESTS} ex[0-9]f90 ex[0-9][0-9]f90 ex[0-9]c ex[0-9][0-9]c ex[0-9]d ex5d \
-	       PI* *.ln l.outa* mputil.mp_* core core.* *.tmp *.map gmon.out \
-	       trashz \#*\# *.mex* *.stolen *.trace Log.* joe jeff *.stolen \
+	@-${RM} ${CLEANFILES} ${TESTS} *.o *.lo *~ \
+               ex[0-9] ex[0-9][0-9] ex[0-9][0-9][0-9] \
+               ex[0-9]f ex[0-9][0-9]f ex[0-9][0-9][0-9]f \
+               ex[0-9]f90 ex[0-9][0-9]f90 ex[0-9][0-9][0-9]f90 \
+               ex[0-9].exe ex[0-9][0-9].exe ex[0-9][0-9][0-9].exe \
+               ex[0-9]f.exe ex[0-9][0-9]f.exe ex[0-9][0-9][0-9]f.exe \
+               ex[0-9]f90.exe ex[0-9][0-9]f90.exe ex[0-9][0-9][0-9]f90.exe \
+	       PI* *.ln l.outa* mputil.mp_* core core.* *.tmp *.map gmon.out *.gcov.html \
+	       trashz \#*\# *.mex* *.stolen *.trace Log.* *.stolen \
 	       output/*~ .mpirtmp mon.out *.aus *.mon.* __* p4pg ins10*.c \
-	       ex[0-9].exe ex[0-9][0-9].exe ex[0-9]f.exe ex[0-9][0-9]f.exe \
 	       *.ad.c *.ad.h ad_deriv.h .adic* *.cp_ *.cp__ *.c*.c pageform.txt \
-               .adic* *.dep *.proj ctoatmp PETScArena* *.L *.anl main *.mod .mpi* \
+               .adic* *.dep *.proj ctoatmp PETScArena* *.L *.anl *.mod .mpi* *.d \
 	       *.class *.ouit *.ad.* g_* silly.cmp *.tmp.* *.ilk *.pdb *.inst.c *.rej *.gcda *.gcno
 	@-${RM} -rf ${CLEANDIRS} *.dSYM AD_cache SunWS_cache
 
@@ -162,14 +171,7 @@ tree: ${ACTION}
 		PKGFLG=`echo $$r | cut -d \' -f2`;\
                 grep -w "#define $${PKGFLG}" ${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h > /dev/null; \
                 if [ "$$?" = 1 ]; then \
-                  if [ "${PCONF}" != "" ]; then \
-                    echo ${PCONF} | sed s/-D//g | grep -w "$${PKGFLG}" > /dev/null; \
-                    if [ "$$?" = 1 ]; then \
-                      continue; \
-                    fi; \
-                  else \
-                    continue; \
-                  fi; \
+                  continue; \
                 fi; \
               fi; \
 	      r=`grep -w requiresfunction $$dir/makefile`; \
@@ -177,14 +179,7 @@ tree: ${ACTION}
 		PKGFLG=`echo $$r | cut -d \' -f2`;\
                 grep -w "#define $${PKGFLG}" ${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h > /dev/null; \
                 if [ "$$?" = 1 ]; then \
-                  if [ "${PCONF}" != "" ]; then \
-                    echo ${PCONF} | sed s/-D//g | grep -w "$${PKGFLG}" > /dev/null; \
-                    if [ "$$?" = 1 ]; then \
-                      continue; \
-                    fi; \
-                  else \
-                    continue; \
-                  fi; \
+                  continue; \
                 fi; \
               fi; \
 	      r=`grep -w requiresdefine $$dir/makefile`; \
@@ -192,14 +187,7 @@ tree: ${ACTION}
 		PKGFLG=`echo $$r | cut -d \' -f2`;\
                 grep -w "#define $${PKGFLG}" ${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h > /dev/null; \
                 if [ "$$?" = 1 ]; then \
-                  if [ "${PCONF}" != "" ]; then \
-                    echo ${PCONF} | sed s/-D//g | grep -w "$${PKGFLG}" > /dev/null; \
-                    if [ "$$?" = 1 ]; then \
-                      continue; \
-                    fi; \
-                  else \
-                    continue; \
-                  fi; \
+                  continue; \
                 fi; \
               fi; \
               r=`grep -w requireslanguage $$dir/makefile`; \
@@ -229,6 +217,61 @@ tree: ${ACTION}
             (cd $$dir ; \
             echo ${ACTION} in: `pwd`; \
             ${OMAKE} tree ACTION=${ACTION}  PETSC_ARCH=${PETSC_ARCH} LOC=${LOC} DATAFILESPATH=${DATAFILESPATH} BASE_DIR=${BASE_DIR});\
+	  done
+
+treenodir: ${ACTION}
+	-@for dir in ${DIRS} ftn-auto ftn-custom f90-custom; do \
+            if [ -d $$dir ]; then \
+	      r=`grep -w requirespackage $$dir/makefile`; \
+              if [ "$$?" = 0 ]; then \
+		PKGFLG=`echo $$r | cut -d \' -f2`;\
+                grep -w "#define $${PKGFLG}" ${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h > /dev/null; \
+                if [ "$$?" = 1 ]; then \
+                  continue; \
+                fi; \
+              fi; \
+	      r=`grep -w requiresfunction $$dir/makefile`; \
+              if [ "$$?" = 0 ]; then \
+		PKGFLG=`echo $$r | cut -d \' -f2`;\
+                grep -w "#define $${PKGFLG}" ${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h > /dev/null; \
+                if [ "$$?" = 1 ]; then \
+                  continue; \
+                fi; \
+              fi; \
+	      r=`grep -w requiresdefine $$dir/makefile`; \
+              if [ "$$?" = 0 ]; then \
+		PKGFLG=`echo $$r | cut -d \' -f2`;\
+                grep -w "#define $${PKGFLG}" ${PETSC_DIR}/${PETSC_ARCH}/include/petscconf.h > /dev/null; \
+                if [ "$$?" = 1 ]; then \
+                  continue; \
+                fi; \
+              fi; \
+              r=`grep -w requireslanguage $$dir/makefile`; \
+              if [ "$$?" = 0 ]; then \
+                echo $$r | grep -w ${PETSC_LANGUAGE} > /dev/null; \
+                if [ "$$?" = 1 ]; then \
+                  continue; \
+                fi; \
+              fi; \
+              r=`grep -w requiresscalar $$dir/makefile`; \
+              if [ "$$?" = 0 ]; then \
+                echo $$r |  grep -w ${PETSC_SCALAR} > /dev/null; \
+                if [ "$$?" = 1 ]; then \
+                  continue; \
+                fi; \
+              fi; \
+              r=`grep -w requiresprecision $$dir/makefile`; \
+              if [ "$$?" = 0 ]; then \
+                echo $$r |  grep -w ${PETSC_PRECISION} > /dev/null; \
+                if [ "$$?" = 1 ]; then \
+                  continue; \
+                fi; \
+              fi; \
+            else \
+              continue; \
+            fi; \
+            (cd $$dir ; \
+            ${OMAKE} treenodir ACTION=${ACTION}  PETSC_ARCH=${PETSC_ARCH} LOC=${LOC} DATAFILESPATH=${DATAFILESPATH} BASE_DIR=${BASE_DIR});\
 	  done
 
 # Performs the specified action throughout the directory tree
@@ -303,7 +346,7 @@ getmpiexec:
 	${LGRIND} -lmake -d ${LGRIND_DIR}/lgrindef -i $< > $*.tex
 
 .tex.mtex:
-	PYTHONPATH=${PETSC_DIR}/bin/maint;export PYTHONPATH;cat $< | ${PETSC_DIR}/bin/maint/mapnameslatex.py > $*.mtex
+	PYTHONPATH=${PETSC_DIR}/bin/maint;export PYTHONPATH;cat $< | ${PYTHON} ${PETSC_DIR}/bin/maint/mapnameslatex.py > $*.mtex
 
 .fig.pdf:
 	fig2dev -L pdf $< $*.pdf
@@ -341,7 +384,7 @@ getmpiexec:
 
 .c.o .cpp.o .cxx.o .cc.o .C.o .ad.o: 
 	@if [ "${PETSCPORTABLE}" != "" ]; then \
-          ${PETSC_DIR}/bin/portabilitycheck.py $< ${SOURCEH};\
+          ${PYTHON} ${PETSC_DIR}/bin/portabilitycheck.py $< ${SOURCEH};\
         fi
 	-@mypwd=`pwd`; newpwd=`echo $${mypwd} | sed "s+/examples/tutorials+DUMMY+g"`;\
         if [ $${mypwd} != $${newpwd} ]; then \
@@ -364,7 +407,7 @@ getmpiexec:
                   c=`grep "Process adiC" $< | sed -e "s?[ ]*Process adiC(\([0-9]*\)): [a-zA-Z0-9 ]*?\1?g"`;\
                   r=`grep "Process adiC" $< | sed -e "s?[ ]*Process adiC([0-9]*): \([a-zA-Z0-9 ]*\)?\1?g"`;\
                   echo Running adiC on function $${r};\
-                  ${PETSC_DIR}/bin/adprocess.py $< $${r}; \
+                  ${PYTHON} ${PETSC_DIR}/bin/adprocess.py $< $${r}; \
                   ${CP} $<.tmp1 $<.tmp2;\
 	          echo '#include "petscdm.h"' > $*.ad.c ; \
 	          echo '#include "petscsnes.h"' >> $*.ad.c ;\
@@ -394,7 +437,7 @@ getmpiexec:
                   c=`grep "Process blockadiC" $< | sed -e "s?[ ]*Process blockadiC(\([0-9]*\)): [a-zA-Z0-9 ]*?\1?g"`;\
                   r=`grep "Process blockadiC" $< | sed -e "s?[ ]*Process blockadiC([0-9]*): \([a-zA-Z0-9 ]*\)?\1?g"`;\
                   echo Running adiC on function $${r};\
-                  ${PETSC_DIR}/bin/adprocess.py $< $${r}; \
+                  ${PYTHON} ${PETSC_DIR}/bin/adprocess.py $< $${r}; \
                   echo "#undef ad_GRAD_MAX" >> $*.ad.c ;\
                   echo '#define ad_GRAD_MAX ' $${c} >> $*.ad.c ;\
                   ${ADIC_CC} -t -h -i ${PETSC_DIR}/conf/adicmfb.init   $<.tmp1 ; \
@@ -418,7 +461,7 @@ getmpiexec:
 	  ${PETSC_COMPILE_SINGLE} $<; \
         fi
 	@if [ "${PETSCPORTABLE}" != "" ]; then \
-          ${PETSC_DIR}/bin/portabilitycheck.py $*.o ; \
+          ${PYTHON} ${PETSC_DIR}/bin/portabilitycheck.py $*.o ; \
         fi
 
 #
@@ -480,6 +523,8 @@ getmpiexec:
 	  if [ "$$?" != 1 ]; then \
           echo "--------------Error detected during compile or link!-----------------------";\
           echo "See http://www.mcs.anl.gov/petsc/petsc-2/documentation/faq.html";\
+          echo ${PWD} $* ;\
+          echo "---------------------------------------------------------------------------";\
 	  cat trashz ; fi; ${RM} trashz
 
 .F.PETSc .F90.PETSc:
@@ -520,6 +565,8 @@ getmpiexec:
 	  if [ "$$?" != 1 ]; then \
           echo "--------------Error detected during compile or link!-----------------------";\
           echo "See http://www.mcs.anl.gov/petsc/petsc-2/documentation/faq.html";\
+          echo ${PWD} $* ;\
+          echo "---------------------------------------------------------------------------";\
 	  cat trashz ; fi; ${RM} trashz;
 
 #--------------------------------------------------------------------------------------
@@ -953,7 +1000,7 @@ shared_darwin:
         if [ "${LIBNAME}" = "libpetsc" ]; then OTHERLIBS="${PETSC_EXTERNAL_LIB_BASIC}   ${SYS_LIB}  ${OTHERSHAREDLIBS}  ${SL_LINKER_LIBS} -lm -lc "; fi;\
         if [ "${LIBNAME}" = "libpetscsys" ]; then OTHERLIBS="  ${SYS_LIB}  ${OTHERSHAREDLIBS}  ${SL_LINKER_LIBS} -lm -lc "; fi;\
         if [ "${LIBNAME}" = "libpetscvec" ]; then OTHERLIBS="${HYPRE_LIB} ${PETSC_SYS_LIB_BASIC}"  ; fi;\
-        if [ "${LIBNAME}" = "libpetscmat" ]; then OTHERLIBS="${PLAPACK_LIB} ${SCOTCH_LIB} ${PARTY_LIB} ${CHACO_LIB} ${JOSTLE_LIB} ${SUPERLU_LIB} ${SUPERLU_DIST_LIB} ${SPOOLES_LIB} ${MUMPS_LIB} ${SCALAPACK_LIB} ${BLACS_LIB} ${PARMETIS_LIB} ${UMFPACK_LIB} ${LUSOL_LIB} ${DSCPACK_LIB} ${PETSC_VEC_LIB_BASIC}"  ; fi;\
+        if [ "${LIBNAME}" = "libpetscmat" ]; then OTHERLIBS="${PLAPACK_LIB} ${SCOTCH_LIB} ${PARTY_LIB} ${CHACO_LIB} ${SUPERLU_LIB} ${SUPERLU_DIST_LIB} ${SPOOLES_LIB} ${MUMPS_LIB} ${SCALAPACK_LIB} ${BLACS_LIB} ${PARMETIS_LIB} ${UMFPACK_LIB} ${LUSOL_LIB} ${PETSC_VEC_LIB_BASIC}"  ; fi;\
         if [ "${LIBNAME}" = "libpetscdm" ]; then OTHERLIBS="${TRIANGLE_LIB} ${TETGEN_LIB} ${HYPRE_LIB} ${PETSC_MAT_LIB_BASIC} ${MPI_LIB}"  ; fi;\
         if [ "${LIBNAME}" = "libpetscksp" ]; then OTHERLIBS="${HYPRE_LIB} ${PETSC_CHARACTERISTIC_LIB_BASIC}"  ; fi;\
         if [ "${LIBNAME}" = "libpetscsnes" ]; then OTHERLIBS="${PETSC_KSP_LIB_BASIC}"  ; fi;\

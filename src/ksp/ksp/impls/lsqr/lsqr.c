@@ -30,9 +30,6 @@ static PetscErrorCode KSPSetUp_LSQR(KSP ksp)
 
   PetscFunctionBegin;
   ierr = PetscTypeCompare((PetscObject)ksp->pc,PCNONE,&nopreconditioner);CHKERRQ(ierr);
-  if (ksp->pc_side == PC_SYMMETRIC) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"no symmetric preconditioning for KSPLSQR");
-  else if (ksp->pc_side == PC_RIGHT) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"no right preconditioning for KSPLSQR");
- 
   /*  nopreconditioner =PETSC_FALSE; */
 
   lsqr->nwork_m = 2;
@@ -83,8 +80,8 @@ static PetscErrorCode KSPSolve_LSQR(KSP ksp)
   /* Calculate norm of right hand side */
   ierr = VecNorm(ksp->vec_rhs,NORM_2,&lsqr->rhs_norm);CHKERRQ(ierr);
 
-  /* Calculate norm of matrix*/
-  ierr = MatNorm( Amat, NORM_FROBENIUS, &lsqr->anorm);CHKERRQ(ierr);
+  /* mark norm of matrix with negative number to indicate it has not yet been computed */
+  lsqr->anorm = -1.0;
 
   /* vectors of length m, where system size is mxn */
   B        = ksp->vec_rhs;
@@ -141,7 +138,7 @@ static PetscErrorCode KSPSolve_LSQR(KSP ksp)
       ksp->reason = KSP_DIVERGED_BREAKDOWN;
       PetscFunctionReturn(0);
     }
-    alpha = sqrt(PetscRealPart(alphac));
+    alpha = PetscSqrtReal(PetscRealPart(alphac));
     ierr = VecScale(Z,1.0/alpha); CHKERRQ(ierr);
   }
   ierr = VecScale(V,1.0/alpha);CHKERRQ(ierr);
@@ -182,7 +179,7 @@ static PetscErrorCode KSPSolve_LSQR(KSP ksp)
         ksp->reason = KSP_DIVERGED_BREAKDOWN;
         break;
       }
-      alpha = sqrt(PetscRealPart(alphac));
+      alpha = PetscSqrtReal(PetscRealPart(alphac));
       ierr = VecScale(Z,1.0/alpha);CHKERRQ(ierr);
     }
     ierr   = VecScale(V1,1.0/alpha);CHKERRQ(ierr);
@@ -294,12 +291,24 @@ PetscErrorCode  KSPLSQRGetStandardErrorVec( KSP ksp,Vec *se )
 #define __FUNCT__ "KSPLSQRGetArnorm"
 PetscErrorCode  KSPLSQRGetArnorm( KSP ksp,PetscReal *arnorm, PetscReal *rhs_norm , PetscReal *anorm)
 {
-  KSP_LSQR *lsqr = (KSP_LSQR*)ksp->data;
+  KSP_LSQR       *lsqr = (KSP_LSQR*)ksp->data;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
   *arnorm   = lsqr->arnorm;
-  *anorm    = lsqr->anorm;
-  *rhs_norm = lsqr->rhs_norm;
+  if (anorm) {
+    if (lsqr->anorm < 0.0) {
+      PC  pc;
+      Mat Amat;
+      ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+      ierr = PCGetOperators(pc,&Amat,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
+      ierr = MatNorm(Amat,NORM_FROBENIUS,&lsqr->anorm);CHKERRQ(ierr);
+    }
+    *anorm    = lsqr->anorm;
+  }
+  if (rhs_norm) {
+    *rhs_norm = lsqr->rhs_norm;
+  }
   PetscFunctionReturn(0);
 }
 
@@ -324,21 +333,21 @@ PetscErrorCode  KSPLSQRGetArnorm( KSP ksp,PetscReal *arnorm, PetscReal *rhs_norm
 @*/
 PetscErrorCode  KSPLSQRMonitorDefault(KSP ksp,PetscInt n,PetscReal rnorm,void *dummy)
 {
-  PetscErrorCode          ierr;
-  PetscViewerASCIIMonitor viewer = (PetscViewerASCIIMonitor) dummy;
-  KSP_LSQR               *lsqr = (KSP_LSQR*)ksp->data;
+  PetscErrorCode   ierr;
+  PetscViewer      viewer = dummy ? (PetscViewer) dummy : PETSC_VIEWER_STDOUT_(((PetscObject)ksp)->comm);
+  KSP_LSQR         *lsqr = (KSP_LSQR*)ksp->data;
 
   PetscFunctionBegin;
-  if (!dummy) {ierr = PetscViewerASCIIMonitorCreate(((PetscObject)ksp)->comm,"stdout",0,&viewer);CHKERRQ(ierr);}
+  ierr = PetscViewerASCIIAddTab(viewer,((PetscObject)ksp)->tablevel);CHKERRQ(ierr);
   if (((PetscObject)ksp)->prefix) {
-    ierr = PetscViewerASCIIMonitorPrintf(viewer,"  Residual norm and norm of normal equations for %s solve.\n",((PetscObject)ksp)->prefix);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Residual norm and norm of normal equations for %s solve.\n",((PetscObject)ksp)->prefix);CHKERRQ(ierr);
   }
   if (!n) {
-    ierr = PetscViewerASCIIMonitorPrintf(viewer,"%3D KSP Residual norm %14.12e\n",n,rnorm);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"%3D KSP Residual norm %14.12e\n",n,rnorm);CHKERRQ(ierr);
   } else {
-    ierr = PetscViewerASCIIMonitorPrintf(viewer,"%3D KSP Residual norm %14.12e Residual norm normal equations %14.12e\n",n,rnorm,lsqr->arnorm);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"%3D KSP Residual norm %14.12e Residual norm normal equations %14.12e\n",n,rnorm,lsqr->arnorm);CHKERRQ(ierr);
   }
-  if (!dummy) {ierr = PetscViewerASCIIMonitorDestroy(&viewer);CHKERRQ(ierr);}
+  ierr = PetscViewerASCIISubtractTab(viewer,((PetscObject)ksp)->tablevel);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -346,19 +355,19 @@ PetscErrorCode  KSPLSQRMonitorDefault(KSP ksp,PetscInt n,PetscReal rnorm,void *d
 #define __FUNCT__ "KSPSetFromOptions_LSQR"
 PetscErrorCode KSPSetFromOptions_LSQR(KSP ksp)
 {
-  PetscErrorCode          ierr;
-  KSP_LSQR                *lsqr = (KSP_LSQR*)ksp->data;
-  char                    monfilename[PETSC_MAX_PATH_LEN];
-  PetscViewerASCIIMonitor monviewer;
-  PetscBool               flg;
+  PetscErrorCode ierr;
+  KSP_LSQR       *lsqr = (KSP_LSQR*)ksp->data;
+  char           monfilename[PETSC_MAX_PATH_LEN];
+  PetscViewer    monviewer;
+  PetscBool      flg;
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead("KSP LSQR Options");CHKERRQ(ierr);
   ierr = PetscOptionsName("-ksp_lsqr_set_standard_error","Set Standard Error Estimates of Solution","KSPLSQRSetStandardErrorVec",&lsqr->se_flg);CHKERRQ(ierr);
   ierr = PetscOptionsString("-ksp_monitor_lsqr","Monitor residual norm and norm of residual of normal equations","KSPMonitorSet","stdout",monfilename,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
   if (flg) {
-    ierr = PetscViewerASCIIMonitorCreate(((PetscObject)ksp)->comm,monfilename,((PetscObject)ksp)->tablevel,&monviewer);CHKERRQ(ierr);
-    ierr = KSPMonitorSet(ksp,KSPLSQRMonitorDefault,monviewer,(PetscErrorCode (*)(void**))PetscViewerASCIIMonitorDestroy);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(((PetscObject)ksp)->comm,monfilename,&monviewer);CHKERRQ(ierr);
+    ierr = KSPMonitorSet(ksp,KSPLSQRMonitorDefault,monviewer,(PetscErrorCode (*)(void**))PetscViewerDestroy);CHKERRQ(ierr);
   }
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -376,7 +385,7 @@ PetscErrorCode KSPView_LSQR(KSP ksp,PetscViewer viewer)
     PetscReal rnorm;
     ierr = KSPLSQRGetStandardErrorVec(ksp,&lsqr->se);CHKERRQ(ierr);
     ierr = VecNorm(lsqr->se,NORM_2,&rnorm);CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD,"  Norm of Standard Error %A, Iterations %D\n",rnorm,ksp->its);CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"  Norm of Standard Error %G, Iterations %D\n",rnorm,ksp->its);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -474,10 +483,8 @@ PetscErrorCode  KSPCreate_LSQR(KSP ksp)
   lsqr->se_flg = PETSC_FALSE;
   lsqr->arnorm = 0.0;
   ksp->data                      = (void*)lsqr;
-  if (ksp->pc_side != PC_LEFT) {
-    ierr = PetscInfo(ksp,"WARNING! Setting PC_SIDE for LSQR to left!\n");CHKERRQ(ierr);
-  }
-  ksp->pc_side                   = PC_LEFT;
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+
   ksp->ops->setup                = KSPSetUp_LSQR;
   ksp->ops->solve                = KSPSolve_LSQR;
   ksp->ops->destroy              = KSPDestroy_LSQR;
@@ -486,7 +493,6 @@ PetscErrorCode  KSPCreate_LSQR(KSP ksp)
   ksp->ops->setfromoptions       = KSPSetFromOptions_LSQR;
   ksp->ops->view                 = KSPView_LSQR;
   ksp->converged                 = KSPLSQRDefaultConverged;
-  ksp->normtype                  = KSP_NORM_UNPRECONDITIONED;
   PetscFunctionReturn(0);
 }
 EXTERN_C_END

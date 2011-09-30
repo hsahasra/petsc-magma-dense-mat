@@ -12,7 +12,6 @@ static char help[] = "Model nonlinear multi-physics solver. Modified from mp.c \
   ----------------------------------------------------------------------------------------- */
 #include <petsctime.h>
 #include "mp1.h"
-#include "../src/sys/plog/logimpl.h"
 
 extern PetscErrorCode FormInitialGuessComp(DMMG,Vec);
 extern PetscErrorCode FormFunctionComp(SNES,Vec,Vec,void*);
@@ -95,7 +94,7 @@ int main(int argc,char **argv)
     ierr = DMMGSolve(dmmg1);CHKERRQ(ierr); 
     snes = DMMGGetSNES(dmmg1);
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"Physics 1: Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"Physics 1: Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);
   }
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -120,7 +119,7 @@ int main(int argc,char **argv)
     ierr = DMMGSolve(dmmg2);CHKERRQ(ierr); 
     snes = DMMGGetSNES(dmmg2);
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"Physics 2: Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"Physics 2: Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);
   }
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -166,7 +165,7 @@ int main(int argc,char **argv)
       ierr = DMDAVecGetArray(da1,X1_local,(Field1 **)&user.x1);CHKERRQ(ierr);
     }
 
-    ierr = PetscPrintf(comm,"  Iterative physics 1: Number of Newton iterations = %D\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"  Iterative physics 1: Number of SNES iterations = %D\n", its);CHKERRQ(ierr);
     user.nsolve++;
 
     ierr = DMMGSolve(dmmg2);CHKERRQ(ierr); 
@@ -179,7 +178,7 @@ int main(int argc,char **argv)
     ierr = DMGlobalToLocalBegin(da2,X2,INSERT_VALUES,X2_local);CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(da2,X2,INSERT_VALUES,X2_local);CHKERRQ(ierr);
     ierr = DMDAVecGetArray(da2,X2_local,(Field2 **)&user.x2);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"  Iterative physics 2: Number of Newton iterations = %D\n", its);CHKERRQ(ierr);  
+    ierr = PetscPrintf(comm,"  Iterative physics 2: Number of SNES iterations = %D\n", its);CHKERRQ(ierr);  
     //user.nsolve++;
   }
   ierr = DMDAVecRestoreArray(da1,X1_local,(Field1 **)&user.x1);CHKERRQ(ierr);
@@ -206,14 +205,14 @@ int main(int argc,char **argv)
   /*  ierr = DMMGSolve(dmmg_comp);CHKERRQ(ierr); 
   snes = DMMGGetSNES(dmmg_comp);
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm,"Composite Physics: Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);*/
+  ierr = PetscPrintf(comm,"Composite Physics: Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);*/
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free spaces 
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMDestroy(pack);CHKERRQ(ierr);
-  ierr = DMDestroy(da1);CHKERRQ(ierr);
-  ierr = DMDestroy(da2);CHKERRQ(ierr);
+  ierr = DMDestroy(&pack);CHKERRQ(ierr);
+  ierr = DMDestroy(&da1);CHKERRQ(ierr);
+  ierr = DMDestroy(&da2);CHKERRQ(ierr);
   ierr = DMMGDestroy(dmmg_comp);CHKERRQ(ierr);
 
  
@@ -223,8 +222,8 @@ int main(int argc,char **argv)
   ierr = DMMGDestroy(dmmg1);CHKERRQ(ierr);
   ierr = DMMGDestroy(dmmg2);CHKERRQ(ierr);
 
-  ierr = VecDestroy(X1_local);CHKERRQ(ierr);
-  ierr = VecDestroy(X2_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&X1_local);CHKERRQ(ierr);
+  ierr = VecDestroy(&X2_local);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return 0;
 }

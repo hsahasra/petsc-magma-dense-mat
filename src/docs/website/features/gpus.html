@@ -35,7 +35,8 @@
               </strong></font></li>
             <li><a href="diagram.html"><strong>Diagram</strong></a></li>
             <li><font color="#ff0000"><strong>GPUs<br>
-              </strong></font></li>
+              </strong></font>
+            <li><a href="threads.html"><strong>Threads</strong></a></li></li>
           </ul>
         </li>
         <li><a href="../documentation/index.html"><strong>Documentation</strong></a></li>
@@ -50,9 +51,8 @@ Software</strong></a></li>
 Nvidia GPU systems. This sometimes provides an alternative high
 performance low cost solution technique. <br>
       <br>
-Nvidia GPU usage of PETSc is currently only available in <a
- href="../developers/index.html">petsc-dev,</a> it will be available in
-the 3.2 release.<br>
+Nvidia GPU usage of PETSc is currently available in the current release PETSc 3.2, but since things change rapidly in this arena we recommend working with <a
+ href="../developers/index.html">petsc-dev</a> if you wish to utilize GPUs.<br>
       <ul>
         <li><a
  href="http://www.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-dev/docs/installation.html#CUDA">Installing
@@ -61,6 +61,7 @@ to
 use the Nvidia GPUs</a></li>
         <li><a href="gpus.pdf">How the GPU solvers are implemented in
 PETSc.</a></li>
+       <li><a href="http://www.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-dev/src/snes/examples/tutorials/ex47cu.cu.html">Example that uses CUSP directly in the user function evaluation.</a></li>
         <li><a
  href="https://www.iwork.com/r/en/?a=p8902449&amp;d=PETSc-MATLAB-GPU.key&amp;u=sean%40seanfarley.org&amp;p=171573186BFE1BA16D16">Presentation
 on some aspects of GPU usage from PETSc.</a><br>
@@ -80,9 +81,11 @@ you can use -da_vec_type cusp and -da_mat_type cusp</li>
           <li>It is useful to develop your code with the default
 vectors and then run production runs with the command line options to
 use the GPU since debugging on GPUs is difficult.</li>
-          <li>All of the Krylov methods except KSPIBCGS run on the GPU.
-PCBJACOBI, PCASM and PCJACOBI are the preconditioners that currently
-run on the GPU.</li>
+          <li>All of the Krylov methods except KSPIBCGS run on the GPU. We also provide PCBICGSTABCUSP, but it does not
+          appear more efficient than PCBICGSTAB.</li>
+          <li>The only preconditioners to run directly on the GPU are PCJACOBI, PCSACUSP, PCSACUSPPOLY, and
+            PCAINVCUSP. The PCBJACOBI and PCASM are just containers, so if the subsolver runs on the GPU, they can also
+            be considered to run on the GPU.</li>
         </ul>
         <li>Some GPU systems (for example many laptops) only run with
 single precision, thus PETSc must be built with the ./configure option

@@ -9,35 +9,17 @@ typedef struct {
 
 #undef __FUNCT__
 #define __FUNCT__ "TSStep_Euler"
-static PetscErrorCode TSStep_Euler(TS ts,PetscInt *steps,PetscReal *ptime)
+static PetscErrorCode TSStep_Euler(TS ts)
 {
   TS_Euler       *euler = (TS_Euler*)ts->data;
   Vec            sol = ts->vec_sol,update = euler->update;
-  PetscInt       i;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  *steps = -ts->steps;
-  *ptime  = ts->ptime;
-
-  ierr = TSMonitor(ts,ts->steps,ts->ptime,sol);CHKERRQ(ierr);
-
-  for (i=0; i<ts->max_steps; i++) {
-    if (ts->ptime + ts->time_step > ts->max_time) break;
-    ierr = TSPreStep(ts);CHKERRQ(ierr);
-
-    ierr = TSComputeRHSFunction(ts,ts->ptime,sol,update);CHKERRQ(ierr);
-
-    ierr = VecAXPY(sol,ts->time_step,update);CHKERRQ(ierr);
-    ts->ptime += ts->time_step;
-    ts->steps++;
-
-    ierr = TSPostStep(ts);CHKERRQ(ierr);
-    ierr = TSMonitor(ts,ts->steps,ts->ptime,sol);CHKERRQ(ierr);
-  }
-
-  *steps += ts->steps;
-  *ptime  = ts->ptime;
+  ierr = TSComputeRHSFunction(ts,ts->ptime,sol,update);CHKERRQ(ierr);
+  ierr = VecAXPY(sol,ts->time_step,update);CHKERRQ(ierr);
+  ts->ptime += ts->time_step;
+  ts->steps++;
   PetscFunctionReturn(0);
 }
 /*------------------------------------------------------------*/
@@ -95,6 +77,18 @@ static PetscErrorCode TSView_Euler(TS ts,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "TSInterpolate_Euler"
+static PetscErrorCode TSInterpolate_Euler(TS ts,PetscReal t,Vec X)
+{
+  PetscReal      alpha = (ts->ptime - t)/ts->time_step;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecAXPBY(ts->vec_sol,1.0-alpha,alpha,X);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /* ------------------------------------------------------------ */
 
 /*MC
@@ -120,6 +114,7 @@ PetscErrorCode  TSCreate_Euler(TS ts)
   ts->ops->destroy         = TSDestroy_Euler;
   ts->ops->setfromoptions  = TSSetFromOptions_Euler;
   ts->ops->view            = TSView_Euler;
+  ts->ops->interpolate     = TSInterpolate_Euler;
 
   ierr = PetscNewLog(ts,TS_Euler,&euler);CHKERRQ(ierr);
   ts->data = (void*)euler;

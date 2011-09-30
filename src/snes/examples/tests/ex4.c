@@ -106,7 +106,7 @@ int main(int argc, char **argv)
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
   ierr = SNESGetNonlinearStepFailures(snes,&nfails);CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_SELF,"number of Newton iterations = %D, ",its);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_SELF,"number of SNES iterations = %D, ",its);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_SELF,"number of unsuccessful steps = %D\n\n",nfails);CHKERRQ(ierr);
   ierr = VecGetArray(x,&xvalues);CHKERRQ(ierr);
   ierr = PetscDrawTensorContour(draw,user.mx,user.my,0,0,xvalues);CHKERRQ(ierr);
@@ -155,7 +155,7 @@ PetscErrorCode  FormInitialGuess1(AppCtx *user,Vec X)
         x[row] = 0.0; 
         continue;
       }
-      x[row] = temp1*sqrt(PetscMin((PetscReal)(PetscMin(i,mx-i-1))*hx,temp)); 
+      x[row] = temp1*PetscSqrtReal(PetscMin((PetscReal)(PetscMin(i,mx-i-1))*hx,temp)); 
     }
   }
   ierr = VecRestoreArray(X,&x);CHKERRQ(ierr);

@@ -24,20 +24,14 @@ EXTERN_C_END
 
 typedef struct {
   Vec        update;    /* work vector where new solution is formed */
-  Vec        func;      /* work vector where F(t[i],u[i]) is stored */
-  Vec        rhs;       /* work vector for RHS; vec_sol/dt */
+  Vec        ydot;      /* work vector the time derivative is stored */
   Vec        w1,w2;     /* work space vectors for function evaluation */
-  PetscBool  exact_final_time; /* force Sundials to interpolate solution to exactly final time
-                                   requested by user (default) */
-  /* PETSc peconditioner objects used by SUNDIALS */
-  Mat  pmat;                         /* preconditioner Jacobian */
-  PC   pc;                           /* the PC context */
-  int  cvode_type;                   /* the SUNDIALS method, BDF or ADAMS  */
-  TSSundialsGramSchmidtType gtype; 
-  int                       restart;
-  double                    linear_tol;
 
-  PetscReal mindt,maxdt;
+  /* PETSc peconditioner objects used by SUNDIALS */
+  PetscInt                  cvode_type;   /* the SUNDIALS method, BDF or ADAMS  */
+  TSSundialsGramSchmidtType gtype; 
+  PetscReal                 linear_tol;
+  PetscReal                 mindt,maxdt;
 
   /* Variables used by Sundials */
   MPI_Comm    comm_sundials;
@@ -46,6 +40,7 @@ typedef struct {
   N_Vector    y;             /* current solution */
   void        *mem;
   PetscBool   monitorstep;   /* flag for monitor internal steps; itask=V_ONE_STEP or itask=CV_NORMAL*/
+  PetscInt    maxl;          /* max dimension of the Krylov subspace to be used */
 } TS_Sundials;
 #endif
 

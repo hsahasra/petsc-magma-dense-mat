@@ -13,6 +13,19 @@
 #include "petscconf.h"
 #include "petscfix.h"
 
+#if defined(PETSC_DESIRE_FEATURE_TEST_MACROS)
+/*
+   Feature test macros must be included before headers defined by IEEE Std 1003.1-2001
+   We only turn these in PETSc source files that require them by setting PETSC_DESIRE_FEATURE_TEST_MACROS
+*/
+#if defined(PETSC__POSIX_C_SOURCE_200112L)
+#define _POSIX_C_SOURCE 200112L
+#endif
+#if defined(PETSC__BSD_SOURCE)
+#define _BSD_SOURCE
+#endif
+#endif
+
 /* ========================================================================== */
 /* 
    This facilitates using C version of PETSc from C++ and 
@@ -207,6 +220,7 @@ typedef long long PetscInt;
 typedef int PetscInt;
 #define MPIU_INT MPI_INT
 #endif
+typedef long long Petsc64bitInt;
 
 /*EC
 
@@ -1135,16 +1149,12 @@ extern const char *PetscDataTypes[];
 #else
 #if defined(PETSC_USE_REAL_SINGLE)
 #define  PETSC_SCALAR  PETSC_FLOAT
-#elif defined(PETSC_USE_REAL_LONG_DOUBLE)
-#define  PETSC_SCALAR  PETSC_LONG_DOUBLE
 #else
 #define  PETSC_SCALAR  PETSC_DOUBLE
 #endif
 #endif
 #if defined(PETSC_USE_REAL_SINGLE)
 #define  PETSC_REAL  PETSC_FLOAT
-#elif defined(PETSC_USE_REAL_LONG_DOUBLE)
-#define  PETSC_REAL  PETSC_LONG_DOUBLE
 #else
 #define  PETSC_REAL  PETSC_DOUBLE
 #endif
@@ -1178,6 +1188,8 @@ extern PetscErrorCode    PetscStrtolower(char[]);
 extern PetscErrorCode    PetscStrrchr(const char[],char,char *[]);
 extern PetscErrorCode    PetscStrstr(const char[],const char[],char *[]);
 extern PetscErrorCode    PetscStrrstr(const char[],const char[],char *[]);
+extern PetscErrorCode    PetscStrendswith(const char[],const char[],PetscBool*);
+extern PetscErrorCode    PetscStrendswithwhich(const char[],const char *const*,PetscInt*);
 extern PetscErrorCode    PetscStrallocpy(const char[],char *[]);
 extern PetscErrorCode    PetscStrreplace(MPI_Comm,const char[],char[],size_t);
 
@@ -1192,7 +1204,7 @@ typedef struct _p_PetscToken* PetscToken;
 
 extern PetscErrorCode    PetscTokenCreate(const char[],const char,PetscToken*);
 extern PetscErrorCode    PetscTokenFind(PetscToken,char *[]);
-extern PetscErrorCode    PetscTokenDestroy(PetscToken);
+extern PetscErrorCode    PetscTokenDestroy(PetscToken*);
 
 /*
    These are  MPI operations for MPI_Allreduce() etc
@@ -1211,6 +1223,9 @@ extern  MPI_Op MPIU_MIN;
 #define MPIU_MIN MPI_MIN
 #endif
 extern PetscErrorCode  PetscMaxSum(MPI_Comm,const PetscInt[],PetscInt*,PetscInt*);
+
+extern PetscErrorCode MPILong_Send(void*,PetscInt,MPI_Datatype,PetscMPIInt,PetscMPIInt,MPI_Comm);
+extern PetscErrorCode MPILong_Recv(void*,PetscInt,MPI_Datatype,PetscMPIInt,PetscMPIInt,MPI_Comm);
 
 /*S
      PetscObject - any PETSc object, PetscViewer, Mat, Vec, KSP etc
@@ -1282,7 +1297,7 @@ extern PetscErrorCode  PetscInitializeNoArguments(void);
 extern PetscErrorCode  PetscInitialized(PetscBool  *);
 extern PetscErrorCode  PetscFinalized(PetscBool  *);
 extern PetscErrorCode  PetscFinalize(void);
-extern PetscErrorCode PetscInitializeFortran(void);
+extern PetscErrorCode  PetscInitializeFortran(void);
 extern PetscErrorCode  PetscGetArgs(int*,char ***);
 extern PetscErrorCode  PetscGetArguments(char ***);
 extern PetscErrorCode  PetscFreeArguments(char **);
@@ -1291,17 +1306,18 @@ extern PetscErrorCode  PetscEnd(void);
 extern PetscErrorCode  PetscSysInitializePackage(const char[]);
 
 extern MPI_Comm PETSC_COMM_LOCAL_WORLD;
-extern PetscErrorCode  PetscOpenMPMerge(PetscMPIInt,PetscErrorCode (*)(void*),void*);
-extern PetscErrorCode  PetscOpenMPSpawn(PetscMPIInt);
-extern PetscErrorCode  PetscOpenMPFinalize(void);
-extern PetscErrorCode  PetscOpenMPRun(MPI_Comm,PetscErrorCode (*)(MPI_Comm,void *),void*);
-extern PetscErrorCode  PetscOpenMPRunCtx(MPI_Comm,PetscErrorCode (*)(MPI_Comm,void*,void *),void*);
-extern PetscErrorCode  PetscOpenMPFree(MPI_Comm,void*);
-extern PetscErrorCode  PetscOpenMPMalloc(MPI_Comm,size_t,void**);
+extern PetscErrorCode  PetscHMPIMerge(PetscMPIInt,PetscErrorCode (*)(void*),void*);
+extern PetscErrorCode  PetscHMPISpawn(PetscMPIInt);
+extern PetscErrorCode  PetscHMPIFinalize(void);
+extern PetscErrorCode  PetscHMPIRun(MPI_Comm,PetscErrorCode (*)(MPI_Comm,void *),void*);
+extern PetscErrorCode  PetscHMPIRunCtx(MPI_Comm,PetscErrorCode (*)(MPI_Comm,void*,void *),void*);
+extern PetscErrorCode  PetscHMPIFree(MPI_Comm,void*);
+extern PetscErrorCode  PetscHMPIMalloc(MPI_Comm,size_t,void**);
 
 extern PetscErrorCode  PetscPythonInitialize(const char[],const char[]);
 extern PetscErrorCode  PetscPythonFinalize(void);
 extern PetscErrorCode  PetscPythonPrintError(void);
+extern PetscErrorCode  PetscPythonMonitorSet(PetscObject,const char[]);
 
 /*
      These are so that in extern C code we can caste function pointers to non-extern C
@@ -1363,6 +1379,7 @@ extern PetscErrorCode  PetscObjectDereference(PetscObject);
 extern PetscErrorCode  PetscObjectGetNewTag(PetscObject,PetscMPIInt *);
 extern PetscErrorCode  PetscObjectView(PetscObject,PetscViewer);
 extern PetscErrorCode  PetscObjectCompose(PetscObject,const char[],PetscObject);
+extern PetscErrorCode  PetscObjectRemoveReference(PetscObject,const char[]);
 extern PetscErrorCode  PetscObjectQuery(PetscObject,const char[],PetscObject *);
 extern PetscErrorCode  PetscObjectComposeFunction(PetscObject,const char[],const char[],void (*)(void));
 extern PetscErrorCode  PetscObjectSetFromOptions(PetscObject);
@@ -1426,6 +1443,7 @@ extern PetscErrorCode  PetscObjectRegisterDestroy(PetscObject);
 extern PetscErrorCode  PetscObjectRegisterDestroyAll(void);
 extern PetscErrorCode  PetscObjectName(PetscObject);
 extern PetscErrorCode  PetscTypeCompare(PetscObject,const char[],PetscBool *);
+extern PetscErrorCode  PetscTypeCompareAny(PetscObject,PetscBool*,const char[],...);
 extern PetscErrorCode  PetscRegisterFinalize(PetscErrorCode (*)(void));
 extern PetscErrorCode  PetscRegisterFinalizeAll(void);
 
@@ -1447,8 +1465,9 @@ typedef struct _n_PetscOList *PetscOList;
 
 extern PetscErrorCode  PetscOListDestroy(PetscOList*);
 extern PetscErrorCode  PetscOListFind(PetscOList,const char[],PetscObject*);
-extern PetscErrorCode  PetscOListReverseFind(PetscOList,PetscObject,char**);
+extern PetscErrorCode  PetscOListReverseFind(PetscOList,PetscObject,char**,PetscBool*);
 extern PetscErrorCode  PetscOListAdd(PetscOList *,const char[],PetscObject);
+extern PetscErrorCode  PetscOListRemoveReference(PetscOList *,const char[]);
 extern PetscErrorCode  PetscOListDuplicate(PetscOList,PetscOList *);
 
 /*
@@ -1623,6 +1642,7 @@ extern PetscErrorCode   PetscFClose(MPI_Comm,FILE*);
 extern PetscErrorCode   PetscFPrintf(MPI_Comm,FILE*,const char[],...);
 extern PetscErrorCode   PetscPrintf(MPI_Comm,const char[],...);
 extern PetscErrorCode   PetscSNPrintf(char*,size_t,const char [],...);
+extern PetscErrorCode   PetscSNPrintfCount(char*,size_t,const char [],size_t*,...);
 
 
 
@@ -1631,6 +1651,8 @@ extern PetscErrorCode   PetscSNPrintf(char*,size_t,const char [],...);
 extern PetscErrorCode   PetscVSNPrintf(char*,size_t,const char[],size_t*,va_list);
 extern PetscErrorCode   (*PetscVFPrintf)(FILE*,const char[],va_list);
 extern PetscErrorCode   PetscVFPrintfDefault(FILE*,const char[],va_list);
+extern PetscErrorCode   PetscVFPrintfRegress(FILE*,const char *,va_list);
+extern PetscErrorCode   PetscVFPrintfRegressSetUp(MPI_Comm,const char *);
 
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
 extern PetscErrorCode  PetscVFPrintf_Matlab(FILE*,const char[],va_list);
@@ -2043,12 +2065,12 @@ extern PetscErrorCode MPIU_File_read_all(MPI_File,void*,PetscMPIInt,MPI_Datatype
 #if defined(PETSC_USE_64BIT_INDICES)
 #define PetscMPIIntCheck(a)  if ((a) > PETSC_MPI_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Message too long for MPI")
 #define PetscBLASIntCheck(a)  if ((a) > PETSC_BLAS_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array too long for BLAS/LAPACK")
-#define PetscMPIIntCast(a) (a);PetscMPIIntCheck(a)
-#define PetscBLASIntCast(a) (a);PetscBLASIntCheck(a)
+#define PetscMPIIntCast(a) (PetscMPIInt)(a);PetscMPIIntCheck(a)
+#define PetscBLASIntCast(a) (PetscBLASInt)(a);PetscBLASIntCheck(a)
 
 #if (PETSC_SIZEOF_SIZE_T == 4)
 #define PetscHDF5IntCheck(a)  if ((a) > PETSC_HDF5_INT_MAX) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array too long for HDF5")
-#define PetscHDF5IntCast(a) (a);PetscHDF5IntCheck(a)
+#define PetscHDF5IntCast(a) (hsize_t)(a);PetscHDF5IntCheck(a)
 #else
 #define PetscHDF5IntCheck(a)
 #define PetscHDF5IntCast(a) a
@@ -2189,6 +2211,7 @@ extern PetscErrorCode  PetscSortRemoveDupsInt(PetscInt*,PetscInt[]);
 extern PetscErrorCode  PetscSortIntWithPermutation(PetscInt,const PetscInt[],PetscInt[]);
 extern PetscErrorCode  PetscSortStrWithPermutation(PetscInt,const char*[],PetscInt[]);
 extern PetscErrorCode  PetscSortIntWithArray(PetscInt,PetscInt[],PetscInt[]);
+extern PetscErrorCode  PetscSortIntWithArrayPair(PetscInt,PetscInt*,PetscInt*,PetscInt*);
 extern PetscErrorCode  PetscSortMPIIntWithArray(PetscMPIInt,PetscMPIInt[],PetscMPIInt[]);
 extern PetscErrorCode  PetscSortIntWithScalarArray(PetscInt,PetscInt[],PetscScalar[]);
 extern PetscErrorCode  PetscSortReal(PetscInt,PetscReal[]);
@@ -2196,11 +2219,12 @@ extern PetscErrorCode  PetscSortRealWithPermutation(PetscInt,const PetscReal[],P
 extern PetscErrorCode  PetscSortSplit(PetscInt,PetscInt,PetscScalar[],PetscInt[]);
 extern PetscErrorCode  PetscSortSplitReal(PetscInt,PetscInt,PetscReal[],PetscInt[]);
 extern PetscErrorCode  PetscProcessTree(PetscInt,const PetscBool [],const PetscInt[],PetscInt*,PetscInt**,PetscInt**,PetscInt**,PetscInt**);
+extern PetscErrorCode  PetscMergeIntArrayPair(PetscInt,const PetscInt*,const PetscInt*,PetscInt,const PetscInt*,const PetscInt*,PetscInt*,PetscInt**,PetscInt**);
 
 extern PetscErrorCode  PetscSetDisplay(void);
 extern PetscErrorCode  PetscGetDisplay(char[],size_t);
 
-/*E
+/*J
     PetscRandomType - String with the name of a PETSc randomizer
        with an optional dynamic library name, for example
        http://www.mcs.anl.gov/petsc/lib.a:myrandcreate()
@@ -2211,7 +2235,7 @@ extern PetscErrorCode  PetscGetDisplay(char[],size_t);
    with the option --download-sprng
 
 .seealso: PetscRandomSetType(), PetscRandom
-E*/
+J*/
 #define PetscRandomType char*
 #define PETSCRAND       "rand"
 #define PETSCRAND48     "rand48"
@@ -2435,6 +2459,8 @@ extern PetscErrorCode  PetscSubcommDestroy(PetscSubcomm*);
 extern PetscErrorCode  PetscSubcommSetNumber(PetscSubcomm,PetscInt);
 extern PetscErrorCode  PetscSubcommSetType(PetscSubcomm,const PetscSubcommType);
 extern PetscErrorCode  PetscSubcommSetTypeGeneral(PetscSubcomm,PetscMPIInt,PetscMPIInt,PetscMPIInt);
+
+#include <petscctable.h>
 
 PETSC_EXTERN_CXX_END
 

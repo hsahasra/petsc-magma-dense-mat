@@ -190,7 +190,7 @@ PetscErrorCode  PetscTraceBackErrorHandler(MPI_Comm comm,int line,const char *fu
 	if (flg2) {
 	  PetscMallocDumpLog(stdout);
 	} else {
-	  (*PetscErrorPrintf)("Memory allocated %D Memory used by process %D\n",(PetscInt)mem,(PetscInt)rss);
+	  (*PetscErrorPrintf)("Memory allocated %.0f Memory used by process %.0f\n",mem,rss);
 	  if (flg1) {
 	    PetscMallocDump(stdout);
 	  } else {
@@ -280,12 +280,12 @@ PetscErrorCode  PetscTraceBackErrorHandlerCxx(MPI_Comm comm,int line,const char 
       PetscOptionsGetBool(PETSC_NULL,"-malloc_dump",&flg1,PETSC_NULL);
       PetscOptionsGetBool(PETSC_NULL,"-malloc_log",&flg2,PETSC_NULL);
       if (flg2) {
-        //PetscMallocDumpLog(stdout);
+        /* PetscMallocDumpLog(stdout); */
         (*msg) << "Option -malloc_log does not work in C++." << std::endl;
       } else {
         (*msg) << "Memory allocated " << mem << " Memory used by process " << rss << std::endl;
         if (flg1) {
-          //PetscMallocDump(stdout);
+          /* PetscMallocDump(stdout); */
           (*msg) << "Option -malloc_dump does not work in C++." << std::endl;
         } else {
           (*msg) << "Try running with -malloc_dump or -malloc_log for info." << std::endl;

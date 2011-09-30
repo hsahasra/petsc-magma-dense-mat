@@ -13,8 +13,6 @@ PetscErrorCode KSPSetUp_Richardson(KSP ksp)
   KSP_Richardson *richardsonP = (KSP_Richardson*)ksp->data;
 
   PetscFunctionBegin;
-  if (ksp->pc_side == PC_RIGHT) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"no right preconditioning for KSPRICHARDSON");
-  else if (ksp->pc_side == PC_SYMMETRIC) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"no symmetric preconditioning for KSPRICHARDSON");
   if (richardsonP->selfscale) {
     ierr  = KSPDefaultGetWork(ksp,4);CHKERRQ(ierr);
   } else {
@@ -39,8 +37,6 @@ PetscErrorCode  KSPSolve_Richardson(KSP ksp)
   PetscBool      exists,diagonalscale;
 
   PetscFunctionBegin;
-  if (ksp->normtype == KSP_NORM_NATURAL) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"Cannot use natural residual norm for KSPRICHARDSON");
-
   ierr    = PCGetDiagonalScale(ksp->pc,&diagonalscale);CHKERRQ(ierr);
   if (diagonalscale) SETERRQ1(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"Krylov method %s does not support diagonal scaling",((PetscObject)ksp)->type_name);
 
@@ -107,7 +103,7 @@ PetscErrorCode  KSPSolve_Richardson(KSP ksp)
       ierr = KSP_PCApplyBAorAB(ksp,z,y,w);CHKERRQ(ierr);  /* y = BAz = BABr */
       ierr  = VecDotNorm2(z,y,&rdot,&abr);CHKERRQ(ierr);   /*   rdot = (Br)^T(BABR); abr = (BABr)^T (BABr) */
       scale = rdot/abr;
-
+      ierr = PetscInfo1(ksp,"Self-scale factor %G\n",scale);CHKERRQ(ierr);
       ierr = VecAXPY(x,scale,z);CHKERRQ(ierr);    /*   x  <- x + scale z */
       ierr = VecAXPY(r,-scale,w);CHKERRQ(ierr);   /*  r <- r - scale*Az */
       ierr = VecAXPY(z,-scale,y);CHKERRQ(ierr);   /*  z <- z - scale*y */
@@ -178,7 +174,11 @@ PetscErrorCode KSPView_Richardson(KSP ksp,PetscViewer viewer)
   PetscFunctionBegin;
   ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
-    ierr = PetscViewerASCIIPrintf(viewer,"  Richardson: damping factor=%G\n",richardsonP->scale);CHKERRQ(ierr);
+    if (richardsonP->selfscale) {
+      ierr = PetscViewerASCIIPrintf(viewer,"  Richardson: using self-scale best computed damping factor\n");CHKERRQ(ierr);
+    } else {
+      ierr = PetscViewerASCIIPrintf(viewer,"  Richardson: damping factor=%G\n",richardsonP->scale);CHKERRQ(ierr);
+    }
   } else {
     SETERRQ1(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"Viewer type %s not supported for KSP Richardson",((PetscObject)viewer)->type_name);
   }
@@ -294,11 +294,8 @@ PetscErrorCode  KSPCreate_Richardson(KSP ksp)
   ierr = PetscNewLog(ksp,KSP_Richardson,&richardsonP);CHKERRQ(ierr);
   ksp->data                        = (void*)richardsonP;
 
-  ksp->normtype                    = KSP_NORM_PRECONDITIONED;
-  if (ksp->pc_side != PC_LEFT) {
-     ierr = PetscInfo(ksp,"WARNING! Setting PC_SIDE for Richardson to left!\n");CHKERRQ(ierr);
-  }
-  ksp->pc_side                     = PC_LEFT;
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_PRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_LEFT,1);CHKERRQ(ierr);
 
   ksp->ops->setup                  = KSPSetUp_Richardson;
   ksp->ops->solve                  = KSPSolve_Richardson;

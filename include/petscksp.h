@@ -19,7 +19,7 @@ extern PetscErrorCode  KSPInitializePackage(const char[]);
 S*/
 typedef struct _p_KSP*     KSP;
 
-/*E
+/*J
     KSPType - String with the name of a PETSc Krylov method or the creation function
        with an optional dynamic library name, for example
        http://www.mcs.anl.gov/petsc/lib.a:mykspcreate()
@@ -27,7 +27,7 @@ typedef struct _p_KSP*     KSP;
    Level: beginner
 
 .seealso: KSPSetType(), KSP
-E*/
+J*/
 #define KSPType char*
 #define KSPRICHARDSON "richardson"
 #define KSPCHEBYCHEV  "chebychev"
@@ -153,6 +153,7 @@ extern PetscErrorCode  KSPGetVecs(KSP,PetscInt,Vec**,PetscInt,Vec**);
 extern PetscErrorCode  KSPSetPC(KSP,PC);
 extern PetscErrorCode  KSPGetPC(KSP,PC*);
 
+extern PetscErrorCode  KSPMonitor(KSP,PetscInt,PetscReal);
 extern PetscErrorCode  KSPMonitorSet(KSP,PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*),void *,PetscErrorCode (*)(void**));
 extern PetscErrorCode  KSPMonitorCancel(KSP);
 extern PetscErrorCode  KSPGetMonitorContext(KSP,void **);
@@ -174,6 +175,7 @@ extern PetscErrorCode  KSPBuildResidual(KSP,Vec,Vec,Vec *);
 extern PetscErrorCode  KSPRichardsonSetScale(KSP,PetscReal);
 extern PetscErrorCode  KSPRichardsonSetSelfScale(KSP,PetscBool );
 extern PetscErrorCode  KSPChebychevSetEigenvalues(KSP,PetscReal,PetscReal);
+extern PetscErrorCode  KSPChebychevSetEstimateEigenvalues(KSP,PetscReal,PetscReal,PetscReal,PetscReal);
 extern PetscErrorCode  KSPComputeExtremeSingularValues(KSP,PetscReal*,PetscReal*);
 extern PetscErrorCode  KSPComputeEigenvalues(KSP,PetscInt,PetscReal*,PetscReal*,PetscInt *);
 extern PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP,PetscInt,PetscReal*,PetscReal*);
@@ -314,8 +316,10 @@ extern PetscErrorCode  PCRedistributeGetKSP(PC,KSP*);
 .seealso: KSPSolve(), KSPGetConvergedReason(), KSPSetNormType(),
           KSPSetConvergenceTest(), KSPSetPCSide()
 E*/
-typedef enum {KSP_NORM_NONE = 0,KSP_NORM_PRECONDITIONED = 1,KSP_NORM_UNPRECONDITIONED = 2,KSP_NORM_NATURAL = 3} KSPNormType;
-extern const char *KSPNormTypes[];
+typedef enum {KSP_NORM_DEFAULT = -1,KSP_NORM_NONE = 0,KSP_NORM_PRECONDITIONED = 1,KSP_NORM_UNPRECONDITIONED = 2,KSP_NORM_NATURAL = 3} KSPNormType;
+#define KSP_NORM_MAX (KSP_NORM_NATURAL + 1)
+extern const char *const*const KSPNormTypes;
+
 /*MC
     KSP_NORM_NONE - Do not compute a norm during the Krylov process. This will 
           possibly save some computation but means the convergence test cannot
@@ -357,6 +361,7 @@ M*/
 
 extern PetscErrorCode  KSPSetNormType(KSP,KSPNormType);
 extern PetscErrorCode  KSPGetNormType(KSP,KSPNormType*);
+extern PetscErrorCode  KSPSetSupportedNorm(KSP ksp,KSPNormType,PCSide,PetscInt);
 extern PetscErrorCode  KSPSetCheckNormIteration(KSP,PetscInt);
 extern PetscErrorCode  KSPSetLagNorm(KSP,PetscBool );
 
@@ -605,6 +610,8 @@ extern PetscErrorCode  MatGetSchurComplement_Basic(Mat mat,IS isrow0,IS iscol0,I
 extern PetscErrorCode  KSPSetDM(KSP,DM);
 extern PetscErrorCode  KSPSetDMActive(KSP,PetscBool );
 extern PetscErrorCode  KSPGetDM(KSP,DM*);
+extern PetscErrorCode  KSPSetApplicationContext(KSP,void*);
+extern PetscErrorCode  KSPGetApplicationContext(KSP,void*);
 
 PETSC_EXTERN_CXX_END
 #endif

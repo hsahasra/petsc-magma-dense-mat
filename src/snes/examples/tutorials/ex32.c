@@ -156,7 +156,7 @@ int main(int argc,char **argv)
 
   snes = DMMGGetSNES(dmmg);
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm,"Origianl Physics: Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm,"Origianl Physics: Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);
  
   /* Save the ghosted local solu_true to be used by Physics 1 and Physics 2 */
   da        = DMMGGetDM(dmmg);
@@ -200,7 +200,7 @@ int main(int argc,char **argv)
     ierr = DMMGSolve(dmmg1);CHKERRQ(ierr); 
     snes = DMMGGetSNES(dmmg1);
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"SubPhysics 1, Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"SubPhysics 1, Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);
   
     if (ViewSolu){ /* View individial componets of the solution */   
       user.dmmg1 = dmmg1;
@@ -229,7 +229,7 @@ int main(int argc,char **argv)
     ierr = DMMGSolve(dmmg2);CHKERRQ(ierr); 
     snes = DMMGGetSNES(dmmg2);
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"SubPhysics 2, Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"SubPhysics 2, Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);
 
     if (ViewSolu){ /* View individial componets of the solution */
       user.dmmg2 = dmmg2;
@@ -260,7 +260,7 @@ int main(int argc,char **argv)
   ierr = DMMGSolve(dmmg_comp);CHKERRQ(ierr); 
   snes = DMMGGetSNES(dmmg_comp);
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm,"Composite Physics: Number of Newton iterations = %D\n\n", its);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm,"Composite Physics: Number of SNES iterations = %D\n\n", its);CHKERRQ(ierr);
 
   /* Compare the solutions obtained from dmmg and dmmg_comp */
   if (ViewSolu || CompSolu){ 
@@ -587,14 +587,14 @@ PetscErrorCode FormFunctionLocal1(DMDALocalInfo *info,Field1 **x,Field1 **f,void
   AppCtx         *user = (AppCtx*)ptr;
   PetscInt       xints,xinte,yints,yinte,i,j;
   PetscReal      hx,hy,dhx,dhy,hxdhy,hydhx;
-  PetscReal      grashof,prandtl,lid;
+  PetscReal      grashof,lid; /* ,prandtl */
   PetscScalar    u,uxx,uyy,vx,vy,avx,avy,vxp,vxm,vyp,vym;
   Field          **solu=user->x;
   Field2         **solu2=user->x2;
 
   PetscFunctionBegin;
   grashof = user->grashof;  
-  prandtl = user->prandtl;
+  /* prandtl = user->prandtl; */
   lid     = user->lidvelocity;
 
   dhx = (PetscReal)(info->mx-1);  dhy = (PetscReal)(info->my-1);
@@ -701,7 +701,7 @@ PetscErrorCode FormFunctionLocal2(DMDALocalInfo *info,Field2 **x,Field2 **f,void
   AppCtx         *user = (AppCtx*)ptr;
   PetscInt       xints,xinte,yints,yinte,i,j;
   PetscReal      hx,hy,dhx,dhy,hxdhy,hydhx;
-  PetscReal      grashof,prandtl,lid;
+  PetscReal      grashof,prandtl; /* ,lid */
   PetscScalar    u,uxx,uyy,vx,vy,avx,avy,vxp,vxm,vyp,vym;
   Field          **solu=user->x;
   Field1         **solu1=user->x1;
@@ -709,7 +709,7 @@ PetscErrorCode FormFunctionLocal2(DMDALocalInfo *info,Field2 **x,Field2 **f,void
   PetscFunctionBegin;
   grashof = user->grashof;  
   prandtl = user->prandtl;
-  lid     = user->lidvelocity;
+  /* lid     = user->lidvelocity; */
 
   dhx = (PetscReal)(info->mx-1);  dhy = (PetscReal)(info->my-1);
   hx = 1.0/dhx;                   hy = 1.0/dhy;
@@ -877,12 +877,12 @@ PetscErrorCode MySolutionView(MPI_Comm comm,PetscInt phy_num,void *ctx)
     break;
   case 1:
     if (size == 1){
-      ierr = PetscPrintf(PETSC_COMM_SELF,"SubPhysics %d: U,V,Omega: \n",phy_num);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"------------------------\n");
       DMMG *dmmg1=user->dmmg1;
       Vec  solu_true = DMMGGetx(dmmg1);
       DM   da=DMMGGetDM(dmmg1);
       Field1 **x1;
+      ierr = PetscPrintf(PETSC_COMM_SELF,"SubPhysics %d: U,V,Omega: \n",phy_num);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"------------------------\n");
       ierr = DMDAVecGetArray(da,solu_true,&x1);CHKERRQ(ierr);
       for (j=ys; j<ys+ym; j++) {
         for (i=xs; i<xs+xm; i++) {
@@ -896,12 +896,12 @@ PetscErrorCode MySolutionView(MPI_Comm comm,PetscInt phy_num,void *ctx)
     break;
   case 2:
     if (size == 1){
-      ierr = PetscPrintf(PETSC_COMM_SELF,"SubPhysics %d: Temperature: \n",phy_num);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"--------------------------\n");
       DMMG *dmmg2=user->dmmg2;
       Vec  solu_true = DMMGGetx(dmmg2);
       DM   da=DMMGGetDM(dmmg2);
       Field2 **x2;
+      ierr = PetscPrintf(PETSC_COMM_SELF,"SubPhysics %d: Temperature: \n",phy_num);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"--------------------------\n");
       ierr = DMDAVecGetArray(da,solu_true,&x2);CHKERRQ(ierr);
       for (j=ys; j<ys+ym; j++) {
         for (i=xs; i<xs+xm; i++) {

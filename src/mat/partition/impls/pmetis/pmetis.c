@@ -56,8 +56,10 @@ static PetscErrorCode MatPartitioningApply_Parmetis(MatPartitioning part,IS *par
   xadj    = adj->i;
   adjncy  = adj->j;
   ierr    = MPI_Comm_rank(((PetscObject)part)->comm,&rank);CHKERRQ(ierr);
-#if 0
-  if (!(vtxdist[rank+1] - vtxdist[rank])) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Does not support any processor with no entries");
+#if 1
+  if ((vtxdist[rank+1] - vtxdist[rank]) < 1) {
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Does not support any processor with %d entries",vtxdist[rank+1] - vtxdist[rank]);
+  }
 #endif
 #if defined(PETSC_USE_DEBUG)
   /* check that matrix has no diagonal entries */

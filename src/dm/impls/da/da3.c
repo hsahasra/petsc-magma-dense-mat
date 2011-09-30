@@ -202,8 +202,11 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
   PetscFunctionBegin;
   if (dof < 1) SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_ARG_OUTOFRANGE,"Must have 1 or more degrees of freedom per node: %D",dof);
   if (s < 0) SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_ARG_OUTOFRANGE,"Stencil width cannot be negative: %D",s);
-
   ierr = PetscObjectGetComm((PetscObject) da, &comm);CHKERRQ(ierr);
+#if !defined(PETSC_USE_64BIT_INDICES)
+  if (((Petsc64bitInt) M)*((Petsc64bitInt) N)*((Petsc64bitInt) P)*((Petsc64bitInt) dof) > (Petsc64bitInt) PETSC_MPI_INT_MAX) SETERRQ3(comm,PETSC_ERR_INT_OVERFLOW,"Mesh of %D by %D by %D (dof) is too large for 32 bit indices",M,N,dof);
+#endif
+
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr); 
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr); 
 
@@ -234,7 +237,7 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
     p = size/(m*n);
   } else if (m == PETSC_DECIDE && n == PETSC_DECIDE && p != PETSC_DECIDE) {
     /* try for squarish distribution */
-    m = (int)(0.5 + sqrt(((PetscReal)M)*((PetscReal)size)/((PetscReal)N*p)));
+    m = (int)(0.5 + sqrt(((double)M)*((double)size)/((double)N*p)));
     if (!m) m = 1;
     while (m > 0) {
       n = size/(m*p);
@@ -245,7 +248,7 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
     if (M > N && m < n) {PetscInt _m = m; m = n; n = _m;}
   } else if (m == PETSC_DECIDE && n != PETSC_DECIDE && p == PETSC_DECIDE) {
     /* try for squarish distribution */
-    m = (int)(0.5 + sqrt(((PetscReal)M)*((PetscReal)size)/((PetscReal)P*n)));
+    m = (int)(0.5 + sqrt(((double)M)*((double)size)/((double)P*n)));
     if (!m) m = 1;
     while (m > 0) {
       p = size/(m*n);
@@ -256,7 +259,7 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
     if (M > P && m < p) {PetscInt _m = m; m = p; p = _m;}
   } else if (m != PETSC_DECIDE && n == PETSC_DECIDE && p == PETSC_DECIDE) {
     /* try for squarish distribution */
-    n = (int)(0.5 + sqrt(((PetscReal)N)*((PetscReal)size)/((PetscReal)P*m)));
+    n = (int)(0.5 + sqrt(((double)N)*((double)size)/((double)P*m)));
     if (!n) n = 1;
     while (n > 0) {
       p = size/(m*n);
@@ -267,7 +270,7 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
     if (N > P && n < p) {PetscInt _n = n; n = p; p = _n;}
   } else if (m == PETSC_DECIDE && n == PETSC_DECIDE && p == PETSC_DECIDE) {
     /* try for squarish distribution */
-    n = (PetscInt)(0.5 + pow(((PetscReal)N*N)*((PetscReal)size)/((PetscReal)P*M),(PetscReal)(1./3.)));
+    n = (PetscInt)(0.5 + pow(((double)N*N)*((double)size)/((double)P*M),(double)(1./3.)));
     if (!n) n = 1;
     while (n > 0) {
       pm = size/n;
@@ -275,7 +278,7 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
       n--;
     }   
     if (!n) n = 1; 
-    m = (PetscInt)(0.5 + sqrt(((PetscReal)M)*((PetscReal)size)/((PetscReal)P*n)));
+    m = (PetscInt)(0.5 + sqrt(((double)M)*((double)size)/((double)P*n)));
     if (!m) m = 1;
     while (m > 0) {
       p = size/(m*n);
@@ -1337,12 +1340,12 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
 .  m,n,p - corresponding number of processors in each dimension 
            (or PETSC_DECIDE to have calculated)
 .  dof - number of degrees of freedom per node
-.  lx, ly, lz - arrays containing the number of nodes in each cell along
+.  s - stencil width
+-  lx, ly, lz - arrays containing the number of nodes in each cell along
           the x, y, and z coordinates, or PETSC_NULL. If non-null, these
           must be of length as m,n,p and the corresponding
           m,n, or p cannot be PETSC_DECIDE. Sum of the lx[] entries must be M, sum of
           the ly[] must N, sum of the lz[] must be P
--  s - stencil width
 
    Output Parameter:
 .  da - the resulting distributed array object
@@ -1355,9 +1358,10 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
 .  -da_processors_x <MX> - number of processors in x direction
 .  -da_processors_y <MY> - number of processors in y direction
 .  -da_processors_z <MZ> - number of processors in z direction
-.  -da_refine_x - refinement ratio in x direction
-.  -da_refine_y - refinement ratio in y direction
--  -da_refine_y - refinement ratio in z direction
+.  -da_refine_x <rx> - refinement ratio in x direction
+.  -da_refine_y <ry> - refinement ratio in y direction
+.  -da_refine_z <rz>- refinement ratio in z directio
+-  -da_refine <n> - refine the DMDA n times before creating it, , if M, N, or P < 0
 
    Level: beginner
 
@@ -1374,7 +1378,7 @@ PetscErrorCode  DMSetUp_DA_3D(DM da)
 
 .seealso: DMDestroy(), DMView(), DMDACreate1d(), DMDACreate2d(), DMGlobalToLocalBegin(), DMDAGetRefinementFactor(),
           DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMDALocalToLocalBegin(), DMDALocalToLocalEnd(), DMDASetRefinementFactor(),
-          DMDAGetInfo(), DMCreateGlobalVector(), DMCreateLocalVector(), DMDACreateNaturalVector(), DMDALoad(), DMDAGetOwnershipRanges()
+          DMDAGetInfo(), DMCreateGlobalVector(), DMCreateLocalVector(), DMDACreateNaturalVector(), DMLoad(), DMDAGetOwnershipRanges()
 
 @*/
 PetscErrorCode  DMDACreate3d(MPI_Comm comm,DMDABoundaryType bx,DMDABoundaryType by,DMDABoundaryType bz,DMDAStencilType stencil_type,PetscInt M,

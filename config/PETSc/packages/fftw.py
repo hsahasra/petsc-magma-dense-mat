@@ -3,7 +3,7 @@ import PETSc.package
 class Configure(PETSc.package.NewPackage):
   def __init__(self, framework):
     PETSc.package.NewPackage.__init__(self, framework)
-    self.download  = ['http://ftp.mcs.anl.gov/pub/petsc/externalpackages/fftw-3.3alpha1.tar.gz']
+    self.download  = ['http://www.fftw.org/fftw-3.3.1-beta1.tar.gz']
     self.functions = ['fftw_malloc'] 
     self.includes  = ['fftw3-mpi.h']  
     self.liblist   = [['libfftw3_mpi.a','libfftw3.a']]
@@ -19,7 +19,7 @@ class Configure(PETSc.package.NewPackage):
     import os
 
     args = ['--prefix='+self.installDir]
-
+    args.append('--libdir='+os.path.join(self.installDir,self.libdir))
     self.framework.pushLanguage('C')
     ccompiler=self.framework.getCompiler()
     args.append('CC="'+self.framework.getCompiler()+'"')

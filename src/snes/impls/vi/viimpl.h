@@ -12,7 +12,7 @@
 #define __SNES_VI_H
 
 typedef struct {
-  PetscErrorCode           (*LineSearch)(SNES,void*,Vec,Vec,Vec,Vec,Vec,PetscReal,PetscReal,PetscReal*,PetscReal*,PetscBool *);
+  PetscErrorCode           (*LineSearch)(SNES,void*,Vec,Vec,Vec,PetscReal,PetscReal,Vec,Vec,PetscReal*,PetscReal*,PetscBool *);
   void                     *lsP;                              /* user-defined line-search context (optional) */
   /* --------------- Parameters used by line search method ----------------- */
   PetscReal                alpha;		                                                   /* used to determine sufficient reduction */
@@ -22,7 +22,7 @@ typedef struct {
   void                     *precheck;                                                        /* user-defined step-checking context (optional) */
   PetscErrorCode           (*postcheckstep)(SNES,Vec,Vec,Vec,void*,PetscBool *,PetscBool *); /* step-checking routine (optional) */
   void                     *postcheck;                                                       /* user-defined step-checking context (optional) */
-  PetscViewerASCIIMonitor  lsmonitor;
+  PetscViewer              lsmonitor;
 
   /* ------------------ Semismooth algorithm stuff ------------------------------ */
   Vec                      phi;                      /* pointer to semismooth function */
@@ -35,12 +35,10 @@ typedef struct {
   Vec                      t;    /* B subdifferential work vector */
   Vec                      xl;            /* lower bound on variables */
   Vec                      xu;            /* upper bound on variables */
-  PetscBool                usersetxbounds; /* flag to indicate whether the user 
-                                              has set bounds on variables */
+  PetscInt                 ntruebounds;   /* number of variables that have at least one non-infinite bound given */
 
   PetscScalar              norm_d;         /* two norm of the descent direction */
-  IS                       IS_inact_prev; /* Inctive set IS for the previous iteration 
-                                          or previous snes solve */
+  IS                       IS_inact_prev; /* Inctive set IS for the previous iteration or previous snes solve */
 
   /* Tolerance to check whether the constraint is satisfied */
   PetscReal                const_tol;
@@ -49,6 +47,9 @@ typedef struct {
   /* user supplied function for checking redundant equations for SNESSolveVI_RS2 */
   PetscErrorCode (*checkredundancy)(SNES,IS,IS*,void*);
   void                     *ctxP; /* user defined check redundancy context */
+
+  PetscErrorCode           (*computevariablebounds)(SNES,Vec,Vec);
+  PetscBool                ignorefunctionsign;    /* when computing active set ignore the sign of the function values */
 } SNES_VI;
 
 #endif

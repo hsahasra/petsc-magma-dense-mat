@@ -23,7 +23,7 @@ extern PetscErrorCode  ISInitializePackage(const char[]);
 S*/
 typedef struct _p_IS* IS;
 
-/*E
+/*J
     ISType - String with the name of a PETSc vector or the creation function
        with an optional dynamic library name, for example
        http://www.mcs.anl.gov/petsc/lib.a:myveccreate()
@@ -31,7 +31,7 @@ typedef struct _p_IS* IS;
    Level: beginner
 
 .seealso: ISSetType(), IS
-E*/
+J*/
 #define ISType char*
 #define ISGENERAL      "general"
 #define ISSTRIDE       "stride"
@@ -146,6 +146,9 @@ extern PetscErrorCode    ISDuplicate(IS,IS*);
 extern PetscErrorCode    ISCopy(IS,IS);
 extern PetscErrorCode    ISAllGather(IS,IS*);
 extern PetscErrorCode    ISComplement(IS,PetscInt,PetscInt,IS*);
+extern PetscErrorCode    ISConcatenate(MPI_Comm,PetscInt,const IS[],IS*);
+extern PetscErrorCode    ISListToColoring(MPI_Comm,PetscInt, IS[],IS*,IS*);
+extern PetscErrorCode    ISColoringToList(IS, IS, PetscInt*, IS *[]);
 extern PetscErrorCode    ISOnComm(IS,MPI_Comm,PetscCopyMode,IS*);
 
 /* --------------------------------------------------------------------------*/
@@ -204,6 +207,7 @@ extern PetscErrorCode  ISLocalToGlobalMappingGetIndices(ISLocalToGlobalMapping,c
 extern PetscErrorCode  ISLocalToGlobalMappingRestoreIndices(ISLocalToGlobalMapping,const PetscInt**);
 extern PetscErrorCode  ISLocalToGlobalMappingBlock(ISLocalToGlobalMapping,PetscInt,ISLocalToGlobalMapping*);
 extern PetscErrorCode  ISLocalToGlobalMappingUnBlock(ISLocalToGlobalMapping,PetscInt,ISLocalToGlobalMapping*);
+extern PetscErrorCode  ISLocalToGlobalMappingConcatenate(MPI_Comm,PetscInt,const ISLocalToGlobalMapping[],ISLocalToGlobalMapping*);
 
 #undef __FUNCT__
 #define __FUNCT__ "ISLocalToGlobalMappingApply"
@@ -279,9 +283,9 @@ extern PetscErrorCode  ISColoringRestoreIS(ISColoring,IS*[]);
 extern PetscErrorCode  ISPartitioningToNumbering(IS,IS*);
 extern PetscErrorCode  ISPartitioningCount(IS,PetscInt,PetscInt[]);
 
-extern PetscErrorCode  ISCompressIndicesGeneral(PetscInt,PetscInt,PetscInt,const IS[],IS[]);
+extern PetscErrorCode  ISCompressIndicesGeneral(PetscInt,PetscInt,PetscInt,PetscInt,const IS[],IS[]);
 extern PetscErrorCode  ISCompressIndicesSorted(PetscInt,PetscInt,PetscInt,const IS[],IS[]);
-extern PetscErrorCode  ISExpandIndicesGeneral(PetscInt,PetscInt,PetscInt,const IS[],IS[]);
+extern PetscErrorCode  ISExpandIndicesGeneral(PetscInt,PetscInt,PetscInt,PetscInt,const IS[],IS[]);
 
 PETSC_EXTERN_CXX_END
 

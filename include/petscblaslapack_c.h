@@ -23,9 +23,9 @@
 #  define LAPACKstein_ sstein /* eigenvectors of real symm tridiagonal matrix */
 #  define LAPACKgesv_  sgesv
 #  define LAPACKgelss_ sgelss
+#  define LAPACKgerfs_ sgerfs
+#  define LAPACKtgsen_ stgsen
 /* Real single precision with character string arguments. */
-#  define LAPACKormqr_ sormqr
-#  define LAPACKtrtrs_ strtrs
 #  define LAPACKpotrf_ spotrf
 #  define LAPACKpotrs_ spotrs
 #  define BLASgemv_    sgemv
@@ -39,6 +39,9 @@
 #  define LAPACKsygv_  ssygv
 #  define LAPACKsygvx_ ssygvx
 #  define LAPACKstebz_ sstebz /* eigenvalues of symm tridiagonal matrix */
+#  define LAPACKhseqr_ shseqr
+#  define LAPACKgges_  sgges
+#  define LAPACKtrsen_ strsen
 # else
 /* Real double precision with no character string arguments */
 #  define LAPACKgeqrf_ dgeqrf
@@ -56,9 +59,9 @@
 #  define LAPACKstein_ dstein
 #  define LAPACKgesv_  dgesv
 #  define LAPACKgelss_ dgelss
+#  define LAPACKgerfs_ dgerfs
+#  define LAPACKtgsen_ dtgsen
 /* Real double precision with character string arguments. */
-#  define LAPACKormqr_ dormqr
-#  define LAPACKtrtrs_ dtrtrs
 #  define LAPACKpotrf_ dpotrf
 #  define LAPACKpotrs_ dpotrs
 #  define BLASgemv_    dgemv
@@ -72,6 +75,9 @@
 #  define LAPACKsygv_  dsygv
 #  define LAPACKsygvx_ dsygvx
 #  define LAPACKstebz_ dstebz
+#  define LAPACKhseqr_ dhseqr
+#  define LAPACKgges_  dgges
+#  define LAPACKtrsen_ dtrsen
 # endif
 #else
 # if defined(PETSC_USE_REAL_SINGLE)
@@ -90,9 +96,9 @@
 #  define LAPACKpttrf_ cpttrf 
 #  define LAPACKstein_ cstein
 #  define LAPACKgelss_ cgelss
+#  define LAPACKgerfs_ cgerfs
+#  define LAPACKtgsen_ ctgsen
 /* Complex single precision with character string arguments */
-/* LAPACKormqr_ does not exist for complex. */
-#  define LAPACKtrtrs_ ctrtrs
 #  define LAPACKpotrf_ cpotrf
 #  define LAPACKpotrs_ cpotrs
 #  define BLASgemv_    cgemv
@@ -107,6 +113,9 @@
 #  define LAPACKsygv_  chegv 
 #  define LAPACKsygvx_ chegvx 
 #  define LAPACKpttrs_ cpttrs 
+#  define LAPACKhseqr_ chseqr
+#  define LAPACKgges_  cgges
+#  define LAPACKtrsen_ ctrsen
 /* LAPACKstebz_ does not exist for complex. */
 # else
 /* Complex double precision with no character string arguments */
@@ -125,9 +134,9 @@
 #  define LAPACKstein_ zstein
 # define LAPACKgesv_   zgesv
 # define LAPACKgelss_  zgelss
+#  define LAPACKgerfs_ zgerfs
+#  define LAPACKtgsen_ ztgsen
 /* Complex double precision with character string arguments */
-/* LAPACKormqr_ does not exist for complex. */
-#  define LAPACKtrtrs_ ztrtrs
 #  define LAPACKpotrf_ zpotrf
 #  define LAPACKpotrs_ zpotrs
 #  define BLASgemv_    zgemv
@@ -141,6 +150,9 @@
 #  define LAPACKsygv_  zhegv 
 #  define LAPACKsygvx_ zhegvx 
 #  define LAPACKpttrs_ zpttrs 
+#  define LAPACKhseqr_ zhseqr
+#  define LAPACKtrsen_ ztrsen
+#  define LAPACKgges_  zgges
 /* LAPACKstebz_ does not exist for complex. */
 # endif
 #endif

@@ -168,6 +168,22 @@ PetscErrorCode  DMDASplitComm2d(MPI_Comm comm,PetscInt M,PetscInt N,PetscInt sw,
 }
 
 #undef __FUNCT__  
+#define __FUNCT__ "DMDAFunction"
+static PetscErrorCode DMDAFunction(DM dm,Vec x,Vec F)
+{
+  PetscErrorCode ierr;
+  Vec            localX;
+  
+  PetscFunctionBegin;
+  ierr = DMGetLocalVector(dm,&localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMDAFormFunction1(dm,localX,F,dm->ctx);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm,&localX);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
 #define __FUNCT__ "DMDASetLocalFunction"
 /*@C
        DMDASetLocalFunction - Caches in a DM a local function. 
@@ -188,10 +204,13 @@ PetscErrorCode  DMDASplitComm2d(MPI_Comm comm,PetscInt M,PetscInt N,PetscInt sw,
 @*/
 PetscErrorCode  DMDASetLocalFunction(DM da,DMDALocalFunction1 lf)
 {
+  PetscErrorCode ierr;
   DM_DA          *dd = (DM_DA*)da->data;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
-  dd->lf    = lf;
+  ierr = DMSetFunction(da,DMDAFunction);CHKERRQ(ierr);
+  dd->lf       = lf;
   PetscFunctionReturn(0);
 }
 
@@ -413,6 +432,53 @@ PetscErrorCode DMDASetLocalAdicMFFunction_Private(DM da,DMDALocalFunction1 ad_lf
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__  
+#define __FUNCT__ "DMDAJacobianDefaultLocal"
+PetscErrorCode DMDAJacobianLocal(DM dm,Vec x,Mat A,Mat B, MatStructure *str)
+{
+  PetscErrorCode ierr;
+  Vec            localX;
+  
+  PetscFunctionBegin;
+  ierr = DMGetLocalVector(dm,&localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = MatFDColoringApply(B,dm->fd,localX,str,dm);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm,&localX);CHKERRQ(ierr);
+  /* Assemble true Jacobian; if it is different */
+  if (A != B) {
+    ierr  = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr  = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  }
+  ierr  = MatSetOption(B,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_TRUE);CHKERRQ(ierr);
+  *str = SAME_NONZERO_PATTERN;
+  PetscFunctionReturn(0);
+}
+
+
+#undef __FUNCT__  
+#define __FUNCT__ "DMDAJacobian"
+static PetscErrorCode DMDAJacobian(DM dm,Vec x,Mat A,Mat B, MatStructure *str)
+{
+  PetscErrorCode ierr;
+  Vec            localX;
+  
+  PetscFunctionBegin;
+  ierr = DMGetLocalVector(dm,&localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm,x,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm,x,INSERT_VALUES,localX);CHKERRQ(ierr);
+  ierr = DMDAComputeJacobian1(dm,localX,B,dm->ctx);CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm,&localX);CHKERRQ(ierr);
+  /* Assemble true Jacobian; if it is different */
+  if (A != B) {
+    ierr  = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr  = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  }
+  ierr  = MatSetOption(B,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_TRUE);CHKERRQ(ierr);
+  *str = SAME_NONZERO_PATTERN;
+  PetscFunctionReturn(0);
+}
+
 /*@C
        DMDASetLocalJacobian - Caches in a DM a local Jacobian computation function
 
@@ -435,9 +501,12 @@ PetscErrorCode DMDASetLocalAdicMFFunction_Private(DM da,DMDALocalFunction1 ad_lf
 #define __FUNCT__ "DMDASetLocalJacobian"
 PetscErrorCode  DMDASetLocalJacobian(DM da,DMDALocalFunction1 lj)
 {
+  PetscErrorCode ierr;
   DM_DA          *dd = (DM_DA*)da->data;
+
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
+  ierr = DMSetJacobian(da,DMDAJacobian);CHKERRQ(ierr);
   dd->lj    = lj;
   PetscFunctionReturn(0);
 }
@@ -1255,7 +1324,12 @@ PetscErrorCode  DMSetUp_DA_2D(DM da)
   PetscErrorCode         ierr;
 
   PetscFunctionBegin;
+  if (dof < 1) SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_ARG_OUTOFRANGE,"Must have 1 or more degrees of freedom per node: %D",dof);
+  if (s < 0) SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_ARG_OUTOFRANGE,"Stencil width cannot be negative: %D",s);
   ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
+#if !defined(PETSC_USE_64BIT_INDICES)
+  if (((Petsc64bitInt) M)*((Petsc64bitInt) N)*((Petsc64bitInt) dof) > (Petsc64bitInt) PETSC_MPI_INT_MAX) SETERRQ3(comm,PETSC_ERR_INT_OVERFLOW,"Mesh of %D by %D by %D (dof) is too large for 32 bit indices",M,N,dof);
+#endif
 
   if (dof < 1) SETERRQ1(comm,PETSC_ERR_ARG_OUTOFRANGE,"Must have 1 or more degrees of freedom per node: %D",dof);
   if (s < 0) SETERRQ1(comm,PETSC_ERR_ARG_OUTOFRANGE,"Stencil width cannot be negative: %D",s);
@@ -1789,8 +1863,10 @@ PetscErrorCode  DMSetUp_DA_2D(DM da)
 .  -da_grid_y <ny> - number of grid points in y direction, if N < 0
 .  -da_processors_x <nx> - number of processors in x direction
 .  -da_processors_y <ny> - number of processors in y direction
-.  -da_refine_x - refinement ratio in x direction
--  -da_refine_y - refinement ratio in y direction
+.  -da_refine_x <rx> - refinement ratio in x direction
+.  -da_refine_y <ry> - refinement ratio in y direction
+-  -da_refine <n> - refine the DMDA n times before creating, if M or N < 0
+
 
    Level: beginner
 
@@ -1807,9 +1883,10 @@ PetscErrorCode  DMSetUp_DA_2D(DM da)
 
 .seealso: DMDestroy(), DMView(), DMDACreate1d(), DMDACreate3d(), DMGlobalToLocalBegin(), DMDAGetRefinementFactor(),
           DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMDALocalToLocalBegin(), DMDALocalToLocalEnd(), DMDASetRefinementFactor(),
-          DMDAGetInfo(), DMCreateGlobalVector(), DMCreateLocalVector(), DMDACreateNaturalVector(), DMDALoad(), DMDAGetOwnershipRanges()
+          DMDAGetInfo(), DMCreateGlobalVector(), DMCreateLocalVector(), DMDACreateNaturalVector(), DMLoad(), DMDAGetOwnershipRanges()
 
 @*/
+
 PetscErrorCode  DMDACreate2d(MPI_Comm comm,DMDABoundaryType bx,DMDABoundaryType by,DMDAStencilType stencil_type,
                           PetscInt M,PetscInt N,PetscInt m,PetscInt n,PetscInt dof,PetscInt s,const PetscInt lx[],const PetscInt ly[],DM *da)
 {

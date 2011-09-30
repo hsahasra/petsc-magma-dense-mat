@@ -86,7 +86,7 @@ M*/
 
 M*/
 
-/*E
+/*J
     VecType - String with the name of a PETSc vector or the creation function
        with an optional dynamic library name, for example
        http://www.mcs.anl.gov/petsc/lib.a:myveccreate()
@@ -94,7 +94,7 @@ M*/
    Level: beginner
 
 .seealso: VecSetType(), Vec
-E*/
+J*/
 #define VecType char*
 #define VECSEQ         "seq"
 #define VECMPI         "mpi"
@@ -105,7 +105,8 @@ E*/
 #define VECMPICUSP     "mpicusp"
 #define VECCUSP        "cusp"       /* seqcusp on one process and mpicusp on several */
 #define VECNEST        "nest"
-
+#define VECSEQPTHREAD  "seqpthread"
+#define VECPTHREAD     "pthread"    /* seqpthread on one process and mpipthread on several */
 
 /* Logging support */
 #define    VEC_FILE_CLASSID 1211214
@@ -261,7 +262,7 @@ extern PetscErrorCode  VecDestroyVecs(PetscInt, Vec*[]);
 extern PetscErrorCode  VecStrideNormAll(Vec,NormType,PetscReal[]);
 extern PetscErrorCode  VecStrideMaxAll(Vec,PetscInt [],PetscReal []);
 extern PetscErrorCode  VecStrideMinAll(Vec,PetscInt [],PetscReal []);
-extern PetscErrorCode  VecStrideScaleAll(Vec,PetscScalar[]);
+extern PetscErrorCode  VecStrideScaleAll(Vec,const PetscScalar[]);
 
 extern PetscErrorCode  VecStrideNorm(Vec,PetscInt,NormType,PetscReal*);
 PetscPolymorphicFunction(VecStrideNorm,(Vec x,PetscInt i),(x,i,NORM_2,&r),PetscReal,r)
@@ -271,6 +272,7 @@ PetscPolymorphicFunction(VecStrideMax,(Vec x,PetscInt i),(x,i,PETSC_NULL,&r),Pet
 extern PetscErrorCode  VecStrideMin(Vec,PetscInt,PetscInt *,PetscReal *);
 PetscPolymorphicFunction(VecStrideMin,(Vec x,PetscInt i),(x,i,PETSC_NULL,&r),PetscReal,r)
 extern PetscErrorCode  VecStrideScale(Vec,PetscInt,PetscScalar);
+extern PetscErrorCode  VecStrideSet(Vec,PetscInt,PetscScalar);
 
 
 extern PetscErrorCode  VecStrideGather(Vec,PetscInt,Vec,InsertMode);
@@ -457,6 +459,8 @@ PETSC_STATIC_INLINE PetscErrorCode VecSetValueLocal(Vec v,PetscInt i,PetscScalar
 
 extern PetscErrorCode  VecSetLocalToGlobalMappingBlock(Vec,ISLocalToGlobalMapping);
 extern PetscErrorCode  VecSetValuesBlockedLocal(Vec,PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
+extern PetscErrorCode  VecGetLocalToGlobalMappingBlock(Vec,ISLocalToGlobalMapping*);
+extern PetscErrorCode  VecGetLocalToGlobalMapping(Vec,ISLocalToGlobalMapping*);
 
 extern PetscErrorCode  VecDotBegin(Vec,Vec,PetscScalar *);
 PetscPolymorphicSubroutine(VecDotBegin,(Vec x,Vec y),(x,y,PETSC_NULL))
@@ -548,6 +552,14 @@ extern PetscErrorCode PetscCUSPIndicesCreate(PetscInt,const PetscInt*,PetscCUSPI
 extern PetscErrorCode PetscCUSPIndicesDestroy(PetscCUSPIndices*);
 extern PetscErrorCode VecCUSPCopyToGPUSome_Public(Vec,PetscCUSPIndices);
 extern PetscErrorCode VecCUSPCopyFromGPUSome_Public(Vec,PetscCUSPIndices);
+
+extern PetscErrorCode  VecCreateSeqCUSP(MPI_Comm,PetscInt,Vec*);
+extern PetscErrorCode  VecCreateMPICUSP(MPI_Comm,PetscInt,PetscInt,Vec*);
+#endif
+
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+extern PetscErrorCode VecSeqPThreadSetNThreads(Vec,PetscInt);
+extern PetscErrorCode VecCreateSeqPThread(MPI_Comm,PetscInt,PetscInt,Vec*);
 #endif
 
 extern PetscErrorCode  VecNestGetSubVecs(Vec,PetscInt*,Vec**);

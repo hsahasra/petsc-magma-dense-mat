@@ -55,11 +55,8 @@ EXTERN_C_END
 PetscErrorCode  MatGetVecs_MPIAIJCUSP(Mat mat,Vec *right,Vec *left)
 {
   PetscErrorCode ierr;
-  PetscMPIInt size;
 
   PetscFunctionBegin;
-
-  ierr = MPI_Comm_size(((PetscObject)mat)->comm, &size);CHKERRQ(ierr);
   if (right) {
     ierr = VecCreate(((PetscObject)mat)->comm,right);CHKERRQ(ierr);
     ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
@@ -80,6 +77,7 @@ PetscErrorCode  MatGetVecs_MPIAIJCUSP(Mat mat,Vec *right,Vec *left)
 EXTERN_C_BEGIN
 PetscErrorCode  MatCreate_MPIAIJ(Mat);
 EXTERN_C_END
+PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, PetscInt *elemRows, const PetscScalar *elemMats);
 
 EXTERN_C_BEGIN
 #undef __FUNCT__  
@@ -93,7 +91,8 @@ PetscErrorCode  MatCreate_MPIAIJCUSP(Mat B)
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)B,"MatMPIAIJSetPreallocation_C",
                                      "MatMPIAIJSetPreallocation_MPIAIJCUSP",
                                       MatMPIAIJSetPreallocation_MPIAIJCUSP);CHKERRQ(ierr);
-  B->ops->getvecs = MatGetVecs_MPIAIJCUSP;
+  B->ops->getvecs        = MatGetVecs_MPIAIJCUSP;
+  B->ops->setvaluesbatch = MatSetValuesBatch_MPIAIJCUSP;
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATMPIAIJCUSP);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

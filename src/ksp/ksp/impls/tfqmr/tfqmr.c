@@ -79,12 +79,12 @@ static PetscErrorCode  KSPSolve_TFQMR(KSP ksp)
     ierr = VecNorm(R,NORM_2,&dp);CHKERRQ(ierr);
     for (m=0; m<2; m++) {
       if (!m) {
-        w = sqrt(dp*dpold);
+        w = PetscSqrtReal(dp*dpold);
       } else {
         w = dp;
       }
       psi = w / tau;
-      cm  = 1.0 / sqrt(1.0 + psi * psi);
+      cm  = 1.0 / PetscSqrtReal(1.0 + psi * psi);
       tau = tau * psi * cm;
       eta = cm * cm * a;
       cf  = psiold * psiold * etaold / a;
@@ -95,7 +95,7 @@ static PetscErrorCode  KSPSolve_TFQMR(KSP ksp)
       }
       ierr = VecAXPY(X,eta,D);CHKERRQ(ierr);
 
-      dpest = sqrt(m + 1.0) * tau;
+      dpest = PetscSqrtReal(m + 1.0) * tau;
       ierr = PetscObjectTakeAccess(ksp);CHKERRQ(ierr);
       ksp->rnorm                                    = dpest;
       ierr = PetscObjectGrantAccess(ksp);CHKERRQ(ierr);
@@ -137,7 +137,11 @@ static PetscErrorCode  KSPSolve_TFQMR(KSP ksp)
 
    Level: beginner
 
-   Notes: Supports left and right preconditioning, but not both
+   Notes: Supports left and right preconditioning, but not symmetric
+
+          The "residual norm" computed in this algorithm is actually just an upper bound on the actual residual norm.
+          That is for left preconditioning it is a bound on the preconditioned residual and for right preconditioning 
+          it is a bound on the true residual.
 
    References: Freund, 1993
 
@@ -148,7 +152,11 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "KSPCreate_TFQMR"
 PetscErrorCode  KSPCreate_TFQMR(KSP ksp)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_PRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_RIGHT,1);CHKERRQ(ierr);
   ksp->data                      = (void*)0;
   ksp->ops->setup                = KSPSetUp_TFQMR;
   ksp->ops->solve                = KSPSolve_TFQMR;

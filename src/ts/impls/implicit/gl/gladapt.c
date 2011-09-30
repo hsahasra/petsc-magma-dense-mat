@@ -180,7 +180,7 @@ PetscErrorCode  TSGLAdaptView(TSGLAdapt adapt,PetscViewer viewer)
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
     }
   } else {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported for TS_GL",((PetscObject)viewer)->type_name);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported",((PetscObject)viewer)->type_name);
   }
 
   PetscFunctionReturn(0);
@@ -250,7 +250,7 @@ PetscErrorCode  TSGLAdaptCreate(MPI_Comm comm,TSGLAdapt *inadapt)
 
   PetscFunctionBegin;
   *inadapt = 0;
-  ierr = PetscHeaderCreate(adapt,_p_TSGLAdapt,struct _TSGLAdaptOps,TSGLADAPT_CLASSID,0,"TSGLAdapt",comm,TSGLAdaptDestroy,TSGLAdaptView);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(adapt,_p_TSGLAdapt,struct _TSGLAdaptOps,TSGLADAPT_CLASSID,0,"TSGLAdapt","General Linear adaptivity","TS",comm,TSGLAdaptDestroy,TSGLAdaptView);CHKERRQ(ierr);
   *inadapt = adapt;
   PetscFunctionReturn(0);
 }

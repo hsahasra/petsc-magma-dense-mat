@@ -20,6 +20,7 @@ PetscErrorCode PetscViewerDestroy_Draw(PetscViewer v)
   ierr = PetscFree(vdraw->display);CHKERRQ(ierr);
   ierr = PetscFree(vdraw->title);CHKERRQ(ierr);
   ierr = PetscFree3(vdraw->draw,vdraw->drawlg,vdraw->drawaxis);CHKERRQ(ierr);
+  ierr = PetscFree(vdraw->bounds);CHKERRQ(ierr);
   ierr = PetscFree(vdraw);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -270,6 +271,18 @@ PetscErrorCode  PetscViewerDrawGetDrawAxis(PetscViewer viewer,PetscInt  windownu
 }
 
 #undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawResize" 
+PetscErrorCode  PetscViewerDrawResize(PetscViewer v,int w,int h)
+{
+  PetscViewer_Draw *vdraw = (PetscViewer_Draw*)v->data;
+
+  PetscFunctionBegin;
+  vdraw->h  = h;
+  vdraw->w  = w;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
 #define __FUNCT__ "PetscViewerDrawSetInfo" 
 PetscErrorCode  PetscViewerDrawSetInfo(PetscViewer v,const char display[],const char title[],int x,int y,int w,int h)
 {
@@ -469,6 +482,149 @@ PetscErrorCode  PetscViewerDrawClear(PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawGetPause" 
+/*@
+    PetscViewerDrawGetPause - Gets a pause for the first present draw
+
+    Not Collective
+
+    Input Parameter:
+.  viewer - the PetscViewer 
+
+    Output Parameter:
+.  pause - the pause value
+
+    Level: intermediate
+
+.seealso: PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), 
+
+@*/
+PetscErrorCode  PetscViewerDrawGetPause(PetscViewer viewer,PetscReal *pause)
+{
+  PetscErrorCode   ierr;
+  PetscInt         i;
+  PetscBool        isdraw;
+  PetscViewer_Draw *vdraw;
+  PetscDraw        draw;
+
+  PetscFunctionBegin;
+  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+  *pause = 0.0;
+  if (isdraw) {
+    vdraw = (PetscViewer_Draw*)viewer->data;
+    for (i=0; i<vdraw->draw_max; i++) {
+      if (vdraw->draw[i]) {
+        ierr = PetscDrawGetPause(vdraw->draw[i],pause);CHKERRQ(ierr);
+        PetscFunctionReturn(0);
+      }
+    }
+    /* none exist yet so create one and get its pause */
+    ierr = PetscViewerDrawGetDraw(viewer,0,&draw);CHKERRQ(ierr);
+    ierr = PetscDrawGetPause(vdraw->draw[0],pause);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawSetPause" 
+/*@
+    PetscViewerDrawSetPause - Sets a pause for each PetscDraw in the viewer
+
+    Not Collective
+
+    Input Parameters:
++  viewer - the PetscViewer 
+-  pause - the pause value
+
+    Level: intermediate
+
+.seealso: PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), 
+
+@*/
+PetscErrorCode  PetscViewerDrawSetPause(PetscViewer viewer,PetscReal pause)
+{
+  PetscErrorCode   ierr;
+  PetscInt         i;
+  PetscBool        isdraw;
+  PetscViewer_Draw *vdraw;
+
+  PetscFunctionBegin;
+  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+  if (isdraw) {
+    vdraw = (PetscViewer_Draw*)viewer->data;
+    for (i=0; i<vdraw->draw_max; i++) {
+      if (vdraw->draw[i]) {ierr = PetscDrawSetPause(vdraw->draw[i],pause);CHKERRQ(ierr);}
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawSetHold" 
+/*@
+    PetscViewerDrawSetHold - Holds previous image when drawing new image
+
+    Not Collective
+
+    Input Parameters:
++  viewer - the PetscViewer 
+-  hold - indicates to hold or not
+
+    Level: intermediate
+
+.seealso: PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), 
+
+@*/
+PetscErrorCode  PetscViewerDrawSetHold(PetscViewer viewer,PetscBool hold)
+{
+  PetscErrorCode   ierr;
+  PetscViewer_Draw *vdraw;
+  PetscBool        isdraw;
+
+  PetscFunctionBegin;
+  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+  if (isdraw) {
+    vdraw = (PetscViewer_Draw*)viewer->data;
+    vdraw->hold = hold;
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawGetHold" 
+/*@
+    PetscViewerDrawGetHold - Holds previous image when drawing new image
+
+    Not Collective
+
+    Input Parameter:
+.  viewer - the PetscViewer 
+
+    Output Parameter:
+.  hold - indicates to hold or not
+
+    Level: intermediate
+
+.seealso: PetscViewerDrawOpen(), PetscViewerDrawGetDraw(), 
+
+@*/
+PetscErrorCode  PetscViewerDrawGetHold(PetscViewer viewer,PetscBool *hold)
+{
+  PetscErrorCode   ierr;
+  PetscViewer_Draw *vdraw;
+  PetscBool        isdraw;
+
+  PetscFunctionBegin;
+  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+  if (isdraw) {
+    vdraw = (PetscViewer_Draw*)viewer->data;
+    *hold = vdraw->hold;
+  }
+  PetscFunctionReturn(0);
+}
+
 /* ---------------------------------------------------------------------*/
 /*
     The variable Petsc_Viewer_Draw_keyval is used to indicate an MPI attribute that
@@ -524,4 +680,67 @@ PetscViewer  PETSC_VIEWER_DRAW_(MPI_Comm comm)
   PetscFunctionReturn(viewer);
 }
 
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawSetBounds"
+/*@
+    PetscViewerDrawSetBounds - sets the upper and lower bounds to be used in plotting
 
+    Collective on PetscViewer
+
+    Input Parameters:
++   viewer - the PetscViewer (created with PetscViewerDrawOpen())
+.   nbounds - number of plots that can be made with this viewer, for example the dof passed to DMDACreate()
+-   bounds - the actual bounds, the size of this is 2*nbounds, the values are stored in the order min F_0, max F_0, min F_1, max F_1, .....
+
+    Level: intermediate
+
+   Concepts: drawing^accessing PetscDraw context from PetscViewer
+   Concepts: graphics
+
+.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen()
+@*/
+PetscErrorCode  PetscViewerDrawSetBounds(PetscViewer viewer,PetscInt nbounds,const PetscReal *bounds)
+{
+  PetscViewer_Draw *vdraw = (PetscViewer_Draw*)viewer->data;
+  PetscErrorCode   ierr;
+
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
+  vdraw->nbounds   = nbounds;
+  ierr = PetscMalloc(2*nbounds*sizeof(PetscReal),&vdraw->bounds);CHKERRQ(ierr);
+  ierr = PetscMemcpy(vdraw->bounds,bounds,2*nbounds*sizeof(PetscReal));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDrawGetBounds"
+/*@C
+    PetscViewerDrawGetBounds - gets the upper and lower bounds to be used in plotting set with PetscViewerDrawSetBounds()
+
+    Collective on PetscViewer
+
+    Input Parameter:
+.   viewer - the PetscViewer (created with PetscViewerDrawOpen())
+
+    Output Paramters:
++   nbounds - number of plots that can be made with this viewer, for example the dof passed to DMDACreate()
+-   bounds - the actual bounds, the size of this is 2*nbounds, the values are stored in the order min F_0, max F_0, min F_1, max F_1, .....
+
+    Level: intermediate
+
+   Concepts: drawing^accessing PetscDraw context from PetscViewer
+   Concepts: graphics
+
+.seealso: PetscViewerDrawGetLG(), PetscViewerDrawGetAxis(), PetscViewerDrawOpen()
+@*/
+PetscErrorCode  PetscViewerDrawGetBounds(PetscViewer viewer,PetscInt *nbounds,const PetscReal **bounds)
+{
+  PetscViewer_Draw *vdraw = (PetscViewer_Draw*)viewer->data;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
+  *nbounds = vdraw->nbounds;
+  *bounds  = vdraw->bounds;
+  PetscFunctionReturn(0);
+}

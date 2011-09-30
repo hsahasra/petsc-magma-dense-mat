@@ -194,9 +194,14 @@ PetscErrorCode MatMatSolve_SuperLU_DIST(Mat A,Mat B_mpi,Mat X)
   double           berr[1];
   PetscScalar      *bptr;  
   int              info; /* SuperLU_Dist info code is ALWAYS an int, even with long long indices */
+  PetscBool        flg;
 
   PetscFunctionBegin;
   if (lu->options.Fact != FACTORED) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"SuperLU_DIST options.Fact mush equal FACTORED");
+  ierr = PetscTypeCompareAny((PetscObject)B_mpi,&flg,MATSEQDENSE,MATMPIDENSE,PETSC_NULL);CHKERRQ(ierr);
+  if (!flg) SETERRQ(((PetscObject)A)->comm,PETSC_ERR_ARG_WRONG,"Matrix B must be MATDENSE matrix");
+  ierr = PetscTypeCompareAny((PetscObject)X,&flg,MATSEQDENSE,MATMPIDENSE,PETSC_NULL);CHKERRQ(ierr);
+  if (!flg) SETERRQ(((PetscObject)A)->comm,PETSC_ERR_ARG_WRONG,"Matrix X must be MATDENSE matrix");
   
   ierr = MPI_Comm_size(((PetscObject)A)->comm,&size);CHKERRQ(ierr);
   if (size > 1 && lu->MatInputMode == GLOBAL) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"MatInputMode=GLOBAL for nproc %d>1 is not supported",size);
@@ -258,7 +263,7 @@ PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F,Mat A,const MatFactorInfo *
   Mat_SuperLU_DIST *lu = (Mat_SuperLU_DIST*)(F)->spptr;
   PetscErrorCode   ierr;
   PetscInt         M=A->rmap->N,N=A->cmap->N,i,*ai,*aj,*bi,*bj,nz,rstart,*garray,
-                   m=A->rmap->n, irow,colA_start,j,jcol,jB,countA,countB,*bjj,*ajj;
+                   m=A->rmap->n, colA_start,j,jcol,jB,countA,countB,*bjj,*ajj;
   int              sinfo; /* SuperLU_Dist info flag is always an int even with long long indices */
   PetscMPIInt      size,rank;
   SuperLUStat_t    stat;
@@ -303,14 +308,12 @@ PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F,Mat A,const MatFactorInfo *
     /* Convert Petsc NR matrix to SuperLU_DIST NC. 
        Note: memories of lu->val, col and row are allocated by CompRow_to_CompCol_dist()! */
     if (lu->options.Fact != DOFACT) {/* successive numeric factorization, sparsity pattern is reused. */
+      Destroy_CompCol_Matrix_dist(&lu->A_sup);
       if (lu->FactPattern == SamePattern_SameRowPerm){
-        Destroy_CompCol_Matrix_dist(&lu->A_sup);
-        /* Destroy_LU(N, &lu->grid, &lu->LUstruct); Crash! Comment it out does not lead to mem leak. */
         lu->options.Fact = SamePattern_SameRowPerm; /* matrix has similar numerical values */
-      } else {
-        Destroy_CompCol_Matrix_dist(&lu->A_sup); 
+      } else { /* lu->FactPattern == SamePattern */
         Destroy_LU(N, &lu->grid, &lu->LUstruct); 
-        lu->options.Fact = SamePattern; 
+        lu->options.Fact = SamePattern;    
       }
     }
 #if defined(PETSC_USE_COMPLEX)
@@ -349,15 +352,15 @@ PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F,Mat A,const MatFactorInfo *
       dallocateA_dist(m, nz, &lu->val, &lu->col, &lu->row);
 #endif
     } else { /* successive numeric factorization, sparsity pattern and perm_c are reused. */
+      /* Destroy_CompRowLoc_Matrix_dist(&lu->A_sup); */ /* this leads to crash! However, see SuperLU_DIST_2.5/EXAMPLE/pzdrive2.c */
       if (lu->FactPattern == SamePattern_SameRowPerm){
-        /* Destroy_LU(N, &lu->grid, &lu->LUstruct); Crash! Comment it out does not lead to mem leak. */
         lu->options.Fact = SamePattern_SameRowPerm; /* matrix has similar numerical values */
       } else {
         Destroy_LU(N, &lu->grid, &lu->LUstruct); /* Deallocate storage associated with the L and U matrices. */
         lu->options.Fact = SamePattern;
       }
     }
-    nz = 0; irow = rstart;   
+    nz = 0;
     for ( i=0; i<m; i++ ) {
       lu->row[i] = nz;
       countA = ai[i+1] - ai[i];
@@ -539,7 +542,7 @@ PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
   ierr = MPI_Comm_dup(((PetscObject)A)->comm,&(lu->comm_superlu));CHKERRQ(ierr);
   ierr = MPI_Comm_size(((PetscObject)A)->comm,&size);CHKERRQ(ierr);
   /* Default num of process columns and rows */
-  lu->npcol = PetscMPIIntCast((PetscInt)(0.5 + sqrt((PetscReal)size))); 
+  lu->npcol = PetscMPIIntCast((PetscInt)(0.5 + PetscSqrtReal((PetscReal)size))); 
   if (!lu->npcol) lu->npcol = 1;
   while (lu->npcol > 0) {
     lu->nprow = PetscMPIIntCast(size/lu->npcol);  
@@ -612,8 +615,8 @@ PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
 #endif
     }
 
-    lu->FactPattern = SamePattern;
-    ierr = PetscOptionsEList("-mat_superlu_dist_fact","Sparsity pattern for repeated matrix factorization","None",factPattern,2,factPattern[0],&indx,&flg);CHKERRQ(ierr);
+    lu->FactPattern = SamePattern_SameRowPerm;
+    ierr = PetscOptionsEList("-mat_superlu_dist_fact","Sparsity pattern for repeated matrix factorization","None",factPattern,2,factPattern[1],&indx,&flg);CHKERRQ(ierr);
     if (flg) {
       switch (indx) {
       case 0:

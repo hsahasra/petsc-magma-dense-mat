@@ -3,6 +3,14 @@
   Code for interpolating between grids represented by DMDAs
 */
 
+/*
+      For linear elements there are two branches of code to compute the interpolation. They should compute the same results but may not. The "new version" does 
+   not work for periodic domains, the old does. Change NEWVERSION to 1 to compile in the new version. Eventually when we are sure the two produce identical results
+   we will remove/merge the new version. Based on current tests, these both produce the same results. We are leaving NEWVERSION for now in the code since some 
+   consider it cleaner, but old version is turned on since it handles periodic case.
+*/
+#define NEWVERSION 0
+
 #include <private/daimpl.h>    /*I   "petscdmda.h"   I*/
 #include <petscpcmg.h>
 
@@ -50,11 +58,9 @@ PetscErrorCode DMGetInterpolation_DA_1D_Q1(DM dac,DM daf,Mat *A)
   PetscInt         m_ghost,*idx_c,m_ghost_c;
   PetscInt         row,col,i_start_ghost,mx,m_c,nc,ratio;
   PetscInt         i_c,i_start_c,i_start_ghost_c,cols[2],dof;
-  PetscScalar      v[2],x,*coors = 0,*ccoors;
+  PetscScalar      v[2],x;
   Mat              mat;
   DMDABoundaryType bx;
-  Vec              vcoors,cvcoors;
-  DM_DA            *ddc = (DM_DA*)dac->data, *ddf = (DM_DA*)daf->data;
   
   PetscFunctionBegin;
   ierr = DMDAGetInfo(dac,0,&Mx,0,0,0,0,0,0,0,&bx,0,0,0);CHKERRQ(ierr);
@@ -82,14 +88,8 @@ PetscErrorCode DMGetInterpolation_DA_1D_Q1(DM dac,DM daf,Mat *A)
   ierr = MatSeqAIJSetPreallocation(mat,2,PETSC_NULL);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(mat,2,PETSC_NULL,0,PETSC_NULL);CHKERRQ(ierr);
   
-  ierr = DMDAGetCoordinates(daf,&vcoors);CHKERRQ(ierr);
-  if (vcoors) {
-    ierr = DMDAGetGhostedCoordinates(dac,&cvcoors);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ddf->da_coordinates,vcoors,&coors);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ddc->da_coordinates,cvcoors,&ccoors);CHKERRQ(ierr);
-  }
   /* loop over local fine grid nodes setting interpolation for those*/
-  if (!vcoors) {
+  if (!NEWVERSION) {
 
     for (i=i_start; i<i_start+m_f; i++) {
       /* convert to local "natural" numbering and then to PETSc global numbering */
@@ -167,10 +167,6 @@ PetscErrorCode DMGetInterpolation_DA_1D_Q1(DM dac,DM daf,Mat *A)
       ierr = MatSetValues(mat,1,&row,2,cols,Ni,INSERT_VALUES);CHKERRQ(ierr); 
     }
     ierr = PetscFree(xi);CHKERRQ(ierr);
-  }
-  if (vcoors) {
-    ierr = DMDAVecRestoreArray(ddf->da_coordinates,vcoors,&coors);CHKERRQ(ierr);
-    ierr = DMDAVecRestoreArray(ddc->da_coordinates,cvcoors,&ccoors);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -264,9 +260,6 @@ PetscErrorCode DMGetInterpolation_DA_2D_Q1(DM dac,DM daf,Mat *A)
   PetscScalar      v[4],x,y;
   Mat              mat;
   DMDABoundaryType bx,by;
-  DMDACoor2d       **coors = 0,**ccoors;
-  Vec              vcoors,cvcoors;
-  DM_DA            *ddc = (DM_DA*)dac->data, *ddf = (DM_DA*)daf->data;
   
   PetscFunctionBegin;
   ierr = DMDAGetInfo(dac,0,&Mx,&My,0,0,0,0,0,0,&bx,&by,0,0);CHKERRQ(ierr);
@@ -356,15 +349,8 @@ PetscErrorCode DMGetInterpolation_DA_2D_Q1(DM dac,DM daf,Mat *A)
   ierr = MatMPIAIJSetPreallocation(mat,0,dnz,0,onz);CHKERRQ(ierr);
   ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
   
-  ierr = DMDAGetCoordinates(daf,&vcoors);CHKERRQ(ierr);
-  if (vcoors) {
-    ierr = DMDAGetGhostedCoordinates(dac,&cvcoors);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ddf->da_coordinates,vcoors,&coors);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ddc->da_coordinates,cvcoors,&ccoors);CHKERRQ(ierr);
-  }
-  
   /* loop over local fine grid nodes setting interpolation for those*/
-  if (!vcoors) {
+  if (!NEWVERSION) {
     
     for (j=j_start; j<j_start+n_f; j++) {
       for (i=i_start; i<i_start+m_f; i++) {
@@ -477,10 +463,6 @@ PetscErrorCode DMGetInterpolation_DA_2D_Q1(DM dac,DM daf,Mat *A)
     ierr = PetscFree(xi);CHKERRQ(ierr);
     ierr = PetscFree(eta);CHKERRQ(ierr);
   }  
-  if (vcoors) {
-    ierr = DMDAVecRestoreArray(ddf->da_coordinates,vcoors,&coors);CHKERRQ(ierr);
-    ierr = DMDAVecRestoreArray(ddc->da_coordinates,cvcoors,&ccoors);CHKERRQ(ierr);
-  }
   ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatCreateMAIJ(mat,dof,A);CHKERRQ(ierr);
@@ -735,9 +717,6 @@ PetscErrorCode DMGetInterpolation_DA_3D_Q1(DM dac,DM daf,Mat *A)
   PetscScalar      v[8],x,y,z;
   Mat              mat;
   DMDABoundaryType bx,by,bz;
-  DMDACoor3d       ***coors = 0,***ccoors;
-  Vec              vcoors,cvcoors;
-  DM_DA            *ddc = (DM_DA*)dac->data, *ddf = (DM_DA*)daf->data;
   
   PetscFunctionBegin;
   ierr = DMDAGetInfo(dac,0,&Mx,&My,&Mz,0,0,0,0,0,&bx,&by,&bz,0);CHKERRQ(ierr);
@@ -836,15 +815,8 @@ PetscErrorCode DMGetInterpolation_DA_3D_Q1(DM dac,DM daf,Mat *A)
   ierr = MatMPIAIJSetPreallocation(mat,0,dnz,0,onz);CHKERRQ(ierr);
   ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
   
-  ierr = DMDAGetCoordinates(daf,&vcoors);CHKERRQ(ierr);
-  if (vcoors) {
-    ierr = DMDAGetGhostedCoordinates(dac,&cvcoors);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ddf->da_coordinates,vcoors,&coors);CHKERRQ(ierr);
-    ierr = DMDAVecGetArray(ddc->da_coordinates,cvcoors,&ccoors);CHKERRQ(ierr);
-  }
-  
   /* loop over local fine grid nodes setting interpolation for those*/
-  if (!vcoors) {
+  if (!NEWVERSION) {
 
     for (l=l_start; l<l_start+p_f; l++) {
       for (j=j_start; j<j_start+n_f; j++) {
@@ -1004,10 +976,6 @@ PetscErrorCode DMGetInterpolation_DA_3D_Q1(DM dac,DM daf,Mat *A)
     ierr = PetscFree(zeta);CHKERRQ(ierr);
   }
   
-  if (vcoors) {
-    ierr = DMDAVecRestoreArray(ddf->da_coordinates,vcoors,&coors);CHKERRQ(ierr);
-    ierr = DMDAVecRestoreArray(ddc->da_coordinates,cvcoors,&ccoors);CHKERRQ(ierr);
-  }
   ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   
@@ -1050,9 +1018,7 @@ PetscErrorCode  DMGetInterpolation_DA(DM dac,DM daf,Mat *A,Vec *scale)
       ierr = DMGetInterpolation_DA_2D_Q1(dac,daf,A);CHKERRQ(ierr);
     } else if (dimc == 3){
       ierr = DMGetInterpolation_DA_3D_Q1(dac,daf,A);CHKERRQ(ierr);
-    } else {
-      SETERRQ2(((PetscObject)daf)->comm,PETSC_ERR_SUP,"No support for this DMDA dimension %D for interpolation type %d",dimc,(int)ddc->interptype);
-    }
+    } else SETERRQ2(((PetscObject)daf)->comm,PETSC_ERR_SUP,"No support for this DMDA dimension %D for interpolation type %d",dimc,(int)ddc->interptype);
   } else if (ddc->interptype == DMDA_Q0){
     if (dimc == 1){
       ierr = DMGetInterpolation_DA_1D_Q0(dac,daf,A);CHKERRQ(ierr);
@@ -1060,15 +1026,72 @@ PetscErrorCode  DMGetInterpolation_DA(DM dac,DM daf,Mat *A,Vec *scale)
        ierr = DMGetInterpolation_DA_2D_Q0(dac,daf,A);CHKERRQ(ierr);
     } else if (dimc == 3){
        ierr = DMGetInterpolation_DA_3D_Q0(dac,daf,A);CHKERRQ(ierr);
-    } else {
-      SETERRQ2(((PetscObject)daf)->comm,PETSC_ERR_SUP,"No support for this DMDA dimension %D for interpolation type %d",dimc,(int)ddc->interptype);
-    }
+    } else SETERRQ2(((PetscObject)daf)->comm,PETSC_ERR_SUP,"No support for this DMDA dimension %D for interpolation type %d",dimc,(int)ddc->interptype);
   }
   if (scale) {
     ierr = DMGetInterpolationScale((DM)dac,(DM)daf,*A,scale);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 } 
+
+#undef __FUNCT__  
+#define __FUNCT__ "DMGetInjection_DA_1D"
+PetscErrorCode DMGetInjection_DA_1D(DM dac,DM daf,VecScatter *inject)
+{
+    PetscErrorCode   ierr;
+    PetscInt         i,i_start,m_f,Mx,*idx_f,dof;
+    PetscInt         m_ghost,*idx_c,m_ghost_c;
+    PetscInt         row,i_start_ghost,mx,m_c,nc,ratioi;
+    PetscInt         i_start_c,i_start_ghost_c;
+    PetscInt         *cols;
+    DMDABoundaryType bx;
+    Vec              vecf,vecc;
+    IS               isf;
+    
+    PetscFunctionBegin;
+    ierr = DMDAGetInfo(dac,0,&Mx,0,0,0,0,0,0,0,&bx,0,0,0);CHKERRQ(ierr);
+    ierr = DMDAGetInfo(daf,0,&mx,0,0,0,0,0,&dof,0,0,0,0,0);CHKERRQ(ierr);
+    if (bx == DMDA_BOUNDARY_PERIODIC) {
+        ratioi = mx/Mx;
+        if (ratioi*Mx != mx) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Ratio between levels: mx/Mx  must be integer: mx %D Mx %D",mx,Mx);
+    } else {
+        ratioi = (mx-1)/(Mx-1);
+        if (ratioi*(Mx-1) != mx-1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Ratio between levels: (mx - 1)/(Mx - 1) must be integer: mx %D Mx %D",mx,Mx);
+    }
+   
+    ierr = DMDAGetCorners(daf,&i_start,0,0,&m_f,0,0);CHKERRQ(ierr);
+    ierr = DMDAGetGhostCorners(daf,&i_start_ghost,0,0,&m_ghost,0,0);CHKERRQ(ierr);
+    ierr = DMDAGetGlobalIndices(daf,PETSC_NULL,&idx_f);CHKERRQ(ierr);
+    
+    ierr = DMDAGetCorners(dac,&i_start_c,0,0,&m_c,0,0);CHKERRQ(ierr);
+    ierr = DMDAGetGhostCorners(dac,&i_start_ghost_c,0,0,&m_ghost_c,0,0);CHKERRQ(ierr);
+    ierr = DMDAGetGlobalIndices(dac,PETSC_NULL,&idx_c);CHKERRQ(ierr);
+    
+    
+    /* loop over local fine grid nodes setting interpolation for those*/
+    nc = 0;
+    ierr = PetscMalloc(m_f*sizeof(PetscInt),&cols);CHKERRQ(ierr);
+   
+   
+    for (i=i_start_c; i<i_start_c+m_c; i++) {
+        PetscInt i_f = i*ratioi;
+
+           if (i_f < i_start_ghost || i_f >= i_start_ghost+m_ghost) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Processor's coarse DMDA must lie over fine DMDA\n\
+ i_c %D i_f %D fine ghost range [%D,%D]",i,i_f,i_start_ghost,i_start_ghost+m_ghost);
+            row = idx_f[dof*(i_f-i_start_ghost)];
+            cols[nc++] = row/dof;
+    }
+   
+
+    ierr = ISCreateBlock(((PetscObject)daf)->comm,dof,nc,cols,PETSC_OWN_POINTER,&isf);CHKERRQ(ierr);
+    ierr = DMGetGlobalVector(dac,&vecc);CHKERRQ(ierr);
+    ierr = DMGetGlobalVector(daf,&vecf);CHKERRQ(ierr);
+    ierr = VecScatterCreate(vecf,isf,vecc,PETSC_NULL,inject);CHKERRQ(ierr);
+    ierr = DMRestoreGlobalVector(dac,&vecc);CHKERRQ(ierr);
+    ierr = DMRestoreGlobalVector(daf,&vecf);CHKERRQ(ierr);
+    ierr = ISDestroy(&isf);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__  
 #define __FUNCT__ "DMGetInjection_DA_2D"
@@ -1244,12 +1267,12 @@ PetscErrorCode  DMGetInjection_DA(DM dac,DM daf,VecScatter *inject)
   if (dimc > 1 && Nc < 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Coarse grid requires at least 2 points in y direction");
   if (dimc > 2 && Pc < 2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Coarse grid requires at least 2 points in z direction");
 
-  if (dimc == 2){
+  if (dimc == 1){
+    ierr = DMGetInjection_DA_1D(dac,daf,inject);CHKERRQ(ierr);
+  } else if (dimc == 2) {
     ierr = DMGetInjection_DA_2D(dac,daf,inject);CHKERRQ(ierr);
   } else if (dimc == 3) {
     ierr = DMGetInjection_DA_3D(dac,daf,inject);CHKERRQ(ierr);
-  } else {
-    SETERRQ1(((PetscObject)daf)->comm,PETSC_ERR_SUP,"No support for this DMDA dimension %D",dimc);
   }
   PetscFunctionReturn(0);
 }

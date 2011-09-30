@@ -8,6 +8,12 @@ static PetscFList TSGLAcceptList;
 static PetscBool  TSGLPackageInitialized;
 static PetscBool  TSGLRegisterAllCalled;
 
+/* C++ does not promote int64_t to scalar or int32_t for std::pow() */
+static PetscScalar Pow(PetscScalar b,PetscInt p)
+{
+  return PetscPowScalar(b,(int)p);
+}
+
 /* This function is pure */
 static PetscScalar Factorial(PetscInt n)
 {
@@ -26,7 +32,7 @@ static PetscScalar Factorial(PetscInt n)
 /* This function is pure */
 static PetscScalar CPowF(PetscScalar c,PetscInt p)
 {
-  return PetscPowScalar(c,p)/Factorial(p);
+  return Pow(c,p)/Factorial(p);
 }
 
 #undef __FUNCT__  
@@ -37,6 +43,7 @@ static PetscErrorCode TSGLSchemeCreate(PetscInt p,PetscInt q,PetscInt r,PetscInt
   TSGLScheme     scheme;
   PetscInt       j;
   PetscErrorCode ierr;
+
 
   PetscFunctionBegin;
   if (p < 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Scheme order must be positive");
@@ -60,9 +67,12 @@ static PetscErrorCode TSGLSchemeCreate(PetscInt p,PetscInt q,PetscInt r,PetscInt
   ierr = PetscMalloc6(r,PetscScalar,&scheme->alpha,r,PetscScalar,&scheme->beta,r,PetscScalar,&scheme->gamma,3*s,PetscScalar,&scheme->phi,3*r,PetscScalar,&scheme->psi,r,PetscScalar,&scheme->stage_error);CHKERRQ(ierr);
   {
     PetscInt     i,j,k,ss=s+2;
-    PetscBLASInt m,n,one=1,*ipiv,lwork=4*((s+3)*3+3),info,rank,ldb;
+    PetscBLASInt m,n,one=1,*ipiv,lwork=4*((s+3)*3+3),info,ldb;
     PetscReal    rcond,*sing,*workreal;
     PetscScalar  *ImV,*H,*bmat,*workscalar,*c=scheme->c,*a=scheme->a,*b=scheme->b,*u=scheme->u,*v=scheme->v;
+#if !defined(PETSC_MISSING_LAPACK_GELSS)
+    PetscBLASInt rank;
+#endif
     ierr = PetscMalloc7(PetscSqr(r),PetscScalar,&ImV,3*s,PetscScalar,&H,3*ss,PetscScalar,&bmat,lwork,PetscScalar,&workscalar,5*(3+r),PetscReal,&workreal,r+s,PetscReal,&sing,r+s,PetscBLASInt,&ipiv);CHKERRQ(ierr);
 
     /* column-major input */
@@ -263,7 +273,7 @@ static PetscErrorCode ViewTable_Private(PetscViewer viewer,PetscInt m,PetscInt n
       ierr = PetscViewerASCIIUseTabs(viewer,PETSC_TRUE);CHKERRQ(ierr);
     }
   } else {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported for TS_GL",((PetscObject)viewer)->type_name);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported",((PetscObject)viewer)->type_name);
   }
   PetscFunctionReturn(0);
 }
@@ -300,7 +310,7 @@ static PetscErrorCode TSGLSchemeView(TSGLScheme sc,PetscBool  view_details,Petsc
     }
     ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
   } else {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported for TS_GL",((PetscObject)viewer)->type_name);
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported",((PetscObject)viewer)->type_name);
   }
   PetscFunctionReturn(0);
 }
@@ -366,16 +376,16 @@ static PetscErrorCode TSGLCompleteStep_RescaleAndModify(TSGLScheme sc,PetscReal 
   for (i=0; i<r; i++) {
     ierr = VecZeroEntries(X[i]);CHKERRQ(ierr);
     for (j=0; j<s; j++) {
-      brow[j] = h*(PetscPowScalar(ratio,i)*sc->b[i*s+j]
-                   + (PetscPowScalar(ratio,i) - PetscPowScalar(ratio,p+1))*(+ sc->alpha[i]*sc->phi[0*s+j])
-                   + (PetscPowScalar(ratio,i) - PetscPowScalar(ratio,p+2))*(+ sc->beta [i]*sc->phi[1*s+j]
+      brow[j] = h*(Pow(ratio,i)*sc->b[i*s+j]
+                   + (Pow(ratio,i) - Pow(ratio,p+1))*(+ sc->alpha[i]*sc->phi[0*s+j])
+                   + (Pow(ratio,i) - Pow(ratio,p+2))*(+ sc->beta [i]*sc->phi[1*s+j]
                                                       + sc->gamma[i]*sc->phi[2*s+j]));
     }
     ierr = VecMAXPY(X[i],s,brow,Ydot);CHKERRQ(ierr);
     for (j=0; j<r; j++) {
-      vrow[j] = (PetscPowScalar(ratio,i)*sc->v[i*r+j]
-                 + (PetscPowScalar(ratio,i) - PetscPowScalar(ratio,p+1))*(+ sc->alpha[i]*sc->psi[0*r+j])
-                 + (PetscPowScalar(ratio,i) - PetscPowScalar(ratio,p+2))*(+ sc->beta [i]*sc->psi[1*r+j]
+      vrow[j] = (Pow(ratio,i)*sc->v[i*r+j]
+                 + (Pow(ratio,i) - Pow(ratio,p+1))*(+ sc->alpha[i]*sc->psi[0*r+j])
+                 + (Pow(ratio,i) - Pow(ratio,p+2))*(+ sc->beta [i]*sc->psi[1*r+j]
                                                     + sc->gamma[i]*sc->psi[2*r+j]));
     }
     ierr = VecMAXPY(X[i],r,vrow,Xold);CHKERRQ(ierr);
@@ -383,9 +393,9 @@ static PetscErrorCode TSGLCompleteStep_RescaleAndModify(TSGLScheme sc,PetscReal 
   if (r < next_sc->r) {
     if (r+1 != next_sc->r) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Cannot accommodate jump in r greater than 1");
     ierr = VecZeroEntries(X[r]);
-    for (j=0; j<s; j++) brow[j] = h*PetscPowScalar(ratio,p+1)*sc->phi[0*s+j];
+    for (j=0; j<s; j++) brow[j] = h*Pow(ratio,p+1)*sc->phi[0*s+j];
     ierr = VecMAXPY(X[r],s,brow,Ydot);CHKERRQ(ierr);
-    for (j=0; j<r; j++) vrow[j] = PetscPowScalar(ratio,p+1)*sc->psi[0*r+j];
+    for (j=0; j<r; j++) vrow[j] = Pow(ratio,p+1)*sc->psi[0*r+j];
     ierr = VecMAXPY(X[r],r,vrow,Xold);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -691,7 +701,7 @@ static PetscErrorCode TSGLVecNormWRMS(TS ts,Vec X,PetscReal *nrm)
   ierr = VecRestoreArray(gl->W,&w);CHKERRQ(ierr);
   ierr = MPI_Allreduce(&sum,&gsum,1,MPIU_REAL,MPIU_SUM,((PetscObject)ts)->comm);CHKERRQ(ierr);
   ierr = VecGetSize(gl->W,&N);CHKERRQ(ierr);
-  *nrm = PetscAbsScalar(PetscSqrtScalar(gsum/(1.*N)));
+  *nrm = PetscSqrtReal(gsum/(1.*N));
   PetscFunctionReturn(0);
 }
 
@@ -801,18 +811,16 @@ static PetscErrorCode TSGLGetMaxSizes(TS ts,PetscInt *max_r,PetscInt *max_s)
 }
 
 #undef __FUNCT__  
-#define __FUNCT__ "TSStep_GL"
-static PetscErrorCode TSStep_GL(TS ts,PetscInt *steps,PetscReal *ptime)
+#define __FUNCT__ "TSSolve_GL"
+static PetscErrorCode TSSolve_GL(TS ts)
 {
-  TS_GL          *gl = (TS_GL*)ts->data;
-  PetscInt       i,k,its,lits,max_r,max_s;
-  PetscBool      final_step,finish;
-  PetscErrorCode ierr;
+  TS_GL               *gl = (TS_GL*)ts->data;
+  PetscInt            i,k,its,lits,max_r,max_s;
+  PetscBool           final_step,finish;
+  SNESConvergedReason snesreason;
+  PetscErrorCode      ierr;
 
   PetscFunctionBegin;
-  *steps = -ts->steps;
-  *ptime  = ts->ptime;
-
   ierr = TSMonitor(ts,ts->steps,ts->ptime,ts->vec_sol);CHKERRQ(ierr);
 
   ierr = TSGLGetMaxSizes(ts,&max_r,&max_s);CHKERRQ(ierr);
@@ -832,7 +840,13 @@ static PetscErrorCode TSStep_GL(TS ts,PetscInt *steps,PetscReal *ptime)
     ierr = SNESSolve(ts->snes,PETSC_NULL,gl->Y);CHKERRQ(ierr);
     ierr = SNESGetIterationNumber(ts->snes,&its);CHKERRQ(ierr);
     ierr = SNESGetLinearSolveIterations(ts->snes,&lits);CHKERRQ(ierr);
+    ierr = SNESGetConvergedReason(ts->snes,&snesreason);CHKERRQ(ierr);
     ts->nonlinear_its += its; ts->linear_its += lits;
+    if (snesreason < 0 && ts->max_snes_failures > 0 && ++ts->num_snes_failures >= ts->max_snes_failures) {
+      ts->reason = TS_DIVERGED_NONLINEAR_SOLVE;
+      ierr = PetscInfo2(ts,"Step=%D, nonlinear solve solve failures %D greater than current TS allowed, stopping solve\n",ts->steps,ts->num_snes_failures);CHKERRQ(ierr);
+      PetscFunctionReturn(0);
+    }
   }
 
   if (gl->current_scheme < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ORDER,"A starting scheme has not been provided");
@@ -898,7 +912,13 @@ static PetscErrorCode TSStep_GL(TS ts,PetscInt *steps,PetscReal *ptime)
         ierr = SNESSolve(ts->snes,PETSC_NULL,Y);CHKERRQ(ierr);
         ierr = SNESGetIterationNumber(ts->snes,&its);CHKERRQ(ierr);
         ierr = SNESGetLinearSolveIterations(ts->snes,&lits);CHKERRQ(ierr);
+        ierr = SNESGetConvergedReason(ts->snes,&snesreason);CHKERRQ(ierr);
         ts->nonlinear_its += its; ts->linear_its += lits;
+        if (snesreason < 0 && ts->max_snes_failures > 0 && ++ts->num_snes_failures >= ts->max_snes_failures) {
+          ts->reason = TS_DIVERGED_NONLINEAR_SOLVE;
+          ierr = PetscInfo2(ts,"Step=%D, nonlinear solve solve failures %D greater than current TS allowed, stopping solve\n",ts->steps,ts->num_snes_failures);CHKERRQ(ierr);
+          PetscFunctionReturn(0);
+        }
       }
 
       gl->stage_time = ts->ptime + ts->time_step;
@@ -926,7 +946,7 @@ static PetscErrorCode TSStep_GL(TS ts,PetscInt *steps,PetscReal *ptime)
       */
       h *= 0.5;
       for (i=1; i<scheme->r; i++) {
-        ierr = VecScale(X[i],PetscPowScalar(0.5,i));CHKERRQ(ierr);
+        ierr = VecScale(X[i],Pow(0.5,i));CHKERRQ(ierr);
       }
     }
     SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_CONV_FAILED,"Time step %D (t=%g) not accepted after %D failures\n",k,gl->stage_time,rejections);CHKERRQ(ierr);
@@ -964,9 +984,6 @@ static PetscErrorCode TSStep_GL(TS ts,PetscInt *steps,PetscReal *ptime)
     gl->current_scheme = next_scheme;
     ts->time_step = next_h;
   }
-
-  *steps += ts->steps;
-  *ptime  = ts->ptime;
   PetscFunctionReturn(0);
 }
 
@@ -1007,6 +1024,9 @@ static PetscErrorCode TSDestroy_GL(TS ts)
   if (gl->adapt) {ierr = TSGLAdaptDestroy(&gl->adapt);CHKERRQ(ierr);}
   if (gl->Destroy) {ierr = (*gl->Destroy)(gl);CHKERRQ(ierr);}
   ierr = PetscFree(ts->data);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)ts,"TSGLSetType_C",      "",PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)ts,"TSGLSetAcceptType_C","",PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)ts,"TSGLGetAdapt_C",     "",PETSC_NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1023,7 +1043,7 @@ static PetscErrorCode SNESTSFormFunction_GL(SNES snes,Vec x,Vec f,TS ts)
 
   PetscFunctionBegin;
   ierr = VecWAXPY(gl->Ydot[gl->stage],gl->shift,x,gl->Z);CHKERRQ(ierr);
-  ierr = TSComputeIFunction(ts,gl->stage_time,x,gl->Ydot[gl->stage],f);CHKERRQ(ierr);
+  ierr = TSComputeIFunction(ts,gl->stage_time,x,gl->Ydot[gl->stage],f,PETSC_FALSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1036,7 +1056,7 @@ static PetscErrorCode SNESTSFormJacobian_GL(SNES snes,Vec x,Mat *A,Mat *B,MatStr
 
   PetscFunctionBegin;
   /* gl->Xdot will have already been computed in SNESTSFormFunction_GL */
-  ierr = TSComputeIJacobian(ts,gl->stage_time,x,gl->Ydot[gl->stage],gl->shift,A,B,str);CHKERRQ(ierr);
+  ierr = TSComputeIJacobian(ts,gl->stage_time,x,gl->Ydot[gl->stage],gl->shift,A,B,str,PETSC_FALSE);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1046,12 +1066,10 @@ static PetscErrorCode SNESTSFormJacobian_GL(SNES snes,Vec x,Mat *A,Mat *B,MatStr
 static PetscErrorCode TSSetUp_GL(TS ts)
 {
   TS_GL          *gl = (TS_GL*)ts->data;
-  Vec             res;
   PetscInt        max_r,max_s;
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  if (ts->problem_type == TS_LINEAR) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Only for nonlinear problems");
   gl->setupcalled = PETSC_TRUE;
   ierr = TSGLGetMaxSizes(ts,&max_r,&max_s);CHKERRQ(ierr);
   ierr = VecDuplicateVecs(ts->vec_sol,max_r,&gl->X);CHKERRQ(ierr);
@@ -1061,21 +1079,6 @@ static PetscErrorCode TSSetUp_GL(TS ts)
   ierr = VecDuplicate(ts->vec_sol,&gl->W);CHKERRQ(ierr);
   ierr = VecDuplicate(ts->vec_sol,&gl->Y);CHKERRQ(ierr);
   ierr = VecDuplicate(ts->vec_sol,&gl->Z);CHKERRQ(ierr);
-  ierr = VecDuplicate(ts->vec_sol,&res);CHKERRQ(ierr);
-  ierr = SNESSetFunction(ts->snes,res,SNESTSFormFunction,ts);CHKERRQ(ierr);
-  ierr = VecDestroy(&res);CHKERRQ(ierr); /* Give ownership to SNES */
-  /* This is nasty.  SNESSetFromOptions() is usually called in TSSetFromOptions().  With -snes_mf_operator, it will
-  replace A and we don't want to mess with that.  With -snes_mf, A and B will be replaced as well as the function and
-  context.  Note that SNESSetFunction() normally has not been called before SNESSetFromOptions(), so when -snes_mf sets
-  the Jacobian user context to snes->funP, it will actually be NULL.  This is not a problem because both snes->funP and
-  snes->jacP should be the TS. */
-  {
-    Mat A,B;
-    PetscErrorCode (*func)(SNES,Vec,Mat*,Mat*,MatStructure*,void*);
-    void *ctx;
-    ierr = SNESGetJacobian(ts->snes,&A,&B,&func,&ctx);CHKERRQ(ierr);
-    ierr = SNESSetJacobian(ts->snes,A?A:ts->A,B?B:ts->B,func?func:SNESTSFormJacobian,ctx?ctx:ts);CHKERRQ(ierr);
-  }
 
   /* Default acceptance tests and adaptivity */
   if (!gl->Accept) {ierr = TSGLSetAcceptType(ts,TSGLACCEPT_ALWAYS);CHKERRQ(ierr);}
@@ -1133,6 +1136,7 @@ static PetscErrorCode TSSetFromOptions_GL(TS ts)
         ierr = TSGLSetAcceptType(ts,type);CHKERRQ(ierr);
       }
     }
+    ierr = SNESSetFromOptions(ts->snes);CHKERRQ(ierr);
   }
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   {
@@ -1174,9 +1178,8 @@ static PetscErrorCode TSView_GL(TS ts,PetscViewer viewer)
       ierr = (*gl->View)(gl,viewer);CHKERRQ(ierr);
     }
     ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
-  } else {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Viewer type %s not supported for TSGL",((PetscObject)viewer)->type_name);
   }
+  ierr = SNESView(ts->snes,viewer);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1427,13 +1430,10 @@ PetscErrorCode  TSCreate_GL(TS ts)
   ts->ops->destroy        = TSDestroy_GL;
   ts->ops->view           = TSView_GL;
   ts->ops->setup          = TSSetUp_GL;
-  ts->ops->step           = TSStep_GL;
+  ts->ops->solve          = TSSolve_GL;
   ts->ops->setfromoptions = TSSetFromOptions_GL;
   ts->ops->snesfunction   = SNESTSFormFunction_GL;
   ts->ops->snesjacobian   = SNESTSFormJacobian_GL;
-
-  ts->problem_type = TS_NONLINEAR;
-  ierr = TSGetSNES(ts,&ts->snes);CHKERRQ(ierr);
 
   gl->max_step_rejections = 1;
   gl->min_order           = 1;

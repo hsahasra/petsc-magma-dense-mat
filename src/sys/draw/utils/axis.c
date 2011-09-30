@@ -93,13 +93,13 @@ PetscErrorCode PetscADefLabel(PetscReal val,PetscReal sep,char **p)
 	   use those widths */
 	if (w > 0) sprintf(fmat,"%%%d.%dlf",w + 1,d);
 	else {ierr = PetscStrcpy(fmat,"%lf");CHKERRQ(ierr);}
-	sprintf(buf,fmat,val);
+	sprintf(buf,fmat,(double)val);
         ierr = PetscStripInitialZero(buf);CHKERRQ(ierr);
         ierr = PetscStripAllZeros(buf);CHKERRQ(ierr);
         ierr = PetscStripTrailingZeros(buf);CHKERRQ(ierr);
     }
   } else {
-    ierr = PetscSNPrintf(buf,40,"%G",val);
+    ierr = PetscSNPrintf(buf,40,"%g",(double)val);
     /* remove the extraneous 0 before the e */
     ierr = PetscStripZeros(buf);CHKERRQ(ierr);
     ierr = PetscStripZerosPlus(buf);CHKERRQ(ierr);

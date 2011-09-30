@@ -38,7 +38,10 @@ struct _PetscDrawOps {
   PetscErrorCode (*view)(PetscDraw,PetscViewer);
   PetscErrorCode (*getsingleton)(PetscDraw,PetscDraw*);
   PetscErrorCode (*restoresingleton)(PetscDraw,PetscDraw*);
+  PetscErrorCode (*save)(PetscDraw);
+  PetscErrorCode (*setsave)(PetscDraw,const char*);
   PetscErrorCode (*setcoordinates)(PetscDraw,PetscReal,PetscReal,PetscReal,PetscReal);
+  PetscErrorCode (*arrow)(PetscDraw,PetscReal,PetscReal,PetscReal,PetscReal,int);
 };
 
 struct _p_PetscDraw {
@@ -50,6 +53,8 @@ struct _p_PetscDraw {
   char            *display;
   PetscDraw       popup;
   int             x,y,h,w;
+  char            *savefilename;
+  PetscInt        savefilecount;
   void            *data;
 };
 

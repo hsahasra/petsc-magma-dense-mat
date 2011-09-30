@@ -97,7 +97,6 @@ extern PetscErrorCode     DMDALocalToLocalBegin(DM,Vec,InsertMode,Vec);
 extern PetscErrorCode     DMDALocalToLocalEnd(DM,Vec,InsertMode,Vec);
 extern PetscErrorCode     DMDACreateNaturalVector(DM,Vec *);
 
-extern PetscErrorCode     DMDALoad(PetscViewer,PetscInt,PetscInt,PetscInt,DM *);
 extern PetscErrorCode     DMDAGetCorners(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 extern PetscErrorCode     DMDAGetGhostCorners(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*);
 extern PetscErrorCode     DMDAGetInfo(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,DMDABoundaryType*,DMDABoundaryType*,DMDABoundaryType*,DMDAStencilType*);
@@ -122,13 +121,15 @@ extern PetscErrorCode     DMDASetUniformCoordinates(DM,PetscReal,PetscReal,Petsc
 extern PetscErrorCode     DMDAGetBoundingBox(DM,PetscReal[],PetscReal[]);
 extern PetscErrorCode     DMDAGetLocalBoundingBox(DM,PetscReal[],PetscReal[]);
 /* function to wrap coordinates around boundary */
-extern PetscErrorCode   DMDAMapCoordsToPeriodicDomain(DM,PetscScalar*,PetscScalar*);
+extern PetscErrorCode     DMDAMapCoordsToPeriodicDomain(DM,PetscScalar*,PetscScalar*);
+
+extern PetscErrorCode     DMDAGetReducedDA(DM,PetscInt,DM*);
 
 extern PetscErrorCode     DMDASetFieldName(DM,PetscInt,const char[]);
 extern PetscErrorCode     DMDAGetFieldName(DM,PetscInt,const char**);
 
 extern PetscErrorCode  DMDASetBoundaryType(DM,DMDABoundaryType,DMDABoundaryType,DMDABoundaryType);
-extern PetscErrorCode  DMDASetDof(DM, int);
+extern PetscErrorCode  DMDASetDof(DM, PetscInt);
 extern PetscErrorCode  DMDASetStencilWidth(DM, PetscInt);
 extern PetscErrorCode  DMDASetOwnershipRanges(DM,const PetscInt[],const PetscInt[],const PetscInt[]);
 extern PetscErrorCode  DMDAGetOwnershipRanges(DM,const PetscInt**,const PetscInt**,const PetscInt**);
@@ -159,7 +160,7 @@ S*/
 typedef struct {
   PetscInt       dim,dof,sw;
   PetscInt       mx,my,mz;    /* global number of grid points in each direction */
-  PetscInt       xs,ys,zs;    /* starting pointd of this processor, excluding ghosts */
+  PetscInt       xs,ys,zs;    /* starting point of this processor, excluding ghosts */
   PetscInt       xm,ym,zm;    /* number of grid points on this processor, excluding ghosts */
   PetscInt       gxs,gys,gzs;    /* starting point of this processor including ghosts */
   PetscInt       gxm,gym,gzm;    /* number of grid points on this processor including ghosts */
@@ -362,5 +363,6 @@ extern PetscErrorCode   admf_DARestoreArray(DM,PetscBool ,void*);
 
 extern PetscErrorCode   DMDACreatePF(DM,PF*);
 
+#define DMDA_FILE_CLASSID 1211220
 PETSC_EXTERN_CXX_END
 #endif

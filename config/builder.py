@@ -14,7 +14,9 @@ import logger, script
 regressionRequirements = {'src/vec/vec/examples/tests/ex31':  set(['Matlab'])
                           }
 
-regressionParameters = {'src/vec/vec/examples/tests/ex1_2':    {'numProcs': 2},
+regressionParameters = {'src/sys/comm/examples/tests/ex1':    [{'numProcs': 2},
+                                                               {'numProcs': 5}],
+                        'src/vec/vec/examples/tests/ex1_2':    {'numProcs': 2},
                         'src/vec/vec/examples/tests/ex3':      {'numProcs': 2},
                         'src/vec/vec/examples/tests/ex4':      {'numProcs': 2},
                         'src/vec/vec/examples/tests/ex5':      {'numProcs': 2},
@@ -38,14 +40,45 @@ regressionParameters = {'src/vec/vec/examples/tests/ex1_2':    {'numProcs': 2},
                         'src/vec/vec/examples/tests/ex30f':    {'numProcs': 4},
                         'src/vec/vec/examples/tests/ex33':     {'numProcs': 4},
                         'src/vec/vec/examples/tests/ex36':     {'numProcs': 2, 'args': '-set_option_negidx -set_values_negidx -get_values_negidx'},
+                        'src/dm/impls/mesh/examples/tests/TestMeshExodus': [{'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Square-tri.gen'},
+                                                                            {'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Square-tri2.gen'},
+                                                                            {'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Square-quad.gen'},
+                                                                           #{'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Square-mixed.gen'},
+                                                                            {'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Tet.gen'},
+                                                                            {'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Hex.gen'},
+                                                                            {'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Tet.gen -interpolate'},
+                                                                            {'numProcs': 1, 'args': '-i src/dm/impls/mesh/examples/tests/meshes/Hex.gen -interpolate'}],
+                        'src/ksp/ksp/examples/tutorials/ex4': [{'numProcs': 1, 'args': '-info -info_exclude null,vec'},
+                                                               {'numProcs': 1, 'args': '-da_grid_x 10 -da_grid_y 10 -solve -ksp_monitor'},
+                                                               {'numProcs': 2, 'args': '-da_grid_x 10 -da_grid_y 10'}],
+                                                               #{'numProcs': 1, 'args': '-info'}],
                         'src/ksp/ksp/examples/tutorials/ex12': {'numProcs': 2, 'args': '-ksp_gmres_cgs_refinement_type refine_always'},
                         'src/ksp/ksp/examples/tutorials/ex40': {'numProcs': 1, 'args': '-mat_no_inode -ksp_monitor_short'},
-                        'src/snes/examples/tutorials/ex5':     {'numProcs': 4, 'args': '-snes_mf -da_processors_x 4 -da_processors_y 1 -snes_monitor_short -ksp_gmres_cgs_refinement_type refine_always'},
+                        'src/ksp/ksp/examples/tutorials/ex54':[{'numProcs': 4, 'args': '-ne 40 -alpha 1.e-3 -ksp_monitor_short -ksp_type cg -ksp_norm_type unpreconditioned'},
+                                                               {'numProcs': 4, 'args': '-ne 40 -alpha 1.e-3 -ksp_monitor_short -ksp_type cg -ksp_norm_type unpreconditioned -pc_gamg_type sa'}],
+                        'src/ksp/ksp/examples/tutorials/ex55':[{'numProcs': 4, 'args': '-ne 40 -alpha 1.e-3 -ksp_monitor_short -ksp_type cg -ksp_norm_type unpreconditioned'},
+                                                               {'numProcs': 4, 'args': '-ne 40 -alpha 1.e-3 -ksp_monitor_short -ksp_type cg -ksp_norm_type unpreconditioned -pc_gamg_type sa'}],
+                        'src/ksp/ksp/examples/tutorials/ex56':[{'numProcs': 8, 'args': '-ne 11 -alpha 1.e-3 -ksp_monitor_short -ksp_type cg -ksp_norm_type unpreconditioned -pc_gamg_type sa'}],
+                        'src/snes/examples/tutorials/ex5':    [{'numProcs': 4, 'args': '-snes_mf -da_processors_x 4 -da_processors_y 1 -snes_monitor_short -ksp_gmres_cgs_refinement_type refine_always'},
+                                                               {'numProcs': 1, 'args': '-pc_type mg -ksp_monitor_short  -snes_view -pc_mg_levels 3 -pc_mg_galerkin -da_grid_x 17 -da_grid_y 17 -mg_levels_ksp_monitor_short -snes_monitor_short -mg_levels_pc_type sor -pc_mg_type full'},
+                                                               {'numProcs': 1, 'args': '-pc_type mg -ksp_monitor_short  -snes_view -pc_mg_galerkin -snes_grid_sequence 3 -mg_levels_ksp_monitor_short -snes_monitor_short -mg_levels_pc_type sor -pc_mg_type full'},
+                                                               {'numProcs': 2, 'args': '-snes_grid_sequence 2 -snes_monitor_short -ksp_monitor_short -snes_mf_operator -ksp_converged_reason -snes_converged_reason -snes_view -pc_type mg'},
+                                                               {'numProcs': 2, 'args': '-snes_grid_sequence 2 -snes_monitor_short -ksp_monitor_short -ksp_converged_reason -snes_converged_reason -snes_view -pc_type mg'}],
                         'src/snes/examples/tutorials/ex5f90':  {'numProcs': 4, 'args': '-snes_mf -da_processors_x 4 -da_processors_y 1 -snes_monitor_short -ksp_gmres_cgs_refinement_type refine_always'},
                         'src/snes/examples/tutorials/ex5f90t': {'numProcs': 4, 'args': '-snes_mf -da_processors_x 4 -da_processors_y 1 -snes_monitor_short -ksp_gmres_cgs_refinement_type refine_always'},
                         'src/snes/examples/tutorials/ex9':    [{'numProcs': 1, 'args': '-snes_mf -snes_monitor_short -ksp_gmres_cgs_refinement_type refine_always'}],
-                        'src/snes/examples/tutorials/ex19':    {'numProcs': 2, 'args': '-dmmg_nlevels 4 -snes_monitor_short'},
+#                        'src/snes/examples/tutorials/ex19':    {'numProcs': 2, 'args': '-dmmg_nlevels 4 -snes_monitor_short'},
+                        'src/snes/examples/tutorials/ex19':   [{'numProcs': 1, 'args': '-da_vec_type seq     -da_mat_type seqaij     -pc_type none -dmmg_nlevels 1 -da_grid_x 200 -da_grid_y 200 -mat_no_inode -preload off -log_summary -log_summary_py'},
+                                                               {'numProcs': 1, 'args': '-da_vec_type seqcusp -da_mat_type seqaijcusp -pc_type none -dmmg_nlevels 1 -da_grid_x 200 -da_grid_y 200 -mat_no_inode -preload off -log_summary -log_summary_py'}],
                         'src/snes/examples/tutorials/ex11':   [{'numProcs': 1, 'args': '-snes_mf -snes_monitor_short -snes_converged_reason'}],
+                        'src/snes/examples/tutorials/ex12':   [{'numProcs': 1, 'args': '-lambda 0.0 -snes_monitor -ksp_monitor -snes_converged_reason'},
+                                                               {'numProcs': 1, 'args': '-lambda 0.0 -snes_monitor -ksp_monitor -snes_converged_reason -refinement_limit 0.0625'},
+                                                               {'numProcs': 2, 'args': '-lambda 0.0 -snes_monitor -ksp_monitor -snes_converged_reason'},
+                                                               {'numProcs': 2, 'args': '-lambda 0.0 -snes_monitor -ksp_monitor -snes_converged_reason -refinement_limit 0.0625'},
+                                                               {'numProcs': 1, 'args': '-lambda 0.0 -snes_monitor -ksp_monitor -snes_converged_reason -bc_type neumann'},
+                                                               {'numProcs': 2, 'args': '-lambda 0.0 -snes_monitor -ksp_monitor -snes_converged_reason -bc_type neumann'},
+                                                               {'numProcs': 1, 'args': '-dim 3 -lambda 0.0 -ksp_rtol 1.0e-9 -snes_monitor -ksp_monitor -snes_converged_reason -refinement_limit 0.005'},
+                                                               {'numProcs': 2, 'args': '-dim 3 -lambda 0.0 -ksp_rtol 1.0e-9 -snes_monitor -ksp_monitor -snes_converged_reason -refinement_limit 0.005'}],
                         'src/snes/examples/tutorials/ex10':   [{'numProcs': 2, 'args': '-da_grid_x 5 -snes_converged_reason -snes_monitor_short -problem_type 0'},
                                                                {'numProcs': 1, 'args': '-da_grid_x 20 -snes_converged_reason -snes_monitor_short -problem_type 1'},
                                                                {'numProcs': 1, 'args': '-da_grid_x 20 -snes_converged_reason -snes_monitor_short -problem_type 2'},
@@ -60,6 +93,19 @@ regressionParameters = {'src/vec/vec/examples/tests/ex1_2':    {'numProcs': 2},
 -snes_mf_operator -pack_dm_mat_type aij -pc_type fieldsplit -pc_fieldsplit_type additive -fieldsplit_u_ksp_type gmres -fieldsplit_k_pc_type jacobi'},
                                                                {'numProcs': 1, 'args': '-da_grid_x 20 -snes_converged_reason -snes_monitor_short -ksp_monitor_short -problem_type 2 \
 -snes_mf_operator -pack_dm_mat_type nest -pc_type fieldsplit -pc_fieldsplit_type additive -fieldsplit_u_ksp_type gmres -fieldsplit_k_pc_type jacobi'}],
+                        'src/snes/examples/tutorials/ex33':   [{'numProcs': 1, 'args': '-snes_converged_reason -snes_monitor_short'}],
+                        'src/snes/examples/tutorials/ex52':   [{'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0 -compute_function',
+                                                                'setup': './bin/pythonscripts/PetscGenerateFEMQuadrature.py 2 1 1 src/snes/examples/tutorials/ex52.h'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0 -compute_function -batch'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0 -compute_function -batch -gpu'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0 -compute_function -batch -gpu -gpu_batches 2'},
+
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0625 -compute_function'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0625 -compute_function -batch'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0625 -compute_function -batch -gpu'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0625 -compute_function -batch -gpu -gpu_batches 2'},
+                                                               {'numProcs': 1, 'args': '-dm_view -refinement_limit 0.0625 -compute_function -batch -gpu -gpu_batches 4'},
+                                                               ],
                         'src/ts/examples/tutorials/ex18':      {'numProcs': 1, 'args': '-snes_mf -ts_monitor_solution -ts_monitor -snes_monitor'},
                         }
 
@@ -413,7 +459,7 @@ class SourceFileManager(logger.Logger):
       f77names  = f77names[:self.argDB['maxSources']]
       f90names  = f90names[:self.argDB['maxSources']]
       source    = source[:self.argDB['maxSources']]
-    return {'C': cnames, 'Cxx': cxxnames, 'Cuda': cudanames, 'F77': f77names, 'F90': f90names, 'Fortran': f77names+f90names, 'Objects': [self.getObjectName(s, objDir) for s in source]}
+    return {'C': cnames, 'Cxx': cxxnames, 'CUDA': cudanames, 'F77': f77names, 'F90': f90names, 'Fortran': f77names+f90names, 'Objects': [self.getObjectName(s, objDir) for s in source]}
 
 class DependencyBuilder(logger.Logger):
   def __init__(self, argDB, log, sourceManager, sourceDatabase, objDir):
@@ -699,6 +745,9 @@ class PETScMaker(script.Script):
  def compileC(self, source, objDir = None):
    return self.compile(self.configInfo.languages.clanguage, source, objDir)
 
+ def compileCUDA(self, source, objDir = None):
+   return self.compile('CUDA', source, objDir)
+
  def compileCxx(self, source, objDir = None):
    return self.compile('Cxx', source, objDir)
 
@@ -893,7 +942,8 @@ class PETScMaker(script.Script):
       ${DSYMUTIL} $@'''
    self.logWrite('Linking object '+str(objects)+' into '+executable+'\n', debugSection = self.debugSection, forceScroll = True)
    self.configInfo.compilers.pushLanguage(language)
-   cmd = self.configInfo.compilers.getFullLinkerCmd(' '.join(objects)+' -L'+self.petscLibDir+' -lpetsc', executable)
+   packageIncludes, packageLibs = self.getPackageInfo()
+   cmd = self.configInfo.compilers.getFullLinkerCmd(' '.join(objects)+' -L'+self.petscLibDir+' -lpetsc '+packageLibs+' -L/usr/local/cuda/lib', executable)
    if not self.dryRun:
      (output, error, status) = self.executeShellCommand(cmd, checkCommand = noCheckCommand, log=self.log)
      if status:
@@ -916,7 +966,7 @@ class PETScMaker(script.Script):
    os.chdir(dirname)
    sourceMap = self.sourceManager.sortSourceFiles(files, objDir)
    objects   = []
-   for language in ['C', 'Cxx', 'Fortran', 'Cuda']:
+   for language in ['C', 'Cxx', 'Fortran', 'CUDA']:
      if sourceMap[language]:
        self.logPrint('Compiling %s files %s' % (language, str(sourceMap[language])))
        objects.extend(getattr(self, 'compile'+language)(sourceMap[language], objDir))
@@ -930,7 +980,7 @@ class PETScMaker(script.Script):
    os.chdir(dirname)
    sourceMap = self.sourceManager.sortSourceFiles(files, objDir)
    futures   = []
-   for language in ['C', 'Cxx', 'Fortran', 'Cuda']:
+   for language in ['C', 'Cxx', 'Fortran', 'CUDA']:
      if sourceMap[language]:
        self.logPrint('Compiling %s files %s' % (language, str(sourceMap[language])))
        futures.extend(getattr(self, 'compile'+language+'Parallel')(sourceMap[language], objDir))
@@ -939,10 +989,11 @@ class PETScMaker(script.Script):
 
  def buildFile(self, filename, objDir):
    ''' This is run in a PETSc source directory'''
-   self.logWrite('Building '+filename+'\n', debugSection = 'screen', forceScroll = True)
-   sourceMap = self.sourceManager.sortSourceFiles([filename], objDir)
+   if not isinstance(filename, list): filename = [filename]
+   self.logWrite('Building '+str(filename)+'\n', debugSection = 'screen', forceScroll = True)
+   sourceMap = self.sourceManager.sortSourceFiles(filename, objDir)
    objects   = []
-   for language in ['C', 'Fortran', 'Cuda']:
+   for language in ['C', 'Cxx', 'Fortran', 'CUDA']:
      if sourceMap[language]:
        self.logPrint('Compiling %s files %s' % (language, str(sourceMap['C'])))
        objects.extend(getattr(self, 'compile'+language)(sourceMap[language], objDir))
@@ -1056,6 +1107,7 @@ class PETScMaker(script.Script):
    return
 
  def checkTestOutput(self, testDir, executable, output, testNum):
+   from difflib import unified_diff
    outputName = os.path.join(testDir, 'output', os.path.basename(executable)+'_'+str(testNum)+'.out')
    ret        = 0
    if not os.path.isfile(outputName):
@@ -1065,7 +1117,11 @@ class PETScMaker(script.Script):
        validOutput = f.read()
        if not validOutput == output:
          self.logPrint("TEST ERROR: Regression output for %s (test %d) does not match" % (executable, testNum))
+         for line in unified_diff(output.split('\n'), validOutput.split('\n'), fromfile='Current Output', tofile='Saved Output'):
+           self.logPrint(line)
+         self.logPrintDivider()
          self.logPrint(validOutput, indent = 0)
+         self.logPrintDivider()
          self.logPrint(output, indent = 0)
          ret = -1
        else:
@@ -1162,8 +1218,8 @@ class PETScMaker(script.Script):
    from generatefortranstubs import main, processf90interfaces
    for d in os.listdir(os.path.join(self.petscDir, 'include', 'finclude', 'ftn-auto')):
      if d.endswith('-tmpdir'): shutil.rmtree(os.path.join(self.petscDir, 'include', 'finclude', 'ftn-auto', d))
-   main(self.petscDir, self.configInfo.sowing.bfort, os.getcwd())
-   processf90interfaces(self.petscDir)
+   main(self.petscDir, self.configInfo.sowing.bfort, os.getcwd(),0)
+   processf90interfaces(self.petscDir,0)
    for d in os.listdir(os.path.join(self.petscDir, 'include', 'finclude', 'ftn-auto')):
      if d.endswith('-tmpdir'): shutil.rmtree(os.path.join(self.petscDir, 'include', 'finclude', 'ftn-auto', d))
    sys.path = oldPath
@@ -1178,7 +1234,8 @@ class PETScMaker(script.Script):
    if os.path.isfile(self.sourceDBFilename):
      os.remove(self.sourceDBFilename)
      self.logPrint('Removed '+self.sourceDBFilename)
-   shutil.rmtree(self.getObjDir(libname))
+   if os.path.exists(self.getObjDir(libname)):
+     shutil.rmtree(self.getObjDir(libname))
    self.logPrint('Removed '+self.getObjDir(libname))
    return
 

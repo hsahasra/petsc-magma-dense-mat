@@ -81,8 +81,8 @@ class PETScMaker(script.Script):
      if compiler.split()[0].endswith('win32fe'): # Hack to support win32fe without changing the rest of configure
        win32fe = compiler.split()[0] + '.exe'
        compiler = ' '.join(compiler.split()[1:])
-     options.append('-DCMAKE_'+cmakelanguage+'_FLAGS=' + ''.join(flags))
-     options.append('-DCMAKE_'+cmakelanguage+'_COMPILER=' + compiler)
+     options.append('-DCMAKE_'+cmakelanguage+'_COMPILER:FILEPATH=' + compiler)
+     options.append('-DCMAKE_'+cmakelanguage+'_FLAGS:STRING=' + ''.join(flags))
      self.setCompilers.popLanguage()
    if win32fe:
      options.append('-DPETSC_WIN32FE:FILEPATH=%s'%win32fe)
@@ -92,14 +92,17 @@ class PETScMaker(script.Script):
      options.append('-GUnix Makefiles')
    cmd = [self.cmake.cmake, self.petscdir.dir] + map(lambda x:x.strip(), options) + args
    archdir = os.path.join(self.petscdir.dir, self.arch.arch)
+   try: # Try to remove the old cache because some versions of CMake lose CMAKE_C_FLAGS when reconfiguring this way
+     os.remove(os.path.join(archdir, 'CMakeCache.txt'))
+   except OSError:
+     pass
    log.write('Invoking: %s\n' % cmd)
    output,error,retcode = self.executeShellCommand(cmd, checkCommand = noCheck, log=log, cwd=archdir)
    if retcode:
-      self.logPrintBox('CMake process failed with status %d. Proceeding..' % (retcode,))
+     self.logPrintBox('CMake process failed with status %d. Proceeding..' % (retcode,))
+     return False
    else:
-     self.logPrintBox('CMake configuration completed successfully.\n' +
-                      'Can now use alternate build command [optionally with -j]: make -C %s' % quoteIfNeeded(archdir))
-   return
+     return True # Configure successful
 
 def main(petscdir, petscarch, argDB=None, framework=None, log=StdoutLogger(), args=[]):
   # This can be called as a stand-alone program, or by importing it from
@@ -112,7 +115,7 @@ def main(petscdir, petscarch, argDB=None, framework=None, log=StdoutLogger(), ar
   # and makes the result unpickleable.  This is not a problem when run
   # as a standalone program (because the database is read-only), but is
   # not okay when called from configure.
-  PETScMaker(petscdir,petscarch,argDB,framework).cmakeboot(args,log)
+  return PETScMaker(petscdir,petscarch,argDB,framework).cmakeboot(args,log)
 
 if __name__ == "__main__":
   main(petscdir=os.environ['PETSC_DIR'], petscarch=os.environ['PETSC_ARCH'], args=sys.argv[1:])

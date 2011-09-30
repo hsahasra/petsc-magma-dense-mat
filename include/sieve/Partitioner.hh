@@ -311,7 +311,7 @@ namespace ALE {
           partition->updatePoint(p, values);
         }
         delete [] values;
-      };
+      }
     };
   }
 #ifdef PETSC_HAVE_CHACO
@@ -385,7 +385,7 @@ namespace ALE {
         int       c       = 0;
 
         for(typename Mesh::label_sequence::iterator c_iter = cells->begin(); c_iter !=cells->end(); ++c_iter, ++c) {
-          const double *coords = mesh->restrictClosure(coordinates, *c_iter);
+          const typename Mesh::real_section_type::value_type *coords = mesh->restrictClosure(coordinates, *c_iter);
 
           for(int d = 0; d < dim; ++d) {
             vCoords[d][c] = 0.0;
@@ -402,7 +402,7 @@ namespace ALE {
         *X = x;
         *Y = y;
         *Z = z;
-      };
+      }
       template<typename Float>
       void destroyCellCoordinates(const int numVertices, Float *X[], Float *Y[], Float *Z[]) const {
         typedef typename alloc_type::template rebind<Float>::other float_alloc_type;
@@ -410,19 +410,19 @@ namespace ALE {
 
         for(int i = 0; i < numVertices*3; ++i) {float_alloc_type().destroy(x+i);}
         float_alloc_type().deallocate(x, numVertices*3);
-      };
+      }
       point_type getCell(const point_type cellNumber) const {
         if (this->simpleCellNumbering) {
           return cellNumber;
         }
         return this->cells[cellNumber];
-      };
+      }
       point_type getNumber(const point_type cell) {
         if (this->simpleCellNumbering) {
           return cell;
         }
         return this->numbers[cell];
-      };
+      }
     };
     template<typename Sieve>
     class OffsetVisitor {
@@ -597,41 +597,73 @@ namespace ALE {
         // The arrow is from remote partition point rank (color) on rank 0 (source) to local partition point rank (target)
         recvOverlap->addCone(0, rank, rank);
       }
-    };
+    }
     // Create a mesh point overlap for distribution
     //   A local numbering is created for the remote points
     //   This is the default overlap which comes from distributing a serial mesh on process 0
     template<typename Section, typename RecvPartOverlap, typename Renumbering, typename SendOverlap, typename RecvOverlap>
     static void createDistributionMeshOverlap(const Obj<Section>& partition, const Obj<RecvPartOverlap>& recvPartOverlap, Renumbering& renumbering, const Obj<Section>& overlapPartition, const Obj<SendOverlap>& sendOverlap, const Obj<RecvOverlap>& recvOverlap) {
       const typename Section::chart_type& chart = partition->getChart();
+      int numRanks = 0;
 
+      for(typename Section::chart_type::const_iterator p_iter = chart.begin(); p_iter != chart.end(); ++p_iter) {
+        if (*p_iter != sendOverlap->commRank() && partition->getFiberDimension(*p_iter)) numRanks++;
+      }
+      sendOverlap->setBaseSize(numRanks); // setNumRanks
+      for(typename Section::chart_type::const_iterator p_iter = chart.begin(); p_iter != chart.end(); ++p_iter) {
+        const int coneSize = partition->getFiberDimension(*p_iter);
+
+        if (*p_iter != sendOverlap->commRank() && coneSize) {
+          sendOverlap->setConeSize(*p_iter, coneSize); // setNumPoints
+        }
+      }
+      sendOverlap->assemble();
       for(typename Section::chart_type::const_iterator p_iter = chart.begin(); p_iter != chart.end(); ++p_iter) {
         if (*p_iter == sendOverlap->commRank()) continue;
         const typename Section::value_type *points     = partition->restrictPoint(*p_iter);
         const int                           numPoints  = partition->getFiberDimension(*p_iter);
-        
+
         for(int i = 0; i < numPoints; ++i) {
           // Notice here that we do not know the local renumbering (but we do not use it)
           sendOverlap->addArrow(points[i], *p_iter, points[i]);
         }
       }
       if (sendOverlap->debug()) {sendOverlap->view("Send mesh overlap");}
-      const Obj<typename RecvPartOverlap::traits::baseSequence> rPoints    = recvPartOverlap->base();
+      const typename RecvPartOverlap::capSequence::iterator rBegin = recvPartOverlap->capBegin();
+      const typename RecvPartOverlap::capSequence::iterator rEnd   = recvPartOverlap->capEnd();
 
-      for(typename RecvPartOverlap::traits::baseSequence::iterator p_iter = rPoints->begin(); p_iter != rPoints->end(); ++p_iter) {
-        const Obj<typename RecvPartOverlap::coneSequence>& ranks           = recvPartOverlap->cone(*p_iter);
-        //const typename Section::point_type&                localPartPoint  = *p_iter;
-        const typename Section::point_type                 rank            = *ranks->begin();
-        const typename Section::point_type&                remotePartPoint = ranks->begin().color();
-        const typename Section::value_type                *points          = overlapPartition->restrictPoint(remotePartPoint);
-        const int                                          numPoints       = overlapPartition->getFiberDimension(remotePartPoint);
+      recvOverlap->setCapSize(recvPartOverlap->getCapSize()); // setNumRanks
+      for(typename RecvPartOverlap::capSequence::iterator r_iter = rBegin; r_iter != rEnd; ++r_iter) {
+        const int                                                 rank   = *r_iter;
+        const typename RecvPartOverlap::supportSequence::iterator pBegin = recvPartOverlap->supportBegin(*r_iter);
+        const typename RecvPartOverlap::supportSequence::iterator pEnd   = recvPartOverlap->supportEnd(*r_iter);
 
-        for(int i = 0; i < numPoints; ++i) {
-          recvOverlap->addArrow(rank, renumbering[points[i]], points[i]);
+        for(typename RecvPartOverlap::supportSequence::iterator p_iter = pBegin; p_iter != pEnd; ++p_iter) {
+          const typename Section::point_type& remotePartPoint = p_iter.color();
+          const int                           numPoints       = overlapPartition->getFiberDimension(remotePartPoint);
+
+          recvOverlap->setSupportSize(rank, numPoints); // setNumPoints
+        }
+      }
+      recvOverlap->assemble();
+
+      for(typename RecvPartOverlap::capSequence::iterator r_iter = rBegin; r_iter != rEnd; ++r_iter) {
+        const int                                                 rank   = *r_iter;
+        const typename RecvPartOverlap::supportSequence::iterator pBegin = recvPartOverlap->supportBegin(*r_iter);
+        const typename RecvPartOverlap::supportSequence::iterator pEnd   = recvPartOverlap->supportEnd(*r_iter);
+
+        for(typename RecvPartOverlap::supportSequence::iterator p_iter = pBegin; p_iter != pEnd; ++p_iter) {
+          const typename Section::point_type& remotePartPoint = p_iter.color();
+          const typename Section::value_type *points          = overlapPartition->restrictPoint(remotePartPoint);
+          const int                           numPoints       = overlapPartition->getFiberDimension(remotePartPoint);
+
+          for(int i = 0; i < numPoints; ++i) {
+            recvOverlap->addArrow(rank, renumbering[points[i]], points[i]);
+          }
         }
       }
       if (recvOverlap->debug()) {recvOverlap->view("Receive mesh overlap");}
-    };
+    }
     // Create a partition point overlap from a partition
     //   The intention is to create an overlap which enables exchange of redistribution information
     template<typename Section, typename SendOverlap, typename RecvOverlap>
@@ -682,7 +714,7 @@ namespace ALE {
       delete [] recvRequests;
       delete [] adj;
       delete [] recvCounts;
-    };
+    }
   public: // Building CSR meshes
     // This produces the dual graph (each cell is a vertex and each face is an edge)
     //   numbering:   A contiguous numbering of the cells (not yet included)
@@ -828,7 +860,7 @@ namespace ALE {
       *numVertices = numCells;
       *offsets     = off;
       *adjacency   = adj;
-    };
+    }
     template<typename Mesh>
     static void buildDualCSRV(const Obj<Mesh>& mesh, MeshManager<Mesh>& manager, int *numVertices, int **offsets, int **adjacency, const bool zeroBase = true) {
       const Obj<typename Mesh::sieve_type>&         sieve        = mesh->getSieve();
@@ -912,7 +944,7 @@ namespace ALE {
       *numVertices = numCells;
       *offsets     = off;
       *adjacency   = adj;
-    };
+    }
     // This produces a hypergraph (each face is a vertex and each cell is a hyperedge)
     //   numbering: A contiguous numbering of the faces
     //   numEdges:  The number of edges in the hypergraph
@@ -951,11 +983,11 @@ namespace ALE {
       *numEdges  = numCells;
       *offsets   = off;
       *adjacency = adj;
-    };
+    }
     template<typename Mesh>
     static void buildFaceDualCSRV(const Obj<Mesh>& mesh, const Obj<typename Mesh::numbering_type>& numbering, int *numEdges, int **offsets, int **adjacency, const bool zeroBase = true) {
       throw ALE::Exception("Not implemented");
-    };
+    }
     static void destroyCSR(int numPoints, int *offsets, int *adjacency) {
       if (adjacency) {
         for(int i = 0; i < offsets[numPoints]; ++i) {alloc_type().destroy(adjacency+i);}
@@ -965,7 +997,7 @@ namespace ALE {
         for(int i = 0; i < numPoints+1; ++i) {alloc_type().destroy(offsets+i);}
         alloc_type().deallocate(offsets, numPoints+1);
       }
-    };
+    }
     template<typename OldSection, typename Partition, typename Renumbering, typename NewSection>
     static void createLocalSection(const Obj<OldSection>& oldSection, const Obj<Partition>& partition, Renumbering& renumbering, const Obj<NewSection>& newSection) {
       const typename Partition::value_type *points    = partition->restrictPoint(oldSection->commRank());
@@ -982,7 +1014,7 @@ namespace ALE {
           newSection->updatePointAll(renumbering[points[p]], oldSection->restrictPoint(points[p]));
         }
       }
-    };
+    }
     // Specialize to ArrowSection
     template<typename OldSection, typename Partition, typename Renumbering>
     static void createLocalSection(const Obj<OldSection>& oldSection, const Obj<Partition>& partition, Renumbering& renumbering, const Obj<UniformSection<MinimalArrow<int,int>,int> >& newSection) {
@@ -1008,7 +1040,7 @@ namespace ALE {
           newSection->updatePointAll(typename OldSection::point_type(renumbering[c_iter->source], renumbering[c_iter->target]), values);
         }
       }
-    };
+    }
     template<typename Sifter, typename Section, typename Renumbering>
     static void createLocalSifter(const Obj<Sifter>& sifter, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Sifter>& localSifter) {
       const typename Section::value_type *points    = partition->restrictPoint(sifter->commRank());
@@ -1022,7 +1054,7 @@ namespace ALE {
           localSifter->addArrow(*c_iter, renumbering[points[p]]);
         }
       }
-    };
+    }
     template<typename Sieve, typename Section, typename Renumbering>
     static void createLocalSieve(const Obj<Sieve>& sieve, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Sieve>& localSieve, const int height = 0) {
       const typename Section::value_type *points    = partition->restrictPoint(sieve->commRank());
@@ -1062,14 +1094,14 @@ namespace ALE {
           }
         }
       }
-    };
+    }
     template<typename Mesh, typename Section, typename Renumbering>
     static void createLocalMesh(const Obj<Mesh>& mesh, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Mesh>& localMesh, const int height = 0) {
       const Obj<typename Mesh::sieve_type>& sieve      = mesh->getSieve();
       const Obj<typename Mesh::sieve_type>& localSieve = localMesh->getSieve();
 
       createLocalSieve(sieve, partition, renumbering, localSieve, height);
-    };
+    }
     template<typename Sieve, typename Section, typename Renumbering>
     static void sizeLocalSieveV(const Obj<Sieve>& sieve, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Sieve>& localSieve, const int height = 0) {
       typedef std::set<typename Sieve::point_type> pointSet;
@@ -1087,14 +1119,14 @@ namespace ALE {
         localSieve->setSupportSize(renumbering[points[p]], fV.getSize());
         fV.clear();
       }
-    };
+    }
     template<typename Mesh, typename Section, typename Renumbering>
     static void sizeLocalMeshV(const Obj<Mesh>& mesh, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Mesh>& localMesh, const int height = 0) {
       const Obj<typename Mesh::sieve_type>& sieve      = mesh->getSieve();
       const Obj<typename Mesh::sieve_type>& localSieve = localMesh->getSieve();
 
       sizeLocalSieveV(sieve, partition, renumbering, localSieve, height);
-    };
+    }
     template<typename Sieve, typename Section, typename Renumbering>
     static void createLocalLabelV(const Obj<Sieve>& sieve, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Sieve>& localSieve, const int height = 0) {
       typedef std::set<typename Sieve::point_type> pointSet;
@@ -1126,7 +1158,7 @@ namespace ALE {
       }
       delete [] oPoints;
       delete [] oOrients;
-    };
+    }
     template<typename Sieve, typename Section, typename Renumbering>
     static void createLocalSieveV(const Obj<Sieve>& sieve, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Sieve>& localSieve, const int height = 0) {
       typedef std::set<typename Sieve::point_type> pointSet;
@@ -1158,14 +1190,14 @@ namespace ALE {
       }
       delete [] oPoints;
       delete [] oOrients;
-    };
+    }
     template<typename Mesh, typename Section, typename Renumbering>
     static void createLocalMeshV(const Obj<Mesh>& mesh, const Obj<Section>& partition, Renumbering& renumbering, const Obj<Mesh>& localMesh, const int height = 0) {
       const Obj<typename Mesh::sieve_type>& sieve      = mesh->getSieve();
       const Obj<typename Mesh::sieve_type>& localSieve = localMesh->getSieve();
 
       createLocalSieveV(sieve, partition, renumbering, localSieve, height);
-    };
+    }
   public: // Partitioning
     //   partition:    Should be properly allocated on input
     //   height:       Height of the point set to uniquely partition
@@ -1191,7 +1223,7 @@ namespace ALE {
       } else {
         throw ALE::Exception("Invalid partition height");
       }
-    };
+    }
     template<typename Mesh, typename Section>
     static void createPartitionV(const Obj<Mesh>& mesh, const Obj<Section>& partition, const int height = 0) {
       MeshManager<Mesh> manager(mesh, height);
@@ -1218,7 +1250,7 @@ namespace ALE {
         throw ALE::Exception("Invalid partition height");
       }
       PETSc::Log::Event("PartitionCreate").end();
-    };
+    }
     // Add in the points in the closure (and star) of the partitioned points
     template<typename Mesh, typename Section>
     static void createPartitionClosure(const Obj<Mesh>& mesh, const Obj<Section>& pointPartition, const Obj<Section>& partition, const int height = 0) {
@@ -1322,7 +1354,7 @@ namespace ALE {
         partition->updatePoint(*r_iter, values);
       }
       delete [] values;
-    };
+    }
     template<typename Mesh, typename Section>
     static void createPartitionClosureV(const Obj<Mesh>& mesh, const Obj<Section>& pointPartition, const Obj<Section>& partition, const int height = 0) {
       typedef ISieveVisitor::TransitiveClosureVisitor<typename Mesh::sieve_type> visitor_type;
@@ -1372,7 +1404,7 @@ namespace ALE {
       }
       delete [] values;
       PETSc::Log::Event("PartitionClosure").end();
-    };
+    }
     // Create a section mapping points to partitions
     template<typename Section, typename MapSection>
     static void createPartitionMap(const Obj<Section>& partition, const Obj<MapSection>& partitionMap) {
@@ -1391,7 +1423,7 @@ namespace ALE {
           partitionMap->updatePoint(points[i], &part);
         }
       }
-    };
+    }
   };
 #endif
 
@@ -1623,7 +1655,7 @@ namespace ALE {
           }
         }
         return subAssignment;
-      };
+      }
     };
 #ifdef PETSC_HAVE_CHACO
     namespace Chaco {

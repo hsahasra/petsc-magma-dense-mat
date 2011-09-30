@@ -13,14 +13,17 @@ class Configure(PETSc.package.NewPackage):
 
   def setupDependencies(self, framework):
     PETSc.package.NewPackage.setupDependencies(self, framework)
-    self.deps = [self.mpi]
+    self.blasLapack = framework.require('config.packages.BlasLapack',self)
+    self.deps = [self.mpi,self.blasLapack]
     return
           
   def Install(self):
     import os
     self.framework.pushLanguage('C')
     ccompiler=self.framework.getCompiler()
-    args = ['--prefix='+self.installDir, 'CC="'+self.framework.getCompiler()+'"']
+    args = ['--prefix='+self.installDir]
+    args.append('--libdir='+os.path.join(self.installDir,self.libdir))
+    args.append('CC="'+self.framework.getCompiler()+'"')
     args.append('CFLAGS="'+self.framework.getCompilerFlags()+'"')
     self.framework.popLanguage()
     if hasattr(self.compilers, 'CXX'):

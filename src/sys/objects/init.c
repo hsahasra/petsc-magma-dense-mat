@@ -1,13 +1,29 @@
-
 /*
 
    This file defines part of the initialization of PETSc
 
-  This file uses regular malloc and free because it cannot know 
+  This file uses regular malloc and free because it cannot known 
   what malloc is being used until it has already processed the input.
 */
 
 #include <petscsys.h>        /*I  "petscsys.h"   I*/
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#if defined(PETSC_HAVE_SCHED_H)
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif
+#include <sched.h>
+#endif
+
+#if defined(PETSC_HAVE_SYS_SYSINFO_H)
+#include <sys/sysinfo.h>
+#endif
+#if defined(PETSC_HAVE_UNISTD_H)
+#include <unistd.h>
+#endif
 #if defined(PETSC_HAVE_STDLIB_H)
 #include <stdlib.h>
 #endif
@@ -34,8 +50,8 @@ PetscMPIInt  PetscGlobalSize = -1;
 template <> class std::complex<double>; /* instantiate complex template class */
 #endif
 #if !defined(PETSC_HAVE_MPI_C_DOUBLE_COMPLEX)
-MPI_Datatype   MPI_C_DOUBLE_COMPLEX;
-MPI_Datatype   MPI_C_COMPLEX;
+MPI_Datatype   MPIU_C_DOUBLE_COMPLEX;
+MPI_Datatype   MPIU_C_COMPLEX;
 #endif
 PetscScalar    PETSC_i;
 #else
@@ -233,6 +249,10 @@ PetscErrorCode  PetscSetHelpVersionFunctions(PetscErrorCode (*help)(MPI_Comm),Pe
   PetscFunctionReturn(0);
 }
 
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+extern PetscErrorCode PetscOptionsCheckInitial_Private_Pthread(void);
+#endif
+
 #undef __FUNCT__  
 #define __FUNCT__ "PetscOptionsCheckInitial_Private"
 PetscErrorCode  PetscOptionsCheckInitial_Private(void)
@@ -294,6 +314,11 @@ PetscErrorCode  PetscOptionsCheckInitial_Private(void)
       Set the display variable for graphics
   */
   ierr = PetscSetDisplay();CHKERRQ(ierr);
+
+  ierr = PetscOptionsGetString(PETSC_NULL,"-regress",mname,PETSC_MAX_PATH_LEN,&flg1);CHKERRQ(ierr);
+  if (flg1) {
+    ierr = PetscVFPrintfRegressSetUp(PETSC_COMM_WORLD,mname);CHKERRQ(ierr);
+  }
 
   /*
       Print the PETSc version information
@@ -404,7 +429,7 @@ PetscErrorCode  PetscOptionsCheckInitial_Private(void)
         if (nodes[i] == rank) { flag = PETSC_FALSE; break; }
       }
     }
-    if (!flag) {        
+    if (!flag) {
       ierr = PetscSetDebuggerFromString(string);CHKERRQ(ierr);
       ierr = PetscPushErrorHandler(PetscAbortErrorHandler,0);CHKERRQ(ierr);
       if (flg1) {
@@ -428,7 +453,7 @@ PetscErrorCode  PetscOptionsCheckInitial_Private(void)
   ierr = PetscOptionsHasName(PETSC_NULL,"-zope", &flgz);CHKERRQ(ierr);
   ierr = PetscOptionsHasName(PETSC_NULL,"-nostdout", &flgzout);CHKERRQ(ierr);
   if (flgz){
-    int  sockfd; 
+    int  sockfd;
     char hostname[256];
     char username[256];
     int  remoteport = 9999;
@@ -523,6 +548,9 @@ PetscErrorCode  PetscOptionsCheckInitial_Private(void)
 
   ierr = PetscOptionsGetBool(PETSC_NULL,"-options_gui",&PetscOptionsPublish,PETSC_NULL);CHKERRQ(ierr);
 
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+  ierr = PetscOptionsCheckInitial_Private_Pthread();
+#endif
   /*
        Print basic help message
   */
@@ -561,9 +589,10 @@ PetscErrorCode  PetscOptionsCheckInitial_Private(void)
     ierr = (*PetscHelpPrintf)(comm," -shared_tmp: tmp directory is shared by all processors\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -not_shared_tmp: each processor has separate tmp directory\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -memory_info: print memory usage at end of run\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -server <port>: Run PETSc webserver (default port is 8080) see PetscWebServe()\n");CHKERRQ(ierr);
 #if defined(PETSC_USE_LOG)
     ierr = (*PetscHelpPrintf)(comm," -get_total_flops: total flops over all processors\n");CHKERRQ(ierr);
-    ierr = (*PetscHelpPrintf)(comm," -log[_all _summary]: logging objects and events\n");CHKERRQ(ierr);
+    ierr = (*PetscHelpPrintf)(comm," -log[_all _summary _summary_python]: logging objects and events\n");CHKERRQ(ierr);
     ierr = (*PetscHelpPrintf)(comm," -log_trace [filename]: prints trace of all PETSc calls\n");CHKERRQ(ierr);
 #if defined(PETSC_HAVE_MPE)
     ierr = (*PetscHelpPrintf)(comm," -log_mpe: Also create logfile viewable through upshot\n");CHKERRQ(ierr);

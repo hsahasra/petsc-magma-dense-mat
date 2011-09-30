@@ -87,6 +87,8 @@ class Installer(script.Script):
     self.destBinDir        = os.path.join(self.destDir, 'bin')
     self.installIncludeDir = os.path.join(self.installDir, 'include')
     self.installBinDir     = os.path.join(self.installDir, 'bin')
+    self.rootShareDir      = os.path.join(self.rootDir, 'share')
+    self.destShareDir      = os.path.join(self.destDir, 'share')
 
     self.make      = self.makesys.make+' '+self.makesys.flags
     self.ranlib    = self.compilers.RANLIB
@@ -129,7 +131,7 @@ class Installer(script.Script):
       # catch the Error from the recursive copytree so that we can
       # continue with other files
       except shutil.Error, err:
-        errors.extend(err.args[0])
+        errors.extend((srcname,dstname,str(err.args[0])))
     try:
       shutil.copystat(src, dst)
     except OSError, e:
@@ -204,6 +206,10 @@ for src, dst in copies:
     self.copies.extend(self.copytree(self.archBinDir, self.destBinDir))
     return
 
+  def installShare(self):
+    self.copies.extend(self.copytree(self.rootShareDir, self.destShareDir))
+    return
+
   def copyLib(self, src, dst):
     '''Run ranlib on the destination library if it is an archive. Also run install_name_tool on dylib on Mac'''
     shutil.copy2(src, dst)
@@ -219,7 +225,7 @@ for src, dst in copies:
     return
 
 
-  def outputHelp(self):
+  def outputDone(self):
     print '''\
 ====================================
 Install complete. It is useable with PETSC_DIR=%s [and no more PETSC_ARCH].
@@ -261,11 +267,12 @@ make PETSC_DIR=%s test
       print '********************************************************************'
       return
 
-    self.outputHelp()
     self.installIncludes()
     self.installConf()
     self.installBin()
     self.installLib()
+    self.installShare()
+    self.outputDone()
 
     return
 

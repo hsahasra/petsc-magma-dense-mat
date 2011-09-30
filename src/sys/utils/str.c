@@ -16,7 +16,7 @@
 #undef __FUNCT__  
 #define __FUNCT__ "PetscStrToArray"
 /*@C
-   PetscStrToArray - Seperates a string by its spaces and creates and array of strings
+   PetscStrToArray - Seperates a string by its spaces and creates an array of strings
 
    Not Collective
 
@@ -33,9 +33,10 @@
 
    Not for use in Fortran
 
-   Developer Notes: Using raw malloc() since this may be used before PETSc is initialized
+   Developer Notes: Using raw malloc() and does not call error handlers since this may be used before PETSc is initialized. Used
+     to generate argc, args arguments passed to MPI_Init()
 
-.seealso: PetscStrToArrayDestroy()
+.seealso: PetscStrToArrayDestroy(), PetscToken, PetscTokenCreate()
 
 @*/
 PetscErrorCode  PetscStrToArray(const char s[],int *argc,char ***args)
@@ -325,7 +326,7 @@ PetscErrorCode  PetscStrncat(char s[],const char t[],size_t n)
 -  b - pointer to second string
 
    Output Parameter:
-.  flg - if the two strings are equal
+.  flg - PETSC_TRUE if the two strings are equal
 
    Level: intermediate
 
@@ -433,7 +434,7 @@ PetscErrorCode  PetscStrcasecmp(const char a[],const char b[],PetscBool  *t)
   else c = stricmp(a,b);
 #else
   else {
-    char *aa,*bb;
+    char           *aa,*bb;
     PetscErrorCode ierr;
     ierr = PetscStrallocpy(a,&aa);CHKERRQ(ierr);
     ierr = PetscStrallocpy(b,&bb);CHKERRQ(ierr);
@@ -564,8 +565,135 @@ PetscErrorCode  PetscStrtolower(char a[])
   PetscFunctionReturn(0);
 }
 
-struct _p_PetscToken {char token;char *array;char *current;};
+#undef __FUNCT__  
+#define __FUNCT__ "PetscStrendswith"
+/*@C
+   PetscStrendswith - Determines if a string ends with a certain string
 
+   Not Collective
+
+   Input Parameters:
++  a - pointer to string
+-  b - string to endwith
+
+   Output Parameter:
+.  flg - PETSC_TRUE or PETSC_FALSE
+
+   Notes:     Not for use in Fortran
+
+   Level: intermediate
+
+@*/
+PetscErrorCode  PetscStrendswith(const char a[],const char b[],PetscBool *flg)
+{
+  char           *test;
+  PetscErrorCode ierr;
+  size_t         na,nb;
+
+  PetscFunctionBegin;
+  *flg = PETSC_FALSE;
+  ierr = PetscStrrstr(a,b,&test);CHKERRQ(ierr);
+  if (test) {
+    ierr = PetscStrlen(a,&na);CHKERRQ(ierr);
+    ierr = PetscStrlen(b,&nb);CHKERRQ(ierr);
+    if (a+na-nb == test) *flg = PETSC_TRUE;
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscStrendswithwhich"
+/*@C
+   PetscStrendswithwhich - Determines if a string ends with one of several possible strings
+
+   Not Collective
+
+   Input Parameters:
++  a - pointer to string
+-  bs - strings to endwith (last entry must be null)
+
+   Output Parameter:
+.  cnt - the index of the string it ends with or 1+the last possible index
+
+   Notes:     Not for use in Fortran
+
+   Level: intermediate
+
+@*/
+PetscErrorCode  PetscStrendswithwhich(const char a[],const char *const *bs,PetscInt *cnt)
+{
+  PetscBool      flg;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  *cnt = 0;
+  while (bs[*cnt]) {
+    ierr = PetscStrendswith(a,bs[*cnt],&flg);CHKERRQ(ierr);
+    if (flg) PetscFunctionReturn(0);
+    *cnt += 1;
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscStrrstr"
+/*@C
+   PetscStrrstr - Locates last occurance of string in another string
+
+   Not Collective
+
+   Input Parameters:
++  a - pointer to string
+-  b - string to find
+
+   Output Parameter:
+.  tmp - location of occurance
+
+   Notes:     Not for use in Fortran
+
+   Level: intermediate
+
+@*/
+PetscErrorCode  PetscStrrstr(const char a[],const char b[],char *tmp[])
+{
+  const char *stmp = a, *ltmp = 0;
+
+  PetscFunctionBegin;
+  while (stmp) {
+    stmp = (char *)strstr(stmp,b);
+    if (stmp) {ltmp = stmp;stmp++;}
+  }
+  *tmp = (char *)ltmp;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscStrstr"
+/*@C
+   PetscStrstr - Locates first occurance of string in another string
+
+   Not Collective
+
+   Input Parameters:
++  a - pointer to string
+-  b - string to find
+
+   Output Parameter:
+.  tmp - location of occurance, is a PETSC_NULL if the string is not found
+
+   Notes: Not for use in Fortran
+
+   Level: intermediate
+
+@*/
+PetscErrorCode  PetscStrstr(const char a[],const char b[],char *tmp[])
+{
+  PetscFunctionBegin;
+  *tmp = (char *)strstr(a,b);
+  PetscFunctionReturn(0);
+}
+
+struct _p_PetscToken {char token;char *array;char *current;};
 
 #undef __FUNCT__  
 #define __FUNCT__ "PetscTokenFind"
@@ -673,73 +801,17 @@ PetscErrorCode  PetscTokenCreate(const char a[],const char b,PetscToken *t)
 
 .seealso: PetscTokenCreate(), PetscTokenFind()
 @*/
-PetscErrorCode  PetscTokenDestroy(PetscToken a)
+PetscErrorCode  PetscTokenDestroy(PetscToken *a)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscFree(a->array);CHKERRQ(ierr);
-  ierr = PetscFree(a);CHKERRQ(ierr);
+  if (!*a) PetscFunctionReturn(0);
+  ierr = PetscFree((*a)->array);CHKERRQ(ierr);
+  ierr = PetscFree(*a);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscStrrstr"
-/*@C
-   PetscStrrstr - Locates last occurance of string in another string
-
-   Not Collective
-
-   Input Parameters:
-+  a - pointer to string
--  b - string to find
-
-   Output Parameter:
-.  tmp - location of occurance
-
-   Notes:     Not for use in Fortran
-
-   Level: intermediate
-
-@*/
-PetscErrorCode  PetscStrrstr(const char a[],const char b[],char *tmp[])
-{
-  const char *stmp = a, *ltmp = 0;
-
-  PetscFunctionBegin;
-  while (stmp) {
-    stmp = (char *)strstr(stmp,b);
-    if (stmp) {ltmp = stmp;stmp++;}
-  }
-  *tmp = (char *)ltmp;
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "PetscStrstr"
-/*@C
-   PetscStrstr - Locates first occurance of string in another string
-
-   Not Collective
-
-   Input Parameters:
-+  a - pointer to string
--  b - string to find
-
-   Output Parameter:
-.  tmp - location of occurance, is a PETSC_NULL if the string is not found
-
-   Notes: Not for use in Fortran
-
-   Level: intermediate
-
-@*/
-PetscErrorCode  PetscStrstr(const char a[],const char b[],char *tmp[])
-{
-  PetscFunctionBegin;
-  *tmp = (char *)strstr(a,b);
-  PetscFunctionReturn(0);
-}
 
 #undef __FUNCT__  
 #define __FUNCT__ "PetscGetPetscDir"
@@ -865,9 +937,7 @@ PetscErrorCode  PetscStrreplace(MPI_Comm comm,const char aa[],char b[],size_t le
     *epar = 0;
     epar += 1;
     ierr = PetscOptionsGetenv(comm,par,env,256,&flag);CHKERRQ(ierr);
-    if (!flag) {
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Substitution string ${%s} not found as environmental variable",par);
-    }
+    if (!flag) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Substitution string ${%s} not found as environmental variable",par);
     ierr = PetscStrcat(work,env);CHKERRQ(ierr);
     ierr = PetscStrcat(work,epar);CHKERRQ(ierr);
     ierr = PetscStrcpy(b,work);CHKERRQ(ierr);

@@ -48,6 +48,31 @@ PetscErrorCode PetscOptionsBegin_Private(MPI_Comm comm,const char prefix[],const
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__  
+#define __FUNCT__ "PetscObjectOptionsBegin_Private"
+/*
+    Handles setting up the data structure in a call to PetscObjectOptionsBegin()
+*/
+PetscErrorCode PetscObjectOptionsBegin_Private(PetscObject obj)
+{
+  PetscErrorCode ierr;
+  char title[256];
+  PetscBool flg;
+
+  PetscFunctionBegin;
+  PetscValidHeader(obj,1);
+  PetscOptionsObject.object = obj;
+  PetscOptionsObject.alreadyprinted = obj->optionsprinted;
+  ierr = PetscStrcmp(obj->description,obj->class_name,&flg);CHKERRQ(ierr);
+  if (flg) {
+    ierr = PetscSNPrintf(title,sizeof title,"%s options",obj->class_name);CHKERRQ(ierr);
+  } else {
+    ierr = PetscSNPrintf(title,sizeof title,"%s (%s) options",obj->description,obj->class_name);CHKERRQ(ierr);
+  }
+  ierr = PetscOptionsBegin_Private(obj->comm,obj->prefix,title,obj->mansec);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 /*
      Handles adding another option to the list of options within this particular PetscOptionsBegin() PetscOptionsEnd()
 */
@@ -57,8 +82,12 @@ static int PetscOptionsCreate_Private(const char opt[],const char text[],const c
 {
   int          ierr;
   PetscOptions next;
+  PetscBool    valid;
 
   PetscFunctionBegin;
+  ierr = PetscOptionsValidKey(opt,&valid);CHKERRQ(ierr);
+  if (!valid) SETERRQ1(PETSC_COMM_WORLD,PETSC_ERR_ARG_INCOMP,"The option '%s' is not a valid key",opt);
+
   ierr             = PetscNew(struct _n_PetscOptions,amsopt);CHKERRQ(ierr);
   (*amsopt)->next  = 0;
   (*amsopt)->set   = PETSC_FALSE;
@@ -201,7 +230,7 @@ PetscErrorCode PetscOptionsGetFromTextInput()
 	    }
 	    ierr = PetscTokenFind(token,&value);CHKERRQ(ierr);
 	  }
-	  ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+	  ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
         }
         break;
       case OPTION_REAL_ARRAY: 
@@ -232,7 +261,7 @@ PetscErrorCode PetscOptionsGetFromTextInput()
 	    n++;
 	    ierr = PetscTokenFind(token,&value);CHKERRQ(ierr);
 	  }
-	  ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+	  ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
         }
         break;
       case OPTION_INT: 
@@ -256,8 +285,6 @@ PetscErrorCode PetscOptionsGetFromTextInput()
           sscanf(str,"%e",&ir);
 #elif defined(PETSC_USE_REAL_DOUBLE)
           sscanf(str,"%le",&ir);
-#elif defined(PETSC_USE_REAL_LONG_DOUBLE)
-          sscanf(str,"%Le",&ir);
 #elif defined(PETSC_USE_REAL___FLOAT128)
           ir = strtoflt128(str,0);
 #else
@@ -357,7 +384,7 @@ PetscErrorCode PetscOptionsAMSInput()
   PetscOptionsObject.pprefix = PetscOptionsObject.prefix; /* AMS will change this, so cannot pass prefix directly */
 
   ierr = AMS_Memory_add_field(amem,PetscOptionsObject.title,&PetscOptionsObject.pprefix,1,AMS_STRING,AMS_READ,AMS_COMMON,AMS_REDUCT_UNDEF);CHKERRAMSFieldName(ierr,PetscOptionsObject.title);
-  //  ierr = AMS_Memory_add_field(amem,"mansec",&PetscOptionsObject.pprefix,1,AMS_STRING,AMS_READ,AMS_COMMON,AMS_REDUCT_UNDEF);CHKERRAMS(ierr);
+  /* ierr = AMS_Memory_add_field(amem,"mansec",&PetscOptionsObject.pprefix,1,AMS_STRING,AMS_READ,AMS_COMMON,AMS_REDUCT_UNDEF);CHKERRAMS(ierr); */
   ierr = AMS_Memory_add_field(amem,"ChangedMethod",&changedmethod,1,AMS_BOOLEAN,AMS_WRITE,AMS_COMMON,AMS_REDUCT_UNDEF);CHKERRAMSFieldName(ierr,"ChangedMethod");
 
   while (next) {
@@ -463,6 +490,8 @@ PetscErrorCode PetscOptionsEnd_Private(void)
   if (PetscOptionsObject.changedmethod) PetscOptionsPublishCount = -2; 
   /* reset alreadyprinted flag */
   PetscOptionsObject.alreadyprinted = PETSC_FALSE;
+  if (PetscOptionsObject.object) PetscOptionsObject.object->optionsprinted = PETSC_TRUE;
+  PetscOptionsObject.object = PETSC_NULL;
 
   while (PetscOptionsObject.next) { 
     if (PetscOptionsObject.next->set) {

@@ -1,8 +1,6 @@
 
-/* Feature test macros to make sure atoll is available (SVr4, POSIX.1-2001, 4.3BSD, C99), not in (C89 and POSIX.1-1996) */
-/* This is not correct PETSc code; ./configure should determine what flags need to be set and set them when needed */
-#define _POSIX_C_SOURCE 200112L
-#define _BSD_SOURCE
+/* Define Feature test macros to make sure atoll is available (SVr4, POSIX.1-2001, 4.3BSD, C99), not in (C89 and POSIX.1-1996) */
+#define PETSC_DESIRE_FEATURE_TEST_MACROS
 
 /*
    These routines simplify the use of command line, file options, etc., and are used to manipulate the options database.
@@ -13,6 +11,7 @@
 */
 
 #include <petscsys.h>        /*I  "petscsys.h"   I*/
+#include <ctype.h>
 #if defined(PETSC_HAVE_STDLIB_H)
 #include <stdlib.h>
 #endif
@@ -21,6 +20,9 @@
 #endif
 #if defined(PETSC_HAVE_SYS_PARAM_H)
 #include <sys/param.h>
+#endif
+#if defined(PETSC_HAVE_YAML)
+#include <yaml.h>
 #endif
 
 /* 
@@ -104,10 +106,11 @@ PetscErrorCode  PetscOptionsStringToInt(const char name[],PetscInt *a)
         SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Input string %s has no integer value (do not include . in it)",name);
       }
     }
-#if defined(PETSC_USE_64BIT_INDICES)
+
+#if defined(PETSC_USE_64BIT_INDICES) && defined(PETSC_HAVE_ATOLL)
     *a = atoll(name);
 #else
-    *a = atoi(name);
+    *a = (PetscInt)atoi(name);
 #endif
   }
   PetscFunctionReturn(0);
@@ -247,7 +250,8 @@ PetscErrorCode  PetscOptionsValidKey(const char in_str[],PetscBool  *key)
   *key = PETSC_FALSE;
   if (!in_str) PetscFunctionReturn(0);
   if (in_str[0] != '-') PetscFunctionReturn(0);
-  if ((in_str[1] < 'A') || (in_str[1] > 'z')) PetscFunctionReturn(0);
+  if (!(isalpha(in_str[1]))) PetscFunctionReturn(0);
+  if ((!strncmp(in_str+1,"inf",3) || !strncmp(in_str+1,"INF",3)) && !(in_str[4] == '_' || isalnum(in_str[4]))) PetscFunctionReturn(0);
   *key = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -311,7 +315,7 @@ PetscErrorCode  PetscOptionsInsertString(const char in_str[])
       ierr = PetscTokenFind(token,&first);CHKERRQ(ierr);        
     }
   }
-  ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+  ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -354,7 +358,7 @@ static char *Petscgetline(FILE * f)
 -   require - if PETSC_TRUE will generate an error if the file does not exist
 
 
-  Level: intermediate
+  Level: developer
 
 .seealso: PetscOptionsSetValue(), PetscOptionsView(), PetscOptionsHasName(), PetscOptionsGetInt(),
           PetscOptionsGetReal(), PetscOptionsGetString(), PetscOptionsGetIntArray(), PetscOptionsBool(),
@@ -364,7 +368,7 @@ static char *Petscgetline(FILE * f)
           PetscOptionsList(), PetscOptionsEList()
 
 @*/
-PetscErrorCode  PetscOptionsInsertFile(MPI_Comm comm,const char file[],PetscBool  require)
+PetscErrorCode  PetscOptionsInsertFile(MPI_Comm comm,const char file[],PetscBool require)
 {
   char           *string,fname[PETSC_MAX_PATH_LEN],*first,*second,*third,*vstring = 0,*astring = 0;
   PetscErrorCode ierr;
@@ -392,60 +396,60 @@ PetscErrorCode  PetscOptionsInsertFile(MPI_Comm comm,const char file[],PetscBool
       /* the following line will not work when opening initial files (like .petscrc) since info is not yet set */
       ierr = PetscInfo1(0,"Opened options file %s\n",file);CHKERRQ(ierr);
       while ((string = Petscgetline(fd))) {
-	/* eliminate comments from each line */
-	for (i=0; i<3; i++){
-	  ierr = PetscStrchr(string,cmt[i],&cmatch);
-	  if (cmatch) *cmatch = 0;
-	}
-	ierr = PetscStrlen(string,&len);CHKERRQ(ierr);
-	/* replace tabs, ^M, \n with " " */
-	for (i=0; i<len; i++) {
-	  if (string[i] == '\t' || string[i] == '\r' || string[i] == '\n') {
-	    string[i] = ' ';
-	  }
-	}
-	ierr = PetscTokenCreate(string,' ',&token);CHKERRQ(ierr);
+        /* eliminate comments from each line */
+        for (i=0; i<3; i++){
+          ierr = PetscStrchr(string,cmt[i],&cmatch);
+          if (cmatch) *cmatch = 0;
+        }
+        ierr = PetscStrlen(string,&len);CHKERRQ(ierr);
+        /* replace tabs, ^M, \n with " " */
+        for (i=0; i<len; i++) {
+          if (string[i] == '\t' || string[i] == '\r' || string[i] == '\n') {
+            string[i] = ' ';
+          }
+        }
+        ierr = PetscTokenCreate(string,' ',&token);CHKERRQ(ierr);
         free(string);
-	ierr = PetscTokenFind(token,&first);CHKERRQ(ierr);
-	if (!first) {
-	  goto destroy;
-	} else if (!first[0]) { /* if first token is empty spaces, redo first token */
-	  ierr = PetscTokenFind(token,&first);CHKERRQ(ierr);
-	}
-	ierr = PetscTokenFind(token,&second);CHKERRQ(ierr);
-	if (!first) {
-	  goto destroy;
-	} else if (first[0] == '-') {
+        ierr = PetscTokenFind(token,&first);CHKERRQ(ierr);
+        if (!first) {
+          goto destroy;
+        } else if (!first[0]) { /* if first token is empty spaces, redo first token */
+          ierr = PetscTokenFind(token,&first);CHKERRQ(ierr);
+        }
+        ierr = PetscTokenFind(token,&second);CHKERRQ(ierr);
+        if (!first) {
+          goto destroy;
+        } else if (first[0] == '-') {
           /* warning: should be making sure we do not overfill vstring */
           ierr = PetscStrcat(vstring,first);CHKERRQ(ierr);
           ierr = PetscStrcat(vstring," ");CHKERRQ(ierr);
           if (second) {
             /* protect second with quotes in case it contains strings */
             ierr = PetscStrcat(vstring,"\"");CHKERRQ(ierr);
-	    ierr = PetscStrcat(vstring,second);CHKERRQ(ierr);
+            ierr = PetscStrcat(vstring,second);CHKERRQ(ierr);
             ierr = PetscStrcat(vstring,"\"");CHKERRQ(ierr);
           }
           ierr = PetscStrcat(vstring," ");CHKERRQ(ierr);
-	} else {
-	  PetscBool  match;
+        } else {
+          PetscBool  match;
 
-	  ierr = PetscStrcasecmp(first,"alias",&match);CHKERRQ(ierr);
-	  if (match) {
-	    ierr = PetscTokenFind(token,&third);CHKERRQ(ierr);
-	    if (!third) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Error in options file:alias missing (%s)",second);
+          ierr = PetscStrcasecmp(first,"alias",&match);CHKERRQ(ierr);
+          if (match) {
+            ierr = PetscTokenFind(token,&third);CHKERRQ(ierr);
+            if (!third) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Error in options file:alias missing (%s)",second);
             ierr = PetscStrcat(astring,second);CHKERRQ(ierr);
             ierr = PetscStrcat(astring," ");CHKERRQ(ierr);
             ierr = PetscStrcat(astring,third);CHKERRQ(ierr);
             ierr = PetscStrcat(astring," ");CHKERRQ(ierr);
-	  } else {
-	    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Unknown statement in options file: (%s)",string);
-	  }
-	}
+          } else {
+            SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Unknown statement in options file: (%s)",string);
+          }
+        }
         destroy:
-	ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+        ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
       }
       err = fclose(fd);
-      if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fclose() failed on file");    
+      if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fclose() failed on file");
       ierr = PetscStrlen(astring,&len);CHKERRQ(ierr);
       acnt = PetscMPIIntCast(len);CHKERRQ(ierr);
       ierr = PetscStrlen(vstring,&len);CHKERRQ(ierr);
@@ -472,7 +476,7 @@ PetscErrorCode  PetscOptionsInsertFile(MPI_Comm comm,const char file[],PetscBool
       ierr = PetscOptionsSetAlias(first,second);CHKERRQ(ierr);
       ierr = PetscTokenFind(token,&first);CHKERRQ(ierr);
     }
-    ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+    ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
   }
 
   ierr = MPI_Bcast(&cnt,1,MPI_INT,0,comm);CHKERRQ(ierr);
@@ -536,13 +540,16 @@ static PetscErrorCode PetscOptionsInsertArgs_Private(int argc,char *args[])
       eargs += 1; left -= 1;
     } else if (isp4 || isp4yourname) {
       eargs += 2; left -= 2;
-    } else if ((left < 2) || ((eargs[1][0] == '-') &&
-                              ((eargs[1][1] > '9') || (eargs[1][1] < '0')))) {
-      ierr = PetscOptionsSetValue(eargs[0],PETSC_NULL);CHKERRQ(ierr);
-      eargs++; left--;
     } else {
-      ierr = PetscOptionsSetValue(eargs[0],eargs[1]);CHKERRQ(ierr);
-      eargs += 2; left -= 2;
+      PetscBool nextiskey = PETSC_FALSE;
+      if (left >= 2) {ierr = PetscOptionsValidKey(eargs[1],&nextiskey);CHKERRQ(ierr);}
+      if (left < 2 || nextiskey) {
+        ierr = PetscOptionsSetValue(eargs[0],PETSC_NULL);CHKERRQ(ierr);
+        eargs++; left--;
+      } else {
+        ierr = PetscOptionsSetValue(eargs[0],eargs[1]);CHKERRQ(ierr);
+        eargs += 2; left -= 2;
+      }
     }
   }
   PetscFunctionReturn(0);
@@ -635,8 +642,16 @@ PetscErrorCode  PetscOptionsInsert(int *argc,char ***args,const char file[])
     }
   }
 
+#if defined(PETSC_HAVE_YAML)
+  char yaml_file[PETSC_MAX_PATH_LEN];
+  PetscBool yaml_flg = PETSC_FALSE;
+  ierr = PetscOptionsGetString(PETSC_NULL,"-options_file_yaml",yaml_file,PETSC_MAX_PATH_LEN,&yaml_flg);CHKERRQ(ierr);
+  if (yaml_flg) ierr = PetscOptionsInsertFile_YAML(PETSC_COMM_WORLD,yaml_file,PETSC_TRUE);CHKERRQ(ierr);
+#endif
+
   /* insert command line options again because they take precedence over arguments in petscrc/environment */
   if (argc && args && *argc) {ierr = PetscOptionsInsertArgs_Private(*argc,*args);CHKERRQ(ierr);}
+
   PetscFunctionReturn(0);
 }
 
@@ -1292,7 +1307,7 @@ PetscErrorCode  PetscOptionsGetInt(const char pre[],const char name[],PetscInt *
 .  ntext - number of choices
 
    Output Parameter:
-+  value - the index of the value to return
++  value - the index of the value to return (defaults to zero if the option name is given but choice is listed)
 -  set - PETSC_TRUE if found, else PETSC_FALSE
    
    Level: intermediate
@@ -1328,7 +1343,8 @@ PetscErrorCode  PetscOptionsGetEList(const char pre[],const char opt[],const cha
     if (set) *set = PETSC_TRUE;
     for (i=0; i<ntext; i++) {
       ierr = PetscStrcasecmp(svalue,list[i],&flg);CHKERRQ(ierr);
-      if (flg) {
+      if (flg || !svalue[0]) {
+        flg    = PETSC_TRUE;
         *value = i;
         break;
       }
@@ -1510,7 +1526,7 @@ PetscErrorCode  PetscOptionsGetBoolArray(const char pre[],const char name[],Pets
     dvalue++;
     n++;
   }
-  ierr  = PetscTokenDestroy(token);CHKERRQ(ierr);
+  ierr  = PetscTokenDestroy(&token);CHKERRQ(ierr);
   *nmax = n;
   PetscFunctionReturn(0); 
 }
@@ -1628,7 +1644,7 @@ PetscErrorCode  PetscOptionsGetScalar(const char pre[],const char name[],PetscSc
         ierr    = PetscOptionsStringToReal(tvalue,&im);CHKERRQ(ierr);
         *dvalue = re + PETSC_i*im;
       } 
-      ierr    = PetscTokenDestroy(token);CHKERRQ(ierr);
+      ierr    = PetscTokenDestroy(&token);CHKERRQ(ierr);
 #endif
       if (set) *set    = PETSC_TRUE;
     } 
@@ -1693,7 +1709,7 @@ PetscErrorCode  PetscOptionsGetRealArray(const char pre[],const char name[],Pets
     ierr = PetscTokenFind(token,&value);CHKERRQ(ierr);
     n++;
   }
-  ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+  ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
   *nmax = n;
   PetscFunctionReturn(0); 
 } 
@@ -1778,7 +1794,7 @@ PetscErrorCode  PetscOptionsGetIntArray(const char pre[],const char name[],Petsc
     }
     ierr      = PetscTokenFind(token,&value);CHKERRQ(ierr);
   }
-  ierr      = PetscTokenDestroy(token);CHKERRQ(ierr);
+  ierr      = PetscTokenDestroy(&token);CHKERRQ(ierr);
   *nmax = n;
   PetscFunctionReturn(0); 
 } 
@@ -1928,7 +1944,7 @@ PetscErrorCode  PetscOptionsGetStringArray(const char pre[],const char name[],ch
     ierr = PetscTokenFind(token,&value);CHKERRQ(ierr);
     n++;
   }
-  ierr = PetscTokenDestroy(token);CHKERRQ(ierr);
+  ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
   *nmax = n;
   PetscFunctionReturn(0); 
 }
@@ -1948,7 +1964,7 @@ PetscErrorCode  PetscOptionsGetStringArray(const char pre[],const char name[],ch
 
 .seealso: PetscOptionsView()
 @*/
-PetscErrorCode  PetscOptionsAllUsed(int *N)
+PetscErrorCode  PetscOptionsAllUsed(PetscInt *N)
 {
   PetscInt i,n = 0;
 

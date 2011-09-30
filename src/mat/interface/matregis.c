@@ -9,6 +9,11 @@ extern PetscErrorCode  MatCreate_IS(Mat);
 extern PetscErrorCode  MatCreate_SeqAIJ(Mat);
 extern PetscErrorCode  MatCreate_MPIAIJ(Mat);
 
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+extern PetscErrorCode  MatCreate_SeqAIJPThread(Mat);
+extern PetscErrorCode  MatCreate_AIJPThread(Mat);
+#endif
+
 extern PetscErrorCode  MatCreate_SeqBAIJ(Mat);
 extern PetscErrorCode  MatCreate_MPIBAIJ(Mat);
 
@@ -37,15 +42,11 @@ extern PetscErrorCode  MatCreate_MPIAIJCRL(Mat);
 extern PetscErrorCode  MatCreate_Scatter(Mat);
 extern PetscErrorCode  MatCreate_BlockMat(Mat);
 extern PetscErrorCode  MatCreate_Nest(Mat);
-extern PetscErrorCode  MatCreate_DD(Mat);
+extern PetscErrorCode  MatCreate_IJ(Mat);
 
 #if defined PETSC_HAVE_CUSP
 extern PetscErrorCode  MatCreate_SeqAIJCUSP(Mat);
 extern PetscErrorCode  MatCreate_MPIAIJCUSP(Mat);
-#endif
-
-#if defined PETSC_HAVE_MATIM
-extern PetscErrorCode  MatCreate_IM(Mat);
 #endif
 
 #if defined PETSC_HAVE_FFTW
@@ -105,6 +106,10 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterBaseName(MATAIJ,MATSEQAIJ,MATMPIAIJ);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATMPIAIJ,         path,"MatCreate_MPIAIJ",      MatCreate_MPIAIJ);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATSEQAIJ,         path,"MatCreate_SeqAIJ",      MatCreate_SeqAIJ);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+  ierr = MatRegisterBaseName(MATAIJPTHREAD,MATSEQAIJPTHREAD,0);CHKERRQ(ierr);
+  ierr = MatRegisterDynamic(MATSEQAIJPTHREAD,  path,"MatCreate_SeqAIJPThread",      MatCreate_SeqAIJPThread);CHKERRQ(ierr);
+#endif
 
   ierr = MatRegisterBaseName(MATAIJPERM,MATSEQAIJPERM,MATMPIAIJPERM);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATMPIAIJPERM,     path,"MatCreate_MPIAIJPERM", MatCreate_MPIAIJPERM);CHKERRQ(ierr);
@@ -139,10 +144,7 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterDynamic(MATBLOCKMAT,       path,"MatCreate_BlockMat",  MatCreate_BlockMat);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATNEST,           path,"MatCreate_Nest",      MatCreate_Nest);CHKERRQ(ierr);
 
-  /*ierr = MatRegisterDynamic(MATDD,             path,"MatCreate_DD",   MatCreate_DD);CHKERRQ(ierr);*/
-#if defined PETSC_HAVE_MATIM
-  ierr = MatRegisterDynamic(MATIM,             path,"MatCreate_IM",   MatCreate_IM);CHKERRQ(ierr);
-#endif
+  ierr = MatRegisterDynamic(MATIJ,             path,"MatCreate_IJ",   MatCreate_IJ);CHKERRQ(ierr);
 
 #if defined PETSC_HAVE_CUSP
   ierr = MatRegisterBaseName(MATAIJCUSP,MATSEQAIJCUSP,MATMPIAIJCUSP);CHKERRQ(ierr);

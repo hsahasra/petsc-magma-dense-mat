@@ -26,6 +26,7 @@ extern PetscErrorCode DMMeshDistributeByFace(DM, const char[], DM*);
 extern PetscErrorCode DMMeshGenerate(DM, PetscBool , DM *);
 extern PetscErrorCode DMMeshRefine(DM, double, PetscBool , DM*);
 extern PetscErrorCode DMMeshLoad(PetscViewer, DM);
+extern PetscErrorCode DMMeshGetDimension(DM, PetscInt *);
 extern PetscErrorCode DMMeshGetMaximumDegree(DM, PetscInt *);
 
 extern PetscErrorCode DMMeshGetLabelSize(DM, const char[], PetscInt *);
@@ -45,6 +46,8 @@ extern PetscErrorCode DMMeshCreateBoxMesh(MPI_Comm, PetscInt, PetscBool, DM *);
 extern PetscErrorCode DMMeshMarkBoundaryCells(DM, const char [], PetscInt, PetscInt);
 extern PetscErrorCode DMMeshGetDepthStratum(DM, PetscInt, PetscInt *, PetscInt *);
 extern PetscErrorCode DMMeshGetHeightStratum(DM, PetscInt, PetscInt *, PetscInt *);
+extern PetscErrorCode DMMeshCreateSection(DM, PetscInt, PetscInt [], const char [], PetscInt, PetscSection *);
+extern PetscErrorCode DMMeshSetSection(DM, const char [], PetscSection);
 extern PetscErrorCode DMMeshGetDefaultSection(DM, PetscSection *);
 extern PetscErrorCode DMMeshGetCoordinateSection(DM, PetscSection *);
 extern PetscErrorCode DMMeshGetCoordinateVec(DM, Vec *);
@@ -54,11 +57,11 @@ extern PetscErrorCode DMMeshVecGetClosure(DM, Vec, PetscInt, const PetscScalar *
 extern PetscErrorCode DMMeshMatSetClosure(DM, Mat, PetscInt, PetscScalar [], InsertMode);
 
 extern PetscErrorCode MatSetValuesTopology(Mat, DM, PetscInt, const PetscInt [], DM, PetscInt, const PetscInt [], const PetscScalar [], InsertMode);
-extern PetscErrorCode restrictVector(Vec, Vec, InsertMode);
-extern PetscErrorCode assembleVectorComplete(Vec, Vec, InsertMode);
-extern PetscErrorCode assembleVector(Vec, PetscInt, PetscScalar [], InsertMode);
-extern PetscErrorCode updateOperator(Mat, const ALE::Obj<PETSC_MESH_TYPE>&, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>&, const ALE::Obj<PETSC_MESH_TYPE::order_type>&, const PETSC_MESH_TYPE::point_type&, PetscScalar [], InsertMode);
-extern PetscErrorCode updateOperatorGeneral(Mat, const ALE::Obj<PETSC_MESH_TYPE>&, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>&, const ALE::Obj<PETSC_MESH_TYPE::order_type>&, const PETSC_MESH_TYPE::point_type&, const ALE::Obj<PETSC_MESH_TYPE>&, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>&, const ALE::Obj<PETSC_MESH_TYPE::order_type>&, const PETSC_MESH_TYPE::point_type&, PetscScalar [], InsertMode);
+extern PetscErrorCode DMMeshRestrictVector(Vec, Vec, InsertMode);
+extern PetscErrorCode DMMeshAssembleVectorComplete(Vec, Vec, InsertMode);
+extern PetscErrorCode DMMeshAssembleVector(Vec, PetscInt, PetscScalar [], InsertMode);
+extern PetscErrorCode DMMeshUpdateOperator(Mat, const ALE::Obj<PETSC_MESH_TYPE>&, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>&, const ALE::Obj<PETSC_MESH_TYPE::order_type>&, const PETSC_MESH_TYPE::point_type&, PetscScalar [], InsertMode);
+extern PetscErrorCode DMMeshUpdateOperatorGeneral(Mat, const ALE::Obj<PETSC_MESH_TYPE>&, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>&, const ALE::Obj<PETSC_MESH_TYPE::order_type>&, const PETSC_MESH_TYPE::point_type&, const ALE::Obj<PETSC_MESH_TYPE>&, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>&, const ALE::Obj<PETSC_MESH_TYPE::order_type>&, const PETSC_MESH_TYPE::point_type&, PetscScalar [], InsertMode);
 
 /*S
   SectionReal - Abstract PETSc object that manages distributed field data over a topology (Sieve).
@@ -114,20 +117,20 @@ extern PetscErrorCode DMMeshSetSectionReal(DM, SectionReal);
 extern PetscErrorCode DMMeshCreateMatrix(DM, SectionReal, const MatType, Mat *);
 extern PetscErrorCode DMMeshCreateVector(DM, SectionReal, Vec *);
 extern PetscErrorCode DMMeshCreateGlobalScatter(DM, SectionReal, VecScatter *);
-extern PetscErrorCode assembleVector(Vec, DM, SectionReal, PetscInt, PetscScalar [], InsertMode);
-extern PetscErrorCode assembleMatrix(Mat, DM, SectionReal, PetscInt, PetscScalar [], InsertMode);
+extern PetscErrorCode DMMeshAssembleVector(Vec, DM, SectionReal, PetscInt, PetscScalar [], InsertMode);
+extern PetscErrorCode DMMeshAssembleMatrix(Mat, DM, SectionReal, PetscInt, PetscScalar [], InsertMode);
 extern PetscErrorCode DMMeshSetupSection(DM, SectionReal);
+
+typedef PetscErrorCode (*DMMeshLocalFunction1)(DM, Vec, Vec, void*);
+typedef PetscErrorCode (*DMMeshLocalJacobian1)(DM, Vec, Mat, void*);
 
 extern PetscErrorCode DMMeshCreateGlobalRealVector(DM, SectionReal, Vec *);
 extern PetscErrorCode DMMeshGetGlobalScatter(DM,VecScatter *);
 extern PetscErrorCode DMMeshCreateGlobalScatter(DM,SectionReal,VecScatter *);
-extern PetscErrorCode DMMeshGetLocalFunction(DM, PetscErrorCode (**)(DM, SectionReal, SectionReal, void*));
-extern PetscErrorCode DMMeshSetLocalFunction(DM, PetscErrorCode (*)(DM, SectionReal, SectionReal, void*));
-extern PetscErrorCode DMMeshGetLocalJacobian(DM, PetscErrorCode (**)(DM, SectionReal, Mat, void*));
-extern PetscErrorCode DMMeshSetLocalJacobian(DM, PetscErrorCode (*)(DM, SectionReal, Mat, void*));
-extern PetscErrorCode DMMeshFormFunction(DM, SectionReal, SectionReal, void*);
-extern PetscErrorCode DMMeshFormJacobian(DM, SectionReal, Mat, void*);
-extern PetscErrorCode DMMeshInterpolatePoints(DM, SectionReal, int, double *, double **);
+extern PetscErrorCode DMMeshGetLocalFunction(DM, PetscErrorCode (**)(DM, Vec, Vec, void*));
+extern PetscErrorCode DMMeshSetLocalFunction(DM, PetscErrorCode (*)(DM, Vec, Vec, void*));
+extern PetscErrorCode DMMeshGetLocalJacobian(DM, PetscErrorCode (**)(DM, Vec, Mat, void*));
+extern PetscErrorCode DMMeshSetLocalJacobian(DM, PetscErrorCode (*)(DM, Vec, Mat, void*));
 
 /*S
   SectionInt - Abstract PETSc object that manages distributed field data over a topology (Sieve).
@@ -175,9 +178,6 @@ extern PetscErrorCode  DMMeshHasSectionInt(DM, const char [], PetscBool  *);
 extern PetscErrorCode  DMMeshGetSectionInt(DM, const char [], SectionInt *);
 extern PetscErrorCode  DMMeshSetSectionInt(DM, SectionInt);
 
-typedef PetscErrorCode (*DMMeshLocalFunction1)(DM,SectionReal,SectionReal,void*);
-typedef PetscErrorCode (*DMMeshLocalJacobian1)(DM,SectionReal,Mat,void*);
-
 /* Misc Mesh functions*/
 extern PetscErrorCode DMMeshSetMaxDof(DM, PetscInt);
 extern PetscErrorCode SectionGetArray(DM, const char [], PetscInt *, PetscInt *, PetscScalar *[]);
@@ -210,10 +210,43 @@ extern PetscErrorCode DMWritePyLithElements(DM, SectionReal, PetscViewer);
 extern PetscErrorCode DMWritePyLithVerticesLocal(DM, PetscViewer);
 extern PetscErrorCode DMWritePyLithElementsLocal(DM, SectionReal, PetscViewer);
 
+/* FEM support */
+extern PetscErrorCode DMMeshPrintCellVector(PetscInt, const char [], PetscInt, const PetscScalar []);
+extern PetscErrorCode DMMeshPrintCellMatrix(PetscInt, const char [], PetscInt, PetscInt, const PetscScalar []);
+
 typedef struct {
-  int           numQuadPoints, numBasisFuncs;
-  const double *quadPoints, *quadWeights, *basis, *basisDer;
+  PetscInt         numQuadPoints; /* The number of quadrature points on an element */
+  const PetscReal *quadPoints;    /* The quadrature point coordinates */
+  const PetscReal *quadWeights;   /* The quadrature weights */
+  PetscInt         numBasisFuncs; /* The number of finite element basis functions on an element */
+  PetscInt         numComponents; /* The number of components for each basis function */
+  const PetscReal *basis;         /* The basis functions tabulated at the quadrature points */
+  const PetscReal *basisDer;      /* The basis function derivatives tabulated at the quadrature points */
 } PetscQuadrature;
+
+struct _DMMeshInterpolationInfo {
+  PetscInt   dim;    // The spatial dimension of points
+  PetscInt   nInput; // The number of input points
+  PetscReal *points; // The input point coordinates
+  PetscInt  *cells;  // The cell containing each point
+  PetscInt   n;      // The number of local points
+  Vec        coords; // The point coordinates
+  PetscInt   dof;    // The number of components to interpolate
+};
+typedef struct _DMMeshInterpolationInfo *DMMeshInterpolationInfo;
+
+PetscErrorCode DMMeshInterpolationCreate(DM dm, DMMeshInterpolationInfo *ctx);
+PetscErrorCode DMMeshInterpolationSetDim(DM dm, PetscInt dim, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationGetDim(DM dm, PetscInt *dim, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationSetDof(DM dm, PetscInt dof, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationGetDof(DM dm, PetscInt *dof, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationAddPoints(DM dm, PetscReal point[], DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationSetUp(DM dm, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationGetCoordinates(DM dm, Vec *points, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationGetVector(DM dm, Vec *values, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationRestoreVector(DM dm, Vec *values, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationEvaluate(DM dm, SectionReal x, Vec v, DMMeshInterpolationInfo ctx);
+PetscErrorCode DMMeshInterpolationDestroy(DM dm, DMMeshInterpolationInfo *ctx);
 
 #endif /* Mesh section */
 #endif

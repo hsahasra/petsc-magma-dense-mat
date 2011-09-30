@@ -34,13 +34,16 @@ extern PetscErrorCode   PetscOptionsSetAlias(const char[],const char[]);
 extern PetscErrorCode   PetscOptionsSetValue(const char[],const char[]);
 extern PetscErrorCode   PetscOptionsClearValue(const char[]);
 
-extern PetscErrorCode   PetscOptionsAllUsed(int*);
+extern PetscErrorCode   PetscOptionsAllUsed(PetscInt*);
 extern PetscErrorCode   PetscOptionsLeft(void);
 extern PetscErrorCode   PetscOptionsView(PetscViewer);
 
 extern PetscErrorCode   PetscOptionsCreate(void);
 extern PetscErrorCode   PetscOptionsInsert(int*,char ***,const char[]);
 extern PetscErrorCode   PetscOptionsInsertFile(MPI_Comm,const char[],PetscBool );
+#if defined(PETSC_HAVE_YAML)
+extern PetscErrorCode   PetscOptionsInsertFile_YAML(MPI_Comm,const char[],PetscBool);
+#endif
 extern PetscErrorCode   PetscOptionsInsertString(const char[]);
 extern PetscErrorCode   PetscOptionsDestroy(void);
 extern PetscErrorCode   PetscOptionsClear(void);
@@ -101,12 +104,41 @@ $           currently set.
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
           PetscOptionsBoolGroupBegin(), PetscOptionsBoolGroup(), PetscOptionsBoolGroupEnd(),
+          PetscOptionsList(), PetscOptionsEList(), PetscObjectOptionsBegin()
+
+M*/
+#define    PetscOptionsBegin(comm,prefix,mess,sec) 0; do {\
+             for (PetscOptionsPublishCount=(PetscOptionsPublish?-1:1); PetscOptionsPublishCount<2; PetscOptionsPublishCount++) {\
+             PetscErrorCode _5_ierr = PetscOptionsBegin_Private(comm,prefix,mess,sec);CHKERRQ(_5_ierr);
+
+/*MC
+    PetscObjectOptionsBegin - Begins a set of queries on the options database that are related and should be
+     displayed on the same window of a GUI that allows the user to set the options interactively.
+
+   Synopsis: PetscErrorCode PetscObjectOptionsBegin(PetscObject obj)
+
+    Collective on PetscObject
+
+  Input Parameters:
+.   obj - object to set options for
+
+  Level: intermediate
+
+  Notes: Needs to be ended by a call the PetscOptionsEnd()
+         Can add subheadings with PetscOptionsHead()
+
+.seealso: PetscOptionsGetReal(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
+          PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
+          PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
+          PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
+          PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
+          PetscOptionsBoolGroupBegin(), PetscOptionsBoolGroup(), PetscOptionsBoolGroupEnd(),
           PetscOptionsList(), PetscOptionsEList()
 
 M*/
-#define    PetscOptionsBegin(comm,prefix,mess,sec) 0; {\
-             for (PetscOptionsPublishCount=(PetscOptionsPublish?-1:1); PetscOptionsPublishCount<2; PetscOptionsPublishCount++) {\
-             PetscErrorCode _5_ierr = PetscOptionsBegin_Private(comm,prefix,mess,sec);CHKERRQ(_5_ierr);
+#define PetscObjectOptionsBegin(obj) 0; do {                            \
+  for (PetscOptionsPublishCount=(PetscOptionsPublish?-1:1); PetscOptionsPublishCount<2; PetscOptionsPublishCount++) { \
+  PetscErrorCode _5_ierr = PetscObjectOptionsBegin_Private(obj);CHKERRQ(_5_ierr);
 
 /*MC
     PetscOptionsEnd - Ends a set of queries on the options database that are related and should be
@@ -126,12 +158,13 @@ M*/
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
           PetscOptionsStringArray(),PetscOptionsRealArray(), PetscOptionsScalar(),
           PetscOptionsBoolGroupBegin(), PetscOptionsBoolGroup(), PetscOptionsBoolGroupEnd(),
-          PetscOptionsList(), PetscOptionsEList()
+          PetscOptionsList(), PetscOptionsEList(), PetscObjectOptionsBegin()
 
 M*/
-#define    PetscOptionsEnd() _5_ierr = PetscOptionsEnd_Private();CHKERRQ(_5_ierr);}}
+#define    PetscOptionsEnd() _5_ierr = PetscOptionsEnd_Private();CHKERRQ(_5_ierr);}} while (0)
 
 extern PetscErrorCode  PetscOptionsBegin_Private(MPI_Comm,const char[],const char[],const char[]);
+extern PetscErrorCode  PetscObjectOptionsBegin_Private(PetscObject);
 extern PetscErrorCode  PetscOptionsEnd_Private(void);
 extern PetscErrorCode  PetscOptionsHead(const char[]);
 
@@ -214,5 +247,6 @@ typedef struct {
   char             *title;
   MPI_Comm         comm;
   PetscBool        printhelp,changedmethod,alreadyprinted;
+  PetscObject      object;
 } PetscOptionsObjectType;
 #endif

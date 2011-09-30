@@ -155,6 +155,7 @@
       call DMDASetLocalAdiforFunction(da,                                             &
      &         g_FormFunctionLocal,ierr)
 #endif
+      call SNESSetDM(snes,da,ierr)
       call SNESSetFunction(snes,r,SNESDAFormFunction,da,ierr)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Create matrix data structure; set Jacobian evaluation routine
@@ -226,7 +227,7 @@
       if (rank .eq. 0) then
          write(6,100) its
       endif
-  100 format('Number of Newton iterations = ',i5)
+  100 format('Number of SNES iterations = ',i5)
 
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -330,26 +331,25 @@
 
 !  Local variables:
       PetscInt  i,j
-      PetscScalar temp1,temp,hx,hy
-      PetscScalar one
+      PetscReal temp1,temp,one,hx,hy
 
 !  Set parameters
 
       ierr   = 0
       one    = 1.0
-      hx     = one/(dble(mx-1))
-      hy     = one/(dble(my-1))
+      hx     = one/((mx-1))
+      hy     = one/((my-1))
       temp1  = lambda/(lambda + one)
 
       do 20 j=ys,ye
-         temp = dble(min(j-1,my-j))*hy
+         temp = (min(j-1,my-j))*hy
          do 10 i=xs,xe
             if (i .eq. 1 .or. j .eq. 1                                  &
      &             .or. i .eq. mx .or. j .eq. my) then
               x(i,j) = 0.0
             else
               x(i,j) = temp1 *                                          &
-     &          sqrt(min(dble(min(i-1,mx-i)*hx),dble(temp)))
+     &          sqrt(min(min(i-1,mx-i)*hx,(temp)))
             endif
  10      continue
  20   continue
@@ -402,8 +402,8 @@
 
       one    = 1.0
       two    = 2.0
-      hx     = one/dble(mx-1)
-      hy     = one/dble(my-1)
+      hx     = one/(mx-1)
+      hy     = one/(my-1)
       sc     = hx*hy*lambda
       hxdhy  = hx/hy
       hydhx  = hy/hx
@@ -494,8 +494,8 @@
       i5     = 5
       one    = 1.0
       two    = 2.0
-      hx     = one/dble(mx-1)
-      hy     = one/dble(my-1)
+      hx     = one/(mx-1)
+      hy     = one/(my-1)
       sc     = hx*hy
       hxdhy  = hx/hy
       hydhx  = hy/hx

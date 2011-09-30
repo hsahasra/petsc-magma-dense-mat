@@ -25,7 +25,7 @@ extern PetscFList PCList;
 S*/
 typedef struct _p_PC* PC;
 
-/*E
+/*J
     PCType - String with the name of a PETSc preconditioner method or the creation function
        with an optional dynamic library name, for example
        http://www.mcs.anl.gov/petsc/lib.a:mypccreate()
@@ -35,7 +35,7 @@ typedef struct _p_PC* PC;
    Notes: Click on the links below to see details on a particular solver
 
 .seealso: PCSetType(), PC, PCCreate()
-E*/
+J*/
 #define PCType char*
 #define PCNONE            "none"
 #define PCJACOBI          "jacobi"
@@ -65,7 +65,7 @@ E*/
 #define PCPROMETHEUS      "prometheus"
 #define PCGALERKIN        "galerkin"
 #define PCEXOTIC          "exotic"
-#define PCOPENMP          "openmp"
+#define PCHMPI            "hmpi"
 #define PCSUPPORTGRAPH    "supportgraph"
 #define PCASA             "asa"
 #define PCCP              "cp"
@@ -75,10 +75,11 @@ E*/
 #define PCPFMG            "pfmg"
 #define PCSYSPFMG         "syspfmg"
 #define PCREDISTRIBUTE    "redistribute"
-#define PCSACUSP          "sacusp"
+#define PCSVD             "svd"
+#define PCGAMG            "gamg"
+#define PCSACUSP          "sacusp"        /* these four run on NVIDIA GPUs using CUSP */
 #define PCSACUSPPOLY      "sacusppoly"
 #define PCBICGSTABCUSP    "bicgstabcusp"
-#define PCSVD             "svd"
 #define PCAINVCUSP        "ainvcusp"
 
 /* Logging support */
@@ -92,7 +93,8 @@ extern PetscClassId  PC_CLASSID;
 
 .seealso: 
 E*/
-typedef enum { PC_LEFT,PC_RIGHT,PC_SYMMETRIC } PCSide;
+typedef enum { PC_SIDE_DEFAULT=-1,PC_LEFT,PC_RIGHT,PC_SYMMETRIC} PCSide;
+#define PC_SIDE_MAX (PC_SYMMETRIC + 1)
 extern const char *PCSides[];
 
 extern PetscErrorCode  PCCreate(MPI_Comm,PC*);
@@ -401,6 +403,9 @@ extern PetscErrorCode  PCPythonSetType(PC,const char[]);
 extern PetscErrorCode  PCSetDM(PC,DM);
 extern PetscErrorCode  PCGetDM(PC,DM*);
 
+extern PetscErrorCode  PCSetApplicationContext(PC,void*);
+extern PetscErrorCode  PCGetApplicationContext(PC,void*);
+
 extern PetscErrorCode  PCBiCGStabCUSPSetTolerance(PC,PetscReal);
 extern PetscErrorCode  PCBiCGStabCUSPSetIterations(PC,PetscInt);
 extern PetscErrorCode  PCBiCGStabCUSPSetUseVerboseMonitor(PC,PetscBool);
@@ -434,6 +439,12 @@ extern PetscErrorCode PCPARMSSetSolveTolerances(PC pc,PetscReal tol,PetscInt max
 extern PetscErrorCode PCPARMSSetSolveRestart(PC pc,PetscInt restart);
 extern PetscErrorCode PCPARMSSetNonsymPerm(PC pc,PetscBool nonsym);
 extern PetscErrorCode PCPARMSSetFill(PC pc,PetscInt lfil0,PetscInt lfil1,PetscInt lfil2);
+
+extern PetscErrorCode PCGAMGSetProcEqLim(PC,PetscInt);
+extern PetscErrorCode PCGAMGAvoidRepartitioning(PC,PetscBool);
+extern PetscErrorCode PCGAMGSetSolverType(PC,char[],PetscInt);
+extern PetscErrorCode PCGAMGSetThreshold(PC,PetscReal);
+
 
 PETSC_EXTERN_CXX_END
 

@@ -19,8 +19,8 @@ extern PetscErrorCode PetscObjectQueryFunction_Petsc(PetscObject,const char[],vo
    PetscHeaderCreate_Private - Creates a base PETSc object header and fills
    in the default values.  Called by the macro PetscHeaderCreate().
 */
-PetscErrorCode  PetscHeaderCreate_Private(PetscObject h,PetscClassId classid,PetscInt type,const char class_name[],MPI_Comm comm,
-                                         PetscErrorCode (*des)(PetscObject*),PetscErrorCode (*vie)(PetscObject,PetscViewer))
+PetscErrorCode  PetscHeaderCreate_Private(PetscObject h,PetscClassId classid,PetscInt type,const char class_name[],const char descr[],const char mansec[],
+                                          MPI_Comm comm,PetscErrorCode (*des)(PetscObject*),PetscErrorCode (*vie)(PetscObject,PetscViewer))
 {
   static PetscInt idcnt = 1;
   PetscErrorCode  ierr;
@@ -31,6 +31,8 @@ PetscErrorCode  PetscHeaderCreate_Private(PetscObject h,PetscClassId classid,Pet
   h->classid                = classid;
   h->type                   = type;
   h->class_name             = (char*)class_name;
+  h->description            = (char*)descr;
+  h->mansec                 = (char*)mansec;
   h->prefix                 = 0;
   h->refct                  = 1;
   h->amem                   = -1;
@@ -397,9 +399,7 @@ PetscErrorCode  PetscObjectDereference(PetscObject obj)
   PetscValidHeader(obj,1);
   if (obj->bops->destroy) {
     ierr = (*obj->bops->destroy)(&obj);CHKERRQ(ierr);
-  } else if (!--obj->refct) {
-    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"This PETSc object does not have a generic destroy routine");
-  }
+  } else if (!--obj->refct) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"This PETSc object does not have a generic destroy routine");
   PetscFunctionReturn(0);
 }
 
@@ -418,16 +418,28 @@ PetscErrorCode PetscObjectGetComm_Petsc(PetscObject obj,MPI_Comm *comm)
 }
 
 #undef __FUNCT__  
+#define __FUNCT__ "PetscObjectRemoveReference"
+PetscErrorCode PetscObjectRemoveReference(PetscObject obj,const char name[])
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscOListRemoveReference(&obj->olist,name);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
 #define __FUNCT__ "PetscObjectCompose_Petsc"
 PetscErrorCode PetscObjectCompose_Petsc(PetscObject obj,const char name[],PetscObject ptr)
 {
   PetscErrorCode ierr;
   char           *tname;
+  PetscBool      skipreference;
 
   PetscFunctionBegin;
   if (ptr) {
-    ierr = PetscOListReverseFind(ptr->olist,obj,&tname);CHKERRQ(ierr);
-    if (tname) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"An object cannot be composed with an object that was compose with it");
+    ierr = PetscOListReverseFind(ptr->olist,obj,&tname,&skipreference);CHKERRQ(ierr);
+    if (tname && !skipreference) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"An object cannot be composed with an object that was compose with it");
   }
   ierr = PetscOListAdd(&obj->olist,name,ptr);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -549,10 +561,12 @@ PetscErrorCode  PetscObjectSetPrecision(PetscObject obj,PetscPrecision precision
          Thus must be cast with a (PetscObject), for example, 
          PetscObjectCompose((PetscObject)mat,...);
 .  name - name associated with child object 
--  ptr - the other PETSc object associated with the PETSc object, this must also be 
-         cast with (PetscObject)
+-  ptr - the other PETSc object associated with the PETSc object, this must be 
+         cast with (PetscObject *)
 
    Level: advanced
+
+   The reference count of neither object is increased in this call
 
    Concepts: objects^composing
    Concepts: composing objects
@@ -694,7 +708,7 @@ PetscErrorCode  PetscContainerSetPointer(PetscContainer obj,void *ptr)
 
    Level: advanced
 
-.seealso: PetscContainerCreate()
+.seealso: PetscContainerCreate(), PetscContainerSetUserDestroy()
 @*/
 PetscErrorCode  PetscContainerDestroy(PetscContainer *obj)
 {
@@ -739,7 +753,7 @@ PetscClassId  PETSC_CONTAINER_CLASSID;
    PetscContainerCreate - Creates a PETSc object that has room to hold
    a single pointer. This allows one to attach any type of data (accessible
    through a pointer) with the PetscObjectCompose() function to a PetscObject.
-   The data item itself is attached by a call to PetscContainerSetPointer.
+   The data item itself is attached by a call to PetscContainerSetPointer().
 
    Collective on MPI_Comm
 
@@ -760,7 +774,7 @@ PetscErrorCode  PetscContainerCreate(MPI_Comm comm,PetscContainer *container)
 
   PetscFunctionBegin;
   PetscValidPointer(container,2);
-  ierr = PetscHeaderCreate(contain,_p_PetscContainer,PetscInt,PETSC_CONTAINER_CLASSID,0,"PetscContainer",comm,PetscContainerDestroy,0);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(contain,_p_PetscContainer,PetscInt,PETSC_CONTAINER_CLASSID,0,"PetscContainer","Container","Sys",comm,PetscContainerDestroy,0);CHKERRQ(ierr);
   *container = contain;
   PetscFunctionReturn(0);
 }

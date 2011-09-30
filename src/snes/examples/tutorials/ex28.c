@@ -27,8 +27,6 @@ static const char help[] = "Uses analytic Jacobians to solve individual problems
 #include <petscdmda.h>
 #include <petscdmcomposite.h>
 
-PetscErrorCode DMDACreateOwnershipRanges(DM); /* Import an internal function */
-
 typedef struct _UserCtx *User;
 struct _UserCtx {
   PetscInt ptype;
@@ -78,7 +76,7 @@ static PetscErrorCode FormFunction_All(SNES snes,Vec X,Vec F,void *ctx)
   User              user = (User)ctx;
   DM                dau,dak;
   DMDALocalInfo     infou,infok;
-  const PetscScalar *u,*k;
+  PetscScalar       *u,*k;
   PetscScalar       *fu,*fk;
   PetscErrorCode    ierr;
   Vec               Uloc,Kloc,Fu,Fk;
@@ -177,13 +175,16 @@ static PetscErrorCode FormJacobianLocal_UK(User user,DMDALocalInfo *info,DMDALoc
   PetscReal hx = 1./info->mx;
   PetscErrorCode ierr;
   PetscInt       i;
+  PetscInt row,cols[2];
+  PetscScalar vals[2];
 
   PetscFunctionBegin;
   if (!Buk) PetscFunctionReturn(0); /* Not assembling this block */
   for (i=info->xs; i<info->xs+info->xm; i++) {
     if (i == 0 || i == info->mx-1) continue;
-    PetscInt row = i-info->gxs,cols[] = {i-1-infok->gxs,i-infok->gxs};
-    PetscScalar vals[] = {(u[i]-u[i-1])/hx,(u[i]-u[i+1])/hx};
+    row = i-info->gxs;
+    cols[0] = i-1-infok->gxs;  vals[0] = (u[i]-u[i-1])/hx;
+    cols[1] = i-infok->gxs;    vals[1] = (u[i]-u[i+1])/hx;
     ierr = MatSetValuesLocal(Buk,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -200,7 +201,8 @@ static PetscErrorCode FormJacobianLocal_KU(User user,DMDALocalInfo *info,DMDALoc
   PetscFunctionBegin;
   if (!Bku) PetscFunctionReturn(0); /* Not assembling this block */
   for (i=infok->xs; i<infok->xs+infok->xm; i++) {
-    PetscInt row = i-infok->gxs,cols[] = {i-info->gxs,i+1-info->gxs};
+    PetscInt row = i-infok->gxs,cols[2];
+    PetscScalar vals[2];
     const PetscScalar
       ubar     = 0.5*(u[i]+u[i+1]),
       ubar_L   = 0.5,
@@ -215,9 +217,9 @@ static PetscErrorCode FormJacobianLocal_KU(User user,DMDALocalInfo *info,DMDALoc
       w_gradu  = -g_gradu/PetscSqr(g),
       iw       = 1./w,
       iw_ubar  = -w_ubar * PetscSqr(iw),
-      iw_gradu = -w_gradu * PetscSqr(iw),
-      vals[]   = {-hx*(iw_ubar*ubar_L + iw_gradu*gradu_L),
-                  -hx*(iw_ubar*ubar_R + iw_gradu*gradu_R)};
+      iw_gradu = -w_gradu * PetscSqr(iw);
+    cols[0] = i-info->gxs;         vals[0] = -hx*(iw_ubar*ubar_L + iw_gradu*gradu_L);
+    cols[1] = i+1-info->gxs;       vals[1] = -hx*(iw_ubar*ubar_R + iw_gradu*gradu_R);
     ierr = MatSetValuesLocal(Bku,1,&row,2,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
@@ -230,7 +232,7 @@ static PetscErrorCode FormJacobian_All(SNES snes,Vec X,Mat *J,Mat *B,MatStructur
   User              user = (User)ctx;
   DM                dau,dak;
   DMDALocalInfo     infou,infok;
-  const PetscScalar *u,*k;
+  PetscScalar       *u,*k;
   PetscErrorCode    ierr;
   Vec               Uloc,Kloc;
 
@@ -343,23 +345,25 @@ int main(int argc, char *argv[])
 
   PetscInitialize(&argc,&argv,0,help);
   ierr = DMDACreate1d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,-10,1,1,PETSC_NULL,&dau);CHKERRQ(ierr);
-  ierr = DMDACreateOwnershipRanges(dau);CHKERRQ(ierr); /* Ensure that the ownership ranges agree so that we can get a compatible grid for the coefficient */
+  ierr = DMSetOptionsPrefix(dau,"u_");CHKERRQ(ierr);
+  ierr = DMSetFromOptions(dau);CHKERRQ(ierr);
   ierr = DMDAGetOwnershipRanges(dau,&lxu,0,0);CHKERRQ(ierr);
   ierr = DMDAGetInfo(dau,0, &m,0,0, &nprocs,0,0, 0,0,0,0,0,0);CHKERRQ(ierr);
   ierr = PetscMalloc(nprocs*sizeof(*lxk),&lxk);CHKERRQ(ierr);
   ierr = PetscMemcpy(lxk,lxu,nprocs*sizeof(*lxk));CHKERRQ(ierr);
   lxk[0]--;
   ierr = DMDACreate1d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,m-1,1,1,lxk,&dak);CHKERRQ(ierr);
+  ierr = DMSetOptionsPrefix(dak,"k_");CHKERRQ(ierr);
+  ierr = DMSetFromOptions(dau);CHKERRQ(ierr);
   ierr = PetscFree(lxk);CHKERRQ(ierr);
 
   ierr = DMCompositeCreate(PETSC_COMM_WORLD,&pack);CHKERRQ(ierr);
+  ierr = DMSetOptionsPrefix(pack,"pack_");CHKERRQ(ierr);
   ierr = DMCompositeAddDM(pack,dau);CHKERRQ(ierr);
   ierr = DMCompositeAddDM(pack,dak);CHKERRQ(ierr);
   ierr = DMDASetFieldName(dau,0,"u");CHKERRQ(ierr);
   ierr = DMDASetFieldName(dak,0,"k");CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)dau,"u_");CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)dak,"k_");CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)pack,"pack_");CHKERRQ(ierr);
+  ierr = DMSetFromOptions(pack);CHKERRQ(ierr);
 
   ierr = DMCreateGlobalVector(pack,&X);CHKERRQ(ierr);
   ierr = VecDuplicate(X,&F);CHKERRQ(ierr);

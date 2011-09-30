@@ -172,6 +172,7 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
      xs is the first local node number, x is the number of local nodes 
   */
   if (!lx) {
+    ierr = PetscMalloc(m*sizeof(PetscInt), &dd->lx);CHKERRQ(ierr);
     ierr = PetscOptionsGetBool(PETSC_NULL,"-da_partition_blockcomm",&flg1,PETSC_NULL);CHKERRQ(ierr);
     ierr = PetscOptionsGetBool(PETSC_NULL,"-da_partition_nodes_at_end",&flg2,PETSC_NULL);CHKERRQ(ierr);
     if (flg1) {      /* Block Comm type Distribution */
@@ -187,6 +188,9 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
       if (rank >= (M % m)) {xs = (rank * (PetscInt)(M/m) + M % m);}
       else                 {xs = rank * (PetscInt)(M/m) + rank;}
     }
+    ierr = MPI_Allgather(&xs,1,MPIU_INT,dd->lx,1,MPIU_INT,comm);CHKERRQ(ierr);
+    for (i=0; i<m-1; i++) dd->lx[i] = dd->lx[i+1] - dd->lx[i];
+    dd->lx[m-1] = M - dd->lx[m-1];
   } else {
     x  = lx[rank];
     xs = 0;
@@ -341,7 +345,8 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
    Options Database Key:
 +  -da_view - Calls DMView() at the conclusion of DMDACreate1d()
 .  -da_grid_x <nx> - number of grid points in x direction; can set if M < 0
--  -da_refine_x - refinement factor 
+.  -da_refine_x <rx> - refinement factor 
+-  -da_refine <n> - refine the DMDA n times before creating it, if M < 0
 
    Level: beginner
 
@@ -355,7 +360,7 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
 
 .seealso: DMDestroy(), DMView(), DMDACreate2d(), DMDACreate3d(), DMGlobalToLocalBegin(), DMDASetRefinementFactor(),
           DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMDALocalToLocalBegin(), DMDALocalToLocalEnd(), DMDAGetRefinementFactor(),
-          DMDAGetInfo(), DMCreateGlobalVector(), DMCreateLocalVector(), DMDACreateNaturalVector(), DMDALoad(), DMDAGetOwnershipRanges()
+          DMDAGetInfo(), DMCreateGlobalVector(), DMCreateLocalVector(), DMDACreateNaturalVector(), DMLoad(), DMDAGetOwnershipRanges()
 
 @*/
 PetscErrorCode  DMDACreate1d(MPI_Comm comm, DMDABoundaryType bx, PetscInt M, PetscInt dof, PetscInt s, const PetscInt lx[], DM *da)

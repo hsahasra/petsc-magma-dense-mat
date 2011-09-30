@@ -74,7 +74,6 @@ There are two compile-time options:
 #define USE_SSE2_KERNELS (!defined NO_SSE2                              \
                           && !defined PETSC_USE_COMPLEX                 \
                           && !defined PETSC_USE_REAL_SINGLE           \
-                          && !defined PETSC_USE_REAL_LONG_DOUBLE      \
                           && defined __SSE2__)
 
 static PetscClassId THI_CLASSID;
@@ -419,7 +418,7 @@ static PetscErrorCode THICreate(MPI_Comm comm,THI *inthi)
     ierr = PetscClassIdRegister("Toy Hydrostatic Ice",&THI_CLASSID);CHKERRQ(ierr);
     registered = PETSC_TRUE;
   }
-  ierr = PetscHeaderCreate(thi,_p_THI,0,THI_CLASSID,-1,"THI",comm,THIDestroy,0);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(thi,_p_THI,0,THI_CLASSID,-1,"THI","Toy Hydrostatic Ice","",comm,THIDestroy,0);CHKERRQ(ierr);
 
   ierr = PetscNew(struct _n_Units,&thi->units);CHKERRQ(ierr);
   units = thi->units;
@@ -662,7 +661,7 @@ static PetscErrorCode THIInitial(DMMG dmmg,Vec X)
       for (k=zs; k<zs+zm; k++) {
         const PetscScalar zm1 = zm-1,
           drivingx = thi->rhog * (prm[i+1][j].b+prm[i+1][j].h - prm[i-1][j].b-prm[i-1][j].h) / (2*hx),
-          drivingy = thi->rhog * (prm[i][j+1].b+prm[i][j+1].h - prm[i][j-1].b-prm[i][j-1].h) / (2*hx);
+          drivingy = thi->rhog * (prm[i][j+1].b+prm[i][j+1].h - prm[i][j-1].b-prm[i][j-1].h) / (2*hy);
         x[i][j][k].u = 0. * drivingx * prm[i][j].h*(PetscScalar)k/zm1;
         x[i][j][k].v = 0. * drivingy * prm[i][j].h*(PetscScalar)k/zm1;
       }
@@ -673,7 +672,7 @@ static PetscErrorCode THIInitial(DMMG dmmg,Vec X)
   PetscFunctionReturn(0);
 }
 
-static void PointwiseNonlinearity(THI thi,const Node n[restrict 8],const PetscReal phi[restrict 3],PetscReal dphi[restrict 8][3],PetscScalar *restrict u,PetscScalar *restrict v,PetscScalar du[restrict 3],PetscScalar dv[restrict 3],PetscReal *eta,PetscReal *deta)
+static void PointwiseNonlinearity(THI thi,const Node n[restrict],const PetscReal phi[restrict],PetscReal dphi[restrict][3],PetscScalar *restrict u,PetscScalar *restrict v,PetscScalar du[restrict],PetscScalar dv[restrict],PetscReal *eta,PetscReal *deta)
 {
   PetscInt l,ll;
   PetscScalar gam;
@@ -893,7 +892,7 @@ static PetscErrorCode THISolveStatistics(THI thi,DMMG *dmmg,PetscInt coarsened,c
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
     ierr = SNESGetConvergedReason(snes,&reason);CHKERRQ(ierr);
     ierr = SNESGetLinearSolveIterations(snes,&lits);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"%s: Number of Newton iterations = %d, total linear iterations = %d\n",SNESConvergedReasons[reason],its,lits);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"%s: Number of SNES iterations = %d, total linear iterations = %d\n",SNESConvergedReasons[reason],its,lits);CHKERRQ(ierr);
   }
   {
     PetscReal nrm2,tmin[3]={1e100,1e100,1e100},tmax[3]={-1e100,-1e100,-1e100},min[3],max[3];
@@ -1453,7 +1452,7 @@ int main(int argc,char *argv[])
   THI            thi;
   PetscInt       i;
   PetscErrorCode ierr;
-  PetscLogStage  stages[3];
+  PETSC_UNUSED PetscLogStage  stages[3];
   PetscBool      repeat_fine_solve = PETSC_FALSE;
 
   ierr = PetscInitialize(&argc,&argv,0,help);CHKERRQ(ierr);

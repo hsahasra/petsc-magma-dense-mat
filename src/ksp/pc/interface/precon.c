@@ -325,7 +325,7 @@ PetscErrorCode  PCCreate(MPI_Comm comm,PC *newpc)
   ierr = PCInitializePackage(PETSC_NULL);CHKERRQ(ierr);
 #endif
 
-  ierr = PetscHeaderCreate(pc,_p_PC,struct _PCOps,PC_CLASSID,-1,"PC",comm,PCDestroy,PCView);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(pc,_p_PC,struct _PCOps,PC_CLASSID,-1,"PC","Preconditioner","PC",comm,PCDestroy,PCView);CHKERRQ(ierr);
 
   pc->mat                  = 0;
   pc->pmat                 = 0;
@@ -893,7 +893,7 @@ $     func (PC pc,PetscInt nsub,IS *row,IS *col,Mat *submat,void *ctx);
 
 .keywords: PC, set, modify, submatrices
 
-.seealso: PCModifySubMatrices()
+.seealso: PCModifySubMatrices(), PCASMGetSubMatrices()
 @*/
 PetscErrorCode  PCSetModifySubMatrices(PC pc,PetscErrorCode (*func)(PC,PetscInt,const IS[],const IS[],Mat[],void*),void *ctx)
 {
@@ -1073,6 +1073,8 @@ PetscErrorCode  PCSetOperators(PC pc,Mat Amat,Mat Pmat,MatStructure flag)
           matrix structure.  See PCSetOperators() for details.
 
    Level: intermediate
+
+   Notes: Does not increase the reference count of the matrices, so you should not destroy them
 
    Alternative usage: If the operators have NOT been set with KSP/PCSetOperators() then the operators
       are created in PC and returned to the user. In this case, if both operators
@@ -1539,7 +1541,7 @@ PetscErrorCode  PCView(PC pc,PetscViewer viewer)
    Notes:
     This is a weird function. Since PC's are linear operators on the right hand side they
     CANNOT use an initial guess. This function is for the "pass-through" preconditioners
-    PCKSP, PCREDUNDANT and PCOPENMP and causes the inner KSP object to use the nonzero
+    PCKSP, PCREDUNDANT and PCHMPI and causes the inner KSP object to use the nonzero
     initial guess. Not currently working for PCREDUNDANT, that has to be rewritten to use KSP.
 
 
@@ -1659,3 +1661,35 @@ PetscErrorCode  PCComputeExplicitOperator(PC pc,Mat *mat)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PCSetCoordinates"
+/*@
+   PCSetCoordinates - sets the coordinates of all the nodes on the local process
+
+   Collective on PC
+
+   Input Parameters:
++  pc - the solver context
+.  dim - the dimension of the coordinates 1, 2, or 3
+-  coords - the coordinates
+
+   Level: intermediate
+
+   Notes: coords is an array of the 3D coordinates for the nodes on
+   the local processor.  So if there are 108 equation on a processor
+   for a displacement finite element discretization of elasticity (so
+   that there are 36 = 108/3 nodes) then the array must have 108
+   double precision values (ie, 3 * 36).  These x y z coordinates
+   should be ordered for nodes 0 to N-1 like so: [ 0.x, 0.y, 0.z, 1.x,
+   ... , N-1.z ].
+
+.seealso: PCPROMETHEUS
+@*/
+PetscErrorCode  PCSetCoordinates(PC pc,PetscInt dim,PetscReal *coords)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscTryMethod(pc,"PCSetCoordinates_C",(PC,PetscInt,PetscReal*),(pc,dim,coords));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}

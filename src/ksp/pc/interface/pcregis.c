@@ -22,7 +22,7 @@ extern PetscErrorCode  PCCreate_NN(PC);
 extern PetscErrorCode  PCCreate_Cholesky(PC);
 extern PetscErrorCode  PCCreate_FieldSplit(PC);
 extern PetscErrorCode  PCCreate_Galerkin(PC);
-extern PetscErrorCode  PCCreate_OpenMP(PC);
+extern PetscErrorCode  PCCreate_HMPI(PC);
 extern PetscErrorCode  PCCreate_Exotic(PC);
 extern PetscErrorCode  PCCreate_ASA(PC);
 extern PetscErrorCode  PCCreate_CP(PC);
@@ -35,6 +35,9 @@ extern PetscErrorCode  PCCreate_SupportGraph(PC);
 #endif
 #if defined(PETSC_HAVE_ML)
 extern PetscErrorCode  PCCreate_ML(PC);
+#endif
+#if defined(PETSC_USE_REAL_DOUBLE) && defined(PETSC_USE_SCALAR_REAL)
+extern PetscErrorCode  PCCreate_GAMG(PC);
 #endif
 #if defined(PETSC_HAVE_SPAI)
 extern PetscErrorCode  PCCreate_SPAI(PC);
@@ -108,7 +111,7 @@ PetscErrorCode  PCRegisterAll(const char path[])
   ierr = PCRegisterDynamic(PCFIELDSPLIT   ,path,"PCCreate_FieldSplit",PCCreate_FieldSplit);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCGALERKIN     ,path,"PCCreate_Galerkin",PCCreate_Galerkin);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCEXOTIC       ,path,"PCCreate_Exotic",PCCreate_Exotic);CHKERRQ(ierr);
-  ierr = PCRegisterDynamic(PCOPENMP       ,path,"PCCreate_OpenMP",PCCreate_OpenMP);CHKERRQ(ierr);
+  ierr = PCRegisterDynamic(PCHMPI         ,path,"PCCreate_HMPI",PCCreate_HMPI);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCASA          ,path,"PCCreate_ASA",PCCreate_ASA);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCCP           ,path,"PCCreate_CP",PCCreate_CP);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCLSC          ,path,"PCCreate_LSC",PCCreate_LSC);CHKERRQ(ierr);
@@ -119,6 +122,9 @@ PetscErrorCode  PCRegisterAll(const char path[])
 #endif
 #if defined(PETSC_HAVE_ML)
   ierr = PCRegisterDynamic(PCML           ,path,"PCCreate_ML",PCCreate_ML);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_USE_REAL_DOUBLE) && defined(PETSC_USE_SCALAR_REAL)
+  ierr = PCRegisterDynamic(PCGAMG         ,path,"PCCreate_GAMG",PCCreate_GAMG);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_SPAI)
   ierr = PCRegisterDynamic(PCSPAI         ,path,"PCCreate_SPAI",PCCreate_SPAI);CHKERRQ(ierr);

@@ -37,16 +37,11 @@ def getBuildSystem(configDir,bsDir):
     downloadPackage('http://petsc.cs.iit.edu/petsc/BuildSystem/archive/tip.tar.gz', 'BuildSystem.tar.gz', configDir)
   else:
     print '++ Mercurial clone found. URL : ' + output
-    if output.find("petsc.cs.iit.edu") >=0:
-      bsurl = output.replace('petsc-dev','BuildSystem').replace('releases/petsc-','releases/BuildSystem-')
-      print '++ Using: hg clone '+ bsurl +' '+ bsDir
-      (status,output) = commands.getstatusoutput('hg clone '+ bsurl +' '+ bsDir)
-      if status:
-        print '++ Unable to clone BuildSystem. Please clone manually'
-        print '==============================================================================='
-        sys.exit(3)
-    else:
-      print '++ Nonstandard parent URL. Cannot determine appropriate BuildSystem URL. Please clone appropriate BuildSystem'
+    bsurl = output.replace('petsc-dev','BuildSystem').replace('releases/petsc-','releases/BuildSystem-')
+    print '++ Using: hg clone '+ bsurl +' '+ bsDir
+    (status,output) = commands.getstatusoutput('hg clone '+ bsurl +' '+ bsDir)
+    if status:
+      print '++ Unable to clone BuildSystem. Please clone manually'
       print '==============================================================================='
       sys.exit(3)
   print '==============================================================================='
@@ -81,6 +76,16 @@ def check_for_option_mistakes(opts):
       optval = opt.split('=')[1]
       if optval == 'ifneeded':
         raise ValueError('The option '+opt+' should probably be '+opt.replace('ifneeded', '1'));
+  return
+
+def check_for_option_changed(opts):
+# Document changes in command line options here.
+  optMap = [('c-blas-lapack','f2cblaslapack')]
+  for opt in opts[1:]:
+    optname = opt.split('=')[0].strip('-')
+    for oldname,newname in optMap:
+      if optname.find(oldname) >=0:
+        raise ValueError('The option '+opt+' should probably be '+opt.replace(oldname,newname))
   return
 
 def check_petsc_arch(opts):
@@ -208,6 +213,7 @@ def petsc_configure(configure_options):
     # Command line arguments take precedence (but don't destroy argv[0])
     sys.argv = sys.argv[:1] + configure_options + sys.argv[1:]
     check_for_option_mistakes(sys.argv)
+    check_for_option_changed(sys.argv)
   except (TypeError, ValueError), e:
     emsg = str(e)
     if not emsg.endswith('\n'): emsg = emsg+'\n'

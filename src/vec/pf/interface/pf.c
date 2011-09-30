@@ -104,7 +104,7 @@ PetscErrorCode  PFDestroy(PF *pf)
 
 .keywords: PF, create, context
 
-.seealso: PFSetUp(), PFApply(), PFDestroy(), PFApplyVec()
+.seealso: PFSet(), PFApply(), PFDestroy(), PFApplyVec()
 @*/
 PetscErrorCode  PFCreate(MPI_Comm comm,PetscInt dimin,PetscInt dimout,PF *pf)
 {
@@ -118,7 +118,7 @@ PetscErrorCode  PFCreate(MPI_Comm comm,PetscInt dimin,PetscInt dimout,PF *pf)
   ierr = PFInitializePackage(PETSC_NULL);CHKERRQ(ierr);   
 #endif
 
-  ierr = PetscHeaderCreate(newpf,_p_PF,struct _PFOps,PF_CLASSID,-1,"PF",comm,PFDestroy,PFView);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(newpf,_p_PF,struct _PFOps,PF_CLASSID,-1,"PF","Mathematical functions","Vec",comm,PFDestroy,PFView);CHKERRQ(ierr);
   newpf->data             = 0;
 
   newpf->ops->destroy     = 0;
@@ -169,8 +169,11 @@ PetscErrorCode  PFApplyVec(PF pf,Vec x,Vec y)
     if (x == y) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_IDN,"x and y must be different vectors");
   } else {
     PetscScalar *xx;
+    PetscInt    lsize;
 
-    ierr = VecDuplicate(y,&x);CHKERRQ(ierr);
+    ierr = VecGetLocalSize(y,&lsize);CHKERRQ(ierr);
+    lsize = pf->dimin*lsize/pf->dimout;
+    ierr = VecCreateMPI(((PetscObject)y)->comm,lsize,PETSC_DETERMINE,&x);CHKERRQ(ierr);
     nox  = PETSC_TRUE;
     ierr = VecGetOwnershipRange(x,&rstart,&rend);CHKERRQ(ierr);
     ierr = VecGetArray(x,&xx);CHKERRQ(ierr);
@@ -476,7 +479,7 @@ PetscErrorCode  PFSetFromOptions(PF pf)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(pf,PF_CLASSID,1);
 
-  ierr = PetscOptionsBegin(((PetscObject)pf)->comm,((PetscObject)pf)->prefix,"Mathematical functions options","Vec");CHKERRQ(ierr);
+  ierr = PetscObjectOptionsBegin((PetscObject)pf);CHKERRQ(ierr);
     ierr = PetscOptionsList("-pf_type","Type of function","PFSetType",PFList,0,type,256,&flg);CHKERRQ(ierr);
     if (flg) {
       ierr = PFSetType(pf,type,PETSC_NULL);CHKERRQ(ierr);

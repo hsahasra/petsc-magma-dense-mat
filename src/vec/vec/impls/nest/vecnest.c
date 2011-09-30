@@ -541,14 +541,15 @@ static PetscErrorCode VecView_Nest(Vec x,PetscViewer viewer)
     ierr = PetscViewerASCIIPrintf(viewer,"VecNest  structure: \n");CHKERRQ(ierr);
     for (i=0; i<bx->nb; i++) {
       const VecType type;
-      const char *name;
+      char name[256] = "",prefix[256] = "";
       PetscInt NR;
 
       ierr = VecGetSize(bx->v[i],&NR);CHKERRQ(ierr);
       ierr = VecGetType(bx->v[i],&type);CHKERRQ(ierr);
-      name = ((PetscObject)bx->v[i])->prefix;
+      if (((PetscObject)bx->v[i])->name) {ierr = PetscSNPrintf(name,sizeof name,"name=\"%s\", ",((PetscObject)bx->v[i])->name);CHKERRQ(ierr);}
+      if (((PetscObject)bx->v[i])->prefix) {ierr = PetscSNPrintf(prefix,sizeof prefix,"prefix=\"%s\", ",((PetscObject)bx->v[i])->prefix);CHKERRQ(ierr);}
 
-      ierr = PetscViewerASCIIPrintf(viewer,"(%D) : name=\"%s\", type=%s, rows=%D \n",i,name,type,NR);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"(%D) : %s%stype=%s, rows=%D \n",i,name,prefix,type,NR);CHKERRQ(ierr);
 
       ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);             /* push1 */
       ierr = VecView(bx->v[i],viewer);CHKERRQ(ierr);
@@ -642,6 +643,7 @@ static PetscErrorCode  VecGetSubVector_Nest(Vec X,IS is,Vec *x)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  *x = PETSC_NULL;
   for (i=0;i<bx->nb; i++) {
     PetscBool issame = PETSC_FALSE;
     ierr = ISEqual(is,bx->is[i],&issame);CHKERRQ(ierr);
@@ -651,7 +653,7 @@ static PetscErrorCode  VecGetSubVector_Nest(Vec X,IS is,Vec *x)
       break;
     }
   }
-
+  if (!*x) SETERRQ(((PetscObject)is)->comm,PETSC_ERR_ARG_OUTOFRANGE,"Index set not found in nested Vec");
   PetscFunctionReturn(0);
 }
 
@@ -662,7 +664,7 @@ static PetscErrorCode  VecRestoreSubVector_Nest(Vec X,IS is,Vec *x)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscObjectDereference((PetscObject)(*x));CHKERRQ(ierr);
+  ierr = VecDestroy(x);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

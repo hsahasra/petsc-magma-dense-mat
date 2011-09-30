@@ -170,9 +170,7 @@ PetscErrorCode  DMGetColoring_DA(DM da,ISColoringType ctype,const MatType mtype,
     ierr =  DMGetColoring_DA_2d_MPIAIJ(da,ctype,coloring);CHKERRQ(ierr);
   } else if (dim == 3) {
     ierr =  DMGetColoring_DA_3d_MPIAIJ(da,ctype,coloring);CHKERRQ(ierr);
-  } else {
-    SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_SUP,"Not done for %D dimension, send us mail petsc-maint@mcs.anl.gov for code",dim);
-  }
+  } else SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_SUP,"Not done for %D dimension, send us mail petsc-maint@mcs.anl.gov for code",dim);
   if (isBAIJ) {
     dd->w = nc;
     dd->xs = dd->xs*nc;
@@ -369,8 +367,8 @@ PetscErrorCode DMGetColoring_DA_1d_MPIAIJ(DM da,ISColoringType ctype,ISColoring 
   col    = 2*s + 1;
 
   if (bx == DMDA_BOUNDARY_PERIODIC && (m % col)) {
-    SETERRQ(((PetscObject)da)->comm,PETSC_ERR_SUP,"For coloring efficiency ensure number of grid points is divisible\n\
-                 by 2*stencil_width + 1\n");
+    SETERRQ2(((PetscObject)da)->comm,PETSC_ERR_SUP,"For coloring efficiency ensure number of grid points %d is divisible\n\
+                 by 2*stencil_width + 1 %d\n",(int)m,(int)col);
   }
 
   ierr = DMDAGetCorners(da,&xs,0,0,&nx,0,0);CHKERRQ(ierr);
@@ -535,7 +533,7 @@ PetscErrorCode  MatView_MPI_DA(Mat A,PetscViewer viewer)
 
   PetscFunctionBegin;
   ierr = PetscObjectGetComm((PetscObject)A,&comm);CHKERRQ(ierr);
-  ierr = PetscObjectQuery((PetscObject)A,"DMDA",(PetscObject*)&da);CHKERRQ(ierr);
+  ierr = PetscObjectQuery((PetscObject)A,"DM",(PetscObject*)&da);CHKERRQ(ierr);
   if (!da) SETERRQ(((PetscObject)A)->comm,PETSC_ERR_ARG_WRONG,"Matrix not generated from a DMDA");
 
   ierr = DMDAGetAO(da,&ao);CHKERRQ(ierr);
@@ -572,7 +570,7 @@ PetscErrorCode  MatLoad_MPI_DA(Mat A,PetscViewer viewer)
 
   PetscFunctionBegin;
   ierr = PetscObjectGetComm((PetscObject)A,&comm);CHKERRQ(ierr);
-  ierr = PetscObjectQuery((PetscObject)A,"DMDA",(PetscObject*)&da);CHKERRQ(ierr);
+  ierr = PetscObjectQuery((PetscObject)A,"DM",(PetscObject*)&da);CHKERRQ(ierr);
   if (!da) SETERRQ(((PetscObject)A)->comm,PETSC_ERR_ARG_WRONG,"Matrix not generated from a DMDA");
 
   /* Load the matrix in natural ordering */
@@ -723,7 +721,7 @@ else if(!aij && !baij && !sbaij)
 
   ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
   ierr = MatSetStencil(A,dim,dims,starts,dof);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject)A,"DMDA",(PetscObject)da);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject)A,"DM",(PetscObject)da);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   if (size > 1) { 
     /* change viewer to display matrix in natural ordering */

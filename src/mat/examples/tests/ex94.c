@@ -18,7 +18,7 @@ int main(int argc,char **args)
   PetscViewer    viewer;
   PetscErrorCode ierr;
   PetscMPIInt    size,rank;
-  PetscInt       i,m,n,j,*idxn,M,N,nzp;
+  PetscInt       i,m,n,j,*idxn,M,N,nzp,rstart,rend;
   PetscReal      norm,norm_abs,norm_tmp,tol=1.e-8,fill=4.0;
   PetscRandom    rdm;
   char           file[4][128];
@@ -49,13 +49,13 @@ int main(int argc,char **args)
     if (!flg) SETERRQ(PETSC_COMM_WORLD,1,"Must indicate a file name for test matrix B with the -f3 option."); 
   }
 
-  PreLoadBegin(preload,"Load system");
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[2*PreLoadIt],FILE_MODE_READ,&viewer);CHKERRQ(ierr);
+  PetscPreLoadBegin(preload,"Load system");
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[2*PetscPreLoadIt],FILE_MODE_READ,&viewer);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&A_save);CHKERRQ(ierr);
   ierr = MatLoad(A_save,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[2*PreLoadIt+1],FILE_MODE_READ,&viewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[2*PetscPreLoadIt+1],FILE_MODE_READ,&viewer);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&B);CHKERRQ(ierr);
   ierr = MatLoad(B,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
@@ -211,7 +211,7 @@ int main(int argc,char **args)
     /* ierr = PetscPrintf(PETSC_COMM_SELF,"[%d] A: %d,%d, %d,%d\n",rank,m,n,M,N); */
 
     PN   = M/2; 
-    nzp  = (PetscInt)(0.1*PN); /* num of nozeros in each row of P */
+    nzp  = (PetscInt)(0.1*PN+1); /* num of nozeros in each row of P */
     ierr = MatCreate(PETSC_COMM_WORLD,&P);CHKERRQ(ierr); 
     ierr = MatSetSizes(P,PETSC_DECIDE,PETSC_DECIDE,N,PN);CHKERRQ(ierr); 
     ierr = MatSetType(P,MATAIJ);CHKERRQ(ierr);
@@ -220,7 +220,8 @@ int main(int argc,char **args)
     for (i=0; i<nzp; i++){
       ierr = PetscRandomGetValue(rdm,&a[i]);CHKERRQ(ierr);
     }
-    for (i=0; i<M; i++){
+    ierr = MatGetOwnershipRange(P,&rstart,&rend);CHKERRQ(ierr);
+    for (i=rstart; i<rend; i++){
       for (j=0; j<nzp; j++){
         ierr = PetscRandomGetValue(rdm,&rval);CHKERRQ(ierr);
         idxn[j] = (PetscInt)(PetscRealPart(rval)*PN);
@@ -233,8 +234,8 @@ int main(int argc,char **args)
     /* ierr = MatView(P,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
     ierr = MatGetSize(P,&pM,&pN);CHKERRQ(ierr);
     ierr = MatGetLocalSize(P,&pm,&pn);CHKERRQ(ierr);
-    /* ierr = PetscPrintf(PETSC_COMM_SELF," [%d] P, %d, %d, %d,%d\n",rank,pm,pn,pM,pN); */
     ierr = MatPtAP(A,P,MAT_INITIAL_MATRIX,fill,&C);CHKERRQ(ierr); 
+    /* if (!rank){ierr = PetscPrintf(PETSC_COMM_SELF," MatPtAP() is done, P, %d, %d, %d,%d\n",pm,pn,pM,pN);} */
 
     /* Test MAT_REUSE_MATRIX - reuse symbolic C */
     alpha=1.0;
@@ -290,7 +291,7 @@ int main(int argc,char **args)
   ierr = MatDestroy(&A_save);CHKERRQ(ierr);
   ierr = MatDestroy(&B);CHKERRQ(ierr);
 
-  PreLoadEnd();
+  PetscPreLoadEnd();
   ierr = PetscFinalize();
 
   return 0;

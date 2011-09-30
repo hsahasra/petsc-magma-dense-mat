@@ -138,9 +138,14 @@ PetscErrorCode DMMeshView_Sieve_Ascii(const ALE::Obj<PETSC_MESH_TYPE>& mesh, Pet
     int dim = mesh->getDimension();
 
     ierr = PetscViewerASCIIPrintf(viewer, "Mesh in %d dimensions:\n", dim);CHKERRQ(ierr);
-    for(int d = 0; d <= dim; d++) {
-      // FIX: Need to globalize
-      ierr = PetscViewerASCIIPrintf(viewer, "  %d %d-cells\n", mesh->depthStratum(d)->size(), d);CHKERRQ(ierr);
+    if (mesh->depth() == 1) {
+      ierr = PetscViewerASCIIPrintf(viewer, "  %d %d-cells\n", mesh->depthStratum(0)->size(), 0);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer, "  %d %d-cells\n", mesh->heightStratum(0)->size(), dim);CHKERRQ(ierr);
+    } else {
+      for(int d = 0; d <= dim; d++) {
+        // FIX: Need to globalize
+        ierr = PetscViewerASCIIPrintf(viewer, "  %d %d-cells\n", mesh->depthStratum(d)->size(), d);CHKERRQ(ierr);
+      }
     }
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -276,7 +281,7 @@ PetscErrorCode DMMeshCreateMatrix(DM dm, SectionReal section, const MatType mtyp
   } catch(ALE::Exception e) {
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB, e.message());
   }
-  ierr = PetscObjectCompose((PetscObject) *J, "DMMesh", (PetscObject) dm);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject) *J, "DM", (PetscObject) dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -358,7 +363,7 @@ PetscErrorCode DMCreateGlobalVector_Mesh(DM dm, Vec *gvec)
   ierr = VecCreate(((PetscObject) dm)->comm, gvec);CHKERRQ(ierr);
   ierr = VecSetSizes(*gvec, order->getLocalSize(), order->getGlobalSize());CHKERRQ(ierr);
   ierr = VecSetFromOptions(*gvec);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject) *gvec, "DMMesh", (PetscObject) dm);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject) *gvec, "DM", (PetscObject) dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -415,7 +420,7 @@ PetscErrorCode DMCreateLocalVector_Mesh(DM dm, Vec *lvec)
   ierr = VecCreate(PETSC_COMM_SELF, lvec);CHKERRQ(ierr);
   ierr = VecSetSizes(*lvec, size, size);CHKERRQ(ierr);
   ierr = VecSetFromOptions(*lvec);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject) *lvec, "DMMesh", (PetscObject) dm);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject) *lvec, "DM", (PetscObject) dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -436,19 +441,17 @@ PetscErrorCode DMCreateLocalToGlobalMapping_Mesh(DM dm)
   ierr = DMMeshGetMesh(dm, m);CHKERRQ(ierr);
   ierr = SectionRealGetSection(section, s);CHKERRQ(ierr);
   const ALE::Obj<PETSC_MESH_TYPE::order_type>& globalOrder = m->getFactory()->getGlobalOrder(m, s->getName(), s);
-  const ALE::Obj<PETSC_MESH_TYPE::order_type>& localOrder  = m->getFactory()->getLocalOrder(m, s->getName(), s);
   PetscInt *ltog;
 
-  ierr = PetscMalloc(localOrder->getLocalSize() * sizeof(PetscInt), &ltog);CHKERRQ(ierr);
-  for(PetscInt p = s->getChart().min(); p <= s->getChart().max(); ++p) {
-    PetscInt l = localOrder->getIndex(p);
+  ierr = PetscMalloc(s->size() * sizeof(PetscInt), &ltog);CHKERRQ(ierr); // We want the local+overlap size
+  for(PetscInt p = s->getChart().min(), l = 0; p < s->getChart().max(); ++p) {
     PetscInt g = globalOrder->getIndex(p);
 
-    for(PetscInt c = 0; c < s->getFiberDimension(p); ++c) {
-      ltog[l+c] = g+c;
+    for(PetscInt c = 0; c < s->getConstrainedFiberDimension(p); ++c, ++l) {
+      ltog[l] = g+c;
     }
   }
-  ierr = ISLocalToGlobalMappingCreate(PETSC_COMM_SELF, localOrder->getLocalSize(), ltog, PETSC_OWN_POINTER, &dm->ltogmap);CHKERRQ(ierr);
+  ierr = ISLocalToGlobalMappingCreate(PETSC_COMM_SELF, s->size(), ltog, PETSC_OWN_POINTER, &dm->ltogmap);CHKERRQ(ierr);
   ierr = PetscLogObjectParent(dm, dm->ltogmap);CHKERRQ(ierr);
   ierr = SectionRealDestroy(&section);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -580,7 +583,7 @@ PetscErrorCode  DMLocalToGlobalEnd_Mesh(DM dm, Vec l, InsertMode mode, Vec g)
 
 #undef __FUNCT__
 #define __FUNCT__ "DMMeshGetLocalFunction"
-PetscErrorCode DMMeshGetLocalFunction(DM dm, PetscErrorCode (**lf)(DM, SectionReal, SectionReal, void *))
+PetscErrorCode DMMeshGetLocalFunction(DM dm, PetscErrorCode (**lf)(DM, Vec, Vec, void *))
 {
   DM_Mesh *mesh = (DM_Mesh *) dm->data;
 
@@ -592,7 +595,7 @@ PetscErrorCode DMMeshGetLocalFunction(DM dm, PetscErrorCode (**lf)(DM, SectionRe
 
 #undef __FUNCT__
 #define __FUNCT__ "DMMeshSetLocalFunction"
-PetscErrorCode DMMeshSetLocalFunction(DM dm, PetscErrorCode (*lf)(DM, SectionReal, SectionReal, void *))
+PetscErrorCode DMMeshSetLocalFunction(DM dm, PetscErrorCode (*lf)(DM, Vec, Vec, void *))
 {
   DM_Mesh *mesh = (DM_Mesh *) dm->data;
 
@@ -604,7 +607,7 @@ PetscErrorCode DMMeshSetLocalFunction(DM dm, PetscErrorCode (*lf)(DM, SectionRea
 
 #undef __FUNCT__
 #define __FUNCT__ "DMMeshGetLocalJacobian"
-PetscErrorCode DMMeshGetLocalJacobian(DM dm, PetscErrorCode (**lj)(DM, SectionReal, Mat, void *))
+PetscErrorCode DMMeshGetLocalJacobian(DM dm, PetscErrorCode (**lj)(DM, Vec, Mat, void *))
 {
   DM_Mesh *mesh = (DM_Mesh *) dm->data;
 
@@ -616,7 +619,7 @@ PetscErrorCode DMMeshGetLocalJacobian(DM dm, PetscErrorCode (**lj)(DM, SectionRe
 
 #undef __FUNCT__
 #define __FUNCT__ "DMMeshSetLocalJacobian"
-PetscErrorCode DMMeshSetLocalJacobian(DM dm, PetscErrorCode (*lj)(DM, SectionReal, Mat, void *))
+PetscErrorCode DMMeshSetLocalJacobian(DM dm, PetscErrorCode (*lj)(DM, Vec, Mat, void *))
 {
   DM_Mesh *mesh = (DM_Mesh *) dm->data;
 
@@ -627,78 +630,261 @@ PetscErrorCode DMMeshSetLocalJacobian(DM dm, PetscErrorCode (*lj)(DM, SectionRea
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "DMMeshFormFunction"
-PetscErrorCode DMMeshFormFunction(DM dm, SectionReal X, SectionReal F, void *ctx)
-{
-  DM_Mesh       *mesh = (DM_Mesh *) dm->data;
+#define __FUNCT__ "DMMeshInterpolationCreate"
+PetscErrorCode DMMeshInterpolationCreate(DM dm, DMMeshInterpolationInfo *ctx) {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidHeaderSpecific(X, SECTIONREAL_CLASSID, 2);
-  PetscValidHeaderSpecific(F, SECTIONREAL_CLASSID, 3);
-  if (mesh->lf) {
-    ierr = (*mesh->lf)(dm, X, F, ctx);CHKERRQ(ierr);
-  }
+  PetscValidPointer(ctx, 2);
+  ierr = PetscMalloc(sizeof(struct _DMMeshInterpolationInfo), ctx);CHKERRQ(ierr);
+  (*ctx)->dim    = -1;
+  (*ctx)->nInput = 0;
+  (*ctx)->points = PETSC_NULL;
+  (*ctx)->cells  = PETSC_NULL;
+  (*ctx)->n      = -1;
+  (*ctx)->coords = PETSC_NULL;
   PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "DMMeshFormJacobian"
-PetscErrorCode DMMeshFormJacobian(DM dm, SectionReal X, Mat J, void *ctx)
-{
-  DM_Mesh       *mesh = (DM_Mesh *) dm->data;
+#define __FUNCT__ "DMMeshInterpolationSetDim"
+PetscErrorCode DMMeshInterpolationSetDim(DM dm, PetscInt dim, DMMeshInterpolationInfo ctx) {
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if ((dim < 1) || (dim > 3)) {SETERRQ1(((PetscObject) dm)->comm, PETSC_ERR_ARG_OUTOFRANGE, "Invalid dimension for points: %d", dim);}
+  ctx->dim = dim;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationGetDim"
+PetscErrorCode DMMeshInterpolationGetDim(DM dm, PetscInt *dim, DMMeshInterpolationInfo ctx) {
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidIntPointer(dim, 2);
+  *dim = ctx->dim;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationSetDof"
+PetscErrorCode DMMeshInterpolationSetDof(DM dm, PetscInt dof, DMMeshInterpolationInfo ctx) {
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  if (dof < 1) {SETERRQ1(((PetscObject) dm)->comm, PETSC_ERR_ARG_OUTOFRANGE, "Invalid number of components: %d", dof);}
+  ctx->dof = dof;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationGetDof"
+PetscErrorCode DMMeshInterpolationGetDof(DM dm, PetscInt *dof, DMMeshInterpolationInfo ctx) {
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidIntPointer(dof, 2);
+  *dof = ctx->dof;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationAddPoints"
+PetscErrorCode DMMeshInterpolationAddPoints(DM dm, PetscInt n, PetscReal points[], DMMeshInterpolationInfo ctx) {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidHeaderSpecific(X, SECTIONREAL_CLASSID, 2);
-  PetscValidHeaderSpecific(J, MAT_CLASSID, 3);
-  if (mesh->lj) {
-    ierr = (*mesh->lj)(dm, X, J, ctx);CHKERRQ(ierr);
+  if (ctx->dim < 0) {
+    SETERRQ(((PetscObject) dm)->comm, PETSC_ERR_ARG_WRONGSTATE, "The spatial dimension has not been set");
   }
+  if (ctx->points) {
+    SETERRQ(((PetscObject) dm)->comm, PETSC_ERR_ARG_WRONGSTATE, "Cannot add points multiple times yet");
+  }
+  ctx->nInput = n;
+  ierr = PetscMalloc(n*ctx->dim * sizeof(PetscReal), &ctx->points);CHKERRQ(ierr);
+  ierr = PetscMemcpy(ctx->points, points, n*ctx->dim * sizeof(PetscReal));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "DMMeshInterpolatePoints"
-// Here we assume:
-//  - Assumes 3D and tetrahedron
-//  - The section takes values on vertices and is P1
-//  - Points have the same dimension as the mesh
-//  - All values have the same dimension
-PetscErrorCode DMMeshInterpolatePoints(DM dm, SectionReal section, int numPoints, PetscReal *points, PetscScalar **values)
-{
+#define __FUNCT__ "DMMeshInterpolationSetUp"
+PetscErrorCode DMMeshInterpolationSetUp(DM dm, DMMeshInterpolationInfo ctx) {
+  Obj<PETSC_MESH_TYPE> m;
+  PetscScalar   *a;
+  PetscInt       p, i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMMeshGetMesh(dm, m);CHKERRQ(ierr);
+  if (ctx->dim < 0) {
+    SETERRQ(((PetscObject) dm)->comm, PETSC_ERR_ARG_WRONGSTATE, "The spatial dimension has not been set");
+  }
+  // Locate points
+  PetscInt N, found;
+
+  ierr = MPI_Allreduce(&ctx->nInput, &N, 1, MPIU_INT, MPI_SUM, ((PetscObject) dm)->comm);CHKERRQ(ierr);
+  // Communicate all points to all processes
+  ctx->n = 0;
+  ierr = PetscMalloc(N * sizeof(PetscInt), &ctx->cells);CHKERRQ(ierr);
+  for(p = 0; p < N; ++p) {
+    ctx->cells[p] = m->locatePoint(&ctx->points[p*ctx->dim]);
+    if (ctx->cells[p] >= 0) ctx->n++;
+  }
+  // Check that exactly this many points were found
+  ierr = MPI_Allreduce(&ctx->n, &found, 1, MPIU_INT, MPI_SUM, ((PetscObject) dm)->comm);CHKERRQ(ierr);
+  if (found != N) {SETERRQ2(((PetscObject) dm)->comm, PETSC_ERR_PLIB, "Invalid number of points located %d should be %d", found, N);}
+  // Create coordinates vector
+  ierr = VecCreate(((PetscObject) dm)->comm, &ctx->coords);CHKERRQ(ierr);
+  ierr = VecSetSizes(ctx->coords, ctx->n*ctx->dim, PETSC_DECIDE);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(ctx->coords, ctx->dim);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(ctx->coords);CHKERRQ(ierr);
+  ierr = VecGetArray(ctx->coords, &a);CHKERRQ(ierr);
+  for(p = 0, i = 0; p < N; ++p) {
+    if (ctx->cells[p] >= 0) {
+      PetscInt d;
+
+      for(d = 0; d < ctx->dim; ++d, ++i) {
+        a[i] = ctx->points[p*ctx->dim+d];
+      }
+    }
+  }
+  ierr = VecRestoreArray(ctx->coords, &a);CHKERRQ(ierr);
+  // Compress cells array
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationGetCoordinates"
+PetscErrorCode DMMeshInterpolationGetCoordinates(DM dm, Vec *coordinates, DMMeshInterpolationInfo ctx) {
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(coordinates, 2);
+  if (!ctx->coords) {SETERRQ(((PetscObject) dm)->comm, PETSC_ERR_ARG_WRONGSTATE, "The interpolation context has not been setup.");}
+  *coordinates = ctx->coords;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationGetVector"
+PetscErrorCode DMMeshInterpolationGetVector(DM dm, Vec *v, DMMeshInterpolationInfo ctx) {
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(v, 2);
+  if (!ctx->coords) {SETERRQ(((PetscObject) dm)->comm, PETSC_ERR_ARG_WRONGSTATE, "The interpolation context has not been setup.");}
+  ierr = VecCreate(((PetscObject) dm)->comm, v);CHKERRQ(ierr);
+  ierr = VecSetSizes(*v, ctx->n*ctx->dof, PETSC_DECIDE);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(*v, ctx->dof);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(*v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationRestoreVector"
+PetscErrorCode DMMeshInterpolationRestoreVector(DM dm, Vec *v, DMMeshInterpolationInfo ctx) {
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(v, 2);
+  if (!ctx->coords) {SETERRQ(((PetscObject) dm)->comm, PETSC_ERR_ARG_WRONGSTATE, "The interpolation context has not been setup.");}
+  ierr = VecDestroy(v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationEvaluate"
+PetscErrorCode DMMeshInterpolationEvaluate(DM dm, SectionReal x, Vec v, DMMeshInterpolationInfo ctx) {
   Obj<PETSC_MESH_TYPE> m;
   Obj<PETSC_MESH_TYPE::real_section_type> s;
-  double        *v0, *J, *invJ, detJ;
+  PetscInt       p, n;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidHeaderSpecific(x, SECTIONREAL_CLASSID, 2);
+  PetscValidHeaderSpecific(v, VEC_CLASSID, 3);
+  ierr = VecGetLocalSize(v, &n);CHKERRQ(ierr);
+  if (n != ctx->n*ctx->dof) {SETERRQ2(((PetscObject) dm)->comm, PETSC_ERR_ARG_SIZ, "Invalid input vector size %d should be %d", n, ctx->n*ctx->dof);}
+  ierr = DMMeshGetMesh(dm, m);CHKERRQ(ierr);
+  ierr = SectionRealGetSection(x, s);CHKERRQ(ierr);
+  const Obj<PETSC_MESH_TYPE::real_section_type>& coordinates = m->getRealSection("coordinates");
+  PetscReal   *v0, *J, *invJ, detJ;
+  PetscScalar *a, *coords;
+
+  ierr = PetscMalloc3(ctx->dim,PetscReal,&v0,ctx->dim*ctx->dim,PetscReal,&J,ctx->dim*ctx->dim,PetscReal,&invJ);CHKERRQ(ierr);
+  ierr = VecGetArray(ctx->coords, &coords);CHKERRQ(ierr);
+  ierr = VecGetArray(v, &a);CHKERRQ(ierr);
+  for(p = 0; p < ctx->n; ++p) {
+    PetscInt           e = ctx->cells[p];
+    const PetscScalar *c = m->restrictClosure(s, e);
+    PetscReal          xi[4];
+    PetscInt           d, f, comp;
+
+    if ((ctx->dim+1)*ctx->dof != m->sizeWithBC(s, e)) {SETERRQ2(((PetscObject) dm)->comm, PETSC_ERR_ARG_SIZ, "Invalid restrict size %d should be %d", m->sizeWithBC(s, e), (ctx->dim+1)*ctx->dof);}
+    m->computeElementGeometry(coordinates, e, v0, J, invJ, detJ);
+    for(comp = 0; comp < ctx->dof; ++comp) {
+      a[p*ctx->dof+comp] = c[0*ctx->dof+comp];
+    }
+    for(d = 0; d < ctx->dim; ++d) {
+      xi[d] = 0.0;
+      for(f = 0; f < ctx->dim; ++f) {
+        xi[d] += invJ[d*ctx->dim+f]*0.5*(coords[p*ctx->dim+f] - v0[f]);
+      }
+      for(comp = 0; comp < ctx->dof; ++comp) {
+        a[p*ctx->dof+comp] += (c[d*ctx->dof+comp] - c[0*ctx->dof+comp])*xi[d];
+      }
+    }
+  }
+  ierr = VecRestoreArray(v, &a);CHKERRQ(ierr);
+  ierr = VecRestoreArray(ctx->coords, &coords);CHKERRQ(ierr);
+  ierr = PetscFree3(v0, J, invJ);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshInterpolationDestroy"
+PetscErrorCode DMMeshInterpolationDestroy(DM dm, DMMeshInterpolationInfo *ctx) {
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  PetscValidPointer(ctx, 2);
+  ierr = VecDestroy(&(*ctx)->coords);CHKERRQ(ierr);
+  ierr = PetscFree((*ctx)->points);CHKERRQ(ierr);
+  ierr = PetscFree((*ctx)->cells);CHKERRQ(ierr);
+  ierr = PetscFree(*ctx);CHKERRQ(ierr);
+  *ctx = PETSC_NULL;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshGetDimension"
+/*@
+  DMMeshGetDimension - Return the topological mesh dimension
+
+  Collective on mesh
+
+  Input Parameter:
+. mesh - The DMMesh
+
+  Output Parameter:
+. dim - The topological mesh dimension
+
+  Level: beginner
+
+.seealso: DMMeshCreate()
+@*/
+PetscErrorCode DMMeshGetDimension(DM dm, PetscInt *dim)
+{
+  Obj<PETSC_MESH_TYPE> m;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = DMMeshGetMesh(dm, m);CHKERRQ(ierr);
-  ierr = SectionRealGetSection(section, s);CHKERRQ(ierr);
-  const Obj<PETSC_MESH_TYPE::real_section_type>& coordinates = m->getRealSection("coordinates");
-  int embedDim = coordinates->getFiberDimension(*m->depthStratum(0)->begin());
-  int dim      = s->getFiberDimension(*m->depthStratum(0)->begin());
-
-  ierr = PetscMalloc3(embedDim,double,&v0,embedDim*embedDim,double,&J,embedDim*embedDim,double,&invJ);CHKERRQ(ierr);
-  ierr = PetscMalloc(numPoints*dim * sizeof(PetscScalar), &values);CHKERRQ(ierr);
-  for(int p = 0; p < numPoints; p++) {
-    PetscReal *point = &points[p*embedDim];
-
-    PETSC_MESH_TYPE::point_type e = m->locatePoint(point);
-    const PETSC_MESH_TYPE::real_section_type::value_type *coeff = s->restrictPoint(e);
-
-    m->computeElementGeometry(coordinates, e, v0, J, invJ, detJ);
-    double xi   = (invJ[0*embedDim+0]*(point[0] - v0[0]) + invJ[0*embedDim+1]*(point[1] - v0[1]) + invJ[0*embedDim+2]*(point[2] - v0[2]))*0.5;
-    double eta  = (invJ[1*embedDim+0]*(point[0] - v0[0]) + invJ[1*embedDim+1]*(point[1] - v0[1]) + invJ[1*embedDim+2]*(point[2] - v0[2]))*0.5;
-    double zeta = (invJ[2*embedDim+0]*(point[0] - v0[0]) + invJ[2*embedDim+1]*(point[1] - v0[1]) + invJ[2*embedDim+2]*(point[2] - v0[2]))*0.5;
-
-    for(int d = 0; d < dim; d++) {
-      (*values)[p*dim+d] = coeff[0*dim+d]*(1 - xi - eta - zeta) + coeff[1*dim+d]*xi + coeff[2*dim+d]*eta + coeff[3*dim+d]*zeta;
-    }
-  }
-  ierr = PetscFree3(v0, J, invJ);CHKERRQ(ierr);
+  *dim = m->getDimension();
   PetscFunctionReturn(0);
 }
 
@@ -740,9 +926,9 @@ PetscErrorCode DMMeshGetMaximumDegree(DM dm, PetscInt *maxDegree)
 extern PetscErrorCode assembleFullField(VecScatter, Vec, Vec, InsertMode);
 
 #undef __FUNCT__
-#define __FUNCT__ "restrictVector"
+#define __FUNCT__ "DMMeshRestrictVector"
 /*@
-  restrictVector - Insert values from a global vector into a local ghosted vector
+  DMMeshRestrictVector - Insert values from a global vector into a local ghosted vector
 
   Collective on g
 
@@ -757,7 +943,7 @@ extern PetscErrorCode assembleFullField(VecScatter, Vec, Vec, InsertMode);
 
 .seealso: MatSetOption()
 @*/
-PetscErrorCode restrictVector(Vec g, Vec l, InsertMode mode)
+PetscErrorCode DMMeshRestrictVector(Vec g, Vec l, InsertMode mode)
 {
   VecScatter     injection;
   PetscErrorCode ierr;
@@ -780,9 +966,9 @@ PetscErrorCode restrictVector(Vec g, Vec l, InsertMode mode)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "assembleVectorComplete"
+#define __FUNCT__ "DMMeshAssembleVectorComplete"
 /*@
-  assembleVectorComplete - Insert values from a local ghosted vector into a global vector
+  DMMeshAssembleVectorComplete - Insert values from a local ghosted vector into a global vector
 
   Collective on g
 
@@ -797,7 +983,7 @@ PetscErrorCode restrictVector(Vec g, Vec l, InsertMode mode)
 
 .seealso: MatSetOption()
 @*/
-PetscErrorCode assembleVectorComplete(Vec g, Vec l, InsertMode mode)
+PetscErrorCode DMMeshAssembleVectorComplete(Vec g, Vec l, InsertMode mode)
 {
   VecScatter     injection;
   PetscErrorCode ierr;
@@ -820,9 +1006,9 @@ PetscErrorCode assembleVectorComplete(Vec g, Vec l, InsertMode mode)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "assembleVector"
+#define __FUNCT__ "DMMeshAssembleVector"
 /*@
-  assembleVector - Insert values into a vector
+  DMMeshAssembleVector - Insert values into a vector
 
   Collective on A
 
@@ -838,21 +1024,21 @@ PetscErrorCode assembleVectorComplete(Vec g, Vec l, InsertMode mode)
 
 .seealso: VecSetOption()
 @*/
-PetscErrorCode assembleVector(Vec b, PetscInt e, PetscScalar v[], InsertMode mode)
+PetscErrorCode DMMeshAssembleVector(Vec b, PetscInt e, PetscScalar v[], InsertMode mode)
 {
   DM             dm;
   SectionReal    section;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscObjectQuery((PetscObject) b, "DMMesh", (PetscObject *) &dm);CHKERRQ(ierr);
+  ierr = PetscObjectQuery((PetscObject) b, "DM", (PetscObject *) &dm);CHKERRQ(ierr);
   ierr = DMMeshGetSectionReal(dm, "x", &section);CHKERRQ(ierr);
-  ierr = assembleVector(b, dm, section, e, v, mode);CHKERRQ(ierr);
+  ierr = DMMeshAssembleVector(b, dm, section, e, v, mode);CHKERRQ(ierr);
   ierr = SectionRealDestroy(&section);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode assembleVector(Vec b, DM dm, SectionReal section, PetscInt e, PetscScalar v[], InsertMode mode)
+PetscErrorCode DMMeshAssembleVector(Vec b, DM dm, SectionReal section, PetscInt e, PetscScalar v[], InsertMode mode)
 {
   ALE::Obj<PETSC_MESH_TYPE> m;
   ALE::Obj<PETSC_MESH_TYPE::real_section_type> s;
@@ -947,8 +1133,8 @@ PetscErrorCode MatSetValuesTopology(Mat mat, DM dmr, PetscInt nrow, const PetscI
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "updateOperator"
-PetscErrorCode updateOperator(Mat A, const ALE::Obj<PETSC_MESH_TYPE>& m, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>& section, const ALE::Obj<PETSC_MESH_TYPE::order_type>& globalOrder, const PETSC_MESH_TYPE::point_type& e, PetscScalar array[], InsertMode mode)
+#define __FUNCT__ "DMMeshUpdateOperator"
+PetscErrorCode DMMeshUpdateOperator(Mat A, const ALE::Obj<PETSC_MESH_TYPE>& m, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>& section, const ALE::Obj<PETSC_MESH_TYPE::order_type>& globalOrder, const PETSC_MESH_TYPE::point_type& e, PetscScalar array[], InsertMode mode)
 {
   PetscErrorCode ierr;
 
@@ -961,8 +1147,8 @@ PetscErrorCode updateOperator(Mat A, const ALE::Obj<PETSC_MESH_TYPE>& m, const A
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "updateOperatorGeneral"
-PetscErrorCode updateOperatorGeneral(Mat A, const ALE::Obj<PETSC_MESH_TYPE>& rowM, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>& rowSection, const ALE::Obj<PETSC_MESH_TYPE::order_type>& rowGlobalOrder, const PETSC_MESH_TYPE::point_type& rowE, const ALE::Obj<PETSC_MESH_TYPE>& colM, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>& colSection, const ALE::Obj<PETSC_MESH_TYPE::order_type>& colGlobalOrder, const PETSC_MESH_TYPE::point_type& colE, PetscScalar array[], InsertMode mode)
+#define __FUNCT__ "DMMeshUpdateOperatorGeneral"
+PetscErrorCode DMMeshUpdateOperatorGeneral(Mat A, const ALE::Obj<PETSC_MESH_TYPE>& rowM, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>& rowSection, const ALE::Obj<PETSC_MESH_TYPE::order_type>& rowGlobalOrder, const PETSC_MESH_TYPE::point_type& rowE, const ALE::Obj<PETSC_MESH_TYPE>& colM, const ALE::Obj<PETSC_MESH_TYPE::real_section_type>& colSection, const ALE::Obj<PETSC_MESH_TYPE::order_type>& colGlobalOrder, const PETSC_MESH_TYPE::point_type& colE, PetscScalar array[], InsertMode mode)
 {
   typedef ALE::ISieveVisitor::IndicesVisitor<PETSC_MESH_TYPE::real_section_type,PETSC_MESH_TYPE::order_type,PetscInt> visitor_type;
   visitor_type iVr(*rowSection, *rowGlobalOrder, (int) pow((double) rowM->getSieve()->getMaxConeSize(), rowM->depth())*rowM->getMaxDof(), rowM->depth() > 1);
@@ -989,11 +1175,11 @@ PetscErrorCode updateOperatorGeneral(Mat A, const ALE::Obj<PETSC_MESH_TYPE>& row
    ADD_VALUES adds values to any existing entries, and
    INSERT_VALUES replaces existing entries with new values
 
-   Notes: This is used by routines like updateOperator() to bound buffer sizes
+   Notes: This is used by routines like DMMeshUpdateOperator() to bound buffer sizes
 
    Level: developer
 
-.seealso: updateOperator(), assembleMatrix()
+.seealso: DMMeshUpdateOperator(), DMMeshAssembleMatrix()
 @*/
 PetscErrorCode DMMeshSetMaxDof(DM dm, PetscInt maxDof)
 {
@@ -1007,9 +1193,9 @@ PetscErrorCode DMMeshSetMaxDof(DM dm, PetscInt maxDof)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "assembleMatrix"
+#define __FUNCT__ "DMMeshAssembleMatrix"
 /*@
-  assembleMatrix - Insert values into a matrix
+  DMMeshAssembleMatrix - Insert values into a matrix
 
   Collective on A
 
@@ -1027,7 +1213,7 @@ PetscErrorCode DMMeshSetMaxDof(DM dm, PetscInt maxDof)
 
 .seealso: MatSetOption()
 @*/
-PetscErrorCode assembleMatrix(Mat A, DM dm, SectionReal section, PetscInt e, PetscScalar v[], InsertMode mode)
+PetscErrorCode DMMeshAssembleMatrix(Mat A, DM dm, SectionReal section, PetscInt e, PetscScalar v[], InsertMode mode)
 {
   PetscErrorCode ierr;
 
@@ -1044,7 +1230,7 @@ PetscErrorCode assembleMatrix(Mat A, DM dm, SectionReal section, PetscInt e, Pet
     if (m->debug()) {
       std::cout << "Assembling matrix for element number " << e << " --> point " << e << std::endl;
     }
-    ierr = updateOperator(A, m, s, globalOrder, e, v, mode);CHKERRQ(ierr);
+    ierr = DMMeshUpdateOperator(A, m, s, globalOrder, e, v, mode);CHKERRQ(ierr);
   } catch (ALE::Exception e) {
     std::cout << e.msg() << std::endl;
   }
@@ -1520,9 +1706,14 @@ PetscErrorCode DMMeshGetDepthStratum(DM dm, PetscInt stratumValue, PetscInt *sta
   PetscFunctionBegin;
   ierr = DMMeshGetMesh(dm, mesh);CHKERRQ(ierr);
   {
-    const Obj<PETSC_MESH_TYPE::label_sequence>& stratum = mesh->depthStratum(stratumValue);
-    if (start) *start = *stratum->begin();
-    if (end)   *end   = *stratum->rbegin()+1;
+    if (stratumValue < 0) {
+      if (start) *start = mesh->getSieve()->getChart().min();
+      if (end)   *end   = mesh->getSieve()->getChart().max();
+    } else {
+      const Obj<PETSC_MESH_TYPE::label_sequence>& stratum = mesh->depthStratum(stratumValue);
+      if (start) *start = *stratum->begin();
+      if (end)   *end   = *stratum->rbegin()+1;
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -1539,6 +1730,57 @@ PetscErrorCode DMMeshGetHeightStratum(DM dm, PetscInt stratumValue, PetscInt *st
     const Obj<PETSC_MESH_TYPE::label_sequence>& stratum = mesh->heightStratum(stratumValue);
     if (start) *start = *stratum->begin();
     if (end)   *end   = *stratum->rbegin()+1;
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshCreateSection"
+PetscErrorCode DMMeshCreateSection(DM dm, PetscInt dim, PetscInt numDof[], const char bcName[], PetscInt bcValue, PetscSection *section) {
+  ALE::Obj<PETSC_MESH_TYPE> mesh;
+  PetscInt       pStart = 0, pEnd = 0, maxConstraints = 0;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscSectionCreate(((PetscObject) dm)->comm, section);CHKERRQ(ierr);
+  ierr = DMMeshGetDepthStratum(dm, -1, &pStart, &pEnd);CHKERRQ(ierr);
+  ierr = PetscSectionSetChart(*section, pStart, pEnd);CHKERRQ(ierr);
+  for(PetscInt d = 0; d <= dim; ++d) {
+    ierr = DMMeshGetDepthStratum(dm, d, &pStart, &pEnd);CHKERRQ(ierr);
+    for(PetscInt p = pStart; p < pEnd; ++p) {
+      ierr = PetscSectionSetDof(*section, p, numDof[d]);CHKERRQ(ierr);
+    }
+  }
+  ierr = DMMeshGetMesh(dm, mesh);CHKERRQ(ierr);
+  if (bcName) {
+    const Obj<PETSC_MESH_TYPE::label_sequence>& boundary = mesh->getLabelStratum(bcName, bcValue);
+
+    for(PETSC_MESH_TYPE::label_sequence::iterator e_iter = boundary->begin(); e_iter != boundary->end(); ++e_iter) {
+      const int n = numDof[mesh->depth(*e_iter)];
+
+      maxConstraints = PetscMax(maxConstraints, n);
+      ierr = PetscSectionSetConstraintDof(*section, *e_iter, n);CHKERRQ(ierr);
+    }
+  }
+  ierr = PetscSectionSetUp(*section);CHKERRQ(ierr);
+  if (maxConstraints) {
+    PetscInt *indices;
+
+    ierr = PetscMalloc(maxConstraints * sizeof(PetscInt), &indices);CHKERRQ(ierr);
+    ierr = PetscSectionGetChart(*section, &pStart, &pEnd);CHKERRQ(ierr);
+    for(PetscInt p = pStart; p < pEnd; ++p) {
+      PetscInt cDof;
+
+      ierr = PetscSectionGetConstraintDof(*section, p, &cDof);CHKERRQ(ierr);
+      if (cDof) {
+        if (cDof > maxConstraints) {SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_LIB, "Likely memory corruption, poitn %d cDof %d > maxConstraints %d", p, cDof, maxConstraints);}
+        for(PetscInt d = 0; d < cDof; ++d) {
+          indices[d] = d;
+        }
+        ierr = PetscSectionSetConstraintIndices(*section, p, indices);CHKERRQ(ierr);
+      }
+    }
+    ierr = PetscFree(indices);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -1565,6 +1807,55 @@ PetscErrorCode DMMeshGetSection(DM dm, const char name[], PetscSection *section)
     ierr = PetscSectionSetUp(*section);CHKERRQ(ierr);
     for(PetscInt p = pStart; p < pEnd; ++p) {
       ierr = PetscSectionSetConstraintIndices(*section, p, (PetscInt *) s->getConstraintDof(p));CHKERRQ(ierr);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshSetSection"
+PetscErrorCode DMMeshSetSection(DM dm, const char name[], PetscSection section) {
+  ALE::Obj<PETSC_MESH_TYPE> mesh;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = DMMeshGetMesh(dm, mesh);CHKERRQ(ierr);
+  {
+    const Obj<PETSC_MESH_TYPE::real_section_type>& s = mesh->getRealSection(name);
+    PetscInt pStart, pEnd;
+
+    ierr = PetscSectionGetChart(section, &pStart, &pEnd);CHKERRQ(ierr);
+    s->setChart(PETSC_MESH_TYPE::real_section_type::chart_type(pStart, pEnd));
+    for(PetscInt p = pStart; p < pEnd; ++p) {
+      PetscInt fDim, cDim;
+
+      ierr = PetscSectionGetDof(section, p, &fDim);CHKERRQ(ierr);
+      s->setFiberDimension(p, fDim);
+      ierr = PetscSectionGetConstraintDof(section, p, &cDim);CHKERRQ(ierr);
+      if (cDim) {s->setConstraintDimension(p, cDim);}
+    }
+    s->allocatePoint();
+    for(PetscInt p = pStart; p < pEnd; ++p) {
+      PetscInt *indices;
+
+      ierr = PetscSectionGetConstraintIndices(section, p, &indices);CHKERRQ(ierr);
+      s->setConstraintDof(p, indices);
+    }
+    {
+      PetscBool isDefault;
+
+      ierr = PetscStrcmp(name, "default", &isDefault);CHKERRQ(ierr);
+      if (isDefault) {
+        PetscInt maxDof = 0;
+
+        for(PetscInt p = pStart; p < pEnd; ++p) {
+          PetscInt fDim;
+
+          ierr = PetscSectionGetDof(section, p, &fDim);CHKERRQ(ierr);
+          maxDof = PetscMax(maxDof, fDim);
+        }
+        mesh->setMaxDof(maxDof);
+      }
     }
   }
   PetscFunctionReturn(0);
@@ -2026,4 +2317,37 @@ inline void ExpandInterval_New(ALE::Point interval, PetscInt indices[], PetscInt
   for(int i = 0; i < -interval.prefix; i++) {
     indices[(*indx)++] = -1;
   }
+}
+
+
+/******************************** FEM Support **********************************/
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshPrintCellVector"
+PetscErrorCode DMMeshPrintCellVector(PetscInt c, const char name[], PetscInt len, const PetscScalar x[]) {
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscPrintf(PETSC_COMM_SELF, "Cell %d Element %s\n", c, name);CHKERRQ(ierr);
+  for(PetscInt f = 0; f < len; ++f) {
+    PetscPrintf(PETSC_COMM_SELF, "  | %g |\n", x[f]);
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMMeshPrintCellMatrix"
+PetscErrorCode DMMeshPrintCellMatrix(PetscInt c, const char name[], PetscInt rows, PetscInt cols, const PetscScalar A[]) {
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscPrintf(PETSC_COMM_SELF, "Cell %d Element %s\n", c, name);CHKERRQ(ierr);
+  for(int f = 0; f < rows; ++f) {
+    PetscPrintf(PETSC_COMM_SELF, "  |");
+    for(int g = 0; g < cols; ++g) {
+      PetscPrintf(PETSC_COMM_SELF, " %g", A[f*cols+g]);
+    }
+    PetscPrintf(PETSC_COMM_SELF, " |\n");
+  }
+  PetscFunctionReturn(0);
 }

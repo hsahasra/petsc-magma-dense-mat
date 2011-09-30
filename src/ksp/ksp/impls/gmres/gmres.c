@@ -45,8 +45,6 @@ PetscErrorCode    KSPSetUp_GMRES(KSP ksp)
   KSP_GMRES      *gmres = (KSP_GMRES *)ksp->data;
 
   PetscFunctionBegin;
-  if (ksp->pc_side == PC_SYMMETRIC) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"no symmetric preconditioning for KSPGMRES");
-
   max_k         = gmres->max_k;  /* restart size */
   hh            = (max_k + 2) * (max_k + 1);
   hes           = (max_k + 1) * (max_k + 1);
@@ -170,7 +168,7 @@ PetscErrorCode GMREScycle(PetscInt *itcount,KSP ksp)
     hapbnd  = PetscAbsScalar(tt / *GRS(it));
     if (hapbnd > gmres->haptol) hapbnd = gmres->haptol;
     if (tt < hapbnd) {
-      ierr = PetscInfo2(ksp,"Detected happy breakdown, current hapbnd = %G tt = %G\n",hapbnd,tt);CHKERRQ(ierr);
+      ierr = PetscInfo2(ksp,"Detected happy breakdown, current hapbnd = %14.12e tt = %14.12e\n",(double)hapbnd,(double)tt);CHKERRQ(ierr);
       hapend = PETSC_TRUE;
     }
     ierr = GMRESUpdateHessenberg(ksp,it,hapend,&res);CHKERRQ(ierr);
@@ -185,9 +183,7 @@ PetscErrorCode GMREScycle(PetscInt *itcount,KSP ksp)
 
     /* Catch error in happy breakdown and signal convergence and break from loop */
     if (hapend) {
-      if (!ksp->reason) {
-        SETERRQ1(((PetscObject)ksp)->comm,PETSC_ERR_PLIB,"You reached the happy break down, but convergence was not indicated. Residual norm = %G",res);
-      }
+      if (!ksp->reason) SETERRQ1(((PetscObject)ksp)->comm,PETSC_ERR_PLIB,"You reached the happy break down, but convergence was not indicated. Residual norm = %G",res);
       break;
     }
   }
@@ -223,15 +219,6 @@ PetscErrorCode KSPSolve_GMRES(KSP ksp)
 
   PetscFunctionBegin;
   if (ksp->calc_sings && !gmres->Rsvd) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_ORDER,"Must call KSPSetComputeSingularValues() before KSPSetUp() is called");
-  switch (ksp->normtype) {
-  case KSP_NORM_PRECONDITIONED:
-    if (ksp->pc_side != PC_LEFT) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_ARG_WRONGSTATE,"Use left preconditioning -ksp_pc_side RIGHT if want -ksp_norm_type PRECONDITIONED");
-    break;
-  case KSP_NORM_UNPRECONDITIONED:
-    if (ksp->pc_side != PC_RIGHT) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_ARG_WRONGSTATE,"Use right preconditioning -ksp_pc_side LEFT if want -ksp_norm_type UNPRECONDITIONED");
-    break;
-  default: SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"Choose -ksp_norm_type PRECONDITIONED or UNPRECONDITIONED");
-  }
 
   ierr     = PetscObjectTakeAccess(ksp);CHKERRQ(ierr);
   ksp->its = 0;
@@ -930,8 +917,9 @@ PetscErrorCode  KSPCreate_GMRES(KSP ksp)
   ierr = PetscNewLog(ksp,KSP_GMRES,&gmres);CHKERRQ(ierr);
   ksp->data                              = (void*)gmres;
 
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_PRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_RIGHT,1);CHKERRQ(ierr);
 
-  ksp->normtype                          = KSP_NORM_PRECONDITIONED;
   ksp->ops->buildsolution                = KSPBuildSolution_GMRES;
   ksp->ops->setup                        = KSPSetUp_GMRES;
   ksp->ops->solve                        = KSPSolve_GMRES;

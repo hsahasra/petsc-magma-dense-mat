@@ -53,7 +53,7 @@ PetscErrorCode DMCreateGlobalVector_IGA(DM dm, Vec *gvec)
 
   PetscFunctionBegin;
   ierr = DMCreateGlobalVector(iga->da_dof, gvec);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject)*gvec,"DMIGA",(PetscObject)dm);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject)*gvec,"DM",(PetscObject)dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -66,7 +66,7 @@ PetscErrorCode DMCreateLocalVector_IGA(DM dm, Vec *lvec)
 
   PetscFunctionBegin;
   ierr = DMCreateLocalVector(iga->da_dof, lvec);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject)*lvec,"DMIGA",(PetscObject)dm);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject)*lvec,"DM",(PetscObject)dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -79,7 +79,7 @@ PetscErrorCode DMGetMatrix_IGA(DM dm, const MatType mtype, Mat *J)
 
   PetscFunctionBegin;
   ierr = DMGetMatrix(iga->da_dof, mtype, J);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject)*J,"DMIGA",(PetscObject)dm);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject)*J,"DM",(PetscObject)dm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -522,12 +522,14 @@ PetscErrorCode DMIGAInitializeGeometry3d(DM dm,PetscInt ndof,PetscInt NumDerivat
   PetscErrorCode ierr;
   MPI_Comm       comm;
   PetscViewer    viewer;
-  PetscInt spatial_dim,count,i;
-  PetscReal Umax = 0.0;
-  PetscInt numEl;
+  PetscInt       spatial_dim,i;
+  PetscReal      Umax;
+  PetscInt       numEl;
   DMDABoundaryType ptype;
-  PetscInt sw;
-  DMDALocalInfo       info_dof;
+  PetscInt       sw;
+  DMDALocalInfo  info_dof;
+  int            ival;
+  double         dval;
 
   PetscFunctionBegin;
   fp = fopen(FunctionSpaceFile, "r");
@@ -535,14 +537,20 @@ PetscErrorCode DMIGAInitializeGeometry3d(DM dm,PetscInt ndof,PetscInt NumDerivat
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_FILE_OPEN, "Cannot find geometry file");
   }
 
-  count = fscanf(fp, "%d", &spatial_dim);
+  if (fscanf(fp, "%d", &ival) != 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"Failed to read spatial dimension from %s",FunctionSpaceFile);
+  spatial_dim = ival;
   if(spatial_dim != 3){
     SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Geometry dimension != problem dimension");
   }
 
   /* Read in polynomial orders and number of basis functions */
-  count = fscanf(fp, "%d %d %d",&iga->px,&iga->py,&iga->pz);
-  count = fscanf(fp, "%d %d %d",&iga->nbx,&iga->nby,&iga->nbz);
+  {
+    int a,b,c;
+    if (fscanf(fp, "%d %d %d", &a, &b, &c) != 3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"Failed to read polynomial orders from %s",FunctionSpaceFile);
+    iga->px = a; iga->py = b; iga->pz= c;
+    if (fscanf(fp, "%d %d %d", &a, &b, &c) != 3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SYS,"Failed to read number of basis functions from %s",FunctionSpaceFile);
+    iga->nbx = a; iga->nby = b; iga->nbz= c;
+  }
 
   /* Knot vector size */
   iga->mx = iga->nbx + iga->px + 1;
@@ -554,25 +562,31 @@ PetscErrorCode DMIGAInitializeGeometry3d(DM dm,PetscInt ndof,PetscInt NumDerivat
   ierr = PetscMalloc(iga->my*sizeof(PetscReal), &iga->Uy);CHKERRQ(ierr);
   ierr = PetscMalloc(iga->mz*sizeof(PetscReal), &iga->Uz);CHKERRQ(ierr);
 
+  Umax = 0.0;
   for(i=0;i<iga->mx;i++) {
-    count = fscanf(fp, "%lf ",&iga->Ux[i]);
+    if (fscanf(fp, "%lf ", &dval) != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SYS,"Failed to read X coordinate at %D from %s",i,FunctionSpaceFile);
+    iga->Ux[i] = dval;
     if(iga->Ux[i] > Umax) Umax = iga->Ux[i];
   }
   for(i=0;i<iga->mx;i++) iga->Ux[i] /= Umax;
 
   Umax = 0.0;
   for(i=0;i<iga->my;i++) {
-    count = fscanf(fp, "%lf ",&iga->Uy[i]);
+    if (fscanf(fp, "%lf ", &dval) != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SYS,"Failed to read Y coordinate at %D from %s",i,FunctionSpaceFile);
+    iga->Uy[i] = dval;
     if(iga->Uy[i] > Umax) Umax = iga->Uy[i];
   }
   for(i=0;i<iga->my;i++) iga->Uy[i] /= Umax;
 
   Umax = 0.0;
   for(i=0;i<iga->mz;i++) {
-    count = fscanf(fp, "%lf ",&iga->Uz[i]);
+    if (fscanf(fp, "%lf ", &dval) != 1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_SYS,"Failed to read Z coordinate at %D from %s",i,FunctionSpaceFile);
+    iga->Uz[i] = dval;
     if(iga->Uz[i] > Umax) Umax = iga->Uz[i];
   }
   for(i=0;i<iga->mz;i++) iga->Uz[i] /= Umax;
+
+  fclose(fp);
 
   /* count the number of elements */
   numEl = 0;
@@ -1541,24 +1555,22 @@ PetscErrorCode SetupGauss1D(PetscInt n,PetscReal *X,PetscReal *W)
 #define __FUNCT__ "CreateKnotVector"
 PetscErrorCode CreateKnotVector(PetscInt N,PetscInt p,PetscInt C,PetscInt m, PetscReal *U,PetscReal U0,PetscReal Uf)
 {
-  PetscInt i,j;
+  PetscInt  i,j;
   PetscReal dU;
-  PetscInt  k0;
 
   PetscFunctionBegin;
-  for(i=0;i<p+1;i++) /* open part */
+
+  dU = (Uf-U0)/N;
+  for(i=0;i<(N-1);i++) /* insert N-1 knots */
+    for(j=0;j<(p-C);j++) /* p-C times */
+      U[(p+1) + i*(p-C) + j] = U0 + (i+1)*dU;
+
+  for(i=0;i<(p+1);i++) /* open part */
   {
     U[i] = U0;
     U[m-i-1] = Uf;
   }
 
-  dU = (Uf-U0)/((PetscReal) N);
-  k0 = p+1;
-  for(i=0;i<(N-1);i++) /* insert N-1 knots */
-  {
-    for(j=0;j<(p-C);j++) /* p-C+1 times */
-      U[k0 + i*(p-C) + j] = U0+((PetscReal) (i+1))*dU;
-  }
   PetscFunctionReturn(0);
 }
 
@@ -1566,28 +1578,21 @@ PetscErrorCode CreateKnotVector(PetscInt N,PetscInt p,PetscInt C,PetscInt m, Pet
 #define __FUNCT__ "CreatePeriodicKnotVector"
 PetscErrorCode CreatePeriodicKnotVector(PetscInt N,PetscInt p,PetscInt C,PetscInt m, PetscReal *U,PetscReal U0,PetscReal Uf)
 {
-  PetscInt i,j;
+  PetscInt  i,j;
   PetscReal dU;
-  PetscInt  k0;
 
-  PetscFunctionBegin; /* periodic part */
-  U[p] = U0;
-  U[m-p-1] = Uf;
+  PetscFunctionBegin;
 
-  dU = (Uf-U0)/((PetscReal) N);
-  k0 = p+1;
-  for(i=0;i<(N-1);i++) /* insert N-1 knots */
+  dU = (Uf-U0)/N;
+  for(i=0;i<(N+1);i++) /* insert N+1 knots */
+    for(j=0;j<(p-C);j++) /* p-C times */
+      U[(C+1) + i*(p-C) + j] = U0 + i*dU;
+
+  for(i=0;i<(C+1);i++) /* periodic part */
   {
-    for(j=0;j<(p-C);j++) /* p-C+1 times */
-      U[k0 + i*(p-C) + j] = U0+((PetscReal) (i+1))*dU;
+    U[i] = U0 - (Uf - U[(m-1-p)-(C+1)+i]);
+    U[m-(C+1)+i] = Uf + (U[p+1+i] - U0);
   }
-
-  for(i=0;i<p;i++)
-    {
-      U[i] = -U[m-p-1]+U[m-p-1-(p-i)];
-      U[m-p+i] = U[m-p-1]+U[p+i+1];
-    }
-
 
   PetscFunctionReturn(0);
 }

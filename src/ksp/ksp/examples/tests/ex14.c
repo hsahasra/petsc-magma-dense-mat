@@ -275,7 +275,7 @@ int main(int argc,char **argv)
       break;
     }  
   }
-  ierr = PetscPrintf(comm,"Number of Newton iterations = %D\n",i+1);CHKERRQ(ierr);
+  ierr = PetscPrintf(comm,"Number of SNES iterations = %D\n",i+1);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.  All PETSc objects should be destroyed when they
@@ -344,7 +344,7 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X)
         x[row] = 0.0; 
         continue;
       }
-      x[row] = temp1*sqrt(PetscMin((PetscReal)(PetscMin(i,mx-i-1))*hx,temp)); 
+      x[row] = temp1*PetscSqrtScalar(PetscMin((PetscReal)(PetscMin(i,mx-i-1))*hx,temp)); 
     }
   }
 

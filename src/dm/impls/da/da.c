@@ -114,9 +114,9 @@ PetscErrorCode  DMDASetBoundaryType(DM da,DMDABoundaryType bx,DMDABoundaryType b
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
-  PetscValidLogicalCollectiveInt(da,bx,2);
-  PetscValidLogicalCollectiveInt(da,by,3);
-  PetscValidLogicalCollectiveInt(da,bz,4);
+  PetscValidLogicalCollectiveEnum(da,bx,2);
+  PetscValidLogicalCollectiveEnum(da,by,3);
+  PetscValidLogicalCollectiveEnum(da,bz,4);
   dd->bx = bx;
   dd->by = by;
   dd->bz = bz;
@@ -139,12 +139,13 @@ PetscErrorCode  DMDASetBoundaryType(DM da,DMDABoundaryType bx,DMDABoundaryType b
 .keywords:  distributed array, degrees of freedom
 .seealso: DMDACreate(), DMDestroy(), DMDA
 @*/
-PetscErrorCode  DMDASetDof(DM da, int dof)
+PetscErrorCode  DMDASetDof(DM da, PetscInt dof)
 {
   DM_DA *dd = (DM_DA*)da->data;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
+  PetscValidLogicalCollectiveInt(da,dof,2);
   dd->w = dof;
   da->bs = dof;
   PetscFunctionReturn(0);
@@ -265,42 +266,6 @@ PetscErrorCode  DMDASetOwnershipRanges(DM da, const PetscInt lx[], const PetscIn
       ierr = PetscMalloc(dd->p*sizeof(PetscInt), &dd->lz);CHKERRQ(ierr);
     }
     ierr = PetscMemcpy(dd->lz, lz, dd->p*sizeof(PetscInt));CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "DMDACreateOwnershipRanges"
-/*
- Ensure that da->lx, ly, and lz exist.  Collective on DMDA.
-*/
-PetscErrorCode  DMDACreateOwnershipRanges(DM da)
-{
-  DM_DA          *dd = (DM_DA*)da->data;
-  PetscErrorCode ierr;
-  PetscInt       n;
-  MPI_Comm       comm;
-  PetscMPIInt    size;
-
-  PetscFunctionBegin;
-  if (!dd->lx) {
-    ierr = PetscMalloc(dd->m*sizeof(PetscInt),&dd->lx);CHKERRQ(ierr);
-    ierr = DMDAGetProcessorSubset(da,DMDA_X,dd->xs,&comm);CHKERRQ(ierr);
-    ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-    n = (dd->xe-dd->xs)/dd->w;
-    ierr = MPI_Allgather(&n,1,MPIU_INT,dd->lx,1,MPIU_INT,comm);CHKERRQ(ierr);
-  }
-  if (dd->dim > 1 && !dd->ly) {
-    ierr = PetscMalloc(dd->n*sizeof(PetscInt),&dd->ly);CHKERRQ(ierr);
-    ierr = DMDAGetProcessorSubset(da,DMDA_Y,dd->ys,&comm);CHKERRQ(ierr);
-    n = dd->ye-dd->ys;
-    ierr = MPI_Allgather(&n,1,MPIU_INT,dd->ly,1,MPIU_INT,comm);CHKERRQ(ierr);
-  }
-  if (dd->dim > 2 && !dd->lz) {
-    ierr = PetscMalloc(dd->p*sizeof(PetscInt),&dd->lz);CHKERRQ(ierr);
-    ierr = DMDAGetProcessorSubset(da,DMDA_Z,dd->zs,&comm);CHKERRQ(ierr);
-    n = dd->ze-dd->zs;
-    ierr = MPI_Allgather(&n,1,MPIU_INT,dd->lz,1,MPIU_INT,comm);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -657,7 +622,6 @@ PetscErrorCode  DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
   } else {
     P = 1 + dd->refine_z*(dd->P - 1);
   }
-  ierr = DMDACreateOwnershipRanges(da);CHKERRQ(ierr);
   if (dd->dim == 3) {
     PetscInt *lx,*ly,*lz;
     ierr = PetscMalloc3(dd->m,PetscInt,&lx,dd->n,PetscInt,&ly,dd->p,PetscInt,&lz);CHKERRQ(ierr);
@@ -684,7 +648,7 @@ PetscErrorCode  DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
 
   /* allow overloaded (user replaced) operations to be inherited by refinement clones */
   da2->ops->getmatrix        = da->ops->getmatrix;
-  da2->ops->getinterpolation = da->ops->getinterpolation;
+  /* da2->ops->getinterpolation = da->ops->getinterpolation; this causes problem with SNESVI */
   da2->ops->getcoloring      = da->ops->getcoloring;
   dd2->interptype            = dd->interptype;
   
@@ -705,6 +669,9 @@ PetscErrorCode  DMRefine_DA(DM da,MPI_Comm comm,DM *daref)
   /* copy vector type information */
   ierr = PetscFree(da2->vectype);CHKERRQ(ierr);
   ierr = PetscStrallocpy(da->vectype,&da2->vectype);CHKERRQ(ierr);
+
+  dd2->lf = dd->lf;
+  dd2->lj = dd->lj;
 
   /* interpolate coordinates if they are set on the coarse grid */
   if (dd->coordinates) {
@@ -754,7 +721,6 @@ PetscErrorCode  DMCoarsen_DA(DM da, MPI_Comm comm,DM *daref)
   } else {
     P = 1 + (dd->P - 1) / dd->refine_z;
   }
-  ierr = DMDACreateOwnershipRanges(da);CHKERRQ(ierr);
   if (dd->dim == 3) {
     PetscInt *lx,*ly,*lz;
     ierr = PetscMalloc3(dd->m,PetscInt,&lx,dd->n,PetscInt,&ly,dd->p,PetscInt,&lz);CHKERRQ(ierr);
@@ -779,9 +745,9 @@ PetscErrorCode  DMCoarsen_DA(DM da, MPI_Comm comm,DM *daref)
   }
   dd2 = (DM_DA*)da2->data;
 
-  /* allow overloaded (user replaced) operations to be inherited by refinement clones */
+  /* allow overloaded (user replaced) operations to be inherited by refinement clones; why are only some inherited and not all? */
+  /* da2->ops->getinterpolation = da->ops->getinterpolation; copying this one causes trouble for DMSetVI */
   da2->ops->getmatrix        = da->ops->getmatrix;
-  da2->ops->getinterpolation = da->ops->getinterpolation;
   da2->ops->getcoloring      = da->ops->getcoloring;
   dd2->interptype            = dd->interptype;
   
@@ -803,10 +769,13 @@ PetscErrorCode  DMCoarsen_DA(DM da, MPI_Comm comm,DM *daref)
   ierr = PetscFree(da2->vectype);CHKERRQ(ierr);
   ierr = PetscStrallocpy(da->vectype,&da2->vectype);CHKERRQ(ierr);
 
+  dd2->lf = dd->lf;
+  dd2->lj = dd->lj;
+
   /* inject coordinates if they are set on the fine grid */
   if (dd->coordinates) {
-    DM  cdaf,cdac;
-    Vec coordsc,coordsf;
+    DM         cdaf,cdac;
+    Vec        coordsc,coordsf;
     VecScatter inject;
     
     ierr = DMDAGetCoordinateDA(da,&cdaf);CHKERRQ(ierr);

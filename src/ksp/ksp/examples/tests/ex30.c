@@ -12,7 +12,7 @@ It is copied and intended to move dirty codes from ksp/examples/tutorials/ex10.c
         -help -ksp_view                  \n\
         -num_numfac <num_numfac> -num_rhs <num_rhs> \n\
         -ksp_type preonly -pc_type lu -pc_factor_mat_solver_package spooles or superlu or superlu_dist or mumps \n\
-        -ksp_type preonly -pc_type cholesky -pc_factor_mat_solver_package spooles or dscpack or mumps \n\
+        -ksp_type preonly -pc_type cholesky -pc_factor_mat_solver_package spooles or mumps \n\
    mpiexec -n <np> ex30 -f0 <datafile> -ksp_type cg -pc_type asm -pc_asm_type basic -sub_pc_type icc -mat_type sbaij
 
    ./ex30 -f0 $D/small -mat_sigma -3.999999999999999 -ksp_type fgmres -pc_type lu -pc_factor_mat_solver_package superlu -mat_superlu_conditionnumber -ckerror -mat_superlu_diagpivotthresh 0
@@ -84,7 +84,7 @@ int main(int argc,char **args)
         -log_summary) can be done with the larger one (that actually
         is the system of interest). 
   */
-  PreLoadBegin(preload,"Load system");
+  PetscPreLoadBegin(preload,"Load system");
 
     /* - - - - - - - - - - - New Stage - - - - - - - - - - - - -
                            Load system
@@ -94,7 +94,7 @@ int main(int argc,char **args)
        Open binary file.  Note that we use FILE_MODE_READ to indicate
        reading from this file.
     */
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[PreLoadIt],FILE_MODE_READ,&fd);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[PetscPreLoadIt],FILE_MODE_READ,&fd);CHKERRQ(ierr);
     
     /*
        Load the matrix and vector; then destroy the viewer.
@@ -139,6 +139,7 @@ int main(int argc,char **args)
         /* load B to get A = A + sigma*B */
         ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[2],FILE_MODE_READ,&fd);CHKERRQ(ierr);
 	ierr = MatCreate(PETSC_COMM_WORLD,&B);CHKERRQ(ierr);
+        ierr = MatSetOptionsPrefix(B,"B_");CHKERRQ(ierr); /* e.g., ./ex30 -f0 <A> -fB <B> -mat_sigma 1.0 -B_mat_view_draw */
 	ierr = MatLoad(B,fd);CHKERRQ(ierr);
         ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
         ierr = MatAXPY(A,sigma,B,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr); /* A <- sigma*B + A */  
@@ -344,13 +345,13 @@ int main(int argc,char **args)
           ierr = VecAXPY(b2,-1.0,b);CHKERRQ(ierr);
           ierr = VecNorm(b2,NORM_2,&rnorm);CHKERRQ(ierr);
           ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of iterations = %3D\n",its);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %A\n",rnorm);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %G\n",rnorm);CHKERRQ(ierr);
         } 
         if (ckerror && !trans){  /* Check error for each rhs */
           /* ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
           ierr = VecAXPY(u,-1.0,x);CHKERRQ(ierr);
           ierr = VecNorm(u,NORM_2,&enorm);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Error norm %A\n",enorm);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Error norm %G\n",enorm);CHKERRQ(ierr);
         }
       
       } /* while ( num_rhs-- ) */
@@ -373,7 +374,7 @@ int main(int argc,char **args)
         */
         ierr = PetscViewerStringOpen(PETSC_COMM_WORLD,kspinfo,120,&viewer);CHKERRQ(ierr);
         ierr = KSPView(ksp,viewer);CHKERRQ(ierr);
-        ierr = PetscStrrchr(file[PreLoadIt],'/',&matrixname);CHKERRQ(ierr);
+        ierr = PetscStrrchr(file[PetscPreLoadIt],'/',&matrixname);CHKERRQ(ierr);
         ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %2.0e %2.1e %2.1e %2.1e %s \n",
                 matrixname,its,rnorm,tsetup+tsolve,tsetup,tsolve,kspinfo);CHKERRQ(ierr);
 
@@ -393,7 +394,7 @@ int main(int argc,char **args)
         ierr = VecLoad(xstar,viewer);CHKERRQ(ierr);
         ierr = VecAXPY(xstar, -1.0, x);CHKERRQ(ierr);
         ierr = VecNorm(xstar, NORM_2, &enorm);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_WORLD, "Error norm %A\n", enorm);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD, "Error norm %G\n", enorm);CHKERRQ(ierr);
         ierr = VecDestroy(&xstar);CHKERRQ(ierr);
         ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
       }
@@ -424,7 +425,7 @@ int main(int argc,char **args)
     ierr = VecDestroy(&b2);CHKERRQ(ierr);
     ierr = KSPDestroy(&ksp);CHKERRQ(ierr); 
     if (flgB) { ierr = MatDestroy(&B);CHKERRQ(ierr); }
-  PreLoadEnd();
+  PetscPreLoadEnd();
   /* -----------------------------------------------------------
                       End of linear solver loop
      ----------------------------------------------------------- */

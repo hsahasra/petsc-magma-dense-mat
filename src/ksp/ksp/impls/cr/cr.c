@@ -61,7 +61,7 @@ static PetscErrorCode  KSPSolve_CR(KSP ksp)
     ierr = VecNormEnd  (R,NORM_2,&dp);CHKERRQ(ierr);        /*   dp <- RT'*RT       */
   } else if (ksp->normtype == KSP_NORM_NATURAL) {
     ierr = VecDotEnd   (RT,ART,&btop) ;CHKERRQ(ierr);          /*   (RT,ART)           */
-    dp = sqrt(PetscAbsScalar(btop));                    /* dp = sqrt(R,AR)      */
+    dp = PetscSqrtReal(PetscAbsScalar(btop));                    /* dp = sqrt(R,AR)      */
   }
   if (PetscAbsScalar(btop) < 0.0) {
     ksp->reason = KSP_DIVERGED_INDEFINITE_MAT;
@@ -102,7 +102,7 @@ static PetscErrorCode  KSPSolve_CR(KSP ksp)
       ierr = VecNormEnd  (RT,NORM_2,&dp);CHKERRQ(ierr);      /*   dp <- || RT ||      */
     } else if (ksp->normtype == KSP_NORM_NATURAL) {
       ierr = VecDotEnd(RT,ART,&btop);CHKERRQ(ierr);
-      dp = sqrt(PetscAbsScalar(btop));                  /* dp = sqrt(R,AR)       */
+      dp = PetscSqrtReal(PetscAbsScalar(btop));                  /* dp = sqrt(R,AR)       */
     } else if (ksp->normtype == KSP_NORM_NONE) {
       ierr = VecDotEnd(RT,ART,&btop);CHKERRQ(ierr);
       dp = 0.0; 
@@ -170,10 +170,10 @@ PetscErrorCode  KSPCreate_CR(KSP ksp)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (ksp->pc_side != PC_LEFT) {
-     ierr = PetscInfo(ksp,"WARNING! Setting PC_SIDE for CR to left!\n");CHKERRQ(ierr);
-  }
-  ksp->pc_side                   = PC_LEFT;
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_PRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_LEFT,1);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_NATURAL,PC_LEFT,1);CHKERRQ(ierr);
+
   ksp->ops->setup                = KSPSetUp_CR;
   ksp->ops->solve                = KSPSolve_CR;
   ksp->ops->destroy              = KSPDefaultDestroy;

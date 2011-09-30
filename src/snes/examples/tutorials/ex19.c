@@ -8,6 +8,11 @@ The flow can be driven with the lid or with bouyancy or both:\n\
   -prandtl <pr>, where <pr> = dimensionless thermal/momentum diffusity ratio\n\
   -contours : draw contour plots of solution\n\n";
 
+/*
+      THIS EXAMPLE IS DEPRECATED, PLEASE SEE ex50.c FOR THE CURRENT APPROACH
+      DMMG operations are deprecated 
+*/
+
 /*T
    Concepts: SNES^solving a system of nonlinear equations (parallel multicomponent example);
    Concepts: DMDA^using distributed arrays;
@@ -97,7 +102,7 @@ int main(int argc,char **argv)
   comm = PETSC_COMM_WORLD;
 
   ierr = PetscOptionsGetInt(PETSC_NULL,"-nlevels",&nlevels,PETSC_NULL);CHKERRQ(ierr);
-  PreLoadBegin(PETSC_TRUE,"SetUp");
+  PetscPreLoadBegin(PETSC_TRUE,"SetUp");
     ierr = DMMGCreate(comm,nlevels,&user,&dmmg);CHKERRQ(ierr);
 
     /*
@@ -151,11 +156,11 @@ int main(int argc,char **argv)
        - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     ierr = DMMGSetInitialGuess(dmmg,FormInitialGuess);CHKERRQ(ierr);
 
-  PreLoadStage("Solve");
+  PetscPreLoadStage("Solve");
     ierr = DMMGSolve(dmmg);CHKERRQ(ierr); 
     snes = DMMGGetSNES(dmmg);
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"Number of Newton iterations = %D\n", its);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"Number of SNES iterations = %D\n", its);CHKERRQ(ierr);
 
     /*
       Visualize solution
@@ -171,7 +176,7 @@ int main(int argc,char **argv)
        - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
     ierr = DMMGDestroy(dmmg);CHKERRQ(ierr);
-  PreLoadEnd();
+  PetscPreLoadEnd();
 
 /********  PetscDraw draw;
   ierr = PetscViewerDrawGetDraw(PETSC_VIEWER_DRAW_(PETSC_COMM_WORLD),0,&draw);CHKERRQ(ierr);

@@ -101,23 +101,23 @@ int main(int argc,char **argv)
   ierr = DMMGSetFromOptions(dmmg);CHKERRQ(ierr);
 
   /*
-      PreLoadBegin() means that the following section of code is run twice. The first time
-     through the flag PreLoading is on this the nonlinear solver is only run for a single step.
+      PetscPreLoadBegin() means that the following section of code is run twice. The first time
+     through the flag PetscPreLoading is on this the nonlinear solver is only run for a single step.
      The second time through (the actually timed code) the maximum iterations is set to 10
      Preload of the executable is done to eliminate from the timing the time spent bring the 
      executable into memory from disk (paging in).
   */
-  PreLoadBegin(PETSC_TRUE,"Solve");
+  PetscPreLoadBegin(PETSC_TRUE,"Solve");
     ierr = DMMGSetInitialGuess(dmmg,FormInitialGuess);CHKERRQ(ierr);
     ierr = DMMGSolve(dmmg);CHKERRQ(ierr);
-  PreLoadEnd();
+  PetscPreLoadEnd();
   snes = DMMGGetSNES(dmmg);
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
   ierr = SNESGetLinearSolveIterations(snes,&lits);CHKERRQ(ierr);
   litspit = ((PetscReal)lits)/((PetscReal)its);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of Newton iterations = %D\n",its);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %D\n",its);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of Linear iterations = %D\n",lits);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Average Linear its / Newton = %e\n",litspit);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Average Linear its / SNES = %e\n",litspit);CHKERRQ(ierr);
 
   ierr = DMMGDestroy(dmmg);CHKERRQ(ierr);
   ierr = PetscFinalize();

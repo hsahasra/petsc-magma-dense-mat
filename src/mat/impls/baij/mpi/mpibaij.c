@@ -91,7 +91,7 @@ PetscErrorCode CreateColmap_MPIBAIJ_Private(Mat mat)
 
   PetscFunctionBegin;
 #if defined (PETSC_USE_CTABLE)
-  ierr = PetscTableCreate(baij->nbs,&baij->colmap);CHKERRQ(ierr); 
+  ierr = PetscTableCreate(baij->nbs,baij->Nbs+1,&baij->colmap);CHKERRQ(ierr); 
   for (i=0; i<nbs; i++){
     ierr = PetscTableAdd(baij->colmap,baij->garray[i]+1,i*bs+1);CHKERRQ(ierr);
   }
@@ -654,7 +654,7 @@ PetscErrorCode MatNorm_MPIBAIJ(Mat mat,NormType type,PetscReal *nrm)
 #endif
       }
       ierr = MPI_Allreduce(&sum,nrm,1,MPIU_REAL,MPIU_SUM,((PetscObject)mat)->comm);CHKERRQ(ierr);
-      *nrm = sqrt(*nrm);
+      *nrm = PetscSqrtReal(*nrm);
     } else if (type == NORM_1) { /* max column sum */
       PetscReal *tmp,*tmp2;
       PetscInt  *jj,*garray=baij->garray,cstart=baij->rstartbs;
@@ -2553,8 +2553,8 @@ PetscErrorCode MatFDColoringCreate_MPIBAIJ(Mat mat,ISColoring iscoloring,MatFDCo
 }
 
 #undef __FUNCT__  
-#define __FUNCT__ "MatGetSeqNonzerostructure_MPIBAIJ" 
-PetscErrorCode MatGetSeqNonzerostructure_MPIBAIJ(Mat A,Mat *newmat)
+#define __FUNCT__ "MatGetSeqNonzeroStructure_MPIBAIJ"
+PetscErrorCode MatGetSeqNonzeroStructure_MPIBAIJ(Mat A,Mat *newmat)
 {
   Mat            B;
   Mat_MPIBAIJ    *a = (Mat_MPIBAIJ *)A->data;
@@ -2748,6 +2748,18 @@ PetscErrorCode MatSOR_MPIBAIJ(Mat matin,Vec bb,PetscReal omega,MatSORType flag,P
 
 extern PetscErrorCode  MatFDColoringApply_BAIJ(Mat,MatFDColoring,Vec,MatStructure*,void*);
 
+#undef __FUNCT__  
+#define __FUNCT__ "MatInvertBlockDiagonal_MPIBAIJ"
+PetscErrorCode  MatInvertBlockDiagonal_MPIBAIJ(Mat A,PetscScalar **values)
+{
+  Mat_MPIBAIJ    *a = (Mat_MPIBAIJ*) A->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatInvertBlockDiagonal(a->A,values);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 
 /* -------------------------------------------------------------------*/
 static struct _MatOps MatOps_Values = {
@@ -2865,7 +2877,7 @@ static struct _MatOps MatOps_Values = {
        0,
        0,
        0,
-/*114*/MatGetSeqNonzerostructure_MPIBAIJ,
+/*114*/MatGetSeqNonzeroStructure_MPIBAIJ,
        0,
        MatGetGhosts_MPIBAIJ,
        0,
@@ -2873,7 +2885,11 @@ static struct _MatOps MatOps_Values = {
 /*119*/0,
        0,
        0,
-       0
+       0,
+       0,
+/*124*/0,
+       0,
+       MatInvertBlockDiagonal_MPIBAIJ
 };
 
 EXTERN_C_BEGIN
@@ -3138,7 +3154,8 @@ PetscErrorCode  MatConvert_MPIBAIJ_MPIAIJ(Mat A,const MatType newtype,MatReuse r
 
   ierr = MatCreate(((PetscObject)A)->comm,&B);CHKERRQ(ierr);
   ierr = MatSetSizes(B,A->rmap->n,A->cmap->n,A->rmap->N,A->cmap->N);CHKERRQ(ierr);
-  ierr = MatSetType(B,newtype);CHKERRQ(ierr);
+  ierr = MatSetType(B,MATMPIAIJ);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(B,0,PETSC_NULL);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(B,0,PETSC_NULL,0,PETSC_NULL);CHKERRQ(ierr);
   b = (Mat_MPIAIJ*) B->data; 
 

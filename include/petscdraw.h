@@ -8,13 +8,13 @@ PETSC_EXTERN_CXX_BEGIN
 
 extern PetscClassId PETSC_DRAW_CLASSID;
 
-/*E
+/*J
     PetscDrawType - String with the name of a PetscDraw 
 
    Level: beginner
 
 .seealso: PetscDrawSetType(), PetscDraw, PetscViewer
-E*/
+J*/
 #define PetscDrawType  char*
 #define PETSC_DRAW_X     "x"
 #define PETSC_DRAW_NULL  "null"
@@ -86,6 +86,7 @@ extern PetscErrorCode  PetscDrawGetType(PetscDraw,const PetscDrawType*);
 extern PetscErrorCode  PetscDrawSetType(PetscDraw,const PetscDrawType);
 extern PetscErrorCode  PetscDrawCreate(MPI_Comm,const char[],const char[],int,int,int,int,PetscDraw*);
 extern PetscErrorCode  PetscDrawSetFromOptions(PetscDraw);
+extern PetscErrorCode  PetscDrawSetSave(PetscDraw,const char*);
 
 /*
    Number of basic colors in the draw routines, the others are used
@@ -97,7 +98,7 @@ extern PetscErrorCode  PetscDrawSetFromOptions(PetscDraw);
 #define PETSC_DRAW_WHITE            0
 #define PETSC_DRAW_BLACK            1
 #define PETSC_DRAW_RED              2
-#define PETSC_DRAW_GREEN            3
+#define PETSC_DRAW_GREEN            3 
 #define PETSC_DRAW_CYAN             4
 #define PETSC_DRAW_BLUE             5
 #define PETSC_DRAW_MAGENTA          6
@@ -147,6 +148,7 @@ extern PetscErrorCode  PetscDrawResizeWindow(PetscDraw,int,int);
 extern PetscErrorCode  PetscDrawScalePopup(PetscDraw,PetscReal,PetscReal);
 
 extern PetscErrorCode  PetscDrawLine(PetscDraw,PetscReal,PetscReal,PetscReal,PetscReal,int);
+extern PetscErrorCode  PetscDrawArrow(PetscDraw,PetscReal,PetscReal,PetscReal,PetscReal,int);
 extern PetscErrorCode  PetscDrawLineSetWidth(PetscDraw,PetscReal);
 extern PetscErrorCode  PetscDrawLineGetWidth(PetscDraw,PetscReal*);
 
@@ -181,6 +183,7 @@ extern PetscErrorCode  PetscDrawSetDoubleBuffer(PetscDraw);
 extern PetscErrorCode  PetscDrawFlush(PetscDraw);
 extern PetscErrorCode  PetscDrawSynchronizedFlush(PetscDraw);
 extern PetscErrorCode  PetscDrawClear(PetscDraw);
+extern PetscErrorCode  PetscDrawSave(PetscDraw);
 extern PetscErrorCode  PetscDrawSynchronizedClear(PetscDraw);
 extern PetscErrorCode  PetscDrawBOP(PetscDraw);
 extern PetscErrorCode  PetscDrawEOP(PetscDraw);
@@ -257,7 +260,7 @@ extern PetscErrorCode  PetscDrawAxisSetLabels(PetscDrawAxis,const char[],const c
 
 .seealso:  PetscDrawAxisCreate(), PetscDrawLGCreate(), PetscDrawLGAddPoint()
 S*/
-typedef struct _p_DrawLG*   PetscDrawLG;
+typedef struct _p_PetscDrawLG*   PetscDrawLG;
 
 extern PetscClassId DRAWLG_CLASSID;
 
@@ -269,10 +272,12 @@ extern PetscErrorCode  PetscDrawLGDraw(PetscDrawLG);
 extern PetscErrorCode  PetscDrawLGPrint(PetscDrawLG);
 extern PetscErrorCode  PetscDrawLGReset(PetscDrawLG);
 extern PetscErrorCode  PetscDrawLGSetDimension(PetscDrawLG,PetscInt);
+extern PetscErrorCode  PetscDrawLGSetLegend(PetscDrawLG,const char *const*);
 extern PetscErrorCode  PetscDrawLGGetAxis(PetscDrawLG,PetscDrawAxis *);
 extern PetscErrorCode  PetscDrawLGGetDraw(PetscDrawLG,PetscDraw *);
 extern PetscErrorCode  PetscDrawLGIndicateDataPoints(PetscDrawLG);
 extern PetscErrorCode  PetscDrawLGSetLimits(PetscDrawLG,PetscReal,PetscReal,PetscReal,PetscReal);
+extern PetscErrorCode  PetscDrawLGSetColors(PetscDrawLG,const int*);
 
 /*S
      PetscDrawSP - Manages drawing scatter plots

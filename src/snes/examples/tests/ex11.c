@@ -197,7 +197,7 @@ int main( int argc, char **argv )
   ierr = FormInitialGuess1(&user,user.fine.x);CHKERRQ(ierr);
   ierr = SNESSolve(snes,PETSC_NULL,user.fine.x);CHKERRQ(ierr);
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of Newton iterations = %D\n", its );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %D\n", its );CHKERRQ(ierr);
 
   /* Free data structures */
   if (user.redundant_build) {
@@ -235,13 +235,14 @@ PetscErrorCode FormInitialGuess1(AppCtx *user,Vec X)
 {
   PetscInt       i, j, row, mx, my, xs, ys, xm, ym, Xm, Ym, Xs, Ys;
   PetscErrorCode ierr;
-  double         one = 1.0, lambda, temp1, temp, hx, hy, hxdhy, hydhx,sc;
+  double         one = 1.0, lambda, temp1, temp, hx, hy;
+  /* double hxdhy, hydhx,sc; */
   PetscScalar    *x;
   Vec            localX = user->fine.localX;
 
   mx = user->fine.mx;       my = user->fine.my;            lambda = user->param;
   hx = one/(double)(mx-1);  hy = one/(double)(my-1);
-  sc = hx*hy*lambda;        hxdhy = hx/hy;            hydhx = hy/hx;
+  /* sc = hx*hy*lambda;        hxdhy = hx/hy;            hydhx = hy/hx; */
 
   temp1 = lambda/(lambda + one);
 
@@ -259,7 +260,7 @@ PetscErrorCode FormInitialGuess1(AppCtx *user,Vec X)
         x[row] = 0.0; 
         continue;
       }
-      x[row] = temp1*sqrt( PetscMin( (double)(PetscMin(i,mx-i-1))*hx,temp) ); 
+      x[row] = temp1*PetscSqrtReal( PetscMin( (double)(PetscMin(i,mx-i-1))*hx,temp) ); 
     }
   }
   ierr = VecRestoreArray(localX,&x);CHKERRQ(ierr);

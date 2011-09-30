@@ -147,7 +147,7 @@ PetscErrorCode MatGetColumnNorms_MPIAIJ(Mat A,NormType type,PetscReal *norms)
   }
   ierr = PetscFree(work);CHKERRQ(ierr);
   if (type == NORM_2) {
-    for (i=0; i<n; i++) norms[i] = sqrt(norms[i]);
+    for (i=0; i<n; i++) norms[i] = PetscSqrtReal(norms[i]);
   }
   PetscFunctionReturn(0);
 }
@@ -339,7 +339,7 @@ PetscErrorCode CreateColmap_MPIAIJ_Private(Mat mat)
 
   PetscFunctionBegin;
 #if defined (PETSC_USE_CTABLE)
-  ierr = PetscTableCreate(n,&aij->colmap);CHKERRQ(ierr); 
+  ierr = PetscTableCreate(n,mat->cmap->N+1,&aij->colmap);CHKERRQ(ierr); 
   for (i=0; i<n; i++){
     ierr = PetscTableAdd(aij->colmap,aij->garray[i]+1,i+1);CHKERRQ(ierr);
   }
@@ -867,7 +867,6 @@ MAT_NEW_NONZERO_LOCATIONS,MAT_NEW_NONZERO_LOCATION_ERR,MAT_NEW_NONZERO_ALLOCATIO
   }
   ierr = PetscFree(send_waits);CHKERRQ(ierr);
   ierr = PetscFree(svalues);CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
@@ -1035,11 +1034,11 @@ PetscErrorCode MatZeroRowsColumns_MPIAIJ(Mat A,PetscInt N,const PetscInt rows[],
     }
   } else { /* do not use compressed row format */
     m = l->B->rmap->n;
-   for (i=0; i<m; i++) {
-     n   = ii[i+1] - ii[i]; 
-     aj  = aij->j + ii[i];
-     aa  = aij->a + ii[i];
-     for (j=0; j<n; j++) {
+    for (i=0; i<m; i++) {
+      n   = ii[i+1] - ii[i]; 
+      aj  = aij->j + ii[i];
+      aa  = aij->a + ii[i];
+      for (j=0; j<n; j++) {
         if (PetscAbsScalar(mask[*aj])) {
           bb[i] -= *aa*xx[*aj];
           *aa    = 0.0;
@@ -1049,7 +1048,6 @@ PetscErrorCode MatZeroRowsColumns_MPIAIJ(Mat A,PetscInt N,const PetscInt rows[],
       }
     }
   }
-
   ierr = VecRestoreArray(b,&bb);CHKERRQ(ierr);
   ierr = VecRestoreArray(lmask,&mask);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(l->lvec,&xx);CHKERRQ(ierr);
@@ -1068,7 +1066,7 @@ PetscErrorCode MatZeroRowsColumns_MPIAIJ(Mat A,PetscInt N,const PetscInt rows[],
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMult_MPIAIJ"
 PetscErrorCode MatMult_MPIAIJ(Mat A,Vec xx,Vec yy)
 {
@@ -1086,19 +1084,19 @@ PetscErrorCode MatMult_MPIAIJ(Mat A,Vec xx,Vec yy)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMultDiagonalBlock_MPIAIJ"
 PetscErrorCode MatMultDiagonalBlock_MPIAIJ(Mat A,Vec bb,Vec xx)
 {
   Mat_MPIAIJ     *a = (Mat_MPIAIJ*)A->data;
   PetscErrorCode ierr;
-  
+
   PetscFunctionBegin;
   ierr = MatMultDiagonalBlock(a->A,bb,xx);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMultAdd_MPIAIJ"
 PetscErrorCode MatMultAdd_MPIAIJ(Mat A,Vec xx,Vec yy,Vec zz)
 {
@@ -1324,18 +1322,17 @@ PetscErrorCode MatView_MPIAIJ_Binary(Mat mat,PetscViewer viewer)
   /* store the row lengths to the file */
   ierr = PetscViewerFlowControlStart(viewer,&message_count,&flowcontrolcount);CHKERRQ(ierr);
   if (!rank) {
-    MPI_Status status;
     ierr = PetscBinaryWrite(fd,row_lengths,mat->rmap->n,PETSC_INT,PETSC_TRUE);CHKERRQ(ierr);
     for (i=1; i<size; i++) {
       ierr = PetscViewerFlowControlStepMaster(viewer,i,message_count,flowcontrolcount);CHKERRQ(ierr);
       rlen = range[i+1] - range[i];
-      ierr = MPI_Recv(row_lengths,rlen,MPIU_INT,i,tag,((PetscObject)mat)->comm,&status);CHKERRQ(ierr);
+      ierr = MPILong_Recv(row_lengths,rlen,MPIU_INT,i,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
       ierr = PetscBinaryWrite(fd,row_lengths,rlen,PETSC_INT,PETSC_TRUE);CHKERRQ(ierr);
     }
     ierr = PetscViewerFlowControlEndMaster(viewer,message_count);CHKERRQ(ierr);
   } else {
     ierr = PetscViewerFlowControlStepWorker(viewer,rank,message_count);CHKERRQ(ierr);
-    ierr = MPI_Send(row_lengths,mat->rmap->n,MPIU_INT,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
+    ierr = MPILong_Send(row_lengths,mat->rmap->n,MPIU_INT,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
     ierr = PetscViewerFlowControlEndWorker(viewer,message_count);CHKERRQ(ierr);
   }
   ierr = PetscFree(row_lengths);CHKERRQ(ierr);
@@ -1368,14 +1365,14 @@ PetscErrorCode MatView_MPIAIJ_Binary(Mat mat,PetscViewer viewer)
       ierr = PetscViewerFlowControlStepMaster(viewer,i,message_count,flowcontrolcount);CHKERRQ(ierr);
       ierr = MPI_Recv(&rnz,1,MPIU_INT,i,tag,((PetscObject)mat)->comm,&status);CHKERRQ(ierr);
       if (rnz > nzmax) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Internal PETSc error: nz = %D nzmax = %D",nz,nzmax);
-      ierr = MPI_Recv(column_indices,rnz,MPIU_INT,i,tag,((PetscObject)mat)->comm,&status);CHKERRQ(ierr);
+      ierr = MPILong_Recv(column_indices,rnz,MPIU_INT,i,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
       ierr = PetscBinaryWrite(fd,column_indices,rnz,PETSC_INT,PETSC_TRUE);CHKERRQ(ierr);
     }
      ierr = PetscViewerFlowControlEndMaster(viewer,message_count);CHKERRQ(ierr);
   } else {
     ierr = PetscViewerFlowControlStepWorker(viewer,rank,message_count);CHKERRQ(ierr);
     ierr = MPI_Send(&nz,1,MPIU_INT,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
-    ierr = MPI_Send(column_indices,nz,MPIU_INT,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
+    ierr = MPILong_Send(column_indices,nz,MPIU_INT,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
     ierr = PetscViewerFlowControlEndWorker(viewer,message_count);CHKERRQ(ierr);
   }
   ierr = PetscFree(column_indices);CHKERRQ(ierr);
@@ -1406,14 +1403,14 @@ PetscErrorCode MatView_MPIAIJ_Binary(Mat mat,PetscViewer viewer)
        ierr = PetscViewerFlowControlStepMaster(viewer,i,message_count,flowcontrolcount);CHKERRQ(ierr);
       ierr = MPI_Recv(&rnz,1,MPIU_INT,i,tag,((PetscObject)mat)->comm,&status);CHKERRQ(ierr);
       if (rnz > nzmax) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_LIB,"Internal PETSc error: nz = %D nzmax = %D",nz,nzmax);
-      ierr = MPI_Recv(column_values,rnz,MPIU_SCALAR,i,tag,((PetscObject)mat)->comm,&status);CHKERRQ(ierr);
+      ierr = MPILong_Recv(column_values,rnz,MPIU_SCALAR,i,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
       ierr = PetscBinaryWrite(fd,column_values,rnz,PETSC_SCALAR,PETSC_TRUE);CHKERRQ(ierr);
     }
     ierr = PetscViewerFlowControlEndMaster(viewer,message_count);CHKERRQ(ierr);
   } else {
     ierr = PetscViewerFlowControlStepWorker(viewer,rank,message_count);CHKERRQ(ierr);
     ierr = MPI_Send(&nz,1,MPIU_INT,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
-    ierr = MPI_Send(column_values,nz,MPIU_SCALAR,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
+    ierr = MPILong_Send(column_values,nz,MPIU_SCALAR,0,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
     ierr = PetscViewerFlowControlEndWorker(viewer,message_count);CHKERRQ(ierr);
   }
   ierr = PetscFree(column_values);CHKERRQ(ierr);
@@ -1675,7 +1672,7 @@ PetscErrorCode MatSOR_MPIAIJ(Mat matin,Vec bb,PetscReal omega,MatSORType flag,Pe
     ierr = (*mat->A->ops->sor)(mat->A,bb1,omega,(MatSORType)(SOR_ZERO_INITIAL_GUESS | SOR_LOCAL_FORWARD_SWEEP),fshift,lits,1,xx1);CHKERRQ(ierr);
     ierr = VecAXPY(xx,1.0,xx1);CHKERRQ(ierr);
     ierr = VecDestroy(&xx1);CHKERRQ(ierr);
-  } else SETERRQ(((PetscObject)mat)->comm,PETSC_ERR_SUP,"Parallel SOR not supported");
+  } else SETERRQ(((PetscObject)matin)->comm,PETSC_ERR_SUP,"Parallel SOR not supported");
 
   ierr = VecDestroy(&bb1);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1817,7 +1814,7 @@ PetscErrorCode MatSetOption_MPIAIJ(Mat A,MatOption op,PetscBool  flg)
     ierr = PetscInfo1(A,"Option %s ignored\n",MatOptions[op]);CHKERRQ(ierr);
     break;
   case MAT_IGNORE_OFF_PROC_ENTRIES:
-    a->donotstash = PETSC_TRUE;
+    a->donotstash = flg;
     break;
   case MAT_SPD:
     A->spd_set                         = PETSC_TRUE;
@@ -1972,7 +1969,7 @@ PetscErrorCode MatNorm_MPIAIJ(Mat mat,NormType type,PetscReal *norm)
 #endif
       }
       ierr = MPI_Allreduce(&sum,norm,1,MPIU_REAL,MPIU_SUM,((PetscObject)mat)->comm);CHKERRQ(ierr);
-      *norm = sqrt(*norm);
+      *norm = PetscSqrtReal(*norm);
     } else if (type == NORM_1) { /* max column norm */
       PetscReal *tmp,*tmp2;
       PetscInt  *jj,*garray = aij->garray;
@@ -2953,8 +2950,8 @@ PetscErrorCode MatGetRowMax_MPIAIJ(Mat A, Vec v, PetscInt idx[])
 }
 
 #undef __FUNCT__  
-#define __FUNCT__ "MatGetSeqNonzerostructure_MPIAIJ" 
-PetscErrorCode MatGetSeqNonzerostructure_MPIAIJ(Mat mat,Mat *newmat)
+#define __FUNCT__ "MatGetSeqNonzeroStructure_MPIAIJ"
+PetscErrorCode MatGetSeqNonzeroStructure_MPIAIJ(Mat mat,Mat *newmat)
 {
   PetscErrorCode ierr;
   Mat            *dummy;
@@ -2967,6 +2964,20 @@ PetscErrorCode MatGetSeqNonzerostructure_MPIAIJ(Mat mat,Mat *newmat)
 }
 
 extern PetscErrorCode  MatFDColoringApply_AIJ(Mat,MatFDColoring,Vec,MatStructure*,void*);
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatInvertBlockDiagonal_MPIAIJ"
+PetscErrorCode  MatInvertBlockDiagonal_MPIAIJ(Mat A,PetscScalar **values)
+{
+  Mat_MPIAIJ    *a = (Mat_MPIAIJ*) A->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = MatInvertBlockDiagonal(a->A,values);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
 /* -------------------------------------------------------------------*/
 static struct _MatOps MatOps_Values = {MatSetValues_MPIAIJ,
        MatGetRow_MPIAIJ,
@@ -3067,18 +3078,18 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIAIJ,
 /*80*/ 0,
        0,
        0,
-/*83*/ MatLoad_MPIAIJ,				       
+/*83*/ MatLoad_MPIAIJ,
        0,
        0,
        0,
        0,
        0,
-/*89*/ MatMatMult_MPIAIJ_MPIAIJ, 
-       MatMatMultSymbolic_MPIAIJ_MPIAIJ,  
-       MatMatMultNumeric_MPIAIJ_MPIAIJ, 
+/*89*/ MatMatMult_MPIAIJ_MPIAIJ,
+       MatMatMultSymbolic_MPIAIJ_MPIAIJ,
+       MatMatMultNumeric_MPIAIJ_MPIAIJ,
        MatPtAP_Basic,
        MatPtAPSymbolic_MPIAIJ,
-/*94*/ MatPtAPNumeric_MPIAIJ,                                
+/*94*/ MatPtAPNumeric_MPIAIJ,
        0,
        0,
        0,
@@ -3098,7 +3109,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIAIJ,
        MatGetRowMin_MPIAIJ,
        0,
        0,
-/*114*/MatGetSeqNonzerostructure_MPIAIJ,
+/*114*/MatGetSeqNonzeroStructure_MPIAIJ,
        0,
        0,
        0,
@@ -3110,9 +3121,10 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIAIJ,
        MatGetMultiProcBlock_MPIAIJ, 
 /*124*/MatFindNonZeroRows_MPIAIJ,
        MatGetColumnNorms_MPIAIJ,
+       MatInvertBlockDiagonal_MPIAIJ,
        0,
-       0,
-       MatGetSubMatricesParallel_MPIAIJ
+       MatGetSubMatricesParallel_MPIAIJ,
+/*129*/0
 };
 
 /* ----------------------------------------------------------------------------------------*/
@@ -3260,48 +3272,7 @@ PetscErrorCode MatDuplicate_MPIAIJ(Mat matin,MatDuplicateOption cpvalues,Mat *ne
   PetscFunctionReturn(0);
 }
 
-/*
-    Allows sending/receiving larger messages then 2 gigabytes in a single call
-*/
-static int MPILong_Send(void *mess,PetscInt cnt, MPI_Datatype type,int to, int tag, MPI_Comm comm)
-{
-  int             ierr;
-  static PetscInt CHUNKSIZE = 250000000; /* 250,000,000 */
-  PetscInt        i,numchunks;
-  PetscMPIInt     icnt;
 
-  numchunks = cnt/CHUNKSIZE + 1;
-  for (i=0; i<numchunks; i++) {
-    icnt = PetscMPIIntCast((i < numchunks-1) ? CHUNKSIZE : cnt - (numchunks-1)*CHUNKSIZE);
-    ierr = MPI_Send(mess,icnt,type,to,tag,comm);if (ierr) return ierr;
-    if (type == MPIU_INT) {
-      mess = (void*) (((PetscInt*)mess) + CHUNKSIZE);
-    } else if (type == MPIU_SCALAR) {
-      mess = (void*) (((PetscScalar*)mess) + CHUNKSIZE);
-    } else SETERRQ(comm,PETSC_ERR_SUP,"No support for this datatype");
-  }
-  return 0;
-}
-static int MPILong_Recv(void *mess,PetscInt cnt, MPI_Datatype type,int from, int tag, MPI_Comm comm)
-{
-  int             ierr;
-  static PetscInt CHUNKSIZE = 250000000; /* 250,000,000 */
-  MPI_Status      status;
-  PetscInt        i,numchunks;
-  PetscMPIInt     icnt;
-
-  numchunks = cnt/CHUNKSIZE + 1;
-  for (i=0; i<numchunks; i++) {
-    icnt = PetscMPIIntCast((i < numchunks-1) ? CHUNKSIZE : cnt - (numchunks-1)*CHUNKSIZE);
-    ierr = MPI_Recv(mess,icnt,type,from,tag,comm,&status);if (ierr) return ierr;
-    if (type == MPIU_INT) {
-      mess = (void*) (((PetscInt*)mess) + CHUNKSIZE);
-    } else if (type == MPIU_SCALAR) {
-      mess = (void*) (((PetscScalar*)mess) + CHUNKSIZE);
-    } else SETERRQ(comm,PETSC_ERR_SUP,"No support for this datatype");
-  }
-  return 0;
-}
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatLoad_MPIAIJ"

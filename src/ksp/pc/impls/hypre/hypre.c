@@ -345,15 +345,15 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc)
 {
   PC_HYPRE       *jac = (PC_HYPRE*)pc->data;
   PetscErrorCode ierr;
-  int            n,indx;
+  int            n,indx,level;
   PetscBool      flg, tmp_truth;
   double         tmpdbl, twodbl[2];
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead("HYPRE BoomerAMG Options");CHKERRQ(ierr);
-  ierr = PetscOptionsEList("-pc_hypre_boomeramg_cycle_type","Cycle type","None",HYPREBoomerAMGCycleType,2,HYPREBoomerAMGCycleType[jac->cycletype],&indx,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsEList("-pc_hypre_boomeramg_cycle_type","Cycle type","None",HYPREBoomerAMGCycleType+1,2,HYPREBoomerAMGCycleType[jac->cycletype],&indx,&flg);CHKERRQ(ierr);
   if (flg) {
-    jac->cycletype = indx;
+    jac->cycletype = indx+1;
     PetscStackCallHypre(0,HYPRE_BoomerAMGSetCycleType,(jac->hsolver,jac->cycletype)); 
   }
   ierr = PetscOptionsInt("-pc_hypre_boomeramg_max_levels","Number of levels (of grids) allowed","None",jac->maxlevels,&jac->maxlevels,&flg);CHKERRQ(ierr);
@@ -528,21 +528,19 @@ static PetscErrorCode PCSetFromOptions_HYPRE_BoomerAMG(PC pc)
     PetscStackCallHypre(0,HYPRE_BoomerAMGSetInterpType,(jac->hsolver,jac->interptype)); 
   }
 
-  flg  = PETSC_FALSE;
-  ierr = PetscOptionsBool("-pc_hypre_boomeramg_print_statistics","Print statistics","None",flg,&flg,PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsName("-pc_hypre_boomeramg_print_statistics","Print statistics","None",&flg);CHKERRQ(ierr);
   if (flg) {
-    int level=3;
-    jac->printstatistics = PETSC_TRUE;
+    level = 3;
     ierr = PetscOptionsInt("-pc_hypre_boomeramg_print_statistics","Print statistics","None",level,&level,PETSC_NULL);CHKERRQ(ierr);
+    jac->printstatistics = PETSC_TRUE;
     PetscStackCallHypre(0,HYPRE_BoomerAMGSetPrintLevel,(jac->hsolver,level));
   }
 
-  flg  = PETSC_FALSE;
-  ierr = PetscOptionsBool("-pc_hypre_boomeramg_print_debug","Print debug information","None",flg,&flg,PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsName("-pc_hypre_boomeramg_print_debug","Print debug information","None",&flg);CHKERRQ(ierr);
   if (flg) {
-    int level=3;
-    jac->printstatistics = PETSC_TRUE;
+    level = 3;
     ierr = PetscOptionsInt("-pc_hypre_boomeramg_print_debug","Print debug information","None",level,&level,PETSC_NULL);CHKERRQ(ierr);
+    jac->printstatistics = PETSC_TRUE;
     PetscStackCallHypre(0,HYPRE_BoomerAMGSetDebugFlag,(jac->hsolver,level));
   }
 

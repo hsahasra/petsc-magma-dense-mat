@@ -121,6 +121,66 @@ PetscErrorCode  VecSetLocalToGlobalMappingBlock(Vec x,ISLocalToGlobalMapping map
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__  
+#define __FUNCT__ "VecGetLocalToGlobalMapping"
+/*@
+   VecGetLocalToGlobalMapping - Gets the local-to-global numbering set by VecSetLocalToGlobalMapping()
+
+   Not Collective
+
+   Input Parameter:
+.  X - the vector
+
+   Output Parameter:
+.  mapping - the mapping
+
+   Level: advanced
+
+   Concepts: vectors^local to global mapping
+   Concepts: local to global mapping^for vectors
+
+.seealso:  VecSetValuesLocal(), VecGetLocalToGlobalMappingBlock()
+@*/
+PetscErrorCode VecGetLocalToGlobalMapping(Vec X,ISLocalToGlobalMapping *mapping)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(X,VEC_CLASSID,1);
+  PetscValidType(X,1);
+  PetscValidPointer(mapping,2);
+  *mapping = X->map->mapping;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "VecGetLocalToGlobalMappingBlock"
+/*@
+   VecGetLocalToGlobalMappingBlock - Gets the local-to-global numbering set by VecSetLocalToGlobalMappingBlock()
+
+   Not Collective
+
+   Input Parameters:
+.  X - the vector
+
+   Output Parameters:
+.  mapping - the mapping
+
+   Level: advanced
+
+   Concepts: vectors^local to global mapping blocked
+   Concepts: local to global mapping^for vectors, blocked
+
+.seealso:  VecSetValuesBlockedLocal(), VecGetLocalToGlobalMapping()
+@*/
+PetscErrorCode VecGetLocalToGlobalMappingBlock(Vec X,ISLocalToGlobalMapping *mapping)
+{
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(X,VEC_CLASSID,1);
+  PetscValidType(X,1);
+  PetscValidPointer(mapping,2);
+  *mapping = X->map->bmapping;
+  PetscFunctionReturn(0);
+}
+
 #undef __FUNCT__
 #define __FUNCT__ "VecAssemblyBegin"
 /*@
@@ -178,7 +238,7 @@ PetscErrorCode  VecView_Private(Vec vec)
   PetscBool      flg = PETSC_FALSE;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsBegin(((PetscObject)vec)->comm,((PetscObject)vec)->prefix,"Vector Options","Vec");CHKERRQ(ierr);
+  ierr = PetscObjectOptionsBegin((PetscObject)vec);CHKERRQ(ierr);
     ierr = PetscOptionsBool("-vec_view","Print vector to stdout","VecView",flg,&flg,PETSC_NULL);CHKERRQ(ierr);
     if (flg) {
       PetscViewer viewer;
@@ -582,7 +642,8 @@ PetscErrorCode  VecDestroyVecs(PetscInt m,Vec *vv[])
   if (!*vv) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(**vv,VEC_CLASSID,1);
   PetscValidType(**vv,1);
-  if (m < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Trying to destroy negative number of vectors %D",m);  ierr = (*(**vv)->ops->destroyvecs)(m,*vv);CHKERRQ(ierr);
+  if (m < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Trying to destroy negative number of vectors %D",m);
+  ierr = (*(**vv)->ops->destroyvecs)(m,*vv);CHKERRQ(ierr);
   *vv = 0;
   PetscFunctionReturn(0);
 }
@@ -1010,9 +1071,8 @@ PetscErrorCode  VecLoad(Vec newvec, PetscViewer viewer)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
+  PetscValidHeaderSpecific(newvec,VEC_CLASSID,1);
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,2);
-  PetscValidPointer(newvec,1);
 
   ierr = PetscLogEventBegin(VEC_Load,viewer,0,0,0);CHKERRQ(ierr);
   if (!((PetscObject)newvec)->type_name && !newvec->ops->create) {
@@ -1260,6 +1320,11 @@ PetscErrorCode  VecSetRandom(Vec x,PetscRandom rctx)
 
   Level: beginner
 
+  Developer Note: This routine does not need to exist since the exact functionality is obtained with 
+     VecSet(vec,0);  I guess someone added it to mirror the functionality of MatZeroEntries() but Mat is nothing
+     like a Vec (one is an operator and one is an element of a vector space, yeah yeah dual blah blah blah) so 
+     this routine should not exist.
+
 .keywords: Vec, set, options, database
 .seealso: VecCreate(),  VecSetOptionsPrefix(), VecSet(), VecSetValues()
 @*/
@@ -1345,7 +1410,7 @@ PetscErrorCode  VecSetFromOptions(Vec vec)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(vec,VEC_CLASSID,1);
 
-  ierr = PetscOptionsBegin(((PetscObject)vec)->comm, ((PetscObject)vec)->prefix, "Vector options", "Vec");CHKERRQ(ierr);
+  ierr = PetscObjectOptionsBegin((PetscObject)vec);CHKERRQ(ierr);
     /* Handle vector type options */
     ierr = VecSetTypeFromOptions_Private(vec);CHKERRQ(ierr);
 

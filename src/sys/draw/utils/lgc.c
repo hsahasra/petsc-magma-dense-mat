@@ -167,7 +167,7 @@ PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,int dim,PetscDrawLG *outctx)
     ierr = PetscDrawOpenNull(((PetscObject)obj)->comm,(PetscDraw*)outctx);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
-  ierr = PetscHeaderCreate(lg,_p_DrawLG,int,DRAWLG_CLASSID,0,"PetscDrawLG",((PetscObject)obj)->comm,PetscDrawLGDestroy,0);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(lg,_p_PetscDrawLG,int,DRAWLG_CLASSID,0,"PetscDrawLG","Line graph","Draw",((PetscObject)obj)->comm,PetscDrawLGDestroy,0);CHKERRQ(ierr);
   lg->view    = 0;
   lg->destroy = 0;
   lg->nopts   = 0;
@@ -185,6 +185,76 @@ PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,int dim,PetscDrawLG *outctx)
   ierr = PetscDrawAxisCreate(draw,&lg->axis);CHKERRQ(ierr);
   ierr = PetscLogObjectParent(lg,lg->axis);CHKERRQ(ierr);
   *outctx = lg;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "PetscDrawLGSetColors"
+/*@
+   PetscDrawLGSetColors - Sets the color of each line graph drawn
+
+   Logically Collective over PetscDrawLG
+
+   Input Parameter:
++  lg - the line graph context.
+-  colors - the colors
+
+   Level: intermediate
+
+   Concepts: line graph^setting number of lines
+
+@*/
+PetscErrorCode  PetscDrawLGSetColors(PetscDrawLG lg,const int *colors)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (lg && ((PetscObject)lg)->classid == PETSC_DRAW_CLASSID) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(lg,DRAWLG_CLASSID,1);
+  ierr = PetscFree(lg->colors);CHKERRQ(ierr);
+  ierr = PetscMalloc(lg->dim*sizeof(int),&lg->colors);CHKERRQ(ierr);
+  ierr = PetscMemcpy(lg->colors,colors,lg->dim*sizeof(int));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#undef __FUNCT__  
+#define __FUNCT__ "PetscDrawLGSetLegend" 
+/*@C
+   PetscDrawLGSetLegend - sets the names of each curve plotted
+
+   Logically Collective over PetscDrawLG
+
+   Input Parameter:
++  lg - the line graph context.
+-  names - the names for each curve
+
+   Level: intermediate
+
+   Concepts: line graph^setting number of lines
+
+@*/
+PetscErrorCode  PetscDrawLGSetLegend(PetscDrawLG lg,const char *const *names)
+{
+  PetscErrorCode ierr;
+  PetscInt       i;
+
+  PetscFunctionBegin;
+  if (lg && ((PetscObject)lg)->classid == PETSC_DRAW_CLASSID) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(lg,DRAWLG_CLASSID,1);
+
+  if (lg->legend) {
+    for (i=0; i<lg->dim; i++) {
+      ierr = PetscFree(lg->legend[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(lg->legend);CHKERRQ(ierr);
+  }
+  if (names) {
+    ierr = PetscMalloc(lg->dim*sizeof(char**),&lg->legend);CHKERRQ(ierr);
+    for (i=0; i<lg->dim; i++) {
+      ierr = PetscStrallocpy(names[i],&lg->legend[i]);CHKERRQ(ierr);
+    }
+  }
   PetscFunctionReturn(0);
 }
 
@@ -207,6 +277,7 @@ PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,int dim,PetscDrawLG *outctx)
 PetscErrorCode  PetscDrawLGSetDimension(PetscDrawLG lg,PetscInt dim)
 {
   PetscErrorCode ierr;
+  PetscInt       i;
 
   PetscFunctionBegin;
   if (lg && ((PetscObject)lg)->classid == PETSC_DRAW_CLASSID) PetscFunctionReturn(0);
@@ -215,6 +286,13 @@ PetscErrorCode  PetscDrawLGSetDimension(PetscDrawLG lg,PetscInt dim)
   if (lg->dim == dim) PetscFunctionReturn(0);
 
   ierr    = PetscFree2(lg->x,lg->y);CHKERRQ(ierr);
+  if (lg->legend) {
+    for (i=0; i<lg->dim; i++) {
+      ierr = PetscFree(lg->legend[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree(lg->legend);CHKERRQ(ierr);
+  }
+  ierr = PetscFree(lg->colors);CHKERRQ(ierr);
   lg->dim = dim;
   ierr    = PetscMalloc2(dim*CHUNCKSIZE,PetscReal,&lg->x,dim*CHUNCKSIZE,PetscReal,&lg->y);CHKERRQ(ierr);
   ierr = PetscLogObjectMemory(lg,2*dim*CHUNCKSIZE*sizeof(PetscReal));CHKERRQ(ierr);
@@ -268,6 +346,7 @@ PetscErrorCode  PetscDrawLGReset(PetscDrawLG lg)
 PetscErrorCode  PetscDrawLGDestroy(PetscDrawLG *lg)
 {
   PetscErrorCode ierr;
+  PetscInt       i;
 
   PetscFunctionBegin;
   if (!*lg) PetscFunctionReturn(0);
@@ -280,6 +359,13 @@ PetscErrorCode  PetscDrawLGDestroy(PetscDrawLG *lg)
     ierr = PetscObjectDestroy((PetscObject*)lg);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
+  if ((*lg)->legend) {
+    for (i=0; i<(*lg)->dim; i++) {
+      ierr = PetscFree((*lg)->legend[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscFree((*lg)->legend);CHKERRQ(ierr);
+  }
+  ierr = PetscFree((*lg)->colors);CHKERRQ(ierr);
   ierr = PetscDrawAxisDestroy(&(*lg)->axis);CHKERRQ(ierr);
   ierr = PetscFree2((*lg)->x,(*lg)->y);CHKERRQ(ierr);
   ierr = PetscHeaderDestroy(lg);CHKERRQ(ierr);
@@ -328,7 +414,7 @@ PetscErrorCode  PetscDrawLGDraw(PetscDrawLG lg)
 {
   PetscReal      xmin=lg->xmin,xmax=lg->xmax,ymin=lg->ymin,ymax=lg->ymax;
   PetscErrorCode ierr;
-  int            i,j,dim = lg->dim,nopts = lg->nopts,rank;
+  int            i,j,dim = lg->dim,nopts = lg->nopts,rank,cl;
   PetscDraw      draw = lg->win;
 
   PetscFunctionBegin;
@@ -344,12 +430,34 @@ PetscErrorCode  PetscDrawLGDraw(PetscDrawLG lg)
   
     for (i=0; i<dim; i++) {
       for (j=1; j<nopts; j++) {
-        ierr = PetscDrawLine(draw,lg->x[(j-1)*dim+i],lg->y[(j-1)*dim+i],lg->x[j*dim+i],lg->y[j*dim+i],PETSC_DRAW_BLACK+i);CHKERRQ(ierr);
+        if (lg->colors) cl = lg->colors[i];
+        else cl = PETSC_DRAW_BLACK+i;
+        ierr = PetscDrawLine(draw,lg->x[(j-1)*dim+i],lg->y[(j-1)*dim+i],lg->x[j*dim+i],lg->y[j*dim+i],cl);CHKERRQ(ierr);
         if (lg->use_dots) {
           ierr = PetscDrawString(draw,lg->x[j*dim+i],lg->y[j*dim+i],PETSC_DRAW_RED,"x");CHKERRQ(ierr);
         }
       }
     }
+  }
+  if (lg->legend) {
+    PetscReal xl,yl,xr,yr,tw,th;
+    size_t    len,mlen = 0;
+    int       cl;
+    ierr = PetscDrawGetCoordinates(draw,&xl,&yl,&xr,&yr);CHKERRQ(ierr);
+    ierr = PetscDrawStringGetSize(draw,&tw,&th);CHKERRQ(ierr);
+    for (i=0; i<dim; i++) {
+      ierr = PetscStrlen(lg->legend[i],&len);CHKERRQ(ierr);
+      mlen = PetscMax(mlen,len);
+    }
+    ierr = PetscDrawLine(draw,xr - (mlen + 8)*tw,yr - 3*th,xr - 2*tw,yr - 3*th,PETSC_DRAW_BLACK);CHKERRQ(ierr);
+    ierr = PetscDrawLine(draw,xr - (mlen + 8)*tw,yr - 3*th,xr - (mlen + 8)*tw,yr - (4+lg->dim)*th,PETSC_DRAW_BLACK);CHKERRQ(ierr);
+    for  (i=0; i<dim; i++) {
+      cl = (lg->colors ? lg->colors[i] : i + 1);
+      ierr = PetscDrawLine(draw,xr - (mlen + 6.7)*tw,yr - (4 + i)*th,xr - (mlen + 3.2)*tw,yr - (4 + i)*th,cl);CHKERRQ(ierr);
+      ierr = PetscDrawString(draw,xr - (mlen + 3)*tw,yr - (4.5 + i)*th,PETSC_DRAW_BLACK,lg->legend[i]);CHKERRQ(ierr);
+    }
+    ierr = PetscDrawLine(draw,xr - 2*tw,yr - 3*th,xr - 2*tw,yr - (4+lg->dim)*th,PETSC_DRAW_BLACK);CHKERRQ(ierr);
+    ierr = PetscDrawLine(draw,xr - (mlen + 8)*tw,yr - (4+lg->dim)*th,xr - 2*tw,yr - (4+lg->dim)*th,PETSC_DRAW_BLACK);CHKERRQ(ierr);
   }
   ierr = PetscDrawFlush(lg->win);CHKERRQ(ierr);
   ierr = PetscDrawPause(lg->win);CHKERRQ(ierr);
@@ -386,7 +494,7 @@ PetscErrorCode  PetscDrawLGPrint(PetscDrawLG lg)
   for(i = 0; i < dim; i++) {
     PetscPrintf(((PetscObject)lg)->comm, "Line %d>\n", i);
     for(j = 0; j < nopts; j++) {
-      PetscPrintf(((PetscObject)lg)->comm, "  X: %G Y: %G\n", lg->x[j*dim+i], lg->y[j*dim+i]);
+      PetscPrintf(((PetscObject)lg)->comm, "  X: %g Y: %g\n", (double)lg->x[j*dim+i], (double)lg->y[j*dim+i]);
     }
   }
   PetscFunctionReturn(0);

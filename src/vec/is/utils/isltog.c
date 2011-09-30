@@ -153,7 +153,7 @@ PetscErrorCode  ISLocalToGlobalMappingCreate(MPI_Comm cm,PetscInt n,const PetscI
   ierr = ISInitializePackage(PETSC_NULL);CHKERRQ(ierr);
 #endif
 
-  ierr = PetscHeaderCreate(*mapping,_p_ISLocalToGlobalMapping,int,IS_LTOGM_CLASSID,0,"ISLocalToGlobalMapping",
+  ierr = PetscHeaderCreate(*mapping,_p_ISLocalToGlobalMapping,int,IS_LTOGM_CLASSID,0,"ISLocalToGlobalMapping","Local to global mapping","IS",
 			   cm,ISLocalToGlobalMappingDestroy,ISLocalToGlobalMappingView);CHKERRQ(ierr);
   (*mapping)->n       = n;
   /*
@@ -281,11 +281,10 @@ PetscErrorCode  ISLocalToGlobalMappingDestroy(ISLocalToGlobalMapping *mapping)
   PetscFunctionBegin;
   if (!*mapping) PetscFunctionReturn(0);
   PetscValidHeaderSpecific((*mapping),IS_LTOGM_CLASSID,1);
-  if (!--((PetscObject)(*mapping))->refct > 0) {
-    ierr = PetscFree((*mapping)->indices);CHKERRQ(ierr);
-    ierr = PetscFree((*mapping)->globals);CHKERRQ(ierr);
-    ierr = PetscHeaderDestroy(mapping);CHKERRQ(ierr);
-  }
+  if (--((PetscObject)(*mapping))->refct > 0) {*mapping = 0;PetscFunctionReturn(0);}
+  ierr = PetscFree((*mapping)->indices);CHKERRQ(ierr);
+  ierr = PetscFree((*mapping)->globals);CHKERRQ(ierr);
+  ierr = PetscHeaderDestroy(mapping);CHKERRQ(ierr);
   *mapping = 0;
   PetscFunctionReturn(0);
 }
@@ -1017,5 +1016,51 @@ PetscErrorCode  ISLocalToGlobalMappingRestoreIndices(ISLocalToGlobalMapping ltog
   PetscValidPointer(array,2);
   if (*array != ltog->indices) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Trying to return mismatched pointer");
   *array = PETSC_NULL;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "ISLocalToGlobalMappingConcatenate"
+/*@C
+   ISLocalToGlobalMappingConcatenate - Create a new mapping that concatenates a list of mappings
+
+   Not Collective
+
+   Input Arguments:
++ comm - communicator for the new mapping, must contain the communicator of every mapping to concatenate
+. n - number of mappings to concatenate
+- ltogs - local to global mappings
+
+   Output Arguments:
+. ltogcat - new mapping
+
+   Level: advanced
+
+.seealso: ISLocalToGlobalMappingCreate()
+@*/
+PetscErrorCode ISLocalToGlobalMappingConcatenate(MPI_Comm comm,PetscInt n,const ISLocalToGlobalMapping ltogs[],ISLocalToGlobalMapping *ltogcat)
+{
+  PetscInt       i,cnt,m,*idx;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (n < 0) SETERRQ1(comm,PETSC_ERR_ARG_OUTOFRANGE,"Must have a non-negative number of mappings, given %D",n);
+  if (n > 0) PetscValidPointer(ltogs,3);
+  for (i=0; i<n; i++) PetscValidHeaderSpecific(ltogs[i],IS_LTOGM_CLASSID,3);
+  PetscValidPointer(ltogcat,4);
+  for (cnt=0,i=0; i<n; i++) {
+    ierr = ISLocalToGlobalMappingGetSize(ltogs[i],&m);CHKERRQ(ierr);
+    cnt += m;
+  }
+  ierr = PetscMalloc(cnt*sizeof(PetscInt),&idx);CHKERRQ(ierr);
+  for (cnt=0,i=0; i<n; i++) {
+    const PetscInt *subidx;
+    ierr = ISLocalToGlobalMappingGetSize(ltogs[i],&m);CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingGetIndices(ltogs[i],&subidx);CHKERRQ(ierr);
+    ierr = PetscMemcpy(&idx[cnt],subidx,m*sizeof(PetscInt));CHKERRQ(ierr);
+    ierr = ISLocalToGlobalMappingRestoreIndices(ltogs[i],&subidx);CHKERRQ(ierr);
+    cnt += m;
+  }
+  ierr = ISLocalToGlobalMappingCreate(comm,cnt,idx,PETSC_OWN_POINTER,ltogcat);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

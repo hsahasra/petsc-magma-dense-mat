@@ -56,7 +56,6 @@ use compatible domain decomposition relative to the 3D DMDAs.
 #define USE_SSE2_KERNELS (!defined NO_SSE2                              \
                           && !defined PETSC_USE_COMPLEX                 \
                           && !defined PETSC_USE_REAL_SINGLE           \
-                          && !defined PETSC_USE_REAL_LONG_DOUBLE      \
                           && defined __SSE2__)
 
 #if !defined __STDC_VERSION__ || __STDC_VERSION__ < 199901L
@@ -472,16 +471,16 @@ static PetscErrorCode PRangeMinMax(PRange *p,PetscReal min,PetscReal max)
 
 #undef __FUNCT__  
 #define __FUNCT__ "THIDestroy"
-static PetscErrorCode THIDestroy(&THI thi)
+static PetscErrorCode THIDestroy(THI *thi)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (--((PetscObject)thi)->refct > 0) PetscFunctionReturn(0);
-  ierr = PetscFree(thi->units);CHKERRQ(ierr);
-  ierr = PetscFree(thi->mattype);CHKERRQ(ierr);
-  ierr = PetscFree(thi->monitor_basename);CHKERRQ(ierr);
-  ierr = PetscHeaderDestroy(&thi);CHKERRQ(ierr);
+  if (--((PetscObject)(*thi))->refct > 0) PetscFunctionReturn(0);
+  ierr = PetscFree((*thi)->units);CHKERRQ(ierr);
+  ierr = PetscFree((*thi)->mattype);CHKERRQ(ierr);
+  ierr = PetscFree((*thi)->monitor_basename);CHKERRQ(ierr);
+  ierr = PetscHeaderDestroy(thi);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -501,7 +500,7 @@ static PetscErrorCode THICreate(MPI_Comm comm,THI *inthi)
     ierr = PetscClassIdRegister("Toy Hydrostatic Ice",&THI_CLASSID);CHKERRQ(ierr);
     registered = PETSC_TRUE;
   }
-  ierr = PetscHeaderCreate(thi,_p_THI,0,THI_CLASSID,-1,"THI",comm,THIDestroy,0);CHKERRQ(ierr);
+  ierr = PetscHeaderCreate(thi,_p_THI,0,THI_CLASSID,-1,"THI","Toy Hydrostatic Ice","THI",comm,THIDestroy,0);CHKERRQ(ierr);
 
   ierr = PetscNew(struct _n_Units,&thi->units);CHKERRQ(ierr);
   units = thi->units;
@@ -1088,7 +1087,7 @@ static PetscErrorCode THISolveStatistics(THI thi,DMMG *dmmg,PetscInt coarsened,c
     ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
     ierr = SNESGetConvergedReason(snes,&reason);CHKERRQ(ierr);
     ierr = SNESGetLinearSolveIterations(snes,&lits);CHKERRQ(ierr);
-    ierr = PetscPrintf(comm,"%s: Number of Newton iterations = %d, total linear iterations = %d\n",SNESConvergedReasons[reason],its,lits);CHKERRQ(ierr);
+    ierr = PetscPrintf(comm,"%s: Number of SNES iterations = %d, total linear iterations = %d\n",SNESConvergedReasons[reason],its,lits);CHKERRQ(ierr);
   }
   {
     PetscReal nrm2,tmin[3]={1e100,1e100,1e100},tmax[3]={-1e100,-1e100,-1e100},min[3],max[3];
@@ -1669,11 +1668,11 @@ int main(int argc,char *argv[])
   }
 
   ierr = PetscObjectSetName((PetscObject)da3,"3D_Velocity");CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)da3,"f3d_");CHKERRQ(ierr);
+  ierr = DMSetOptionsPrefix(da3,"f3d_");CHKERRQ(ierr);
   ierr = DMDASetFieldName(da3,0,"u");CHKERRQ(ierr);
   ierr = DMDASetFieldName(da3,1,"v");CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)da2,"2D_Fields");CHKERRQ(ierr);
-  ierr = PetscObjectSetOptionsPrefix((PetscObject)da2,"f2d_");CHKERRQ(ierr);
+  ierr = DMSetOptionsPrefix(da2,"f2d_");CHKERRQ(ierr);
   ierr = DMDASetFieldName(da2,0,"b");CHKERRQ(ierr);
   ierr = DMDASetFieldName(da2,1,"h");CHKERRQ(ierr);
   ierr = DMDASetFieldName(da2,2,"beta2");CHKERRQ(ierr);
@@ -1718,14 +1717,15 @@ int main(int argc,char *argv[])
   ierr = TSSetProblemType(ts,TS_NONLINEAR);CHKERRQ(ierr);
   ierr = TSMonitorSet(ts,THITSMonitor,thi,NULL);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSTHETA);CHKERRQ(ierr);
-  ierr = TSSetIFunction(ts,THIFunction,thi);CHKERRQ(ierr);
+  ierr = TSSetIFunction(ts,PETSC_NULL,THIFunction,thi);CHKERRQ(ierr);
   ierr = TSSetIJacobian(ts,B,B,THIJacobian,thi);CHKERRQ(ierr);
   ierr = TSSetDuration(ts,100,10.0);CHKERRQ(ierr);
   ierr = TSSetSolution(ts,X);CHKERRQ(ierr);
   ierr = TSSetInitialTimeStep(ts,0.,1e-3);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
-  ierr = TSStep(ts,&steps,&ftime);CHKERRQ(ierr);
+  ierr = TSSolve(ts,X,&ftime);CHKERRQ(ierr);
+  ierr = TSGetTimeStepNumber(ts,&steps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Steps %D  final time %G\n",steps,ftime);CHKERRQ(ierr);
 
   if (0) {ierr = THISolveStatistics(thi,dmmg,0,"Full");CHKERRQ(ierr);}

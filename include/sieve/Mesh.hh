@@ -36,6 +36,10 @@
 #include <sieve/Ordering.hh>
 #endif
 
+#ifndef  included_PETSc_Overlap_hh
+#include <sieve/Overlap.hh>
+#endif
+
 namespace ALE {
   class indexSet : public std::valarray<int> {
   public:
@@ -150,8 +154,8 @@ namespace ALE {
       this->_modifiedPoints    = new std::set<point_type>();
       this->_factory           = MeshNumberingFactory::singleton(this->comm(), this->debug());
       this->_calculatedOverlap = false;
-      this->_sendOverlap       = new send_overlap_type(comm, debug);
-      this->_recvOverlap       = new recv_overlap_type(comm, debug);
+      this->_sendOverlap       = new send_overlap_type(this->comm(), this->debug());
+      this->_recvOverlap       = new recv_overlap_type(this->comm(), this->debug());
     };
     virtual ~Bundle() {};
   public: // Verifiers
@@ -273,7 +277,7 @@ namespace ALE {
         maxValue = std::max(maxValue, this->getValue(label, *p_iter, defValue));
       }
       return maxValue;
-    };
+    }
     const Obj<label_type>& createLabel(const std::string& name) {
       this->_labels[name] = new label_type(this->comm(), this->debug());
       return this->_labels[name];
@@ -312,7 +316,7 @@ namespace ALE {
       if(this->_modifiedPoints->size() > 0) {
         this->computeHeight(height, sieve, sieve->cone(this->_modifiedPoints), maxHeight);
       }
-    };
+    }
     void computeHeights() {
       const Obj<label_type>& label = this->createLabel(std::string("height"));
 
@@ -353,7 +357,7 @@ namespace ALE {
       if(this->_modifiedPoints->size() > 0) {
         this->computeDepth(depth, sieve, sieve->support(this->_modifiedPoints), maxDepth);
       }
-    };
+    }
     void computeDepths() {
       const Obj<label_type>& label = this->createLabel(std::string("depth"));
 
@@ -404,7 +408,7 @@ namespace ALE {
         }
       }
       return size;
-    };
+    }
     template<typename Section_>
     int sizeWithBC(const Obj<Section_>& section, const point_type& p) {
       const typename Section_::chart_type& chart = section->getChart();
@@ -433,7 +437,7 @@ namespace ALE {
         }
       }
       return size;
-    };
+    }
   protected:
     int *getIndexArray(const int size) {
       static int *array   = NULL;
@@ -493,7 +497,7 @@ namespace ALE {
         section->getIndicesRaw(p_iter->first, section->getIndex(p_iter->first), indexArray, &k, p_iter->second);
       }
       return indices_type(indexArray, size);
-    };
+    }
     template<typename Section_>
     const indices_type getIndices(const Obj<Section_>& section, const point_type& p, const int level = -1) {
       int *indexArray = NULL;
@@ -542,7 +546,7 @@ namespace ALE {
         }
       }
       return indices_type(indexArray, size);
-    };
+    }
     template<typename Section_, typename Numbering>
     const indices_type getIndices(const Obj<Section_>& section, const point_type& p, const Obj<Numbering>& numbering, const int level = -1) {
       int *indexArray = NULL;
@@ -585,7 +589,7 @@ namespace ALE {
         throw ALE::Exception("Bundle has not yet implemented getIndices() for an arbitrary level");
       }
       return indices_type(indexArray, size);
-    };
+    }
   public: // Retrieval traversal
     // Return the values for the closure of this point
     //   use a smart pointer?
@@ -593,7 +597,7 @@ namespace ALE {
     const typename Section_::value_type *restrictClosure(const Obj<Section_>& section, const point_type& p) {
       const int size = this->sizeWithBC(section, p);
       return this->restrictClosure(section, p, section->getRawArray(size), size);
-    };
+    }
     template<typename Section_>
     const typename Section_::value_type *restrictClosure(const Obj<Section_>& section, const point_type& p, typename Section_::value_type  *values, const int valuesSize) {
       const int size = this->sizeWithBC(section, p);
@@ -647,12 +651,12 @@ namespace ALE {
         throw ALE::Exception(txt.str().c_str());
       }
       return values;
-    };
+    }
     template<typename Section_>
     const typename Section_::value_type *restrictNew(const Obj<Section_>& section, const point_type& p) {
       const int size = this->sizeWithBC(section, p);
       return this->restrictNew(section, p, section->getRawArray(size), size);
-    };
+    }
     template<typename Section_>
     const typename Section_::value_type *restrictNew(const Obj<Section_>& section, const point_type& p, typename Section_::value_type  *values, const int valuesSize) {
       const int                     size    = this->sizeWithBC(section, p);
@@ -692,7 +696,7 @@ namespace ALE {
         throw ALE::Exception(txt.str().c_str());
       }
       return values;
-    };
+    }
     template<typename Section_>
     void update(const Obj<Section_>& section, const point_type& p, const typename Section_::value_type v[]) {
       int j = 0;
@@ -715,7 +719,7 @@ namespace ALE {
           j += section->getFiberDimension(p_iter->first);
         }
       }
-    };
+    }
     template<typename Section_>
     void updateAdd(const Obj<Section_>& section, const point_type& p, const typename Section_::value_type v[]) {
       int j = 0;
@@ -738,7 +742,7 @@ namespace ALE {
           j += section->getFiberDimension(p_iter->first);
         }
       }
-    };
+    }
     template<typename Section_>
     void updateBC(const Obj<Section_>& section, const point_type& p, const typename Section_::value_type v[]) {
       int j = 0;
@@ -761,7 +765,7 @@ namespace ALE {
           j += section->getFiberDimension(p_iter->first);
         }
       }
-    };
+    }
     template<typename Section_>
     void updateAll(const Obj<Section_>& section, const point_type& p, const typename Section_::value_type v[]) {
       int j = 0;
@@ -784,7 +788,7 @@ namespace ALE {
           j += section->getFiberDimension(p_iter->first);
         }
       }
-    };
+    }
     template<typename Section_>
     void updateAllAdd(const Obj<Section_>& section, const point_type& p, const typename Section_::value_type v[]) {
       int j = 0;
@@ -807,7 +811,7 @@ namespace ALE {
           j += section->getFiberDimension(p_iter->first);
         }
       }
-    };
+    }
   public: // Optimization
     // Calculate a custom atlas for the given traversal
     //   This returns the tag value assigned to the traversal
@@ -841,7 +845,7 @@ namespace ALE {
         for(int i = 0, k = uOffsets[p]; k < uOffsets[p+1]; ++i, ++k) uIndices[k] = uIdx.first[i];
       }
       return section->setCustomAtlas(rOffsets, rIndices, uOffsets, uIndices);
-    };
+    }
     template<typename Section_>
     const typename Section_::value_type *restrictClosure(const Obj<Section_>& section, const int tag, const int p) {
       const int *offsets, *indices;
@@ -849,7 +853,7 @@ namespace ALE {
       section->getCustomRestrictAtlas(tag, &offsets, &indices);
       const int size = offsets[p+1] - offsets[p];
       return this->restrictClosure(section, tag, p, section->getRawArray(size), offsets, indices);
-    };
+    }
     template<typename Section_>
     const typename Section_::value_type *restrictClosure(const Obj<Section_>& section, const int tag, const int p, typename Section_::value_type  *values, const int valuesSize) {
       const int *offsets, *indices;
@@ -858,7 +862,7 @@ namespace ALE {
       const int size = offsets[p+1] - offsets[p];
       if (valuesSize < size) {throw ALE::Exception("Input array too small");}
       return this->restrictClosure(section, tag, p, values, offsets, indices);
-    };
+    }
     template<typename Section_>
     const typename Section_::value_type *restrictClosure(const Obj<Section_>& section, const int tag, const int p, typename Section_::value_type  *values, const int offsets[], const int indices[]) {
       const typename Section_::value_type *array = section->restrictSpace();
@@ -868,7 +872,7 @@ namespace ALE {
         values[j] = array[indices[k]];
       }
       return values;
-    };
+    }
     template<typename Section_>
     void updateAdd(const Obj<Section_>& section, const int tag, const int p, const typename Section_::value_type values[]) {
       typename Section_::value_type *array = (typename Section_::value_type *) section->restrictSpace();
@@ -880,7 +884,7 @@ namespace ALE {
         if (indices[k] < 0) continue;
         array[indices[k]] += values[j];
       }
-    };
+    }
   public: // Allocation
     template<typename Section_>
     void allocate(const Obj<Section_>& section, const Obj<send_overlap_type>& sendOverlap = NULL) {
@@ -901,7 +905,7 @@ namespace ALE {
         if (offset != section->sizeWithBC()) throw ALE::Exception("Inconsistent array sizes in section");
       }
       section->allocateStorage();
-    };
+    }
     template<typename Section_>
     void reallocate(const Obj<Section_>& section) {
       if (section->getNewAtlas().isNull()) return;
@@ -938,7 +942,7 @@ namespace ALE {
         }
       }
       section->replaceStorage(newArray);
-    };
+    }
   public: // Overlap
     template<typename Sequence>
     void constructOverlap(const Obj<Sequence>& points, const Obj<send_overlap_type>& sendOverlap, const Obj<recv_overlap_type>& recvOverlap) {
@@ -1045,7 +1049,7 @@ namespace ALE {
         delete [] remotePoints;
         delete [] sendPoints;
       }
-    };
+    }
     void constructOverlap() {
       if (this->_calculatedOverlap) return;
       this->constructOverlap(this->getSieve()->base(), this->getSendOverlap(), this->getRecvOverlap());
@@ -1055,12 +1059,12 @@ namespace ALE {
         this->_recvOverlap->view("Receive overlap");
       }
       this->_calculatedOverlap = true;
-    };
+    }
   };
   class BoundaryCondition : public ALE::ParallelObject {
   public:
-    typedef double (*function_type)(const double []);
-    typedef double (*integrator_type)(const double [], const double [], const int, function_type);
+    typedef double (*function_type)(const PetscReal []);
+    typedef double (*integrator_type)(const PetscReal [], const PetscReal [], const int, function_type);
   protected:
     std::string     _labelName;
     int             _marker;
@@ -1079,8 +1083,8 @@ namespace ALE {
     integrator_type getDualIntegrator() const {return this->_integrator;};
     void setDualIntegrator(integrator_type integrator) {this->_integrator = integrator;};
   public:
-    double evaluate(const double coords[]) const {return this->_func(coords);};
-    double integrateDual(const double v0[], const double J[], const int dualIndex) const {return this->_integrator(v0, J, dualIndex, this->_func);};
+    PetscReal evaluate(const PetscReal coords[]) const {return this->_func(coords);};
+    PetscReal integrateDual(const PetscReal v0[], const PetscReal J[], const int dualIndex) const {return this->_integrator(v0, J, dualIndex, this->_func);};
   };
   class Discretization : public ALE::ParallelObject {
     typedef std::map<std::string, Obj<BoundaryCondition> > boundaryConditions_type;
@@ -1090,11 +1094,11 @@ namespace ALE {
     std::map<int,int> _dim2dof;
     std::map<int,int> _dim2class;
     int           _quadSize;
-    const double *_points;
-    const double *_weights;
+    const PetscReal *_points;
+    const PetscReal *_weights;
     int           _basisSize;
-    const double *_basis;
-    const double *_basisDer;
+    const PetscReal *_basis;
+    const PetscReal *_basisDer;
     const int    *_indices;
     std::map<int, const int *> _exclusionIndices;
   public:
@@ -1106,7 +1110,7 @@ namespace ALE {
       }
     };
   public:
-    const bool hasBoundaryCondition() {return (this->_boundaryConditions.find("default") != this->_boundaryConditions.end());};
+    bool hasBoundaryCondition() {return (this->_boundaryConditions.find("default") != this->_boundaryConditions.end());};
     const Obj<BoundaryCondition>& getBoundaryCondition() {return this->getBoundaryCondition("default");};
     void setBoundaryCondition(const Obj<BoundaryCondition>& boundaryCondition) {this->setBoundaryCondition("default", boundaryCondition);};
     const Obj<BoundaryCondition>& getBoundaryCondition(const std::string& name) {return this->_boundaryConditions[name];};
@@ -1121,18 +1125,18 @@ namespace ALE {
     };
     const Obj<BoundaryCondition>& getExactSolution() {return this->_exactSolution;};
     void setExactSolution(const Obj<BoundaryCondition>& exactSolution) {this->_exactSolution = exactSolution;};
-    const int     getQuadratureSize() {return this->_quadSize;};
+    int           getQuadratureSize() {return this->_quadSize;};
     void          setQuadratureSize(const int size) {this->_quadSize = size;};
-    const double *getQuadraturePoints() {return this->_points;};
-    void          setQuadraturePoints(const double *points) {this->_points = points;};
-    const double *getQuadratureWeights() {return this->_weights;};
-    void          setQuadratureWeights(const double *weights) {this->_weights = weights;};
-    const int     getBasisSize() {return this->_basisSize;};
+    const PetscReal *getQuadraturePoints() {return this->_points;};
+    void          setQuadraturePoints(const PetscReal *points) {this->_points = points;};
+    const PetscReal *getQuadratureWeights() {return this->_weights;};
+    void          setQuadratureWeights(const PetscReal *weights) {this->_weights = weights;};
+    int           getBasisSize() {return this->_basisSize;};
     void          setBasisSize(const int size) {this->_basisSize = size;};
-    const double *getBasis() {return this->_basis;};
-    void          setBasis(const double *basis) {this->_basis = basis;};
-    const double *getBasisDerivatives() {return this->_basisDer;};
-    void          setBasisDerivatives(const double *basisDer) {this->_basisDer = basisDer;};
+    const PetscReal *getBasis() {return this->_basis;};
+    void          setBasis(const PetscReal *basis) {this->_basis = basis;};
+    const PetscReal *getBasisDerivatives() {return this->_basisDer;};
+    void          setBasisDerivatives(const PetscReal *basisDer) {this->_basisDer = basisDer;};
     int  getNumDof(const int dim) {return this->_dim2dof[dim];};
     void setNumDof(const int dim, const int numDof) {this->_dim2dof[dim] = numDof;};
     int  getDofClass(const int dim) {return this->_dim2class[dim];};
@@ -1161,7 +1165,7 @@ namespace ALE {
         size += this->_dim2dof[mesh.depth(oPoints[cl])];
       }
       return size;
-    };
+    }
     template<typename Bundle>
     int size(const Obj<Bundle>& mesh) {
       const Obj<typename Bundle::label_sequence>& cells   = mesh->heightStratum(0);
@@ -1173,7 +1177,7 @@ namespace ALE {
         size += this->_dim2dof[mesh->depth(*cl_iter)];
       }
       return size;
-    };
+    }
   };
 }
 
@@ -1204,8 +1208,14 @@ namespace ALE {
     typedef std::pair<int *, int>                                     indices_type;
     typedef NumberingFactory<this_type>                               MeshNumberingFactory;
     typedef typename ALE::Partitioner<>::part_type                    rank_type;
+#define USE_NEW_OVERLAP
+#ifdef USE_NEW_OVERLAP
+    typedef typename PETSc::SendOverlap<point_type,rank_type>         send_overlap_type;
+    typedef typename PETSc::RecvOverlap<point_type,rank_type>         recv_overlap_type;
+#else
     typedef typename ALE::Sifter<point_type,rank_type,point_type>     send_overlap_type;
     typedef typename ALE::Sifter<rank_type,point_type,point_type>     recv_overlap_type;
+#endif
     typedef typename MeshNumberingFactory::numbering_type             numbering_type;
     typedef typename MeshNumberingFactory::order_type                 order_type;
     typedef std::map<point_type, point_type>                          renumbering_type;
@@ -1338,16 +1348,16 @@ namespace ALE {
       this->_modifiedPoints    = new std::set<point_type>();
       this->_factory           = MeshNumberingFactory::singleton(this->comm(), this->debug());
       this->_calculatedOverlap = false;
-      this->_sendOverlap       = new send_overlap_type(comm, debug);
-      this->_recvOverlap       = new recv_overlap_type(comm, debug);
+      this->_sendOverlap       = new send_overlap_type(this->comm(), this->debug());
+      this->_recvOverlap       = new recv_overlap_type(this->comm(), this->debug());
     };
     IBundle(const Obj<sieve_type>& sieve) : ALE::ParallelObject(sieve->comm(), sieve->debug()), _sieve(sieve), _maxHeight(-1), _maxDepth(-1) {
       this->_indexArray        = new oIndexArray();
       this->_modifiedPoints    = new std::set<point_type>();
       this->_factory           = MeshNumberingFactory::singleton(this->comm(), this->debug());
       this->_calculatedOverlap = false;
-      this->_sendOverlap       = new send_overlap_type(comm, debug);
-      this->_recvOverlap       = new recv_overlap_type(comm, debug);
+      this->_sendOverlap       = new send_overlap_type(this->comm(), this->debug());
+      this->_recvOverlap       = new recv_overlap_type(this->comm(), this->debug());
     };
     virtual ~IBundle() {};
   public: // Verifiers
@@ -1462,7 +1472,7 @@ namespace ALE {
         maxValue = std::max(maxValue, this->getValue(label, *p_iter, defValue));
       }
       return maxValue;
-    };
+    }
     const Obj<label_type>& createLabel(const std::string& name) {
       this->_labels[name] = new label_type(this->comm(), this->debug());
       return this->_labels[name];
@@ -1562,7 +1572,7 @@ namespace ALE {
     template<typename Value>
     static bool lt1(const Value& a, const Value& b) {
       return a.first < b.first;
-    };
+    }
   public: // Allocation
     template<typename Section_>
     void reallocate(const Obj<Section_>& section) {
@@ -1570,7 +1580,7 @@ namespace ALE {
       typename Section_::chart_type newChart(std::min(std::min_element(section->getNewPoints().begin(), section->getNewPoints().end(), lt1<typename Section_::newpoint_type>)->first, section->getChart().min()),
                                              std::max(std::max_element(section->getNewPoints().begin(), section->getNewPoints().end(), lt1<typename Section_::newpoint_type>)->first, section->getChart().max()-1)+1);
       section->reallocatePoint(newChart);
-    };
+    }
   };
 #ifdef IMESH_NEW_LABELS
   template<typename Label_ = IFSieve<int> >
@@ -1658,7 +1668,7 @@ namespace ALE {
       this->getSieve()->cone(p, cV);
       if (!sV.getSize()) sV.visitPoint(p);
       return sV.getSize();
-    };
+    }
     template<typename Section>
     int sizeWithBC(const Obj<Section>& section, const point_type& p) {
       typedef ISieveVisitor::SizeWithBCVisitor<sieve_type,Section>                  size_visitor_type;
@@ -1669,11 +1679,11 @@ namespace ALE {
       this->getSieve()->cone(p, cV);
       if (!sV.getSize()) sV.visitPoint(p);
       return sV.getSize();
-    };
+    }
     template<typename Section>
     void allocate(const Obj<Section>& section) {
       section->allocatePoint();
-    };
+    }
   public: // Restrict/Update closures
     template<typename Sieve, typename Visitor>
     void closure1(const Sieve& sieve, const point_type& p, Visitor& v)
@@ -1681,7 +1691,7 @@ namespace ALE {
       v.visitPoint(p, 0);
       // Cone is guarateed to be ordered correctly
       sieve.orientedCone(p, v);
-    };
+    }
     // Return the values for the closure of this point
     template<typename Section>
     const typename Section::value_type *restrictClosure(const Obj<Section>& section, const point_type& p) {
@@ -1696,7 +1706,7 @@ namespace ALE {
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, pV);
       }
       return rV.getValues();
-    };
+    }
     template<typename Section>
     const typename Section::value_type *restrictClosure(const Obj<Section>& section, const point_type& p, typename Section::value_type *values, const int valuesSize) {
       const int size = this->sizeWithBC(section, p);
@@ -1711,7 +1721,7 @@ namespace ALE {
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, pV);
       }
       return rV.getValues();
-    };
+    }
     template<typename Visitor>
     void restrictClosure(const point_type& p, Visitor& v) {
       if (this->depth() == 1) {
@@ -1719,7 +1729,7 @@ namespace ALE {
       } else {
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, v);
       }
-    };
+    }
     // Replace the values for the closure of this point
     template<typename Section>
     void update(const Obj<Section>& section, const point_type& p, const typename Section::value_type *v) {
@@ -1732,7 +1742,7 @@ namespace ALE {
 
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, pV);
       }
-    };
+    }
     // Replace the values for the closure of this point, including points constrained by BC
     template<typename Section>
     void updateAll(const Obj<Section>& section, const point_type& p, const typename Section::value_type *v) {
@@ -1745,7 +1755,7 @@ namespace ALE {
 
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, pV);
       }
-    };
+    }
     // Augment the values for the closure of this point
     template<typename Section>
     void updateAdd(const Obj<Section>& section, const point_type& p, const typename Section::value_type *v) {
@@ -1758,7 +1768,7 @@ namespace ALE {
 
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, pV);
       }
-    };
+    }
     // Augment the values for the closure of this point
     template<typename Visitor>
     void updateClosure(const point_type& p, Visitor& v) {
@@ -1767,7 +1777,7 @@ namespace ALE {
       } else {
         ISieveTraversal<sieve_type>::orientedClosure(*this->getSieve(), p, v);
       }
-    };
+    }
   public: // Overlap
     void constructOverlap() {
       if (!this->_calculatedOverlap && (this->commSize() > 1)) {throw ALE::Exception("Must calculate overlap during distribution");}
@@ -1803,10 +1813,10 @@ namespace ALE {
         throw ALE::Exception("No point location for mesh dimension");
       }
     };
-    void computeTriangleGeometry(const Obj<real_section_type>& coordinates, const point_type& e, double v0[], double J[], double invJ[], double& detJ) {
+    void computeTriangleGeometry(const Obj<real_section_type>& coordinates, const point_type& e, typename real_section_type::value_type v0[], typename real_section_type::value_type J[], typename real_section_type::value_type invJ[], typename real_section_type::value_type& detJ) {
       const PetscReal *coords = this->restrictClosure(coordinates, e);
       const int        dim    = 2;
-      double           invDet;
+      typename real_section_type::value_type           invDet;
 
       if (v0) {
         for(int d = 0; d < dim; d++) {
@@ -1821,16 +1831,16 @@ namespace ALE {
         }
         detJ = J[0]*J[3] - J[1]*J[2];
         if (detJ < 0.0) {
-          const double  xLength = this->_periodicity[0];
+          const typename real_section_type::value_type  xLength = this->_periodicity[0];
 
           if (xLength != 0.0) {
-            double v0x = coords[0*dim+0];
+            typename real_section_type::value_type v0x = coords[0*dim+0];
 
             if (v0x == 0.0) {
               v0x = v0[0] = xLength;
             }
             for(int f = 0; f < dim; f++) {
-              const double px = coords[(f+1)*dim+0] == 0.0 ? xLength : coords[(f+1)*dim+0];
+              const typename real_section_type::value_type px = coords[(f+1)*dim+0] == 0.0 ? xLength : coords[(f+1)*dim+0];
 
               J[0*dim+f] = 0.5*(px - v0x);
             }
@@ -1848,10 +1858,10 @@ namespace ALE {
         PetscLogFlopsNoError(5.0);
       }
     };
-    void computeTetrahedronGeometry(const Obj<real_section_type>& coordinates, const point_type& e, double v0[], double J[], double invJ[], double& detJ) {
+    void computeTetrahedronGeometry(const Obj<real_section_type>& coordinates, const point_type& e, typename real_section_type::value_type v0[], typename real_section_type::value_type J[], typename real_section_type::value_type invJ[], typename real_section_type::value_type& detJ) {
       const PetscReal *coords = this->restrictClosure(coordinates, e);
       const int        dim    = 3;
-      double           invDet;
+      typename real_section_type::value_type           invDet;
 
       if (v0) {
         for(int d = 0; d < dim; d++) {
@@ -1884,7 +1894,7 @@ namespace ALE {
         PetscLogFlopsNoError(37.0);
       }
     };
-    void computeElementGeometry(const Obj<real_section_type>& coordinates, const point_type& e, double v0[], double J[], double invJ[], double& detJ) {
+    void computeElementGeometry(const Obj<real_section_type>& coordinates, const point_type& e, typename real_section_type::value_type v0[], typename real_section_type::value_type J[], typename real_section_type::value_type invJ[], typename real_section_type::value_type& detJ) {
       if (this->_dim == 2) {
         computeTriangleGeometry(coordinates, e, v0, J, invJ, detJ);
       } else if (this->_dim == 3) {
@@ -1893,10 +1903,10 @@ namespace ALE {
         throw ALE::Exception("Unsupported dimension for element geometry computation");
       }
     };
-    void computeBdSegmentGeometry(const Obj<real_section_type>& coordinates, const point_type& e, double v0[], double J[], double invJ[], double& detJ) {
-      const double *coords = this->restrictClosure(coordinates, e);
+    void computeBdSegmentGeometry(const Obj<real_section_type>& coordinates, const point_type& e, typename real_section_type::value_type v0[], typename real_section_type::value_type J[], typename real_section_type::value_type invJ[], typename real_section_type::value_type& detJ) {
+      const typename real_section_type::value_type *coords = this->restrictClosure(coordinates, e);
       const int     dim    = 2;
-      double        invDet;
+      typename real_section_type::value_type        invDet;
 
       if (v0) {
         for(int d = 0; d < dim; d++) {
@@ -1909,16 +1919,16 @@ namespace ALE {
         J[2] =  (coords[1*dim+1] - coords[0*dim+1])*0.5; J[3] = ( coords[1*dim+0] - coords[0*dim+0])*0.5;
         detJ = J[0]*J[3] - J[1]*J[2];
         if (detJ < 0.0) {
-          const double  xLength = this->_periodicity[0];
+          const typename real_section_type::value_type  xLength = this->_periodicity[0];
 
           if (xLength != 0.0) {
-            double v0x = coords[0*dim+0];
+            typename real_section_type::value_type v0x = coords[0*dim+0];
 
             if (v0x == 0.0) {
               v0x = v0[0] = xLength;
             }
             for(int f = 0; f < dim; f++) {
-              const double px = coords[(f+1)*dim+0] == 0.0 ? xLength : coords[(f+1)*dim+0];
+              const typename real_section_type::value_type px = coords[(f+1)*dim+0] == 0.0 ? xLength : coords[(f+1)*dim+0];
 
               J[0*dim+f] = 0.5*(px - v0x);
             }
@@ -1936,7 +1946,7 @@ namespace ALE {
         PetscLogFlopsNoError(5.0);
       }
     };
-    void computeBdElementGeometry(const Obj<real_section_type>& coordinates, const point_type& e, double v0[], double J[], double invJ[], double& detJ) {
+    void computeBdElementGeometry(const Obj<real_section_type>& coordinates, const point_type& e, typename real_section_type::value_type v0[], typename real_section_type::value_type J[], typename real_section_type::value_type invJ[], typename real_section_type::value_type& detJ) {
       if (this->_dim == 1) {
         computeBdSegmentGeometry(coordinates, e, v0, J, invJ, detJ);
         //      } else if (this->_dim == 2) {
@@ -1945,11 +1955,11 @@ namespace ALE {
         throw ALE::Exception("Unsupported dimension for element geometry computation");
       }
     };
-    double getMaxVolume() {
+    typename real_section_type::value_type getMaxVolume() {
       const Obj<real_section_type>& coordinates = this->getRealSection("coordinates");
       const Obj<label_sequence>&    cells       = this->heightStratum(0);
       const int                     dim         = this->getDimension();
-      double v0[3], J[9], invJ[9], detJ, refVolume = 0.0, maxVolume = 0.0;
+      typename real_section_type::value_type v0[3], J[9], invJ[9], detJ, refVolume = 0.0, maxVolume = 0.0;
 
       if (dim == 1) refVolume = 2.0;
       if (dim == 2) refVolume = 2.0;
@@ -2002,7 +2012,7 @@ namespace ALE {
         }
       } else {
 #if 1
-        throw ALE::Exception("Rewrite this to first mark bounadry edges/faces.");
+        throw ALE::Exception("Rewrite this to first mark boundary edges/faces.");
 #else
         const int depth = this->depth();
 
@@ -2292,9 +2302,9 @@ namespace ALE {
         typename real_section_type::value_type *values        = new typename real_section_type::value_type[this->sizeWithBC(s, firstCell)];
         int                                    *dofs          = new int[this->_maxDof];
         int                                    *v             = new int[numFields];
-        double                                 *v0            = new double[this->getDimension()];
-        double                                 *J             = new double[this->getDimension()*this->getDimension()];
-        double                                  detJ;
+        typename real_section_type::value_type *v0            = new typename real_section_type::value_type[this->getDimension()];
+        typename real_section_type::value_type *J             = new typename real_section_type::value_type[this->getDimension()*this->getDimension()];
+        typename real_section_type::value_type  detJ;
         Visitor pV((int) pow((double) this->getSieve()->getMaxConeSize(), this->depth())+1, true);
 
         for(typename label_sequence::iterator c_iter = boundaryCells->begin(); c_iter != boundaryCells->end(); ++c_iter) {
@@ -2440,7 +2450,7 @@ namespace ALE {
       this->setRecvOverlap(recvOverlap);
       // Relabel distribution overlap ???
       // Relabel renumbering
-    };
+    }
   };
 }
 
@@ -3233,12 +3243,12 @@ namespace ALE {
         const Obj<names_type>&         discs         = this->getDiscretizations();
         const point_type               firstCell     = *boundaryCells->begin();
         const int                      numFields     = discs->size();
-        typename real_section_type::value_type *values        = new typename real_section_type::value_type[this->sizeWithBC(s, firstCell)];
+        typename real_section_type::value_type *values = new typename real_section_type::value_type[this->sizeWithBC(s, firstCell)];
         int                           *dofs          = new int[maxDof];
         int                           *v             = new int[numFields];
-        double                        *v0            = new double[this->getDimension()];
-        double                        *J             = new double[this->getDimension()*this->getDimension()];
-        double                         detJ;
+        typename real_section_type::value_type *v0   = new typename real_section_type::value_type[this->getDimension()];
+        typename real_section_type::value_type *J    = new typename real_section_type::value_type[this->getDimension()*this->getDimension()];
+        typename real_section_type::value_type  detJ;
 
         for(typename label_sequence::iterator c_iter = boundaryCells->begin(); c_iter != boundaryCells->end(); ++c_iter) {
           const Obj<coneArray>      closure = sieve_alg_type::closure(this, this->getArrowSection("orientation"), *c_iter);
@@ -3396,7 +3406,7 @@ namespace ALE {
         }
       }
       return output.str();
-    };
+    }
   };
   template<typename Mesh>
   class MeshBuilder {
@@ -5548,7 +5558,7 @@ namespace ALE {
       if (mesh.commRank() == 0) {
         fs.close();
       }
-    };
+    }
     template<typename Mesh>
     static void writeMesh(std::ofstream& fs, Mesh& mesh) {
       ISieveSerializer::writeSieve(fs, *mesh.getSieve());
@@ -5576,11 +5586,16 @@ namespace ALE {
         SectionSerializer::writeSection(fs, *mesh.getIntSection(*n_iter));
       }
       // Write overlap
+#ifdef USE_NEW_OVERLAP
+      PETSc::OverlapSerializer::writeOverlap(fs, *mesh.getSendOverlap());
+      PETSc::OverlapSerializer::writeOverlap(fs, *mesh.getRecvOverlap());
+#else
       SifterSerializer::writeSifter(fs, *mesh.getSendOverlap());
       SifterSerializer::writeSifter(fs, *mesh.getRecvOverlap());
+#endif
       // Write distribution overlap
       // Write renumbering
-    };
+    }
     template<typename Mesh>
     static void loadMesh(const std::string& filename, Mesh& mesh) {
       std::ifstream fs;
@@ -5592,7 +5607,7 @@ namespace ALE {
       if (mesh.commRank() == 0) {
         fs.close();
       }
-    };
+    }
     template<typename Mesh>
     static void loadMesh(std::ifstream& fs, Mesh& mesh) {
       ALE::Obj<typename Mesh::sieve_type> sieve = new typename Mesh::sieve_type(mesh.comm(), mesh.debug());
@@ -5675,11 +5690,16 @@ namespace ALE {
         mesh.setIntSection(name, section);
       }
       // Load overlap
+#ifdef USE_NEW_OVERLAP
+      PETSc::OverlapSerializer::loadOverlap(fs, *mesh.getSendOverlap());
+      PETSc::OverlapSerializer::loadOverlap(fs, *mesh.getRecvOverlap());
+#else
       SifterSerializer::loadSifter(fs, *mesh.getSendOverlap());
       SifterSerializer::loadSifter(fs, *mesh.getRecvOverlap());
+#endif
       // Load distribution overlap
       // Load renumbering
-    };
+    }
   };
 } // namespace ALE
 #endif

@@ -4,11 +4,11 @@ class Configure(PETSc.package.NewPackage):
   def __init__(self, framework):
     PETSc.package.NewPackage.__init__(self, framework)
     self.download     = ['http://gforge.inria.fr/frs/download.php/28290/pastix_release_3184.tar.bz2']
-    self.downloadname = self.name.lower()
     self.liblist      = [['libpastix.a'],
                          ['libpastix.a','libpthread.a','librt.a']]
     self.functions    = ['pastix']
     self.includes     = ['pastix.h']
+    self.downloadfilename = 'pastix'
     self.complex      = 0
     self.fc           = 1
     return
@@ -16,7 +16,7 @@ class Configure(PETSc.package.NewPackage):
   def setupDependencies(self, framework):
     PETSc.package.NewPackage.setupDependencies(self, framework)
     self.blasLapack = framework.require('config.packages.BlasLapack',self)
-    self.scotch     = framework.require('PETSc.packages.Scotch',self)
+    self.scotch     = framework.require('PETSc.packages.PTScotch',self)
     self.make       = framework.require('config.programs', self)
     self.deps       = [self.mpi, self.blasLapack, self.scotch]   
     return

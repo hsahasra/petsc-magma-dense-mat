@@ -334,7 +334,8 @@
       PetscEnum MATOP_GETMULTIPROCBLOCK
       PetscEnum MATOP_GETCOLUMNNORMS
       PetscEnum MATOP_GET_SUBMATRICES_PARALLEL
-      
+
+      PetscEnum MATOP_SET_VALUES_BATCH      
       PetscEnum MATOP_SET_STENCIL
       PetscEnum MATOP_SET_GRID
 
@@ -464,15 +465,16 @@
       parameter(MATOP_GETMULTIPROCBLOCK=123)
       parameter(MATOP_GETCOLUMNNORMS=125)
       parameter(MATOP_GET_SUBMATRICES_PARALLEL=128)
+
+      parameter(MATOP_SET_VALUES_BATCH=129)
 /* Two new functions added specific to StructGrid representation  */
 /* Sets the stencil points displacements for the 3-D structure  . currently : start stencil.  */
-      parameter(MATOP_SET_STENCIL=129)
+      parameter(MATOP_SET_STENCIL=130)
 /* Sets the 3-D physical structure onto the matrix representation  */
-      parameter(MATOP_SET_GRID=130)
-
+      parameter(MATOP_SET_GRID=131)
 
 !
-!  
+!
 !
       PetscEnum MATRIX_BINARY_FORMAT_DENSE
       parameter (MATRIX_BINARY_FORMAT_DENSE=-1)
@@ -497,16 +499,17 @@
       PetscEnum MP_CHACO_RQI_SYMMLQ
       parameter (MP_CHACO_LANCZOS=0, MP_CHACO_RQI_SYMMLQ=1)
 !
-! MPScotchGlobalType
-      PetscEnum MP_SCOTCH_GREEDY
-      PetscEnum MP_SCOTCH_GPS
-      PetscEnum MP_SCOTCH_GR_GPS
-      parameter (MP_SCOTCH_GREEDY=0,MP_SCOTCH_GPS=1,MP_SCOTCH_GR_GPS=2)
-
-! MPScotchLocalType
-      PetscEnum MP_SCOTCH_KERNIGHAN_LIN
-      PetscEnum MP_SCOTCH_NONE
-      parameter (MP_SCOTCH_KERNIGHAN_LIN=0, MP_SCOTCH_NONE=1)
+! MPPTScotchStrategyType
+      PetscEnum MP_PTSCOTCH_QUALITY
+      PetscEnum MP_PTSCOTCH_SPEED
+      PetscEnum MP_PTSCOTCH_BALANCE
+      PetscEnum MP_PTSCOTCH_SAFETY
+      PetscEnum MP_PTSCOTCH_SCALABILITY
+      parameter (MP_PTSCOTCH_QUALITY = 0)
+      parameter (MP_PTSCOTCH_SPEED = 1)
+      parameter (MP_PTSCOTCH_BALANCE = 2)
+      parameter (MP_PTSCOTCH_SAFETY = 3)
+      parameter (MP_PTSCOTCH_SCALABILITY = 4)
 
 ! PetscScalarPrecision
       PetscEnum PETSC_SCALAR_DOUBLE

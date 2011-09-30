@@ -42,18 +42,18 @@ testexamples_UMFPACK: ${TESTEXAMPLES_UMFPACK}
 testexamples_SUPERLU_DIST: ${TESTEXAMPLES_SUPERLU_DIST}
 testexamples_HYPRE: ${TESTEXAMPLES_HYPRE}
 testexamples_HDF5: ${TESTEXAMPLES_HDF5}
-testexamples_BLOPEX: ${TESTEXAMPLES_BLOPEX}
 testexamples_PROMETHEUS: ${TESTEXAMPLES_PROMETHEUS}
 testexamples_CHACO: ${TESTEXAMPLES_CHACO}
 testexamples_TRIANGLE: ${TESTEXAMPLES_TRIANGLE}
 testexamples_SIEVE: ${TESTEXAMPLES_SIEVE}
 testexamples_BOOST: ${TESTEXAMPLES_BOOST}
 testexamples_TETGEN: ${TESTEXAMPLES_TETGEN}
-testexamples_SCOTCH: ${TESTEXAMPLES_SCOTCH}
+testexamples_PTSCOTCH: ${TESTEXAMPLES_PTSCOTCH}
 testexamples_PASTIX: ${TESTEXAMPLES_PASTIX}
 testexamples_ML: ${TESTEXAMPLES_ML}
 testexamples_CUSP: ${TESTEXAMPLES_CUSP}
 testexamples_PTHREAD: ${TESTEXAMPLES_PTHREAD}
+testexamples_YAML: ${TESTEXAMPLES_YAML}
 testexamples_X11:
 testexamples_MPE:
 testexamples_ESSL:
@@ -122,7 +122,7 @@ alltests:
 
 alltest:
 	-@for i in ${TEST_RUNS} ; do \
-	  ${OMAKE} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} ACTION=${TESTMODE}_$$i MPIEXEC="${MPIEXEC}" tree ; \
+	  ${OMAKE} PETSC_ARCH=${PETSC_ARCH} PETSC_DIR=${PETSC_DIR} ACTION=${TESTMODE}_$$i MPIEXEC="${MPIEXEC}" treenodir ; \
 	done
 
 tests_DATAFILESPATH:

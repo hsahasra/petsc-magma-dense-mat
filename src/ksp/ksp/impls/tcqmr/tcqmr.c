@@ -129,9 +129,9 @@ static PetscErrorCode KSPSolve_TCQMR(KSP ksp)
     /* Compute the upper bound on the residual norm r (See QMR paper p. 13) */
     sprod = sprod*PetscAbsScalar(s);
 #if defined(PETSC_USE_COMPLEX)
-    rnorm = rnorm0 * sqrt((double)ksp->its+2.0) * PetscRealPart(sprod);     
+    rnorm = rnorm0 * PetscSqrtReal((PetscReal)ksp->its+2.0) * PetscRealPart(sprod);     
 #else
-    rnorm = rnorm0 * sqrt((double)ksp->its+2.0) * sprod;     
+    rnorm = rnorm0 * PetscSqrtReal((PetscReal)ksp->its+2.0) * sprod;     
 #endif
     ierr = (*ksp->converged)(ksp,ksp->its,rnorm,&ksp->reason,ksp->cnvP);CHKERRQ(ierr);
     if (ksp->its >= ksp->max_it) {
@@ -166,6 +166,10 @@ static PetscErrorCode KSPSetUp_TCQMR(KSP ksp)
    Level: beginner
 
   Notes: Supports either left or right preconditioning, but not symmetric
+  
+          The "residual norm" computed in this algorithm is actually just an upper bound on the actual residual norm.
+          That is for left preconditioning it is a bound on the preconditioned residual and for right preconditioning 
+          it is a bound on the true residual.
 
   References:
   Transpose-free formulations of Lanczos-type methods for nonsymmetric linear systems, 
@@ -181,7 +185,11 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "KSPCreate_TCQMR"
 PetscErrorCode  KSPCreate_TCQMR(KSP ksp)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_PRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_RIGHT,1);CHKERRQ(ierr);
   ksp->data                = (void*)0;
   ksp->ops->buildsolution  = KSPDefaultBuildSolution;
   ksp->ops->buildresidual  = KSPDefaultBuildResidual;

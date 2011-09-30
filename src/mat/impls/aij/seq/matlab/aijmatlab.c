@@ -61,6 +61,8 @@ EXTERN_C_BEGIN
 +     mmat - a MATLAB sparse matris
 -     mat - a already created MATSEQAIJ
 
+  Level: intermediate
+
 @*/
 PetscErrorCode  MatSeqAIJFromMatlab(mxArray *mmat,Mat mat)
 {
@@ -218,6 +220,7 @@ PetscErrorCode MatFactorGetSolverPackage_seqaij_matlab(Mat A,const MatSolverPack
 }
 EXTERN_C_END
 
+EXTERN_C_BEGIN
 #undef __FUNCT__  
 #define __FUNCT__ "MatGetFactor_seqaij_matlab"
 PetscErrorCode MatGetFactor_seqaij_matlab(Mat A,MatFactorType ftype,Mat *F)
@@ -237,7 +240,7 @@ PetscErrorCode MatGetFactor_seqaij_matlab(Mat A,MatFactorType ftype,Mat *F)
   (*F)->factortype             = ftype;
   PetscFunctionReturn(0);
 }
-
+EXTERN_C_END
 
 /* --------------------------------------------------------------------------------*/
 

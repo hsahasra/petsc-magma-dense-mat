@@ -167,15 +167,15 @@ struct _MatOps {
   /*124*/
   PetscErrorCode (*findnonzerorows)(Mat,IS*);
   PetscErrorCode (*getcolumnnorms)(Mat,NormType,PetscReal*);
-  PetscErrorCode (*dummy3)(Mat,Vec,Vec);
+  PetscErrorCode (*invertblockdiagonal)(Mat,PetscScalar**);
   PetscErrorCode (*dummy4)(Mat,Vec,Vec,Vec);
   PetscErrorCode (*getsubmatricesparallel)(Mat,PetscInt,const IS[], const IS[], MatReuse, Mat**);
   /*129*/
+  PetscErrorCode (*setvaluesbatch)(Mat,PetscInt,PetscInt,PetscInt*,const PetscScalar*);
 /* Sets the stencil displacements for 3-d grid. Currently supports star stencil */
   PetscErrorCode (*setstencil)(Mat, PetscInt, const PetscInt[],const PetscInt[], PetscInt);
 /* Sets the 3-D physical grid information onto the matrix representation */
   PetscErrorCode (*setgrid)(Mat,PetscInt, PetscInt, PetscInt);
-
 
 };
 /*
@@ -292,7 +292,8 @@ struct _p_Mat {
   MatInfo                info;             /* matrix information */
   InsertMode             insertmode;       /* have values been inserted in matrix or added? */
   MatStash               stash,bstash;     /* used for assembling off-proc mat emements */
-  MatNullSpace           nullsp;
+  MatNullSpace           nullsp;           /* null space (operator is singular) */
+  MatNullSpace           nearnullsp;       /* near null space to be used by multigrid methods */
   PetscBool              preallocated;
   MatStencilInfo         stencil;          /* information for structured grid */
   PetscBool              symmetric,hermitian,structurally_symmetric,spd;
@@ -426,7 +427,7 @@ extern PetscErrorCode MatFactorDumpMatrix(Mat);
 
 #undef __FUNCT__
 #define __FUNCT__ "MatPivotCheck_nz"
-PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_nz(const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
+PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_nz(Mat mat,const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
 {
   PetscReal _rs   = sctx->rs;
   PetscReal _zero = info->zeropivot*_rs;
@@ -446,7 +447,7 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_nz(const MatFactorInfo *info,Fa
 
 #undef __FUNCT__
 #define __FUNCT__ "MatPivotCheck_pd"
-PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_pd(const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
+PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_pd(Mat mat,const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
 {
   PetscReal _rs   = sctx->rs;
   PetscReal _zero = info->zeropivot*_rs;
@@ -471,7 +472,7 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_pd(const MatFactorInfo *info,Fa
 
 #undef __FUNCT__
 #define __FUNCT__ "MatPivotCheck_inblocks"
-PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_inblocks(const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
+PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_inblocks(Mat mat,const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
 {
   PetscReal _zero = info->zeropivot;
 
@@ -487,31 +488,40 @@ PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_inblocks(const MatFactorInfo *i
 
 #undef __FUNCT__
 #define __FUNCT__ "MatPivotCheck_none"
-PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_none(const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
+PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck_none(Mat mat,const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
 {
   PetscReal _zero = info->zeropivot;
 
   PetscFunctionBegin;
   sctx->newshift = PETSC_FALSE;
-  if (PetscAbsScalar(sctx->pv) <= _zero) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_MAT_LU_ZRPVT,"Zero pivot row %D value %G tolerance %G",row,PetscAbsScalar(sctx->pv),_zero);
+  if (PetscAbsScalar(sctx->pv) <= _zero) {
+    PetscErrorCode ierr;
+    PetscBool      flg = PETSC_FALSE;
+    
+    ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_dump",&flg,PETSC_NULL);CHKERRQ(ierr);
+    if (flg) {
+      ierr = MatView(mat,PETSC_VIEWER_BINARY_(((PetscObject)mat)->comm));CHKERRQ(ierr);
+    }
+    SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_MAT_LU_ZRPVT,"Zero pivot row %D value %G tolerance %G",row,PetscAbsScalar(sctx->pv),_zero);
+  }
   PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
 #define __FUNCT__ "MatPivotCheck"
-PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck(const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
+PETSC_STATIC_INLINE PetscErrorCode MatPivotCheck(Mat mat,const MatFactorInfo *info,FactorShiftCtx *sctx,PetscInt row)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (info->shifttype == (PetscReal) MAT_SHIFT_NONZERO){
-    ierr = MatPivotCheck_nz(info,sctx,row);CHKERRQ(ierr);
+    ierr = MatPivotCheck_nz(mat,info,sctx,row);CHKERRQ(ierr);
   } else if (info->shifttype == (PetscReal) MAT_SHIFT_POSITIVE_DEFINITE){
-    ierr = MatPivotCheck_pd(info,sctx,row);CHKERRQ(ierr);
+    ierr = MatPivotCheck_pd(mat,info,sctx,row);CHKERRQ(ierr);
   } else if (info->shifttype == (PetscReal) MAT_SHIFT_INBLOCKS){
-    ierr = MatPivotCheck_inblocks(info,sctx,row);CHKERRQ(ierr);
+    ierr = MatPivotCheck_inblocks(mat,info,sctx,row);CHKERRQ(ierr);
   } else {
-    ierr = MatPivotCheck_none(info,sctx,row);CHKERRQ(ierr);
+    ierr = MatPivotCheck_none(mat,info,sctx,row);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -999,6 +1009,6 @@ extern PetscLogEvent  MAT_Getsymtranspose, MAT_Transpose_SeqAIJ, MAT_Getsymtrans
 
 extern PetscLogEvent  MATMFFD_Mult;
 extern PetscLogEvent  MAT_GetMultiProcBlock;
-extern PetscLogEvent  MAT_CUSPCopyToGPU;
+extern PetscLogEvent  MAT_CUSPCopyToGPU, MAT_SetValuesBatch, MAT_SetValuesBatchI, MAT_SetValuesBatchII, MAT_SetValuesBatchIII, MAT_SetValuesBatchIV;
 
 #endif

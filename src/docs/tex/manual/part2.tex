@@ -39,7 +39,7 @@ PETSc currently provides two basic vector types: sequential and parallel
 one can
 use the command 
 \begin{tabbing}
-  VecCreateSeq(PETSC_COMM_SELF,int m,Vec *x);
+  VecCreateSeq(PETSC\_COMM\_SELF,int m,Vec *x);
 \end{tabbing}
 To create a parallel vector one can either specify the number of 
 components that will be stored on each process or let PETSc decide. 
@@ -51,7 +51,7 @@ creates a vector that is distributed over all processes in the communicator,
 comm, where \trl{m} indicates the number 
 of components to store on the local process, and \trl{M} is the 
 total number of vector components.  Either the local or global 
-dimension, but not both, can be set to PETSC_DECIDE to 
+dimension, but not both, can be set to PETSC\_DECIDE to 
 \findex{PETSC_DECIDE} indicate that PETSc should determine it.
 More generally, one can use the routines 
 \begin{tabbing}
@@ -83,7 +83,7 @@ complicated, in order to make it possible to write efficient parallel
 code.  Assigning a set of components is a two-step process: one 
 first calls  
 \begin{tabbing}
-  VecSetValues(Vec x,int n,int *indices,PetscScalar *values,INSERT_VALUES);
+  VecSetValues(Vec x,int n,int *indices,PetscScalar *values,INSERT\_VALUES);
 \end{tabbing}
 any number of times on any or all of the processes. The argument
 \trl{n} gives the number of components being set in this 
@@ -112,7 +112,7 @@ Often, rather than inserting elements in a vector, one may wish to
 add values. This process \sindex{vector values, setting}
 is also done with the command 
 \begin{tabbing}
-  VecSetValues(Vec x,int n,int *indices, PetscScalar *values,ADD_VALUES);
+  VecSetValues(Vec x,int n,int *indices, PetscScalar *values,ADD\_VALUES);
 \end{tabbing}
 Again one must call the assembly routines 
 VecAssemblyBegin() and VecAssemblyEnd() after all of the values
@@ -126,8 +126,8 @@ for the same location, with one process adding while the other is inserting
 its value.  (In this case the addition and insertion actions could be performed 
 in either order,
 thus resulting in different values at the particular location. Since
-PETSc does not allow the simultaneous use of INSERT_VALUES and
-ADD_VALUES this nondeterministic behavior will not occur in PETSc.)
+PETSc does not allow the simultaneous use of INSERT\_VALUES and
+ADD\_VALUES this nondeterministic behavior will not occur in PETSc.)
 
 You can called VecGetValues() to pull local values from a vector (but
 not off-process values),
@@ -140,10 +140,10 @@ One can examine a vector with the command
   VecView(Vec x,PetscViewer v);
 \end{tabbing}
 To print the vector to the screen, one can use the viewer
-PETSC_VIEWER_STDOUT_WORLD,
+PETSC\_VIEWER\_STDOUT\_WORLD,
 which ensures that parallel vectors are printed correctly to
 \trl{stdout}. To display the vector in an X-window, one can use the
-default X-windows viewer PETSC_VIEWER_DRAW_WORLD,
+default X-windows viewer PETSC\_VIEWER\_DRAW\_WORLD,
 or one can create a viewer with the
 routine PetscViewerDrawOpenX().  A variety of viewers are discussed
 further in Section \ref{sec_viewers}.
@@ -184,13 +184,13 @@ rather than having PETSc internally allocate the array space.
 \sindex{vectors, user-supplied arrays} 
 Such vectors can be created with the routines
 \begin{tabbing}
-  VecCreateSeqWithArray(PETSC_COMM_SELF,int n,PetscScalar *array,Vec *V);
+  VecCreateSeqWithArray(PETSC\_COMM\_SELF,int n,PetscScalar *array,Vec *V);
 \end{tabbing}
 and  
 \begin{tabbing}
   VecCreateMPIWithArray(MPI\_Comm comm,int n,int N,PetscScalar *array,Vec *vv);
 \end{tabbing}
-Note that here one must provide the value \trl{n}, it cannot be PETSC_DECIDE and
+Note that here one must provide the value \trl{n}, it cannot be PETSC\_DECIDE and
 the user is responsible for providing enough space in the array; {\em n*sizeof(PetscScalar)}.
 
 
@@ -235,7 +235,7 @@ As listed in Table \ref{fig_vectorops}, we have chosen certain
 basic vector operations to support within the PETSc vector library.
 These operations were selected because they often arise in application 
 codes. The NormType argument to VecNorm() is one of 
-NORM_1, NORM_2, or NORM_INFINITY.
+NORM\_1, NORM\_2, or NORM\_INFINITY.
 \sindex{2-norm}
 \sindex{1-norm} \sindex{infinity norm} The 1-norm is 
 $ \sum_i |x_{i}|$, the 2-norm is $( \sum_{i} x_{i}^{2})^{1/2} $ and the 
@@ -288,20 +288,20 @@ one may have code such as
 \begin{tabbing}
  VecDot(Vec x,Vec y,PetscScalar *dot);\\
  VecMDot(Vec x,PetscInt nv, Vec y[],PetscScalar *dot);\\
- VecNorm(Vec x,NormType NORM_2,PetscReal *norm2);\\
- VecNorm(Vec x,NormType NORM_1,PetscReal *norm1);
+ VecNorm(Vec x,NormType NORM\_2,PetscReal *norm2);\\
+ VecNorm(Vec x,NormType NORM\_1,PetscReal *norm1);
 \end{tabbing}
 This code works fine, the problem is that it performs three separate parallel communication
 operations. Instead one can write 
 \begin{tabbing}
  VecDotBegin(Vec x,Vec y,PetscScalar *dot);\\
  VecMDotBegin(Vec x, PetscInt nv,Vec y[],PetscScalar *dot);\\
- VecNormBegin(Vec x,NormType NORM_2,PetscReal *norm2);\\
- VecNormBegin(Vec x,NormType NORM_1,PetscReal *norm1);\\
+ VecNormBegin(Vec x,NormType NORM\_2,PetscReal *norm2);\\
+ VecNormBegin(Vec x,NormType NORM\_1,PetscReal *norm1);\\
  VecDotEnd(Vec x,Vec y,PetscScalar *dot);\\
  VecMDotEnd(Vec x, PetscInt nv,Vec y[],PetscScalar *dot);\\
- VecNormEnd(Vec x,NormType NORM_2,PetscReal *norm2);\\
- VecNormEnd(Vec x,NormType NORM_1,PetscReal *norm1);
+ VecNormEnd(Vec x,NormType NORM\_2,PetscReal *norm2);\\
+ VecNormEnd(Vec x,NormType NORM\_1,PetscReal *norm1);
 \end{tabbing}
 With this code, 
 the communication is delayed until the first call to 
@@ -373,11 +373,11 @@ We can write this correspondence as
 The user can create the PETSc-AO mappings in a number of ways.  For example,
 if using two processes, one could call
 \begin{tabbing}
-  AOCreateBasic(PETSC_COMM_WORLD,2,\{0,3\},\{3,4\},\&ao);
+  AOCreateBasic(PETSC\_COMM\_WORLD,2,\{0,3\},\{3,4\},\&ao);
 \end{tabbing}
 on the first process and 
 \begin{tabbing}
- AOCreateBasic(PETSC_COMM_WORLD,3,\{1,2,4\},\{2,1,0\},\&ao);
+ AOCreateBasic(PETSC\_COMM\_WORLD,3,\{1,2,4\},\{2,1,0\},\&ao);
 \end{tabbing}
 on the other process.
 
@@ -481,7 +481,7 @@ represented locally in the mapping are not included in \trl{idxout}, so that
 potentially \trl{nout} is smaller than \trl{nin}.  One must
 pass in an array long enough to hold all the indices. One can call
 ISGlobalToLocalMappingApply() with \trl{idxout} equal to 
-PETSC_NULL to determine the required length (returned in 
+PETSC\_NULL to determine the required length (returned in 
 \trl{nout}) and then allocate the required space and call 
 ISGlobalToLocalMappingApply() a second time to set the values.
 
@@ -495,7 +495,7 @@ To set values into a vector with the local numbering, one must first call
 \sindex{vectors, setting values with local numbering}
 and then call 
 \begin{tabbing}
-  VecSetValuesLocal(Vec x,int n,const int indices[],const PetscScalar values[],INSERT_VALUES);
+  VecSetValuesLocal(Vec x,int n,const int indices[],const PetscScalar values[],INSERT\_VALUES);
 \end{tabbing}
 Now the \trl{indices} use the local numbering, rather than the global, meaning
 the entries lie in $[0,n)$ where $n$ is the local size of the vector.
@@ -543,7 +543,7 @@ proper layout.
 One creates a distributed array communication data structure 
 in two dimensions with the command 
 \begin{tabbing}
-  DMDACreate2d(MPI\_Comm comm,DMDABoundaryType wrap,DMDAStencilType st,int M,\\
+  DMDACreate2d(MPI\_Comm comm,DMDABoundaryType xperiod,DMDABoundaryType yperiod,DMDAStencilType st,int M,\\
              int N,int m,int n,int dof,int s,int *lx,int *ly,DM *da);
 \end{tabbing}
 The  \sindex{array, distributed} arguments
@@ -552,18 +552,18 @@ numbers of grid points in each direction, while \trl{m} and \trl{n}
 denote the process partition in each direction; \trl{m*n} must equal
 the number of processes in the MPI communicator, \trl{comm}.  
 Instead of specifying the process layout, one may use
-PETSC_DECIDE for \trl{m} and \trl{n} 
+PETSC\_DECIDE for \trl{m} and \trl{n} 
 so that PETSc will determine the partition using MPI. The type of
-periodicity of the array is specified by \trl{wrap}, which can be 
-\trl{DA_NONPERIODIC} \findex{DA_NONPERIODIC} (no periodicity), 
-\trl{DA_XYPERIODIC} \findex{DA_XYPERIODIC} (periodic in
-both x- and y-directions), \trl{DA_XPERIODIC} \findex{DA_XPERIODIC}, 
-or \trl{DA_YPERIODIC}.\findex{DA_YPERIODIC}  The argument \trl{dof} 
+periodicity of the array is specified by \trl{xperiod} and \trl{yperiod}, which can be 
+DMDA\_BOUNDARY\_NONE \findex{DMDA_BOUNDARY_NONE} (no periodicity),
+DMDA\_BOUNDARY\_PERIODIC \findex{DMDA_BOUNDARY_PERIODIC} (periodic in that direction),
+DMDA\_BOUNDARY\_GHOSTED \findex{DMDA_BOUNDARY_GHOSTED},
+or DMDA\_BOUNDARY\_MIRROR.\findex{DMDA_BOUNDARY_MIRROR}  The argument \trl{dof}
 indicates the number of degrees of freedom at each array point,
 and \trl{s} is the stencil width (i.e., the width of the ghost point region).
 The optional arrays \trl{lx} and \trl{ly} may contain the number of nodes
 along the x and y axis for each cell, i.e. the dimension of \trl{lx} is
-\trl{m} and the dimension of \trl{ly} is \trl{n}; or PETSC_NULL 
+\trl{m} and the dimension of \trl{ly} is \trl{n}; or PETSC\_NULL 
 may be passed in.
 
 Two types of distributed array communication data structures 
@@ -591,15 +591,11 @@ discretization technique).
 The commands for creating distributed array communication data structures
 in one and three dimensions are analogous:
 \begin{tabbing}
-  DMDACreate1d(MPI\_Comm comm,DMDABoundaryType wrap,int M,int w,int s,int *lc,DM *inra);\\
-  DMDACreate3d\=(MPI\_Comm comm,DMDABoundaryType wrap,DMDAStencilType stencil\_type,\\
+  DMDACreate1d(MPI\_Comm comm,DMDABoundaryType xperiod,int M,int w,int s,int *lc,DM *inra);\\
+  DMDACreate3d\=(MPI\_Comm comm,DMDABoundaryType xperiod,DMDABoundaryType yperiod, \\
+             \> DMDABoundaryType zperiod, DMDAStencilType stencil\_type,\\
              \>int M,int N,int P,int m,int n,int p,int w,int s,int *lx,int *ly,int *lz,DM *inra);
 \end{tabbing}
-\trl{DA_ZPERIODIC}, \findex{DA_ZPERIODIC}
-\trl{DA_XZPERIODIC}, \findex{DA_XZPERIODIC}
-\trl{DA_YZPERIODIC}, and \findex{DA_YZPERIODIC}
-\trl{DA_XYZPERIODIC} \findex{DA_XYZPERIODIC}
-are additional options in three dimensions for DMDABoundaryType.
 The routines to create distributed arrays are collective, so that all
 processes in the communicator \trl{comm} must call \trl{DACreateXXX()}.
 
@@ -652,7 +648,7 @@ must be compatible with the distributed array, \trl{da}, they should be
 generated by DMCreateGlobalVector() 
 and DMCreateLocalVector()
 (or be duplicates of such a vector obtained via VecDuplicate()).
-The InsertMode can be either ADD_VALUES or INSERT_VALUES.
+The InsertMode can be either ADD\_VALUES or INSERT\_VALUES.
 
 One can scatter the local patches into the distributed vector
 with the command
@@ -766,7 +762,7 @@ command
 The output argument \trl{n} contains the number of 
 local nodes, including ghost nodes, while \trl{idx} contains a list of length
 \trl{n} containing the global indices that correspond to the local nodes. Either
-parameter may be omitted by passing PETSC_NULL. Note that the Fortran
+parameter may be omitted by passing PETSC\_NULL. Note that the Fortran
 interface differs slightly; see Section~\ref{sec_fortranarrays} for details.
 \item
 or to set up the vectors and matrices so that their entries may be
@@ -901,8 +897,8 @@ To copy selected components from one vector
 to another, one uses the following set of commands:
 \begin{tabbing}
   VecScatterCreate(Vec x,IS ix,Vec y,IS iy,VecScatter *ctx);\\
-  VecScatterBegin(VecScatter ctx,Vec x,Vec y,INSERT_VALUES,SCATTER_FORWARD);\\
-  VecScatterEnd(VecScatter ctx,Vec x,Vec y,INSERT_VALUES,SCATTER_FORWARD);\\
+  VecScatterBegin(VecScatter ctx,Vec x,Vec y,INSERT\_VALUES,SCATTER\_FORWARD);\\
+  VecScatterEnd(VecScatter ctx,Vec x,Vec y,INSERT\_VALUES,SCATTER\_FORWARD);\\
   VecScatterDestroy(VecScatter *ctx);
 \end{tabbing} 
 Here \trl{ix} denotes the index set of the first vector, while \trl{
@@ -911,11 +907,11 @@ can be parallel or sequential. The only requirements are that the
 number of entries in the index set of the first vector, \trl{ix},
 equal the number in the destination index set, \trl{iy}, and that the
 vectors be long enough to contain all the indices referred to in the
-index sets.  The argument INSERT_VALUES specifies that the
+index sets.  The argument INSERT\_VALUES specifies that the
 vector elements will be inserted into the specified locations of the
 destination vector, overwriting any existing values.  To add the
 components, rather than insert them, the user should select the option
-ADD_VALUES instead of INSERT_VALUES.
+ADD\_VALUES instead of INSERT\_VALUES.
 
 To perform a conventional gather operation, the user simply makes
  the destination index set, 
@@ -930,21 +926,21 @@ index set. Similarly, in scattering
 from sequential vectors to a parallel vector, each process has its
 own sequential vector that makes contributions to the parallel vector.
 
-{\em Caution}: When INSERT_VALUES is used, if two different
+{\em Caution}: When INSERT\_VALUES is used, if two different
 processes contribute different values to the same component in a
 parallel vector, either value may end up being inserted. When 
-ADD_VALUES is used, the correct sum is added to the correct
+ADD\_VALUES is used, the correct sum is added to the correct
 location.
 
 In some cases one may wish to ``undo'' a scatter, that is perform the 
 scatter backwards switching the roles of the sender and receiver. This is 
 done by using 
 \begin{tabbing}
-  VecScatterBegin(VecScatter ctx,Vec y,Vec x,INSERT_VALUES,SCATTER_REVERSE);\\
-  VecScatterEnd(VecScatter ctx,Vec y,Vec x,INSERT_VALUES,SCATTER_REVERSE);
+  VecScatterBegin(VecScatter ctx,Vec y,Vec x,INSERT\_VALUES,SCATTER\_REVERSE);\\
+  VecScatterEnd(VecScatter ctx,Vec y,Vec x,INSERT\_VALUES,SCATTER\_REVERSE);
 \end{tabbing} 
 Note that the roles of the first 
-two arguments to these routines must be swapped whenever the SCATTER_REVERSE
+two arguments to these routines must be swapped whenever the SCATTER\_REVERSE
 option is used.
 
 Once a VecScatter object has been created it may be used with any vectors
@@ -978,12 +974,12 @@ elements it needed, or none by creating an index set with no entries.
    PetscScalar *values;\\
    int         \trl{idx_from[] = {100,200}, idx_to[] = {0,1};}\\
 
-   VecCreateSeq(PETSC_COMM_SELF,2,\&x);\\
-   ISCreateGeneral(PETSC_COMM_SELF,2,idx\_from,PETSC\_COPY\_VALUES,\&from);\\
-   ISCreateGeneral(PETSC_COMM_SELF,2,idx\_to,PETSC\_COPY\_VALUES,\&to);\\
+   VecCreateSeq(PETSC\_COMM\_SELF,2,\&x);\\
+   ISCreateGeneral(PETSC\_COMM\_SELF,2,idx\_from,PETSC\_COPY\_VALUES,\&from);\\
+   ISCreateGeneral(PETSC\_COMM\_SELF,2,idx\_to,PETSC\_COPY\_VALUES,\&to);\\
    VecScatterCreate(p,from,x,to,\&scatter);\\
-   VecScatterBegin(scatter,p,x,INSERT_VALUES,SCATTER_FORWARD);\\
-   VecScatterEnd(scatter,p,x,INSERT_VALUES,SCATTER_FORWARD);\\
+   VecScatterBegin(scatter,p,x,INSERT\_VALUES,SCATTER\_FORWARD);\\
+   VecScatterEnd(scatter,p,x,INSERT\_VALUES,SCATTER\_FORWARD);\\
    VecGetArray(x,\&values);\\
    ISDestroy(\&from);\\
    ISDestroy(\&to); \\
@@ -1011,15 +1007,15 @@ vector. In the simplest case this may be written as
 \begin{tabbing}
    Function: (Input Vec globalin, Output Vec globalout)\\
 \\
-  VecScatterBegin(\=VecScatter scatter,Vec globalin,Vec localin,InsertMode INSERT_VALUES,\\
-                 \>         ScatterMode SCATTER_FORWARD);\\
-  VecScatterEnd(VecScatter scatter,Vec globalin,Vec localin,InsertMode INSERT_VALUES,\\
-                 \>       ScatterMode SCATTER_FORWARD);\\
+  VecScatterBegin(\=VecScatter scatter,Vec globalin,Vec localin,InsertMode INSERT\_VALUES,\\
+                 \>         ScatterMode SCATTER\_FORWARD);\\
+  VecScatterEnd(VecScatter scatter,Vec globalin,Vec localin,InsertMode INSERT\_VALUES,\\
+                 \>       ScatterMode SCATTER\_FORWARD);\\
   \trl{/*} For example, do local calculations from localin to localout \trl{*/} \\
-  VecScatterBegin(VecScatter scatter,Vec localout,Vec globalout,InsertMode ADD_VALUES,\\
-                 \>         ScatterMode SCATTER_REVERSE);\\
-  VecScatterEnd(VecScatter scatter,Vec localout,Vec globalout,InsertMode ADD_VALUES,\\
-                 \>       ScatterMode SCATTER_REVERSE);
+  VecScatterBegin(VecScatter scatter,Vec localout,Vec globalout,InsertMode ADD\_VALUES,\\
+                 \>         ScatterMode SCATTER\_REVERSE);\\
+  VecScatterEnd(VecScatter scatter,Vec localout,Vec globalout,InsertMode ADD\_VALUES,\\
+                 \>       ScatterMode SCATTER\_REVERSE);
 \end{tabbing}
 
 % -------------------------------------------------------------------------------
@@ -1046,7 +1042,7 @@ or
 \end{tabbing}
 Here  \trl{n} is the 
 number of local vector entries, \trl{N} is the number of \sindex{vectors, with ghost values}
-global entries (or PETSC_NULL) and \trl{nghost} is the number of 
+global entries (or PETSC\_NULL) and \trl{nghost} is the number of 
 ghost entries. The array \trl{ghosts} is of size \trl{nghost} and contains the 
 global vector location for each local ghost location. Using VecDuplicate()
 or VecDuplicateVecs() on a ghosted vector will generate additional ghosted vectors.
@@ -1067,10 +1063,10 @@ are accessed in \trl{g} using the global numbering.
 
 A common usage of a ghosted vector is given by
 \begin{tabbing}
-  VecGhostUpdateBegin\=(Vec globalin,InsertMode INSERT_VALUES,\\
-                      \>             ScatterMode SCATTER_FORWARD);\\
-  VecGhostUpdateEnd(Vec globalin,InsertMode INSERT_VALUES,\\
-                      \>           ScatterMode SCATTER_FORWARD);\\
+  VecGhostUpdateBegin\=(Vec globalin,InsertMode INSERT\_VALUES,\\
+                      \>             ScatterMode SCATTER\_FORWARD);\\
+  VecGhostUpdateEnd(Vec globalin,InsertMode INSERT\_VALUES,\\
+                      \>           ScatterMode SCATTER\_FORWARD);\\
   VecGhostGetLocalForm(Vec globalin,Vec *localin);\\
   VecGhostGetLocalForm(Vec globalout,Vec *localout);\\
    \trl{/*}\\
@@ -1078,10 +1074,10 @@ A common usage of a ghosted vector is given by
    \trl{*/}\\
   VecGhostRestoreLocalForm(Vec globalin,Vec *localin);\\
   VecGhostRestoreLocalForm(Vec globalout,Vec *localout);\\
-  VecGhostUpdateBegin(Vec globalout,InsertMode ADD_VALUES,\\
-                        \>            ScatterMode SCATTER_REVERSE);\\
-  VecGhostUpdateEnd(Vec globalout,InsertMode ADD_VALUES,\\
-                        \>          ScatterMode SCATTER_REVERSE);
+  VecGhostUpdateBegin(Vec globalout,InsertMode ADD\_VALUES,\\
+                        \>            ScatterMode SCATTER\_REVERSE);\\
+  VecGhostUpdateEnd(Vec globalout,InsertMode ADD\_VALUES,\\
+                        \>          ScatterMode SCATTER\_REVERSE);
 \end{tabbing}
       
 The routines VecGhostUpdateBegin() and VecGhostUpdateEnd() are equivalent to the routines VecScatterBegin() and VecScatterEnd()
@@ -1090,9 +1086,9 @@ to copy the local vector values, which are already in place. In addition, the us
 have to allocate the local work vector, since the ghosted vector already has allocated 
 slots to contain the ghost values.
 
-The input arguments INSERT_VALUES and SCATTER_FORWARD
+The input arguments INSERT\_VALUES and SCATTER\_FORWARD
 cause the ghost values to be correctly updated from the appropriate
-process. The arguments ADD_VALUES and SCATTER_REVERSE
+process. The arguments ADD\_VALUES and SCATTER\_REVERSE
 update the ``local'' portions of the vector from all the other
 processes' ghost values.  This would be appropriate, for example,
 when performing a finite element assembly of a load vector.
@@ -1147,12 +1143,12 @@ the manual pages for further information about available matrix formats.
 To insert or add entries to a matrix, one can call a variant of MatSetValues(), either
 \begin{tabbing}
   MatSetValues(\=Mat A,int m,const int idxm[],int n,const int idxn[],const PetscScalar values[],\\
-            \>INSERT_VALUES);
+            \>INSERT\_VALUES);
 \end{tabbing}
 or 
 \begin{tabbing}
   MatSetValues(\=Mat A,int m,const int idxm[],int n,const int idxn[],const PetscScalar values[],\\
-            \>ADD_VALUES);
+            \>ADD\_VALUES);
 \end{tabbing}
 This routine inserts or adds a logically dense subblock of dimension
 \trl{m*n} into the 
@@ -1166,7 +1162,7 @@ opposite of the Fortran convention, meaning that the value to be put in row
 \trl{idxm[i]} and column \trl{idxn[j]} is located in \trl{values[i*n+j]}. To
 allow the insertion of values in column major order, one can call the command
 \begin{tabbing}
-  MatSetOption(Mat A,MAT\_COLUMN\_ORIENTED,PETSC_TRUE);
+  MatSetOption(Mat A,MAT\_COLUMN\_ORIENTED,PETSC\_TRUE);
 \end{tabbing}
 {\bf Warning}: Several of the sparse implementations do {\em not} currently
 support the column-oriented option.
@@ -1179,7 +1175,7 @@ MatSetValues().
 
 When using the block compressed sparse row matrix format (MATSEQBAIJ or
 MATMPIBAIJ), one can insert elements more efficiently using the block
-variant, MatSetValuesBlocked().
+variant, MatSetValuesBlocked() or MatSetValuesBlockedLocal().
 
 The function MatSetOption() accepts several other inputs; see
 the manual page for details.
@@ -1193,8 +1189,8 @@ processing are
 \end{tabbing}
 By placing other code between these two calls, the user can perform
 computations while messages are in transit.
-Calls to MatSetValues() with the INSERT_VALUES and 
-ADD_VALUES options {\em cannot} be mixed without intervening calls to
+Calls to MatSetValues() with the INSERT\_VALUES and 
+ADD\_VALUES options {\em cannot} be mixed without intervening calls to
 the assembly routines.  For such intermediate assembly calls the
 second routine argument  typically should be \trl{MAT_FLUSH_ASSEMBLY},
 \findex{MAT_FLUSH_ASSEMBLY} which omits some of the work of the full 
@@ -1226,7 +1222,7 @@ If one wishes to repeatedly assemble matrices that retain the same
 nonzero pattern (such as within a nonlinear or time-dependent
 problem), the option
 \begin{tabbing}
-  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC_TRUE);
+  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC\_TRUE);
 \end{tabbing}
 should be specified after the first matrix has been fully assembled.
 This option ensures that certain data structures and communication
@@ -1264,11 +1260,11 @@ To create a sequential AIJ sparse matrix, \trl{A},
 with \trl{m} rows and \trl{n} columns,
 one uses the command
 \begin{tabbing}
-  MatCreateSeqAIJ(PETSC_COMM_SELF,int m,int n,int nz,int *nnz,Mat *A);
+  MatCreateSeqAIJ(PETSC\_COMM\_SELF,int m,int n,int nz,int *nnz,Mat *A);
 \end{tabbing}
 where \trl{nz} or \trl{nnz} can be used to preallocate matrix memory,
 as discussed below. The user can set \trl{nz=0} and \trl{
-nnz=}PETSC_NULL for PETSc to control all matrix memory allocation.
+nnz=}PETSC\_NULL for PETSc to control all matrix memory allocation.
 
 The sequential and parallel AIJ matrix storage formats by default
 employ {\em i-nodes} (identical nodes) when possible.  We search for
@@ -1395,13 +1391,13 @@ the number of global rows and columns, respectively. In the PETSc partitioning s
 all the matrix columns are local and \trl{n} is the number of columns 
 corresponding to local part of a parallel vector.
 Either the local or
-global parameters can be replaced with PETSC_DECIDE, so that 
+global parameters can be replaced with PETSC\_DECIDE, so that 
 PETSc will determine \findex{PETSC_DECIDE} them.
 The matrix is stored with a fixed number of rows on 
 each process, given by \trl{m}, or determined by PETSc if \trl{m} is
-PETSC_DECIDE.
+PETSC\_DECIDE.
 
-If PETSC_DECIDE is not used for the arguments
+If PETSC\_DECIDE is not used for the arguments
 \trl{m} and \trl{n}, then the user must ensure that they are chosen to be
 compatible with the vectors. To do this, one first considers the matrix-vector product 
 $y = A x$. The \trl{m} that is used in the matrix creation routine MatCreateMPIAIJ()
@@ -1409,8 +1405,8 @@ must match the local size used in the vector creation routine VecCreateMPI() for
 Likewise, the \trl{n} used must match that used as the local size in 
 VecCreateMPI() for \trl{x}. 
 
-The user must set \trl{d_nz=0}, \trl{o_nz=0}, \trl{d_nnz=}PETSC_NULL, and 
-\trl{o_nnz=}PETSC_NULL for PETSc to control dynamic allocation of matrix
+The user must set \trl{d_nz=0}, \trl{o_nz=0}, \trl{d_nnz=}PETSC\_NULL, and 
+\trl{o_nnz=}PETSC\_NULL for PETSc to control dynamic allocation of matrix
 memory space.  Analogous to \trl{nz} and \trl{nnz} for the routine 
 MatCreateSeqAIJ(), these arguments optionally specify 
 nonzero information for the diagonal (\trl{d_nz} and \trl{d_nnz}) and 
@@ -1541,12 +1537,12 @@ usual Fortran style.  To create a sequential, dense PETSc matrix,
 \trl{A} of dimensions \trl{m} by \trl{n}, the user should
 call
 \begin{tabbing}
-  MatCreateSeqDense(PETSC_COMM_SELF,int m,int n,PetscScalar *data,Mat *A);
+  MatCreateSeqDense(PETSC\_COMM\_SELF,int m,int n,PetscScalar *data,Mat *A);
 \end{tabbing}
 The variable \trl{data} enables the user to optionally provide the
 location of the data for matrix storage (intended for Fortran users who
 wish to allocate their own storage space).  Most users should merely
-set \trl{data} to PETSC_NULL for PETSc to control matrix memory allocation.
+set \trl{data} to PETSC\_NULL for PETSc to control matrix memory allocation.
 To create a parallel, dense matrix, \trl{A}, the user should call
 \begin{tabbing}
   MatCreateMPIDense(MPI\_Comm comm,int m,int n,int M,int N,PetscScalar *data,Mat *A)
@@ -1554,14 +1550,64 @@ To create a parallel, dense matrix, \trl{A}, the user should call
 The arguments \trl{m}, \trl{n}, 
 \trl{M}, and \trl{N}, indicate the number of local rows and columns and
 the number of global rows and columns, respectively. Either the local or
-global parameters can be replaced with PETSC_DECIDE, so that 
+global parameters can be replaced with PETSC\_DECIDE, so that 
 PETSc will determine them.
 The matrix is stored with a fixed number of rows on 
 each process, given by \trl{m}, or determined by PETSc if \trl{m} is
-PETSC_DECIDE. 
+PETSC\_DECIDE. 
 
 PETSc does not provide parallel dense direct solvers. Our focus is on 
 sparse iterative solvers.
+
+\subsection{Block Matrices}
+\label{sec_matnest}
+Block matrices arise when coupling variables with different meaning, especially when solving problems with constraints (e.g. incompressible flow) and ``multi-physics'' problems.
+Usually the number of blocks is small and each block is partitioned in parallel.
+We illustrate for a $3\times 3$ system with components labeled $a,b,c$.
+With some numbering of unknowns, the matrix could be written as
+\[
+\left( \begin{array}{ccc}
+    A_{aa} & A_{ab} & A_{ac} \\
+    A_{ba} & A_{bb} & A_{bc} \\
+    A_{ca} & A_{cb} & A_{cc}
+  \end{array} \right) .
+\]
+There are two fundamentally different ways that this matrix could be stored, as a single assembled sparse matrix where entries from all blocks are merged together (``monolithic''), or as separate assembled matrices for each block (``nested'').
+These formats have different performance characteristics depending on the operation being performed.
+In particular, many preconditioners require a monolithic format, but some that are very effective for solving block systems (see Section~\ref{sec_block_matrices}) are more efficient when a nested format is used.
+In order to stay flexible, we would like to be able to use the same code to assemble block matrices in both monolithic and nested formats.
+Additionally, for software maintainability and testing, especially in a multi-physics context where different groups might be responsible for assembling each of the blocks, it is desirable to be able to use exactly the same code to assemble a single block independently as to assemble it as part of a larger system.
+To do this, we introduce the four spaces shown in Figure~\ref{fig_localspaces}.
+\begin{itemize}
+\item The monolithic global space is the space in which the Krylov and Newton solvers operate, with collective semantics across the entire block system.
+\item The split global space splits the blocks apart, but each split still has collective semantics.
+\item The split local space adds ghost points and sperates the blocks.
+  Operations in this space can be performed with no parallel communication.
+  This is often the most natural, and certainly the most powerful, space for matrix assembly code.
+\item The monolithic local space can be thought of as adding ghost points to the monolithic global space, but it is often more natural to use it simply as a concatenation of split local spaces on each process.
+  It is not common to explicitly manipulate vectors or matrices in this space (at least not during assembly), but it is a useful for declaring which part of a matrix is being assembled.
+\end{itemize}
+
+\begin{figure}
+\centerline{\includegraphics[width=\textwidth]{localspaces}}
+\caption{The relationship between spaces used for coupled assembly.}
+\label{fig_localspaces}
+\end{figure}
+
+The key to format-independent assembly is the function
+\begin{tabbing}
+  MatGetLocalSubMatrix(Mat A,IS isrow,IS iscol,Mat *submat);
+\end{tabbing}
+which provides a ``view'' \trl{submat} into a matrix \trl{A} that operates in the monolithic global space.
+The \trl{submat} transforms from the split local space defined by \trl{iscol} to the split local space defined by \trl{isrow}.
+The index sets specify the parts of the monolithic local space that \trl{submat} should operate in.
+If a nested matrix format is used, then MatGetLocalSubMatrix() finds the nested block and returns it without making any copies.
+In this case, \trl{submat} is fully functional and has a parallel communicator.
+If a monolithic matrix format is used, then MatGetLocalSubMatrix() returns a proxy matrix on \trl{PETSC_COMM_SELF} that does not provide values or implement MatMult(), but does implement MatSetValuesLocal() and, if \trl{isrow,iscol} have a constant block size, MatSetValuesBlockedLocal().
+Note that although \trl{submat} may not be a fully functional matrix and the caller does not even know a priori which communicator it will reside on, it always implements the local assembly functions (which are not collective).
+The index sets \trl{isrow,iscol} can be obtained using DMCompositeGetLocalISs() if DMComposite is being used.
+DMComposite can also be used to create matrices, in which case the MATNEST format can be specified using \trl{-prefix_dm_mat_type nest} and MATAIJ can be specified using \trl{-prefix_dm_mat_type aij}.
+See \trl{$PETSC_DIR/src/snes/examples/tutorials/ex28.c} for a simple example using this interface.
 
 \section{Basic Matrix Operations}
 \label{sec_matoptions}
@@ -1581,7 +1627,7 @@ the vectors \trl{x} and \trl{y} should be generated with
   VecCreateMPI(MPI\_Comm comm,m,M,\&y);
 \end{tabbing}
 By default, if the user lets PETSc decide the number of components to
-be stored locally (by passing in PETSC_DECIDE as the second
+be stored locally (by passing in PETSC\_DECIDE as the second
 argument to VecCreateMPI() or using VecCreate()), vectors
 and matrices of the same dimension are automatically compatible for
 parallel matrix-vector operations.
@@ -1605,13 +1651,13 @@ but we allow it anyway.
 One can print a matrix (sequential or parallel) to the screen with the 
 command 
 \begin{tabbing}
-  MatView(Mat mat,PETSC_VIEWER_STDOUT_WORLD);
+  MatView(Mat mat,PETSC\_VIEWER\_STDOUT\_WORLD);
 \end{tabbing}
 Other viewers can be used as well. For instance, one can draw the
 nonzero stucture of the matrix into the default X-window with the 
 command 
 \begin{tabbing}
-  MatView(Mat mat,PETSC_VIEWER_DRAW_WORLD);
+  MatView(Mat mat,PETSC\_VIEWER\_DRAW\_WORLD);
 \end{tabbing}
 Also one can use 
 \begin{tabbing}
@@ -1647,7 +1693,7 @@ MatShift(Mat Y,PetscScalar a); & $ Y =  Y + a*I $ \\
 \label{fig_matrixops}
 \end{table}
 The NormType argument to MatNorm() is one of 
-NORM_1, NORM_INFINITY, and NORM_FROBENIUS.
+NORM\_1, NORM\_INFINITY, and NORM\_FROBENIUS.
 
 \sindex{1-norm} \sindex{infinity norm} \sindex {Frobenius norm}
 \section{Matrix-Free Matrices} \sindex{matrix-free methods}
@@ -1734,7 +1780,7 @@ previously existed, space will be allocated for the new entries.
 To prevent the allocation of additional memory and simply discard those 
 new entries, one can use the option
 \begin{tabbing}
-  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC_TRUE);
+  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC\_TRUE);
 \end{tabbing}
 Once the matrix has been assembled, one can factor it numerically
 without repeating the ordering or the symbolic factorization. 
@@ -1766,7 +1812,7 @@ or equivalently,
   MatZeroRowsIS(Mat A,IS rows,PetscScalar diag\_value,Vec x,Vec b);
 \end{tabbing}
 For sparse matrices this removes the data structures for certain rows 
-of the matrix. If the pointer \trl{diag_value} is PETSC_NULL, it 
+of the matrix. If the pointer \trl{diag_value} is PETSC\_NULL, it 
 even removes the diagonal entry. If the pointer is not null, it uses that 
 given value at the pointer location 
 in the diagonal entry of the eliminated rows. 
@@ -1777,11 +1823,35 @@ same positions and the matrix retains the same nonzero structure, the user
 can call MatZeroRows() in the first iteration. Then, before generating 
 the matrix in the second iteration the user should call
 \begin{tabbing}
-  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC_TRUE);
+  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC\_TRUE);
 \end{tabbing}
 From that point,
 no new values will be inserted into those (boundary) rows of 
 the matrix. \findex{MAT_NEW_NONZERO_LOCATIONS} 
+
+The functions MatZeroRowsLocal() and MatZeroRowsLocalIS() can also be used if for each process one provides the Dirichlet locations in the local numbering of the matrix. 
+A drawback of MatZeroRows() is that it destroys the symmetry of a matrix. Thus one can use 
+\begin{tabbing}
+  MatZeroRowsColumns(Mat A,PetscInt numRows,PetscInt rows[],PetscScalar diag\_value,Vec x,Vec b),
+\end{tabbing}
+or equivalently,
+\begin{tabbing}
+  MatZeroRowsColumnsIS(Mat A,IS rows,PetscScalar diag\_value,Vec x,Vec b);
+\end{tabbing}
+Note that with all of these for a given assembled matrix it can be
+only called once to update the x and b vector. It cannot be used if
+one wishes to solve multiple right hand side problems for the same
+matrix since the matrix entries needed for updating the b vector are
+removed in its first use.
+
+Once the zeroed rows are removed the new matrix has possibly many rows
+with only a diagonal entry affecting the parallel load balancing. The
+PCREDISTRIBUTE preconditioner removes all the zeroed rows (and
+associated columns and adjusts the right hand side based on the
+removed columns) and then rebalances the resulting rows of smaller
+matrix across the processes. Thus one can use MatZeroRows() to set the Dirichlet points and then solve with the preconditioner PCREDISTRIBUTE. Note if the original matrix was symmetric the 
+smaller solved matrix will also be symmetric.
+
 
 Another matrix routine of interest is
 \begin{tabbing}
@@ -1804,8 +1874,8 @@ The argument \trl{ncols} returns the number of nonzeros in that row,
 while \trl{cols} and \trl{vals} returns the column indices (with indices
 starting at zero) and values in the row. If only the column 
 indices are needed (and not the corresponding matrix elements), one
-can use PETSC_NULL for the \trl{vals} argument. Similarly,
-one can use PETSC_NULL for the \trl{cols} argument.
+can use PETSC\_NULL for the \trl{vals} argument. Similarly,
+one can use PETSC\_NULL for the \trl{cols} argument.
 The user can only examine the values extracted with MatGetRow();
 the values {\em cannot} be altered. 
 To change the matrix entries, one must use MatSetValues().
@@ -1900,7 +1970,7 @@ Now that a new numbering of the nodes has been determined one must
 renumber all the nodes and migrate the grid information to the correct process.
 The command
 \begin{tabbing}
- AOCreateBasicIS(isg,PETSC_NULL,\&ao);
+ AOCreateBasicIS(isg,PETSC\_NULL,\&ao);
 \end{tabbing}
 generates, see Section \ref{sec_ao}, an AO object that can be used in conjunction with the
 \trl{is} and \trl{gis} to move the relevant grid information to the correct process
@@ -2219,29 +2289,31 @@ the options database command \trl{ksp_norm_type unpreconditioned } or by calling
 
 \begin{table}
 \begin{center}
-\begin{tabular}{llll}
-& & {\bf Options}       & {\bf Default}\\
-& & {\bf Database}      & {\bf Convergence}\\
-{\bf Method}    &{\bf KSPType}  & {\bf Name}    & {\bf Monitor$\dagger$}\\
+\begin{tabular}{lll}
+& & {\bf Options}       \\
+& & {\bf Database}      \\
+{\bf Method}    &{\bf KSPType}  & {\bf Name}    \\
 \hline
-Richardson                                & KSPRICHARDSON & richardson  & true\\
-Chebychev                                 & KSPCHEBYCHEV  & chebychev   & true\\
-Conjugate Gradient \cite{hs:52}           & KSPCG         & cg          & true\\
-BiConjugate Gradient                      & KSPBICG       & bicg        & true\\
-Generalized Minimal Residual \cite{ss:86} & KSPGMRES      & gmres       & precond\\
-BiCGSTAB \cite{v:92}                      & KSPBCGS       & bcgs        & precond \\
-Conjugate Gradient Squared \cite{so:89}   & KSPCGS        & cgs         & precond \\
-Transpose-Free Quasi-Minimal Residual (1) \cite{f:93} & KSPTFQMR & tfqmr & precond \\
-Transpose-Free Quasi-Minimal Residual (2) & KSPTCQMR & tcqmr & precond \\
-Conjugate Residual                        & KSPCR         & cr          & precond \\
-Least Squares Method                      & KSPLSQR       & lsqr        & precond \\
-Shell for no KSP method                   & KSPPREONLY    & preonly     & precond \\
+Richardson                                & KSPRICHARDSON & richardson \\
+Chebychev                                 & KSPCHEBYCHEV  & chebychev   \\
+Conjugate Gradient \cite{hs:52}           & KSPCG         & cg          \\
+BiConjugate Gradient                      & KSPBICG       & bicg        \\
+Generalized Minimal Residual \cite{ss:86} & KSPGMRES      & gmres       \\
+Flexible Generalized Minimal Residual     & KSPFGMRES     & fgmres       \\
+Deflated Generalized Minimal Residual     & KSPDGMRES     & dgmres       \\
+Generalized Conjugate Residual            & KSPGCR        & gcr       \\
+BiCGSTAB \cite{v:92}                      & KSPBCGS       & bcgs         \\
+Conjugate Gradient Squared \cite{so:89}   & KSPCGS        & cgs          \\
+Transpose-Free Quasi-Minimal Residual (1) \cite{f:93} & KSPTFQMR & tfqmr  \\
+Transpose-Free Quasi-Minimal Residual (2) & KSPTCQMR      & tcqmr        \\
+Conjugate Residual                        & KSPCR         & cr           \\
+Least Squares Method                      & KSPLSQR       & lsqr         \\
+Shell for no KSP method                   & KSPPREONLY    & preonly      \\
 \hline
 \end{tabular}
 \medskip \medskip
-$\dagger$true - denotes true residual norm, precond - denotes preconditioned residual norm
 \end{center}
-\caption{KSP Defaults.  All methods use left preconditioning by default.}
+\caption{KSP Objects.}
 \label{tab_kspdefaults}
 \end{table}
 
@@ -2268,7 +2340,7 @@ can be set with the routine
   KSPSetTolerances(KSP ksp,double rtol,double atol,double dtol,int maxits);
 \end{tabbing}
 The user can retain the default value of any of these parameters by
-specifying PETSC_DEFAULT as the 
+specifying PETSC\_DEFAULT as the 
 corresponding tolerance; the
 defaults are \trl{rtol}=$10^{-5}$, \trl{atol}=$10^{-50}$,
 \trl{dtol}=$10^{5}$, and \trl{maxits}=$10^5$.
@@ -2382,7 +2454,7 @@ the spectrum (eigenvalues) of the preconditioned operator, PETSc has specific
 routines for eigenvalue approximation via the Arnoldi or Lanczos iteration.
 First, before the linear solve one must call 
 \begin{tabbing}
- KSPSetComputeEigenvalues(KSP ksp,PETSC_TRUE);
+ KSPSetComputeEigenvalues(KSP ksp,PETSC\_TRUE);
 \end{tabbing}
 Then after the KSP solve one calls 
 \begin{tabbing}
@@ -2427,7 +2499,7 @@ iterative process, one uses the command
 \end{tabbing}
 where the solution is returned in \trl{v}. The user can optionally provide
 a vector in \trl{w} as the location to store the vector; however, if 
-\trl{w} is PETSC_NULL, space allocated by PETSc in the KSP context is 
+\trl{w} is PETSC\_NULL, space allocated by PETSc in the KSP context is 
 used. One should not destroy this vector. For certain KSP methods, 
 (e.g., GMRES), the construction of the solution is expensive, while for many 
 others it requires not even a vector copy. 
@@ -3087,6 +3159,10 @@ A_{{10}_{10}}   & A_{{11}_{10}} & A_{{10}_{11}} & A_{{11}_{11}} & ...\\
 Note that for interlaced storage the number of rows/columns of each
 block must be the same size. Matrices obtained with DMGetMatrix()
 where the DM is a a DMDA are always stored interlaced.
+Block matrices can also be stored using the MATNEST format which holds separate assembled blocks.
+Each of these nested matrices is itself distributed in parallel.
+It is more efficient to use MATNEST with the methods described in this section because there are fewer copies and better formats (e.g. BAIJ or SBAIJ) can be used for the components, but it is not possible to use many other methods with MATNEST.
+See Section~\ref{sec_matnest} for more on assembling block matrices without depending on a specific matrix format.
 
 The PETSc PCFIELDSPLIT preconditioner is used to implement the
 ``block'' solvers in PETSc. There are three ways to provide the
@@ -3284,7 +3360,7 @@ I   & 0 \\
 -A_{10} ksp(A_{00},Ap_{00}) & I \\
 \end{array} \right).
 \]
-Where $\hat{S} = A_{11} - A_{10} ksp(A_{00},Ap_{00}) A_{01}$ is the approximate Schur complement. By default $\hat{S}p$ is $Ap_{11}.$ One can provide an alternative with XXXX. Or one can provide a custom PC for the Schur complement system with YYYY.
+Where $\hat{S} = A_{11} - A_{10} ksp(A_{00},Ap_{00}) A_{01}$ is the approximate Schur complement. By default $\hat{S}p$ is $Ap_{11}.$ 
 
 There are several variants of the Schur complement preconditioner obtained by dropping some of the terms, these can be obtained with \trl{-pc_fieldsplit_schur_factorization_type <diag,lower,upper,full>} or NOTE WE NEED TO ADD A FUNCTIONAL INTERFACE. Note that the \trl{diag} form uses the preconditioner
 \[
@@ -3360,7 +3436,6 @@ For eg: \trl{-ksp_type preonly} \trl{-pc_type lu} \trl{-pc_factor_mat_solver_pac
 {\bf MatType}  & {\bf PCType} & {\bf MatSolverPackage} & {\bf Package} \\
                &              &                        & (\trl{-pc_factor_mat_solver_package)}\\
 \hline
- baij         & cholesky     &  MATSOLVERDSCPACK         & \trl{dscpack}\\
  seqaij       & lu           &  MATSOLVERESSL            & \trl{essl}\\
  seqaij       & lu           &  MATSOLVERLUSOL           & \trl{lusol}\\
  seqaij       & lu           &  MATSOLVERMATLAB          & \trl{matlab}\\
@@ -3458,20 +3533,20 @@ solution process.
 The general form of the $n$-dimensional Newton's method for solving
 (\ref{eq_F=0}) is
 \begin{equation}
-     \x_{k+1} = \x_k - [ \F'(\x_k)]^{-1} \F(\x_k), \;\; k=0,1, \ldots, 
+     \x_{k+1} = \x_k - \J(\x_k)^{-1} \F(\x_k), \;\; k=0,1, \ldots, 
 \label{eq_n1}
 \end{equation}
 where $ \x_0 $ is an initial approximation to the solution and   
-$ \F'(\x_k) $, the Jacobian, is nonsingular at each iteration.  
+$ \J(\x_k) = \F'(\x_k) $, the Jacobian, is nonsingular at each iteration.  
 In practice, the Newton iteration (\ref{eq_n1}) is implemented by
 the following two steps:
 \begin{eqnarray}
-  1. & {\rm (Approximately) \;solve\;\;\;} \F'(\x_k) \Delta \x_k = -\F(\x_k).\\
+  1. & {\rm (Approximately) \;solve\;\;\;} \J(\x_k) \Delta \x_k = -\F(\x_k).\\
   2. & {\rm Update\;\;\;} \x_{k+1} = \x_k + \Delta \x_k. \hspace{.225in}
 \end{eqnarray}
+Other defect-correction algorithms can be implemented by using different choices for $J(\x_k)$.
 
-
-\section{Basic Usage}
+\section{Basic SNES Usage}
 \label{sec_snesusage}
 
 In the simplest usage of the nonlinear solvers, the user must merely 
@@ -3555,7 +3630,7 @@ the command
 \end{tabbing}
 The argument \trl{ctx} is an optional user-defined context, which can
 store any private, application-specific data required by the
-function evaluation routine; PETSC_NULL should be used if such information
+function evaluation routine; PETSC\_NULL should be used if such information
 is not needed.  In C and C++, a user-defined context is merely a
 structure in which various objects can be stashed; in Fortran a user
 context can be an integer array that contains both parameters and
@@ -3601,6 +3676,18 @@ method to verify the analytic Jacobian. Moreover, if the analytic Jacobian is
 incomplete (some terms are missing or approximate), \trl{-snes_mf_operator} may
 be used to obtain the exact solution, where the Jacobian approximation has been
 transferred to the preconditioner.
+
+One such approximate Jacobian comes from ``Picard linearization'' which writes the nonlinear system as
+\[ \F(\x) = \A(\x) \x - \bb = 0 \]
+where $\A(\x)$ usually contains the lower-derivative parts of the equation.
+For example, the nonlinear diffusion problem
+\[ - \nabla\cdot(\kappa(u) \nabla u) = 0 \]
+would be linearized as
+\[ A(u) v \simeq -\nabla\cdot(\kappa(u) \nabla v). \]
+Usually this linearization is simpler to implement than Newton and the linear problems are somewhat easier to solve.
+In addition to using \trl{-snes_mf_operator} with this approximation to the Jacobian, the Picard iterative procedure can be performed by defining
+$\J(\x)$ to be $\A(\x)$.
+Sometimes this iteration exhibits better global convergence than Newton linearization.
 
 During successive calls to \trl{FormJacobian()}, the user can either
 insert new matrix contexts or reuse old ones, depending on the
@@ -3885,7 +3972,7 @@ $ \| \cdot \| $ denotes an arbitrary norm in $ \Re^n $ .
 By default a constant relative convergence tolerance is used for
 solving the subsidiary linear systems within the Newton-like methods
 of SNES.  When solving a system of nonlinear equations, one can
-instead employ the techniques of Eisenstat and Walker \cite{ew94}
+instead employ the techniques of Eisenstat and Walker \cite{EW96}
 to compute $ \eta_k $ at each step of the nonlinear solver by using the
 option \trl{-snes_ksp_ew_conv} \findex{-snes_ksp_ew_conv}. In addition,
 by adding one's own KSP convergence test (see Section 
@@ -4158,12 +4245,10 @@ These parameters may be set from the options database with
 \end{tabbing}
 \findex{-mat_fd_coloring_err} \findex{-mat_fd_coloring_umin}
 
-Note that the MatGetColoring() routine currently 
-works only on sequential routines.  Extensions may be forthcoming. However,
-if one can compute the coloring \trl{iscoloring} some other way, the routine
-MatFDColoringCreate() does work in parallel. An example of this for 
-2D distributed arrays is given below that uses the utility routine
-DMGetColoring().
+Note that although MatGetColoring() works for parallel matrices, the routine currently uses a sequential algorithm.
+Extensions may be forthcoming.
+However, if one can compute the coloring \trl{iscoloring} some other way, the routine MatFDColoringCreate() is scalable.
+An example of this for 2D distributed arrays is given below that uses the utility routine DMGetColoring().
 
 \begin{tabbing}
    DMGetColoring(da,IS\_COLORING\_GHOSTED,\&iscoloring);\\
@@ -4172,8 +4257,17 @@ DMGetColoring().
    ISColoringDestroy(\&iscoloring);
 \end{tabbing}
 
-Note that the routine MatFDColoringCreate() currently is only 
-supported for the AIJ matrix format.
+Note that the routine MatFDColoringCreate() currently is only supported for the AIJ and BAIJ matrix formats.
+
+\section{Variational Inequalities}
+\label{sec_vi}
+
+SNES can also solve variational inequalities with box constraints. That is nonlinear algebraic systems with additional inequality constraints on some or all of the variables: $ Lu \le u_i \le Hu_i $.
+Some or all of the lower bounds may be negative infinity (indicated to PETSc with SNES\_VI\_NINF) and some or all of the upper bounds may be infinity (indicated by SNES\_VI\_INF). The command
+\begin{tabbing}
+   SNESVISetVariableBounds(SNES,Vec Lu,Vec Hu);
+\end{tabbing}
+is \findex{SNESVISetVariableBounds} used to indicate that one is solving a variational inequality. The option \trl{-snes_vi_monitor} \findex{-snes_vi_monitor} turns on extra monitoring of the active set associated with the bounds and \trl{-snes_vi_type} \findex{-snes_vi_type} allows selecting from several VI solvers, the default is prefered.
 
 % ---------------------------------------------------------------
 \cleardoublepage
@@ -4263,7 +4357,7 @@ the transient form is
 \]
 See Section~\ref{sec_dae} for details on this formulation.
 
-\section{Basic Usage}
+\section{Basic TS Usage}
 
 The user first creates a TS object with the command
 \begin{tabbing}
@@ -4309,7 +4403,7 @@ One sets the total number of timesteps to run or the total time to run
 \end{tabbing}
 One performs the request number of time steps with
 \begin{tabbing}
-  TSSolve(TS ts);
+  TSSolve(TS ts,Vec X,PetscReal *ftime);
 \end{tabbing}
 The solve call implicitly sets up the timestep context;
 this can be done explicitly with
@@ -4323,6 +4417,10 @@ One destroys the context with
 and views it with 
 \begin{tabbing}
  TSView(TS ts,PetscViewer viewer);
+\end{tabbing}
+In place of TSSolve(), a single step can be taken using
+\begin{tabbing}
+TSStep(TS ts);
 \end{tabbing}
 
 \subsection{Solving Time-dependent Problems}
@@ -4349,10 +4447,10 @@ The matrices \trl{A} and \trl{B} are right and left hand-side matrix respectivel
 The functions \trl{frhs} and \trl{flhs} are used to form the matrices \trl{A} and \trl{B} 
 at each timestep if the matrices are time dependent.
 If the matrices do not depend on time, the user should 
-pass in PETSC_NULL.  The variable \trl{ctx} allows 
+pass in PETSC\_NULL.  The variable \trl{ctx} allows 
 users to pass in an application context that is passed to the \trl{frhs()} or \trl{flhs()} function 
 whenever they are called, as the final argument. The user must provide the matrices
-\trl{A}. If \trl{B} is an identity matrix, the user should pass in PETSC_NULL. 
+\trl{A}. If \trl{B} is an identity matrix, the user should pass in PETSC\_NULL. 
 If the right-hand side is provided only as a linear
 function, the user must construct a MATSHELL matrix. Note that this is 
 the same interface as that for SNESSetJacobian(). 
@@ -4362,8 +4460,9 @@ explicit timestepping methods) the user  passes the function with
 the routine
 
 \begin{tabbing}
- TSSetRHSFunction(TS ts,PetscErrorCode (*f)(TS,double,Vec,Vec,void*),void *fP);
+ TSSetRHSFunction(TS ts,Vec R,PetscErrorCode (*f)(TS,double,Vec,Vec,void*),void *fP);
 \end{tabbing}
+The vector \trl{R} is an optional location to store the result.
 The arguments to the function \trl{f()} are
 the timestep context, the current time, the input for the function,
 the output for the function, and the (optional) user-provided context
@@ -4408,14 +4507,15 @@ reduces overhead to prepare the system for algebraic solvers (SNES/KSP)
 by having the user assemble the correctly shifted matrix.  Therefore
 this interface is also useful for ODE systems.
 
-To solve a DAE, instead of TSSetRHSFunction and TSSetRHSJacobian, one
+To solve a DAE, instead of TSSetRHSFunction() and TSSetRHSJacobian(), one
 uses:
 
 \begin{itemize}
 \item Function $F(t,u,\dot{u})$
   \begin{tabbing}
-    TSSetIFunction(TS ts,PetscErrorCode (*f)(TS,PetscReal,Vec,Vec,Vec,void*),void *funP);
+    TSSetIFunction(TS ts,Vec R,PetscErrorCode (*f)(TS,PetscReal,Vec,Vec,Vec,void*),void *funP);
   \end{tabbing}
+  The vector \trl{R} is an optional location to store the residual.
   The arguments to the function \trl{f()} are the
   timestep contex, current time, input state $u$, input time derivative
   $\dot{u}$, and the (optional) user-provided context \trl{funP}.
@@ -4436,8 +4536,22 @@ uses:
   details), and the (optional) user-provided context \trl{jacP}.
 \end{itemize}
 
-Note: currently only TSALPHA, TSGL, TSTHETA, and TSPSEUDO have
-support for solving differential algebraic equations.
+\subsection{Using Implicit-Explicit (IMEX) methods for multi-rate problems}
+\label{sec_imex}
+The methods of the last section can be generalized for problems with multiple time scales using the form
+\begin{equation}\label{eq:imex}
+  G(t,u,\dot u) = F(t,u),\quad u(t_0) = u_0
+\end{equation}
+where $G$ will be treated implicitly using a method suitable for stiff problems and $F$ will be treated explicitly when using an IMEX method like TSARKIMEX.
+$G$ is typically linear or weakly nonlinear while $F$ may have very strong nonlinearities such as arise in non-oscillatory methods for hyperbolic PDE.
+The user provides three pieces of information, the APIs for which have been described above.
+\begin{itemize}
+\item ``Slow'' part $F(t,u)$ using TSSetRHSFunction().
+\item ``Stiff'' part $G(t,u,\dot u)$ using TSSetIFunction().
+\item Jacobian $J(t,u,\dot u) = G_u + a G_{\dot u}$ using TSSetIJacobian().
+  An assembled Jacobian is optional and can be approximated using finite differencing.
+\end{itemize}
+To solve Equation~\ref{eq:imex} using fully implicit methods, the user may also provide the Jacobian $F_u$.
 
 \subsection{Using Sundials from PETSc}
 \label{sec_sundials}
@@ -4604,7 +4718,7 @@ More details about the solver and code examples can be found at
 \chapter{High Level Support for Multigrid with DMMG}
 \label{chapter_dmmg}
 
-This infrastructure will be replaced in the next PETSc release.
+This infrastructure will be replaced in the next PETSc release. DO NOT USE IT.
 
 PETSc provides an easy to use high-level interface for multigrid on a
 single structured grid using the PETSc DMDA object (or the DMComposite
@@ -4699,7 +4813,7 @@ int localfunction(DMDALocalInfo *info,Field **x,Field **f,void *ctx)
 
 For many nonlinear problems it is too difficult to compute the
 Jacobian analytically, thus if \trl{jacobian} or \trl{localjacobian} is not
-provided, (indicated by passing in a PETSC_NULL) the DMMG will compute the
+provided, (indicated by passing in a PETSC\_NULL) the DMMG will compute the
 sparse Jacobian reasonably efficiently automatically using finite
 differencing. See the next chapter on computing the Jacobian via
 automatic differentiation. The option \trl{-dmmg_jacobian_mf_fd}
@@ -4736,7 +4850,7 @@ where one lists the functions. In Fortran use
 Next one uses the call
 \begin{tabbing}
   DMMGSetSNESLocal(DMMG *dmmg,\\
-   PetscErrorCode (*localfunction)(DMDALocalInfo *info,void *x,void *f,void* appctx),PETSC_NULL,\\
+   PetscErrorCode (*localfunction)(DMDALocalInfo *info,void *x,void *f,void* appctx),PETSC\_NULL,\\
   ad\_localfunction,ad\_mf\_localfunction);
 \end{tabbing}
 where the names of the last two functions are obtained 
@@ -4785,12 +4899,12 @@ second approach will require some hand massaging. For example,
 \chapter{Using MATLAB with PETSc}
 \label{ch_matlab}\sindex{MATLAB}
 
-There are three basic ways to use MATLAB with PETSc: (1) dumping files to 
+There are four basic ways to use MATLAB with PETSc: (1) dumping files to 
 be read into MATLAB, (2) automatically sending data from a running PETSc program
 to a MATLAB process where you may interactively type MATLAB commands (or run
-scripts) and (3) automatically sending data back and forth between PETSc and 
+scripts), (3) automatically sending data back and forth between PETSc and 
 MATLAB where MATLAB commands are issued not interactively but from a script or
-the PETSc program.
+the PETSc program and (4) directly in MATLAB using PETSc objects.
 
 \section{Dumping Data for MATLAB}
 One can dump PETSc matrices and vectors to the screen (and thus save in a file via
@@ -4803,13 +4917,13 @@ MatView() functions with a viewer type of ASCII (see PetscViewerASCIIOpen(),
 \trl{PETSC_VIEWER_STDOUT_WORLD}, \trl{PETSC_VIEWER_STDOUT_SELF}, or \trl{PETSC_VIEWER_STDOUT_(MPI_Comm)}). Before calling
 the viewer set the output type with, for example, 
 \begin{tabbing}
-  PetscViewerSetFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC\_VIEWER\_ASCII\_MATLAB);\\
-  VecView(A,PETSC_VIEWER_STDOUT_WORLD);
+  PetscViewerSetFormat(PETSC\_VIEWER\_STDOUT\_WORLD,PETSC\_VIEWER\_ASCII\_MATLAB);\\
+  VecView(A,PETSC\_VIEWER\_STDOUT\_WORLD);
 \end{tabbing}
 or 
 \begin{tabbing}
-  PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC\_VIEWER\_ASCII\_MATLAB);\\
-  MatView(B,PETSC_VIEWER_STDOUT_WORLD);
+  PetscViewerPushFormat(PETSC\_VIEWER\_STDOUT\_WORLD,PETSC\_VIEWER\_ASCII\_MATLAB);\\
+  MatView(B,PETSC\_VIEWER\_STDOUT\_WORLD);
 \end{tabbing}
 The name of each PETSc variable printed for MATLAB may be set with
 \begin{tabbing}\sindex{PetscObjectSetName()}
@@ -4823,7 +4937,7 @@ One creates a viewer to MATLAB via
 \begin{tabbing}
 PetscViewerSocketOpen(MPI\_Comm,char *machine,int port,PetscViewer *v);
 \end{tabbing}
-(port is usally set to \trl{PETSC_DEFAULT}, use PETSC_NULL for the machine if the 
+(port is usally set to \trl{PETSC_DEFAULT}, use PETSC\_NULL for the machine if the 
 MATLAB interactive session is running on the same machine as the PETSc program) 
 and then sends matrices or vectors via
 \begin{tabbing}
@@ -4832,7 +4946,7 @@ and then sends matrices or vectors via
 \end{tabbing}
 One can also send arrays or integer arrays via PetscIntView(), PetscRealView() and PetscScalarView().
 One may start the MATLAB program manually or use the PETSc command
-PetscStartMATLAB\trl{(MPI_Comm,char *machine,char *script,FILE **fp)}; where machine and script may be PETSC_NULL.
+PetscStartMATLAB\trl{(MPI_Comm,char *machine,char *script,FILE **fp)}; where machine and script may be PETSC\_NULL.
 
 To receive the objects in MATLAB you must first make sure that \trl{${PETSC_DIR}/bin/matlab}
 is in your MATLAB path. Use \trl{p = sopen;} (or \trl{p = sopen(portnum)} if you provided a port number in
@@ -4847,7 +4961,7 @@ One creates access to the MATLAB engine via
 \begin{tabbing}
   PetscMatlabEngineCreate(MPI\_Comm comm,char *machine,PetscMatlabEngine *e);
 \end{tabbing}
-where \trl{machine} is the name of the machine hosting MATLAB (PETSC_NULL may be used for localhost).
+where \trl{machine} is the name of the machine hosting MATLAB (PETSC\_NULL may be used for localhost).
 One can send objects to MATLAB via 
 \begin{tabbing}
   PetscMatlabEnginePut(PetscMatlabEngine e,PetscObject obj);
@@ -4891,7 +5005,14 @@ PetscMatlabEnginedPrintOutput(PetscMatlabEngine,FILE*).
 There is a short-cut to starting the MATLAB engine
 with \trl{PETSC_MATLAB_ENGINE_(MPI_Comm)}.
 
+\section{Using PETSc objects directly in MATLAB}
 
+PETSc must be configured with \trl{--with-shared-libraries} \trl{--with-matlab-engine} \trl{--with-matlab} \trl{[--download-f2cblaslapack]}. The option \trl{--download-f2cblaslapack} must be used if using 64bit MATLAB on LINUX or 64bit MATLAB and the \trl{--download-ml} external package on Apple Mac OS X.
+You can build with or without MPI, but cannot run on more than one process
+There is currently no MPI in the API, the MPI_Comm is not in any of the argument lists but otherwise the argument lists try to mimic the C binding.
+Add \trl{${PETSC_DIR}/bin/matlab/classes} to your MATLAB path.
+
+In MATLAB use help PETSc to get started using PETSc from MATLAB once you have setup PETSc to support MATLAB.
 
 
 %------------------------------------------------------------------
@@ -5104,7 +5225,7 @@ or \trl{SCALAR} depending on the type of argument required);
 \findex{PETSC_NULL_INTEGER} passing \findex{PETSC_NULL_SCALAR} 0 from 
 \findex{PETSC_NULL_DOUBLE} Fortran \findex{PETSC_NULL_CHARACTER}  will crash
 the code.   Note
-that the C convention of passing PETSC_NULL (or 0) {\em cannot}
+that the C convention of passing PETSC\_NULL (or 0) {\em cannot}
 be used.  For example, when no options prefix is desired in the
 routine PetscOptionsGetInt(), one must use the following command in
 Fortran:
@@ -5113,7 +5234,7 @@ Fortran:
 \end{tabbing}
 
 This Fortran requirement is inconsistent with C, where the 
-user can employ PETSC_NULL for all null arguments. 
+user can employ PETSC\_NULL for all null arguments. 
 
 \subsection{Duplicating Multiple Vectors}
 \label{sec_fortvecd}
@@ -5406,7 +5527,7 @@ We next discuss performance summaries for parallel programs,
 \findex{-log_summary} as shown within Figures~\ref{fig_exparprof}
 and~\ref{fig_exparprof2}, which present the combined output generated by
 the \trl{-log_summary} option.  The program that generated this data is
-\trl{${PETSC_DIR}/src/ksp/ksp/examples/ex21.c}.  The code loads a
+\trl{${PETSC_DIR}/src/ksp/ksp/examples/ex10.c}.  The code loads a
 matrix and right-hand-side vector from a binary file and then solves
 the resulting linear system; the program then repeats this process for
 a second linear system.  This particular case was run on four
@@ -5426,7 +5547,7 @@ is presented.
 \begin{figure}[tb]
 {\tiny
 \begin{verbatim}
-mpiexec ex21 -f0 medium -f1 arco6 -ksp_gmres_classicalgramschmidt -log_summary -mat_mpibaij \
+mpiexec -n 4 ./ex10 -f0 medium -f1 arco6 -ksp_gmres_classicalgramschmidt -log_summary -mat_type baij \
             -matload_block_size 3 -pc_type bjacobi -options_left
 
 Number of iterations =  19
@@ -5436,7 +5557,7 @@ Residual norm = 6.3633e-01
 
 ---------------------------------------------- PETSc Performance Summary: ----------------------------------------------
 
-ex21 on a rs6000 named p039 with 4 processors, by mcinnes Wed Jul 24 16:30:22 1996
+ex10 on a rs6000 named p039 with 4 processors, by mcinnes Wed Jul 24 16:30:22 1996
 
                          Max         Min        Avg        Total 
 Time (sec):           3.289e+01      1.0   3.288e+01
@@ -5502,7 +5623,7 @@ the average message length, and the number of global reductions.
 \begin{figure}[tb]
 {\tiny
 \begin{verbatim}
-mpiexec ex21 -f0 medium -f1 arco6 -ksp_gmres_classicalgramschmidt -log_summary -mat_mpibaij \
+mpiexec -n 4 ./ex10 -f0 medium -f1 arco6 -ksp_gmres_classicalgramschmidt -log_summary -mat_type baij \
             -matload_block_size 3 -pc_type bjacobi -options_left
 
 ---------------------------------------------- PETSc Performance Summary: ----------------------------------------------
@@ -5883,12 +6004,12 @@ details about interpreting such profiling data.
 
 In particular, the macros 
 \begin{tabbing}
-  PreLoadBegin(PetscBool ,char* stagename),\\
-  PreLoadStage(char *stagename),
+  PetscPreLoadBegin(PetscBool ,char* stagename),\\
+  PetscPreLoadStage(char *stagename),
 \end{tabbing}
 and 
 \begin{tabbing}
-  PreLoadEnd()
+  PetscPreLoadEnd()
 \end{tabbing}
 can be used to easily 
 convert a regular PETSc program to one that uses preloading. The command line options
@@ -6287,7 +6408,7 @@ routines set \trl{flg=PETSC_TRUE} if the corresponding option was found, \trl{fl
 was not found.  The optional argument
 \trl{pre} indicates that the true name of the option is the given name
 (with the dash ``-'' removed) prepended by the prefix \trl{pre}.
-Usually \trl{pre} should be set to PETSC_NULL (or \trl{PETSC_NULL_CHARACTER}
+Usually \trl{pre} should be set to PETSC\_NULL (or \trl{PETSC_NULL_CHARACTER}
 for Fortran); its purpose is to
 allow someone to rename all the options in a package without knowing
 the names of the individual options.  For example, when using block
@@ -6322,12 +6443,12 @@ predefined viewers:
 \item Passing in a zero for the viewer causes the object to be printed 
       to the screen; this is most useful when viewing an object in 
       a debugger.
-\item PETSC_VIEWER_STDOUT_SELF and 
-      PETSC_VIEWER_STDOUT_WORLD
+\item PETSC\_VIEWER\_STDOUT\_SELF and 
+      PETSC\_VIEWER\_STDOUT\_WORLD
       cause the object to be printed to the screen.
 
-\item PETSC_VIEWER_DRAW_SELF
-      PETSC_VIEWER_DRAW_WORLD causes the 
+\item PETSC\_VIEWER\_DRAW\_SELF
+      PETSC\_VIEWER\_DRAW\_WORLD causes the 
       object to be drawn in a default X window.
 \item Passing in a viewer obtained by
       PetscViewerDrawOpen() causes the object to be displayed graphically.
@@ -6335,9 +6456,9 @@ predefined viewers:
       the viewer object with the command
       PetscViewerASCIIOpen\trl{(MPI_Comm comm, char* file, PetscViewer *viewer)}.  
       This object is 
-      analogous to PETSC_VIEWER_STDOUT_SELF (for a communicator of
+      analogous to PETSC\_VIEWER\_STDOUT\_SELF (for a communicator of
       \trl{MPI_COMM_SELF}) and 
-      PETSC_VIEWER_STDOUT_WORLD (for a parallel communicator).
+      PETSC\_VIEWER\_STDOUT\_WORLD (for a parallel communicator).
 \item To save an object to a file in binary format, the user creates
       the viewer object with the command
       PetscViewerBinaryOpen\trl{(MPI_Comm} comm,char* file,PetscViewerBinaryType type,
@@ -6520,7 +6641,7 @@ by the application  \findex{SETERRQ()} \findex{CHKERRQ()}
 programmer as well.  When an error is first detected, 
 one should set it by calling
 \begin{tabbing}
-   SETERRQ(MPI_Comm comm,PetscErrorCode flag,,char *message);
+   SETERRQ(MPI\_Comm comm,PetscErrorCode flag,,char *message);
 \end{tabbing}
 The user should check the return codes for all PETSc routines (and
 possibly user-defined routines as well) with 
@@ -6666,6 +6787,25 @@ is defined.  Any string in any of the PETSc files can be found with the
 command ``\trl{M-x} \trl{tags-search}''. To find repeated occurrences, 
 one can simply use ``\trl{M-,}'' to find the next occurrence.
 
+An alternative which provides reverse lookups (e.g. find all call sites for a given function) and is somewhat more amenable to managing many projects is GNU Global, available from \trl{http://www.gnu.org/s/global/}.
+Tags for PETSc and all external packages can be generated by running the command
+\begin{verbatim}
+find $PETSC_DIR/{include,src,tutorials,$PETSC_ARCH/include} any/other/paths \
+   -regex '.*\.\(cc\|hh\|cpp\|C\|hpp\|c\|h\|cu\)$' \
+   | grep -v ftn-auto | gtags -f -
+\end{verbatim}
+from your home directory or wherever you keep source code.
+If you are making large changes, it is useful to either set this up to run as a cron job or to make a convenient alias so that refreshing is easy.
+Then add the following to \trl{~/.emacs} to enable gtags and replace the plain etags bindings.
+\begin{verbatim}
+(when (require 'gtags)
+  (global-set-key "\C-cf" 'gtags-find-file)
+  (global-set-key "\M-." 'gtags-find-tag)
+  (define-key gtags-mode-map (kbd "C-c r") 'gtags-find-rtag))
+(add-hook 'c-mode-common-hook
+          '(lambda () (gtags-mode t))) ; Or add to existing hook
+\end{verbatim}
+
 \section{Vi and Vim Users} \sindex{Vi} \sindex{Vim} \sindex{tags, in Vi/Vim}
 
 If users develop application codes  using Vi or Vim the \trl{tags} feature can be used to search PETSc 
@@ -6684,10 +6824,37 @@ from the \trl{PETSC_DIR} directory and enter the
 name of the \trl{CTAGS} file. Then the command ``tag functionname'' will cause Vi/Vim
 to find the file and line number where a desired PETSc function 
 is defined.  See, for example, \href{http://www.yolinux.com/TUTORIALS/LinuxTutorialAdvanced_vi.html}{http://www.yolinux.com/TUTORIALS/LinuxTutorialAdvanced\_vi.html} for additional Vi/Vim options that allow searches etc.
+It is also possible to use GNU Global with Vim, see the description for Emacs above.
 
 \section{Eclipse Users} \sindex{eclipse}
 
 If you are interested in developing code that uses PETSc from Eclipse or developing PETSc in Eclipse and have knowledge of how to do indexing and build libraries in Eclipse please contact us at \trl{petsc-dev@mcs.anl.gov}.
+
+To allow an Eclipse code to compile with the PETSc include files and link with the PETSc libraries someone has suggested
+To do this, click on your managed C project with the right sided mouse button, select
+
+Properties -> C/C++ Build -> Settings
+
+Then you get a new window with on the right hand side the various setting options.
+
+Select Includes, and add the required PETSc paths. In my case I have added
+\begin{verbatim}
+${PETSC_DIR}/include
+${PETSC_DIR}/${PETSC_ARCH}/include
+\end{verbatim}
+
+Then select "Libraries" under the header Linker
+and you should set the Library search path:
+\begin{verbatim}
+${PETSC_DIR}/${PETSC_ARCH}/lib
+\end{verbatim}
+
+
+and then the libraries, in my case:
+\begin{verbatim}
+m, petsc, stdc++, mpichxx, mpich, lapack, blas, gfortran, dl, rt,gcc_s, pthread, X11
+\end{verbatim}
+
 
 To make PETSc an Eclipse package
 \begin{itemize}
@@ -6702,6 +6869,74 @@ To make PETSc an Eclipse package
 \item Right-click on the project in the project explorer, and choose "Index -> Rebuild". The index should now be build.
 \item Right-click on the PETSc symlink in the project explorer, and choose "Exclude from build..." to make sure Eclipse does not try to compile PETSc with the project.
 \end{itemize}
+
+\section{Qt Creator} \sindex{Qt Creator}
+
+ Qt Creator is developed as a part of Qt SDK for cross-platform GUI programming using \texttt{C++} and thus has excellent support for application developing using \texttt{C/C++}. This information was provided by Mohammad Mirzadeh.
+
+\begin{enumerate}
+\item Qt Creator supports automated and cross-platform \texttt{qmake} and \texttt{Cmake} build systems. What this means, is that, starting from a handful set of options, Qt Creator is able to generate makefiles that are used to compile and run your application package on Linux, Windows and Mac systems.
+\item Qt Creator makes the task of linking PETSc library to your application package easy.
+\item Qt Creator has visual debugger and supports both GNU's GDB and Microsoft's CDB (on Windows).
+\item Qt Creator (as of version 2.3) has interface to memory profiling softwares such as valgrind.
+\item Qt Creator has built-in auto-completion and function look-up. This feature of editor, makes it possible for the user to easily browse inside huge packages like PETSc and easily find relevant functions and objects.
+\item Qt Creator has inline error/warning messages. This feature of the editor greatly reduces programming bugs by informing the user of potential error/warning as the code is being written and even before the compile step.
+\item Qt Creator is an excellent environment for doing GUI programming using Qt framework. This means you can easily generate a nice GUI for you application package as well!
+\end{enumerate}
+
+Qt Creator is a part of Qt SDK, currently being developed by Nokia Inc. It is available under GPL v3, LGPL v2 and a commercial license and may be obtained, either as a part of Qt SDK or as an stand-alone software, via \url{http://qt.nokia.com/downloads/}.
+
+\section*{How to create a project?}
+Upon installation, all you really need to do to port your software package to Qt Creator is to build a \texttt{.pro} file. A \texttt{.pro} file is simply a configuration file that tells Qt Creator about all build/compile options and locations of source file. One may start with a blank \texttt{.pro} file and fill in the configuration options as needed:
+
+\begin{lstlisting}
+
+TARGET = name_of_your_app
+
+APP_DIR    = /home/path/to/your/app
+PETSC_DIR  = /home/path/to/your/petsc
+PETSC_ARCH = linux-gnu-cxx-debug
+PETSC_BINS = $$PETSC_DIR/$$PETSC_ARCH/bin
+
+INCLUDEPATH += $$APP_DIR/include \
+               $$PETSC_DIR/include \
+               $$PETSC_DIR/$$PETSC_ARCH/include
+
+LIBS += -L/path/to/petsc/libs -l_all_needed_petsc_libs
+
+QMAKE_CC  = $$PETSC_BINS/mpicc
+QMAKE_CXX = $$PETSC_BINS/mpicxx
+
+QMAKE_CFLAGS   += -O3 
+QMAKE_CXXFLAGS += -O3 
+QMAKE_LFLAGS   += -O3 
+
+SOURCES += \
+	$$APP_DIR/src/source1.cpp \
+	$$APP_DIR/src/source2.cpp \
+	$$APP_DIR/src/main.cpp
+HEADERS += \
+	$$APP_DIR/src/source1.h \
+	$$APP_DIR/src/source2.h 	
+OTHER_FILES += \
+	$$APP_DIR/src/some_file.cpp \
+	$$APP_DIR/dir/another_file.xyz 
+	
+\end{lstlisting}
+
+In this example, there are different keywords used. These include:
+\begin{itemize}
+\item \texttt{TARGET}: This defines the name of your application executable. You can choose it however you like.
+\item \texttt{INCLUDEPATH}: This is used in the compile time to point to all the needed include files. Essentially it is used as a \texttt{ -I \$\$INCLUDEPATH} flag for the compiler. This should include all your application-specific header files and those related to PETSc which may be found via \texttt{make getincludedirs}.
+\item \texttt{LIBS}: This defines all needed external libraries to link with your application. To get PETSc's linking libraries do \texttt{make getlinklibs}.
+\item \texttt{QMAKE\_CC} and \texttt{QMAKE\_CXX}: These define which \texttt{C/C++} compilers to choose for your application.
+\item \texttt{QMAKE\_CFLAGS}, \texttt{QMAKE\_CXXFLAGS} and \texttt{QMAKE\_LFLAGS}: These set the corresponding compile and linking flags.
+\item \texttt{SOURCES}: This sets all the source files that need to be compiled.
+\item \texttt{HEADERS}: This sets all the header files that are needed for your application. Note that since header files are merely included in the source files, they are not compiled. As a result this is an optional flag and is simply included to allow users to easily access the header files in their application (or even PETSc header files).
+\item \texttt{OTHER\_FILES}: This can be used to virtually include any other file (source, header or any other extension) just as a way to make accessing to auxiliary files easier. They could be anything from a text file to a PETSc source file. Note that none of the source files placed here are compiled.
+\end{itemize}
+
+Note that there are many more options available that one can feed into the \texttt{.pro} file. For more information, one should follow \url{http://doc.qt.nokia.com/latest/qmake-variable-reference.html}. Once the \texttt{.pro} file is generated, the user can simply open it via Qt Creator. Upon opening, generally one has the option to create two different build options, debug and release, and switch between the two easily at any time. For more information on how to use the Qt Creator interface, and other more advanced aspects of this IDE, one may refer to \url{http://doc.qt.nokia.com/qtcreator-snapshot/index.html}
 
 \section{Developers Studio Users} \sindex{developers studio}
 
@@ -6751,8 +6986,8 @@ Then one can call any of the \trl{PetscDrawXXX} commands on the \trl{draw}
 object. If one obtains the \trl{draw} object in this manner, 
 one does not call the PetscDrawOpenX() command discussed below.
 
-Predefined viewers, PETSC_VIEWER_DRAW_WORLD 
-and PETSC_VIEWER_DRAW_SELF, may be used at any time. Their initial
+Predefined viewers, PETSC\_VIEWER\_DRAW\_WORLD 
+and PETSC\_VIEWER\_DRAW\_SELF, may be used at any time. Their initial
 use will cause the appropriate window to be created.
 
 \medskip
@@ -7058,7 +7293,7 @@ within the makefile.
 
 For users who wish to manage the compile process themselves
 and {\bf not} use the rules PETSc uses for compiling programs
-include variables instead of base. That is use something like
+include variables instead of base. That is, use something like
 
 \begin{figure}[H]
 {\small
@@ -7074,7 +7309,7 @@ include variables instead of base. That is use something like
 \end{verbatim}
 }
 \caption{Sample PETSc Makefile that does {\bf not} use PETSc's rules for compiling}
-\label{fig_make1}
+\label{fig_make1var}
 \end{figure}
 The variables \trl{${PETSC_CC_INCLUDES}}, \trl{${PETSC_FC_INCLUDES}}
 and \trl{${PETSC_LIB}} are defined by the included conf/variables file.
@@ -7520,94 +7755,6 @@ command
 \begin{tabbing}
   PCDestroy(PC *pc);
 \end{tabbing}
-
-%------------------------------------------------------------------
-
-\cleardoublepage
-\chapter{Unstructured Grids in PETSc}
-\label{ch_unstructured}
-
-This chapter introduces the DMMesh subclass of DM, which allows the user to handle unstructured grids using the generic
-DM interface for hierarchy and multi-physics. The underlying implementation is written in C++, and thus requires PETSc
-to be build using --with-clanguage=c++. More advanced features will also require direct C++ access in the user code,
-however much can be done using only the C/F77/F90 interface.
-
-\medskip \medskip
-
-\section{Sections: Vectors on Unstructured Grids} \sindex{sections}
-
-\subsection{Defining Sections}
-
-The sequence for setting up any Section is the following:
-\begin{enumerate}
-  \item Specify the chart
-  \item Specify the fiber dimensions
-  \item Allocate
-  \item Specify the values
-\end{enumerate}
-We will expand on each item in turn.
-
-First, you specify the chart, which is the domain for the Section. For any Section retrieved from the Mesh, for instance
-using MeshGetSectionReal(), this is done automatically.
-
-Second, you determine sizes for both values and constraints at the same time:
-\begin{lstlisting}[language=C++]
-for(loop over points) {
-  section->setFiberDimension(p, dof);
-}
-for(loop over boundary points) {
-  section->setConstraintDimension(p, numConstraints);
-}
-\end{lstlisting}
-
-Third, we allocate storage for this section
-\begin{lstlisting}[language=C++]
-  section->allocatePoint()
-\end{lstlisting}
-which also creates storage for the boundary conditions.
-
-Now you can input values and constraints whenever you want
-\begin{lstlisting}[language=C++]
-for(loop over points) {
-  section->updatePoint(p, values);
-}
-for(loop over boundary points) {
-  /* Here we constrain the x and y values */
-  int dofs[2] = {0, 1};
-
-  section->setConstraintDof(p, dofs);
-}
-\end{lstlisting}
-Notice that the input to setConstraintDofs() are the local dofs which are fixed.
-
-\subsection{Updating Values}
-There are many kinds of update*() functions since users want different ways of setting values. As an
-example, we will take a point p with 3 degrees of freedom (u,v,w), and we constrain v, so the fiber
-dimension is 3, the constraint dimension is 1, and the constraint dof is [1]. Now, the simplest update is
-
-   section->updatePoint(p, [a, b, c])
-
-which will set the values 'a' and 'c', ignoring 'b' since it is constrained. The function updateAddPoint() does
-the same thing but adds the values. We have a similar function
-
-  section->updateFreePoint(p, [a, c])
-
-which updates the unconstrained values, and only takes those values as input. If you want to update
-constrained values, you could use
-
-  section->updatePointBC(p, [b])
-
-which updates the values of constrained unknowns, and takes only the constraint values. You could also use
-
-  section->updatePointBCFull(p, [a, b, c])
-
-which takes all the values, but only updates the constraint 'b'. Finally,
-
-  section->updatePointAll(p, [a, b, c])
-
-takes the all values and updates all of them, ignoring constraints.
-
-%------------------------------------------------------------------
 
 %------------------------------------------------------------------
 

@@ -155,6 +155,51 @@ PetscErrorCode  PetscTypeCompare(PetscObject obj,const char type_name[],PetscBoo
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__  
+#define __FUNCT__ "PetscTypeCompareAny"
+/*@C
+   PetscTypeCompareAny - Determines whether a PETSc object is of any of a list of types.
+
+   Not Collective
+
+   Input Parameters:
++  obj - any PETSc object, for example a Vec, Mat or KSP.
+         This must be cast with a (PetscObject), for example, PetscTypeCompareAny((PetscObject)mat,...);
+-  type_name - string containing a type name, pass the empty string "" to terminate the list
+
+   Output Parameter:
+.  match - PETSC_TRUE if the type of obj matches any in the list, else PETSC_FALSE
+
+   Level: intermediate
+
+.seealso: VecGetType(), KSPGetType(), PCGetType(), SNESGetType(), PetscTypeCompare()
+
+   Concepts: comparing^object types
+   Concepts: types^comparing
+   Concepts: object type^comparing
+
+@*/
+PetscErrorCode PetscTypeCompareAny(PetscObject obj,PetscBool *match,const char type_name[],...)
+{
+  PetscErrorCode ierr;
+  va_list Argp;
+
+  PetscFunctionBegin;
+  *match = PETSC_FALSE;
+  va_start(Argp,type_name);
+  while (type_name && type_name[0]) {
+    PetscBool found;
+    ierr = PetscTypeCompare(obj,type_name,&found);CHKERRQ(ierr);
+    if (found) {
+      *match = PETSC_TRUE;
+      break;
+    }
+    type_name = va_arg(Argp,const char*);
+  }
+  va_end(Argp);
+  PetscFunctionReturn(0);
+}
+
 #define MAXREGDESOBJS 256
 static int         PetscObjectRegisterDestroy_Count = 0;
 static PetscObject PetscObjectRegisterDestroy_Objects[MAXREGDESOBJS];
@@ -186,10 +231,7 @@ PetscErrorCode  PetscObjectRegisterDestroy(PetscObject obj)
   PetscValidHeader(obj,1);
   if (PetscObjectRegisterDestroy_Count < MAXREGDESOBJS) {
     PetscObjectRegisterDestroy_Objects[PetscObjectRegisterDestroy_Count++] = obj;
-  } else {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGDESOBJS\n",MAXREGDESOBJS);
-    
-  }
+  } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGDESOBJS\n",MAXREGDESOBJS);
   PetscFunctionReturn(0);
 }
 
@@ -208,7 +250,7 @@ PetscErrorCode  PetscObjectRegisterDestroy(PetscObject obj)
 PetscErrorCode  PetscObjectRegisterDestroyAll(void)
 {
   PetscErrorCode ierr;
-  int i;
+  PetscInt       i;
 
   PetscFunctionBegin;
   for (i=0; i<PetscObjectRegisterDestroy_Count; i++) {
@@ -246,10 +288,7 @@ PetscErrorCode  PetscRegisterFinalize(PetscErrorCode (*f)(void))
 
   if (PetscRegisterFinalize_Count < MAXREGFIN) {
     PetscRegisterFinalize_Functions[PetscRegisterFinalize_Count++] = f;
-  } else {
-    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGFIN\n",MAXREGFIN);
-    
-  }
+  } else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"No more room in array, limit %d \n recompile src/sys/objects/destroy.c with larger value for MAXREGFIN\n",MAXREGFIN);
   PetscFunctionReturn(0);
 }
 
@@ -267,7 +306,7 @@ PetscErrorCode  PetscRegisterFinalize(PetscErrorCode (*f)(void))
 PetscErrorCode  PetscRegisterFinalizeAll(void)
 {
   PetscErrorCode ierr;
-  int i;
+  PetscInt       i;
 
   PetscFunctionBegin;
   for (i=0; i<PetscRegisterFinalize_Count; i++) {

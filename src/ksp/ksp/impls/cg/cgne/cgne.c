@@ -23,13 +23,6 @@ PetscErrorCode KSPSetUp_CGNE(KSP ksp)
   PetscInt       maxit = ksp->max_it;
 
   PetscFunctionBegin;
-  /* 
-       This implementation of CGNE only handles left preconditioning
-     so generate an error otherwise.
-  */
-  if (ksp->pc_side == PC_RIGHT) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"No right preconditioning for KSPCGNE");
-  else if (ksp->pc_side == PC_SYMMETRIC) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"No symmetric preconditioning for KSPCGNE");
-
   /* get work vectors needed by CGNE */
   ierr = KSPDefaultGetWork(ksp,4);CHKERRQ(ierr);
 
@@ -117,7 +110,7 @@ PetscErrorCode  KSPSolve_CGNE(KSP ksp)
     ierr = VecNorm(R,NORM_2,&dp);CHKERRQ(ierr); /*    dp <- r'*r       */
   } else if (ksp->normtype == KSP_NORM_NATURAL) {
     ierr = VecXDot(Z,R,&beta);CHKERRQ(ierr);
-    dp = sqrt(PetscAbsScalar(beta));
+    dp = PetscSqrtReal(PetscAbsScalar(beta));
   } else dp = 0.0;
   KSPLogResidualHistory(ksp,dp);
   ierr = KSPMonitor(ksp,0,dp);CHKERRQ(ierr);
@@ -149,7 +142,7 @@ PetscErrorCode  KSPSolve_CGNE(KSP ksp)
 	 if (ksp->max_it != stored_max_it) {
 	   SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"Can not change maxit AND calculate eigenvalues");
 	 }
-	 e[i] = sqrt(PetscAbsScalar(b))/a;  
+	 e[i] = PetscSqrtReal(PetscAbsScalar(b))/a;  
        }
        ierr = VecAYPX(P,b,Z);CHKERRQ(ierr);    /*     p <- z + b* p   */
      }
@@ -159,7 +152,7 @@ PetscErrorCode  KSPSolve_CGNE(KSP ksp)
      ierr = VecXDot(P,Z,&dpi);CHKERRQ(ierr);      /*     dpi <- z'p      */
      a = beta/dpi;                                 /*     a = beta/p'z    */
      if (eigs) {
-       d[i] = sqrt(PetscAbsScalar(b))*e[i] + 1.0/a;
+       d[i] = PetscSqrtReal(PetscAbsScalar(b))*e[i] + 1.0/a;
      }
      ierr = VecAXPY(X,a,P);CHKERRQ(ierr);          /*     x <- x + ap     */
      ierr = VecAXPY(R,-a,Z);CHKERRQ(ierr);                      /*     r <- r - az     */
@@ -174,7 +167,7 @@ PetscErrorCode  KSPSolve_CGNE(KSP ksp)
      } else if (ksp->normtype == KSP_NORM_UNPRECONDITIONED) {
        ierr = VecNorm(R,NORM_2,&dp);CHKERRQ(ierr);
      } else if (ksp->normtype == KSP_NORM_NATURAL) {
-       dp = sqrt(PetscAbsScalar(beta));
+       dp = PetscSqrtReal(PetscAbsScalar(beta));
      } else {
        dp = 0.0;
      }
@@ -260,10 +253,9 @@ PetscErrorCode  KSPCreate_CGNE(KSP ksp)
   cg->type                       = KSP_CG_HERMITIAN;
 #endif
   ksp->data                      = (void*)cg;
-  if (ksp->pc_side != PC_LEFT) {
-     ierr = PetscInfo(ksp,"WARNING! Setting PC_SIDE for CGNE to left!\n");CHKERRQ(ierr);
-  }
-  ksp->pc_side                   = PC_LEFT;
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_PRECONDITIONED,PC_LEFT,2);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_UNPRECONDITIONED,PC_LEFT,1);CHKERRQ(ierr);
+  ierr = KSPSetSupportedNorm(ksp,KSP_NORM_NATURAL,PC_LEFT,1);CHKERRQ(ierr);
 
   /*
        Sets the functions that are associated with this data structure 
