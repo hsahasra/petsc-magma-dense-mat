@@ -53,8 +53,8 @@ static struct _MatOps MatOps_Values = {
 /*110*/0,0,0,0,0,
 /*115*/MatCreate_SeqSG,0,0,0,0,
 /*120*/0,0,0,0,0,
-/*125*/0,0,0,0,MatSetStencil_SeqSG,
-/*130*/ MatSetGrid_SeqSG
+/*125*/0,0,0,0,0,
+/*130*/MatSetStencil_SeqSG,MatSetGrid_SeqSG
 };
 
 
