@@ -1,8 +1,9 @@
 #include <string.h>
-#include<omp.h>
-#define NUM_THREADS 4
 #define start(a,b) (a)>(b)?(a):(b)
-int OPENMP;
+
+#include<omp.h>
+int OPENMP=0;
+//#define SPREFETCH
 
 
 
@@ -46,8 +47,10 @@ int OPENMP;
 #define _sv_storeu_pd(a,b) (*(a)=(b))
 #endif
 
-//#define SV_DOUBLE_WIDTH 1
 /*
+
+//MatMult With Padding
+
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,PetscScalar * x, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
 	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
@@ -136,6 +139,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 }
 */
 
+//MatMult Without Padding, with openmp, with software prefetching
 
 PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
 {
@@ -158,14 +162,17 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 
-       	//printf("Thread=%d\n",omp_get_thread_num(),k,l);
+	//printf("OPENMP=%d\n",OPENMP);
+       	//printf("Thread=%d\n",omp_get_thread_num());
 	
 	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
 #ifdef __AVX__
 	__sv_dtype xv2, coeffv2, xv3, coeffv3;
 #endif
 
+
 /* A Part */	
+	//#pragma omp for nowait private(i,k) 
 	for(l=0;l<nos;l+=2*(2*dof-1))
 	{
 		for(i=0;i<(2*dof-1);i++)
@@ -177,6 +184,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 /* F Part */
+	//#pragma omp for nowait private(i,k) 
 	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
 	{
 		for(i=0;i<(2*dof-1);i++)
@@ -188,6 +196,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 /*   G part */
+	//#pragma omp for nowait private(i,k) 
 	for(l=0;l<nos;l+=2*(2*dof-1))
 	{
 		for(i=0;i<(2*dof-1);i++)
@@ -199,6 +208,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 /*   D part */
+	//#pragma omp for nowait private(i,k) 
 	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
 	{
 		for(i=0;i<(2*dof-1);i++)
@@ -210,6 +220,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 /*   C part */
+	//#pragma omp for nowait private(i,k) 
 	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
 	{
 		for(i=0;i<(2*dof-1);i++)
@@ -221,6 +232,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 /*   B part */
+	//#pragma omp for nowait private(l,i) 
 	for(k=dof;k<lda2+(dof-1); k++)
 	{
 		for(l=0;l<nos;l+=2*(2*dof-1))
@@ -232,12 +244,37 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 			}
 		}
 	}
-/*   E part */
-	for(k=lda2+(dof-1);k<lda1-lda2-(dof-1)-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
+//   E part 
+
+#pragma omp parallel if(OPENMP) firstprivate(lda1,lda2,xval,vbeg,vend,offset,dof,nos,x,coeff) shared(y) private(yv,xv,coeffv,xv1,coeffv1) default(none)
+{
+
+#if (SV_DOUBLE_WIDTH > 2)
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv,xv2,xv3,coeffv2,coeffv3) 
+#elif (SV_DOUBLE_WIDTH > 1)
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv) 
+#endif
+//	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv) 
+	for(k=lda2+(dof-1);k<=lda1-lda2-(dof-1)-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
 	{
+       	//printf("Thread=%d\n,k=%d",omp_get_thread_num(),k);
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
 		for(l=0;l<=(nos-SV_DOUBLE_WIDTH);l+=SV_DOUBLE_WIDTH)
 		{
+#ifdef SPREFETCH
+		//_mm_prefetch( (coeff+offset[l]+k+80),_MM_HINT_NTA);
+    		PetscPrefetchBlock(coeff+offset[l]+k+8,8,0,PETSC_PREFETCH_HINT_NTA);    // Prefetch the next cache line
+	#if (SV_DOUBLE_WIDTH > 1)
+    		PetscPrefetchBlock(coeff+offset[l+1]+k+8,8,0,PETSC_PREFETCH_HINT_NTA);    
+	#endif
+
+	#if (SV_DOUBLE_WIDTH > 2) 
+    		PetscPrefetchBlock(coeff+offset[l+2]+k+8,8,0,PETSC_PREFETCH_HINT_NTA);
+    		PetscPrefetchBlock(coeff+offset[l+3]+k+8,8,0,PETSC_PREFETCH_HINT_NTA);
+	#endif
+//(Note:Same cache line being prefetched redundantly to avoid if statements, See MatMultv3 for alternate implementation)
+#endif
+
 			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
 
 #if (SV_DOUBLE_WIDTH > 1)
@@ -249,6 +286,211 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 			xv3 = _sv_loadu_pd((PetscScalar *)(x+xval[l+3]+k-vbeg[l+3]));
 #endif
 			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+
+
+
+#if (SV_DOUBLE_WIDTH > 1)
+			coeffv1 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+1]+k));
+#endif
+
+#if (SV_DOUBLE_WIDTH > 2) 
+			coeffv2 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+2]+k));
+			coeffv3 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+3]+k));
+#endif
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+
+#if (SV_DOUBLE_WIDTH > 1)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv1,xv1));
+#endif
+
+#if (SV_DOUBLE_WIDTH > 2)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv2,xv2));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv3,xv3));
+#endif
+		}
+		for(;l<nos;l++)
+		{
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+		}
+		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
+	}
+}
+	//for(;k<lda1-lda2-(dof-1);k++){
+	for(k=(lda1-lda2-(dof-1))-((lda1-lda2-(dof-1)-lda2)%SV_DOUBLE_WIDTH);k<lda1-lda2-(dof-1);k++){
+		for(l=0;l<nos;l++)
+		{
+			y[k] += (coeff[offset[l]+k] * x[(xval[l]+k-vbeg[l])]);		
+		}
+	}
+	PetscFunctionReturn(0);
+}
+
+//MatMult Without Padding, with openmp, with software prefetching( optimized for software prefetching for cache line size=64 bytes)
+//unroll inner loop for all the elements in a cache line and prefetch the next cache line just once. Note: Implementation incomplete.
+/*
+PetscInt SG_MatMultv3(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
+{
+	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
+	PetscInt lda1 = m*n*p*dof;
+	PetscInt lda2 = m*n*dof;
+	PetscInt lda3 = m*dof;
+
+	PetscInt xval[nos], offset[nos], vbeg[nos], vend[nos];
+	for(l=0;l<nos;l++)
+	{
+		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset[l] = l*lda1;
+	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
+		vbeg[l] = 0; vend[l] = m*dof*n*p;
+		if(xval[l] > 0) vend[l] -= xval[l];
+		else
+		{
+			vbeg[l] -= xval[l];
+			xval[l] = 0;
+		}
+	}
+
+	//printf("OPENMP=%d\n",OPENMP);
+
+// A Part //	
+	//#pragma omp for nowait private(i,k) 
+	for(l=0;l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=vbeg[l+i];k<dof; k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+// F Part //
+	//#pragma omp for nowait private(i,k) 
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=vbeg[l+i];k<(lda2+(dof-1)); k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+//   G part //
+	//#pragma omp for nowait private(i,k) 
+	for(l=0;l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=(lda1-lda2-(dof-1));k<vend[l+i]; k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+//   D part //
+	//#pragma omp for nowait private(i,k) 
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=lda1-1-(dof-1);k<vend[l+i]; k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+//   C part //
+	//#pragma omp for nowait private(i,k) 
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	{
+		for(i=0;i<(2*dof-1);i++)
+		{
+			for(k=start(lda1-lda2-(dof-1),vbeg[l+i]);k<lda1-1-(dof-1); k++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
+			}
+		}
+	}
+//   B part //
+	//#pragma omp for nowait private(l,i) 
+	for(k=dof;k<lda2+(dof-1); k++)
+	{
+		for(l=0;l<nos;l+=2*(2*dof-1))
+		{
+			for(i=0;i<(2*dof-1);i++)
+			{
+				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);
+	
+			}
+		}
+	}
+//   E part //
+	__sv_dtype yv, xv, coeffv,xv1,coeffv1,yv1;
+	__sv_dtype yv2, xv2, coeffv2,xv3,coeffv3,yv3;
+#ifdef __AVX__
+	__sv_dtype xv2, coeffv2, xv3, coeffv3;
+#endif
+#pragma omp parallel if(OPENMP) firstprivate(lda1,lda2,xval,vbeg,vend,offset,dof,nos,x,coeff) shared(y) private(yv,xv,coeffv,xv1,coeffv1,yv1,yv2,xv2,coeffv2,yv3,xv3,coeffv3) default(none)
+{
+       	//printf("Thread=%d\n",omp_get_thread_num());
+	
+#if (SV_DOUBLE_WIDTH > 2)
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv,yv1,xv2,xv3,coeffv2,coeffv3) 
+#endif
+#if (SV_DOUBLE_WIDTH > 1)
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv,yv1) 
+#endif
+	for(k=lda2+(dof-1);k<lda1-lda2-(dof-1)-8; k+=8)
+	{
+	printf("1st:k=%d\n",k);
+		yv = _sv_loadu_pd((PetscScalar *)(y+k));
+		yv1 = _sv_loadu_pd((PetscScalar *)(y+k+4));
+		for(l=0;l<=(nos-1);l++)
+		{
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+			
+			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k+2-vbeg[l]));
+			coeffv1 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k+2));
+			yv1 = _sv_add_pd(yv1,_sv_mul_pd(coeffv1,xv1));
+			
+			xv2 = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k+4-vbeg[l]));
+			coeffv2 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k+4));
+			yv2 = _sv_add_pd(yv2,_sv_mul_pd(coeffv2,xv2));
+
+			xv3 = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k+6-vbeg[l]));
+			coeffv3 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k+6));
+			yv3 = _sv_add_pd(yv3,_sv_mul_pd(coeffv3,xv3));
+		}
+		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
+		_sv_storeu_pd((PetscScalar *)(y+k+2),yv1);	
+		_sv_storeu_pd((PetscScalar *)(y+k+4),yv2);	
+		_sv_storeu_pd((PetscScalar *)(y+k+6),yv3);	
+	}
+}
+	for(k=(lda1-lda2)-((lda1-lda2)%8);k<lda1-lda2-(dof-1)-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
+	{
+	printf("2nd:k=%d\n",k);
+		yv = _sv_loadu_pd((PetscScalar *)(y+k));
+		for(l=0;l<=(nos-SV_DOUBLE_WIDTH);l+=SV_DOUBLE_WIDTH)
+		{
+
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+
+#if (SV_DOUBLE_WIDTH > 1)
+			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l+1]+k-vbeg[l+1]));
+#endif
+
+#if (SV_DOUBLE_WIDTH > 2)
+			xv2 = _sv_loadu_pd((PetscScalar *)(x+xval[l+2]+k-vbeg[l+2]));
+			xv3 = _sv_loadu_pd((PetscScalar *)(x+xval[l+3]+k-vbeg[l+3]));
+#endif
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+
+
 
 #if (SV_DOUBLE_WIDTH > 1)
 			coeffv1 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+1]+k));
@@ -278,6 +520,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
 	}
 	for(;k<lda1-lda2-(dof-1);k++){
+	printf("3rd:k=%d\n",k);
 		for(l=0;l<nos;l++)
 		{
 			y[k] += (coeff[offset[l]+k] * x[(xval[l]+k-vbeg[l])]);		
@@ -285,4 +528,4 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	}
 	PetscFunctionReturn(0);
 }
-
+*/
