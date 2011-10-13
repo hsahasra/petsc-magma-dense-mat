@@ -1,6 +1,6 @@
 /* Program usage:  mpiexec ex1 [-help] for all PETSc options
 */
-static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency and also tested for performance. Options: [-n] [-m] [-p] [-dim] [-info 1 for more info]\n\n";
+static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency (when REP=1)and also tested for performance. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]. Note: It is preferable to use exSG2 while checking performance (especially for big inputs) as it has less memory footprint\n\n";
 
 #include<sys/time.h>
 #include "../../impls/structgrid/matstructgrid.h"
@@ -10,11 +10,21 @@ static char help[] = "Simple program which does matrix vector multiplication usi
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
 
+#define OMP// enable to check OPENMP version
+#define NUM_THREADS 2
+//#define GPU //enable to check GPU versions
+
+//#define PAPI// enable this to use PAPI directly without HPCToolkit and specify the required counters
+#ifdef PAPI
+#include"papi.h"
+#define NUM_EVENTS 4
+#endif
+
 PetscInt m=2,n=2,p=2,dim=3,dof=1;
 PetscInt nos;
 PetscInt info=0;
 PetscReal normdiff = 1.0e-6;
-PetscInt REP=1;
+long REP=1;
 extern int OPENMP;
 
  double simple_rand() {
@@ -30,7 +40,7 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
-int correctness(double * y, double * yc, int size)
+/*int correctness(double * y, double * yc, int size)
 {
 	int retval = 1;
 	int i;
@@ -44,13 +54,18 @@ int correctness(double * y, double * yc, int size)
 	}
 	return retval;
 }
+*/
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
-
-	dof=1;nos = (dim*2+1)*(2*dof-1);//*dof?
+#ifdef PAPI
+int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM,PAPI_TLB_DM};
+long_long values[NUM_EVENTS];
+int e;
+#endif
+	dof=1;
 
 	Vec  	x, y, ysg,ysgomp;
 	Vec  	ygpu, ysggpu;      
@@ -74,13 +89,16 @@ int main(int argc,char **args)
 	ierr = PetscOptionsGetInt(PETSC_NULL,"-dim",&dim,PETSC_NULL);CHKERRQ(ierr);
 	ierr = PetscOptionsGetInt(PETSC_NULL,"-dof",&dof,PETSC_NULL);CHKERRQ(ierr);
 	ierr = PetscOptionsGetInt(PETSC_NULL,"-info",&info,PETSC_NULL);CHKERRQ(ierr);
-  
+	int rep=1;
+	ierr = PetscOptionsGetInt(PETSC_NULL,"-REP",&rep,PETSC_NULL);CHKERRQ(ierr);
+  	REP = (long)rep;
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         Set dims[] and nz using n,dim and dof.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  	dims = malloc(sizeof(PetscInt)*dim);
 	dims[0]=m;dims[1]=n;dims[2]=p;
 	nz=m*n*p*dof;
+	nos = (dim*2+1)*(2*dof-1);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Create vectors.  Note that we form 1 vector from scratch and
      then duplicate as needed.
@@ -91,45 +109,50 @@ int main(int argc,char **args)
   	ierr = VecSetFromOptions(x);CHKERRQ(ierr);
   	ierr = VecDuplicate(x,&y);CHKERRQ(ierr);
   	ierr = VecDuplicate(x,&ysg);CHKERRQ(ierr);
+#ifdef OMP
 	ierr = VecDuplicate(x,&ysgomp);CHKERRQ(ierr);
+#endif
+#ifdef GPU
 	ierr = VecDuplicate(x,&ysggpu);CHKERRQ(ierr);
 	ierr = VecDuplicate(x,&ygpu);CHKERRQ(ierr);
-
+#endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Create matrices.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	ierr = MatCreate(PETSC_COMM_WORLD,&mat);CHKERRQ(ierr);
   	ierr = MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,nz,nz);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
+  	MatSetType(mat,MATSEQAIJ);
+	//MatSeqAIJSetPreallocation(mat,nos,PETSC_NULL);
+  	
+	ierr = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
   	ierr = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
+	MatSetType(matsg,MATSTRUCTGRID);
+#ifdef GPU 
+	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
   	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
   	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
   	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
-  	//ierr = MatSetFromOptions(matsg);CHKERRQ(ierr);
-  	MatSetType(mat,MATSEQAIJ);
-  	MatSetType(matsg,MATSTRUCTGRID);
-  	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
-  	MatSetType(matgpu,MATSEQAIJCUSP);
-  
+	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
+	MatSetType(matgpu,MATSEQAIJCUSP);
+#endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set stencils for Structgrid -matsg
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	starts = malloc(sizeof(PetscInt)*dim);
   	ierr = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
+	MatSetUpPreallocation_SeqSG(matsg);
+#ifdef GPU
 	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
-
+	MatSetUpPreallocation_SeqSG(matsggpu);
+#endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	//ierr = VecSet(x,one);CHKERRQ(ierr);//this can be modified such that x holds random values
 	ierr = VecSetRandom(x,PETSC_NULL);
 
-	rows = malloc(sizeof(PetscInt)*nz);
 	cols = malloc(sizeof(PetscInt)*nos);
 	vals = malloc(sizeof(PetscScalar)*nos);
-	for(i=0;i<nz;i++)
-		rows[i]=i;
 	
 	Mat_SeqSG * sg = (Mat_SeqSG*) matsg->data;
 	
@@ -146,6 +169,7 @@ int main(int argc,char **args)
                 xval[l] = sg->idx[l] + sg->idy[l]*lda3 + sg->idz[l]*lda2;
         }
 	PetscInt count;
+	printf("nos=%d,nz=%d\n",nos,nz);
 	for(i=0;i<nz;i++)
 	{
 		count=0;
@@ -156,11 +180,12 @@ int main(int argc,char **args)
 				cols[count++] =  (xval[l]+i);    
 		
 		}
-   		ierr = MatSetValues(mat,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsggpu,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rows[i],count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-			 
+   		ierr = MatSetValues(mat,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
         }
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      AssemblyBegin/End as values can still remain in Cache
@@ -169,11 +194,12 @@ int main(int argc,char **args)
   	ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+#ifdef GPU
   	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
+#endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -190,38 +216,63 @@ int main(int argc,char **args)
 	printf("Reps = %d, m=%d,n=%d,p=%d\n",REP,m,n,p);
 
 	//CSR
+#ifdef PAPI
+if (PAPI_start_counters(Events, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+#endif
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("Events[%d]= %lld\n",e,values[e]);
+#endif
 	printf("\nCSR :\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
 	fflush(stdout);	
 	//SG (AVX)
 	OPENMP = 0;
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+#endif
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
 	end = rtclock();
-	printf("\nSG -AVX :\n");
-	printf("Time =%.3f \nGFLOPS= %.3f\n",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
- 	
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("Events[%d]= %lld\n",e,values[e]);
+#endif
+	printf("\nSG -AVX with Padding(original):\n");
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+
+#ifdef OMP
 	//SG (AVX+OPENMP)
 	OPENMP=1;
+	
+	omp_set_num_threads(NUM_THREADS);
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - AVX + OPENMP :\n");
-	printf("Time =%.3f \nGFLOPS= %.3f\n",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
+	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+#endif
 
+#ifdef GPU
 	//CSR GPU
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
-	printf("Time =%.3f \nGFLOPS= %.3f",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
 
 	//SG (GPU)
 	start = rtclock();	
@@ -229,8 +280,8 @@ int main(int argc,char **args)
   		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - GPU:\n");
-	printf("Time =%.3f \nGFLOPS= %.3f",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
-
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+#endif
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
@@ -242,30 +293,24 @@ int main(int argc,char **args)
 
 	printf("Y - Structgrid AVX:\n");
   	ierr = VecView(ysg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-	
+#ifdef OMP	
 	printf("Y - Structgrid AVX + OPENMP:\n");
   	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
+#endif
+#ifdef GPU
 	printf("Y - CSR CUSP(GPU):\n");
         ierr = VecView(ygpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	printf("Y - Structgrid GPU:\n");
         ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-	
+#endif	
 	}
-
-        //PetscScalar *xvec;
-        //PetscInt xsize;
-        //ierr = VecGetSize(ysggpu,&xsize);CHKERRQ(ierr);
-        //ierr = VecGetArray(ysggpu,&xvec);CHKERRQ(ierr);
-        //printf("xsize: %d\n",xsize);
-        //if(xsize>10) xsize=10;
-        //for(i=0;i<xsize;i++)printf("Xgpu[%d]: %f\n",i,xvec[i]);
 
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Correctness test
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-//	if(REP==1){call correctness instead?
+
+	if(REP==1){//correctness test only when REP =1, can be disabled if required
 		printf("\n\nCorrectness test : \n");
 		PetscReal norm, normsg,normsgomp;
 		PetscReal normsggpu;
@@ -280,7 +325,7 @@ int main(int argc,char **args)
 			printf("SG AVX Test Passed\n");
   	
 //		ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
+#ifdef OMP
 		ierr = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
 //		ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysgomp,NORM_2,&normsgomp); 
@@ -289,7 +334,8 @@ int main(int argc,char **args)
 			printf("SG AVX+Openmp Test Failed\n");
 		else 
 			printf("SG AVX+Openmp Test Passed\n");
-
+#endif
+#ifdef GPU
 		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
@@ -299,22 +345,32 @@ int main(int argc,char **args)
 			printf("SG GPU Test Failed\n");
 		else 
 			printf("SG GPU Test Passed\n");
-
-//	}
-    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+#endif
+	}
+  
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Cleaning
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	ierr = VecDestroy(&x);CHKERRQ(ierr); 
 	ierr = VecDestroy(&y);CHKERRQ(ierr);
   	ierr = VecDestroy(&ysg);CHKERRQ(ierr);
-  	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
+#ifdef OMP  
+	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
+#endif
 	ierr = MatDestroy(&mat);CHKERRQ(ierr);
 	ierr = MatDestroy(&matsg);CHKERRQ(ierr);
+#ifdef GPU
 	ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
 	ierr = VecDestroy(&ysggpu);CHKERRQ(ierr);
 	ierr = MatDestroy(&matgpu);CHKERRQ(ierr);
 	ierr = MatDestroy(&matsggpu);CHKERRQ(ierr);
-
+#endif
+ 	free(dims);
+  	free(starts);
+	free(offset);
+	free(xval);
+	free(cols);
+	free(vals);
   	ierr = PetscFinalize();
   return 0;
 }
