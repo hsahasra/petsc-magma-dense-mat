@@ -74,6 +74,7 @@ ex17: ex17.o  chkopts
 	${RM} ex17.o
 
 # See http://www.mcs.anl.gov/petsc/documentation/faq.html#datafiles for how to obtain the datafiles used below
+	-@${MPIEXEC}  ./exSG -m 2 -n 2 -p 2 -dof 2
 runex1:
 	-@${MPIEXEC} -n 1 ./ex1 -f0 ${DATAFILESPATH}/matrices/medium -viewer_binary_skip_info
 

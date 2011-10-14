@@ -141,12 +141,28 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * y,Petsc
 
 //MatMult Without Padding, with openmp, with software prefetching
 
-PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos )
+PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim )
 {
 	PetscInt i,j,k,l,xdisp,ydisp,zdisp;
 	PetscInt lda1 = m*n*p*dof;
-	PetscInt lda2 = m*n*dof;
+	PetscInt lda2  = 0;
+	if(dim == 3)
+	 lda2 = m*n*dof;
+	else
+	 lda2 = m*dof;
 	PetscInt lda3 = m*dof;
+	
+	PetscInt _smallval, _largeval, _startval;
+	if((lda2+(dof-1)) < (lda1-lda2-(dof-1)))
+	{
+		_smallval = (lda2+(dof-1));
+		_largeval = (lda1-lda2-(dof-1));
+	}
+	else
+	{
+		_largeval = (lda2+(dof-1));
+		_smallval = (lda1-lda2-(dof-1));
+	}
 
 	PetscInt xval[nos], offset[nos], vbeg[nos], vend[nos];
 	for(l=0;l<nos;l++)
@@ -161,7 +177,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 			xval[l] = 0; // xval, the starting column index is zero for negative stencils. 
 		}
 	}
-
+	
 	//printf("OPENMP=%d\n",OPENMP);
        	//printf("Thread=%d\n",omp_get_thread_num());
 	
@@ -225,7 +241,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	{
 		for(i=0;i<(2*dof-1);i++)
 		{
-			for(k=start(lda1-lda2-(dof-1),vbeg[l+i]);k<lda1-1-(dof-1); k++)
+			for(k=start(_largeval,vbeg[l+i]);k<lda1-1-(dof-1); k++)
 			{
 				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
 			}
@@ -233,14 +249,12 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	}
 /*   B part */
 	//#pragma omp for nowait private(l,i) 
-	for(k=dof;k<lda2+(dof-1); k++)
 	{
 		for(l=0;l<nos;l+=2*(2*dof-1))
 		{
 			for(i=0;i<(2*dof-1);i++)
 			{
 				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);
-	
 			}
 		}
 	}

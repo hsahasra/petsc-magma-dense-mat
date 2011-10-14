@@ -283,10 +283,9 @@ for(e=0;e<NUM_EVENTS;e++)
 #endif
 
 #ifdef GPU
-	//CSR GPU
 	start = rtclock();	
 	for(i=0;i<REP;i++)
-  		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
+		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
@@ -300,7 +299,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
 #endif
 
-    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+  */  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	if(info){
@@ -315,7 +314,6 @@ for(e=0;e<NUM_EVENTS;e++)
   	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 #ifdef GPU
-	printf("Y - CSR CUSP(GPU):\n");
         ierr = VecView(ygpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	printf("Y - Structgrid GPU:\n");
         ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -353,7 +351,6 @@ for(e=0;e<NUM_EVENTS;e++)
 			printf("SG AVX+Openmp Test Passed\n");
 #endif
 #ifdef GPU
-		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
 		printf("SG-GPU Norm         = %.6f\n",normsggpu);
