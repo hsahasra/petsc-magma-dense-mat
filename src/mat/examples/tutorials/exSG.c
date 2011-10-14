@@ -215,10 +215,10 @@ int main(int argc,char **args)
 	printf("\nSG - AVX + OPENMP :\n");
 	printf("Time =%.3f \nGFLOPS= %.3f\n",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
 
-	//CSR GPU
+/*	//CSR GPU
 	start = rtclock();	
 	for(i=0;i<REP;i++)
-  		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
+		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
 	printf("Time =%.3f \nGFLOPS= %.3f",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
@@ -232,7 +232,7 @@ int main(int argc,char **args)
 	printf("Time =%.3f \nGFLOPS= %.3f",end-start,REP*2*sg->stpoints*sg->nz/((end-start)*1024*1024*1024)); 
 
 
-    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+  */  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	if(info){
@@ -246,11 +246,11 @@ int main(int argc,char **args)
 	printf("Y - Structgrid AVX + OPENMP:\n");
   	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-	printf("Y - CSR CUSP(GPU):\n");
+/*	printf("Y - CSR CUSP(GPU):\n");
         ierr = VecView(ygpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	printf("Y - Structgrid GPU:\n");
         ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-	
+*/	
 	}
 
         //PetscScalar *xvec;
@@ -290,7 +290,7 @@ int main(int argc,char **args)
 		else 
 			printf("SG AVX+Openmp Test Passed\n");
 
-		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
+/*		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
 		printf("SG-GPU Norm         = %.6f\n",normsggpu);
@@ -299,7 +299,7 @@ int main(int argc,char **args)
 			printf("SG GPU Test Failed\n");
 		else 
 			printf("SG GPU Test Passed\n");
-
+*/
 //	}
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Cleaning

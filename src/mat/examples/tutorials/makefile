@@ -79,7 +79,7 @@ ex16: ex16.o  chkopts
 # See http://www.mcs.anl.gov/petsc/petsc-as/documentation/faq.html#datafiles for how to obtain the datafiles used below
 
 runexSG: 
-	-@${MPIEXEC}  ./exSG 
+	-@${MPIEXEC}  ./exSG -m 2 -n 2 -p 2 -dof 2
 
 runexSG2: 
 	-@${MPIEXEC}  ./exSG2 

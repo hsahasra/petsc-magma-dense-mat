@@ -140,7 +140,11 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	//openmp version
 	//ierr = SG_MatMultOpenmp(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 //......matmultintrinsic version 2
-	ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
+	if(a->p > 1)
+		ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints,3); 
+	else
+		ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints,2); 
+	CHKERRQ(ierr);
 
 
 //......matmultintrinsic
@@ -489,6 +493,7 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 	Mat_SeqSG * a = (Mat_SeqSG *)mat->data;
 	PetscFunctionBegin;
 	a->a = malloc(sizeof(PetscScalar)*a->nz*a->stpoints);
+	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->stpoints);
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }
