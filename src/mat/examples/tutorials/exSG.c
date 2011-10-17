@@ -20,7 +20,7 @@ static char help[] = "Simple program which does matrix vector multiplication usi
 #define NUM_EVENTS 4
 #endif
 
-PetscInt m=2,n=2,p=2,dim=3,dof=1;
+PetscInt m=1,n=1,p=1,dim=3,dof=1;
 PetscInt nos;
 PetscInt info=0;
 PetscReal normdiff = 1.0e-6;
@@ -95,9 +95,24 @@ int e;
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         Set dims[] and nz using n,dim and dof.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- 	dims = malloc(sizeof(PetscInt)*dim);
-	dims[0]=m;dims[1]=n;dims[2]=p;
-	nz=m*n*p*dof;
+ 	printf("dim=%d\n",dim);
+	//dims = malloc(sizeof(PetscInt)*dim);
+	dims = malloc(sizeof(PetscInt)*3);
+	dims[2]=1;
+	nz=1;
+	if(dim>0){
+	dims[0]=m;
+	nz=nz*m;
+	}
+	if(dim>1){
+	dims[1]=n;
+	nz=nz*n;
+	}
+	if(dim>2){
+	dims[2]=p;
+	nz=nz*p;	
+	}
+	nz=nz*dof;
 	nos = (dim*2+1)*(2*dof-1);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Create vectors.  Note that we form 1 vector from scratch and
@@ -213,7 +228,9 @@ int e;
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 	double start,end;
-	printf("Reps = %d, m=%d,n=%d,p=%d\n",REP,m,n,p);
+	for(i=0;i<dim;i++)
+	printf("dims[%d] = %d\n", i,dims[i]);
+	printf("Rep=%d\n",REP);
 
 	//CSR
 #ifdef PAPI
