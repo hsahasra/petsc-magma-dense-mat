@@ -94,7 +94,7 @@ PetscErrorCode MatCreate_SeqSG(Mat B)
 	ierr = MPI_Comm_size(((PetscObject)B)->comm, &size); CHKERRQ(ierr);
 	if (size > 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
 
-	b = malloc(sizeof(Mat_SeqSG));
+	ierr = PetscMalloc(sizeof(Mat_SeqSG),&b);CHKERRQ(ierr);CHKERRQ(ierr);
 	B->data = (void *)b;
 	memcpy(B->ops,&MatOps_Values,sizeof(struct _MatOps));
 	B->same_nonzero= PETSC_FALSE;
@@ -126,12 +126,12 @@ PetscErrorCode MatDestroy_SeqSG(Mat A)
 #if defined(PETSC_USE_LOG)
 	PetscLogObjectState((PetscObject)A,"X-size= %D, Y-size=%D, Z-size=%D, NZ=%D",a->m,a->n,a->p,a->nz*a->stpoints);
 #endif
-	free(a->a);
-	free(a->xt); 
-	free(a->idx);
-	free(a->idy);
-	free(a->idz);
-	free(a);
+	ierr = PetscFree(a->a);CHKERRQ(ierr);
+	ierr = PetscFree(a->xt);CHKERRQ(ierr);
+	ierr = PetscFree(a->idx);CHKERRQ(ierr);
+	ierr = PetscFree(a->idy);CHKERRQ(ierr);
+	ierr = PetscFree(a->idz);CHKERRQ(ierr);
+	ierr = PetscFree(a);CHKERRQ(ierr);
 
 	ierr = PetscObjectChangeTypeName((PetscObject)A, 0);CHKERRQ(ierr);
 	PetscFunctionReturn(0);
@@ -297,8 +297,8 @@ PetscErrorCode MatSetValuesBlocked_SeqSG(Mat A, PetscInt nrow,const PetscInt iro
 	Mat_SeqSG *mat = (Mat_SeqSG*)A->data;
 	PetscInt * idm, *idn, i, j, bs = mat->dof; 
 	PetscFunctionBegin;
-	idm = malloc(sizeof(PetscInt)* nrow * bs);
-	idn = malloc(sizeof(PetscInt)* ncol * bs);
+	ierr = PetscMalloc(sizeof(PetscInt)* nrow * bs,&idm);CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)* ncol * bs,&idn);CHKERRQ(ierr);
 	for(i=0;i<nrow;i++)
 		for(j=0;j<bs;j++)
 			idm[i*bs+j]= irow[i]*bs+j;
@@ -306,8 +306,8 @@ PetscErrorCode MatSetValuesBlocked_SeqSG(Mat A, PetscInt nrow,const PetscInt iro
 		for(j=0;j<bs;j++)
 			idn[i*bs+j]= icol[i]*bs+j;
 	MatSetValues_SeqSG(A,nrow*bs,idm,ncol*bs,idn,y,is);
-	free(idm);
-	free(idn);
+	ierr = PetscFree(idm);CHKERRQ(ierr);
+	ierr = PetscFree(idn);CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }	
 
@@ -325,9 +325,9 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof,rshift,cshift;
 	PetscFunctionBegin;	
 	
-	idx = malloc(nrow*ncol*sizeof(PetscInt));
-	idy = malloc(nrow*ncol*sizeof(PetscInt));
-	idz = malloc(nrow*ncol*sizeof(PetscInt));
+	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idx);CHKERRQ(ierr);
+	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idy);CHKERRQ(ierr);
+	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idz);CHKERRQ(ierr);
 	
 	m = mat->m;
 	n = mat->n;
@@ -372,9 +372,9 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 		}	
 	}
 	ierr = SetValues_SeqSG(mat,nrow*ncol,idx,idy,idz,y,is); CHKERRQ(ierr);
-	free(idx);
-	free(idy); 
-	free(idz);
+	ierr = PetscFree(idx);CHKERRQ(ierr);
+	ierr = PetscFree(idy);CHKERRQ(ierr);
+	ierr = PetscFree(idz);CHKERRQ(ierr);
 
 	
 	//Set the flag that indicates that matrix has changed on the CPU side.
@@ -431,9 +431,9 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	mat->nz = mat->dof * mat->m * mat->n * mat->p;
 	printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
 
-	mat->idx =  malloc (sizeof(PetscInt)*mat->stpoints);
-	mat->idy =  malloc (sizeof(PetscInt)*mat->stpoints);
-	mat->idz =  malloc (sizeof(PetscInt)*mat->stpoints);
+	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idx));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idy));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idz));CHKERRQ(ierr);
 /*Do not change the order of the stencil. MatMult depends on the order of these stencils.*/	
 	mat->idx[cnt] = 0; mat->idy[cnt]=0; mat->idz[cnt++]= 0;
 	for(i=1;i<dof;i++)
@@ -503,7 +503,7 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 	PetscFunctionBegin;
 	Mat_SeqSG * a = (Mat_SeqSG *)mat->data;
 	PetscFunctionBegin;
-	a->a = malloc(sizeof(PetscScalar)*a->nz*a->stpoints);
+	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->stpoints,&(a->a));CHKERRQ(ierr);
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }
@@ -575,14 +575,14 @@ PetscErrorCode MatGetRow_SeqSG(Mat A, PetscInt row, PetscInt * nz, PetscInt **id
         // printf("grC\n");
 
         if(idx!=PETSC_NULL){
-          //  printf("in idx malloc start.\n");
+          //  printf("in idx PetscMalloc start.\n");
           ierr = PetscMalloc(sizeof(PetscInt)*a->stpoints*a->dof,idx);CHKERRQ(ierr);
           for(j=0;j<a->stpoints;j++)(*idx)[j] = j;
 
 	}
         // printf("grD\n");
         if(v!=PETSC_NULL){
-          //  printf("in v malloc start.\n");
+          //  printf("in v PetscMalloc start.\n");
            ierr = PetscMalloc(sizeof(PetscScalar)*a->stpoints*a->dof,v);CHKERRQ(ierr);
            for(j=0;j<a->stpoints;j++)(*v)[j] = a->a[row+ j*a->nz];
          }
