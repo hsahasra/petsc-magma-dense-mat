@@ -153,12 +153,12 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	{
 		xdisp = idx[l]; ydisp = idy[l] ; zdisp = idz[l]; offset[l] = l*lda1;
 	 	xval[l] = xdisp + ydisp*lda3 + zdisp*lda2;
-		vbeg[l] = 0; vend[l] = m*dof*n*p;
-		if(xval[l] > 0) vend[l] -= xval[l];
+		vbeg[l] = 0; vend[l] = m*dof*n*p; // be fault the boundaries are 0 to Nz
+		if(xval[l] > 0) vend[l] -= xval[l]; // for the positive stencils vend = Nz- xval
 		else
 		{
-			vbeg[l] -= xval[l];
-			xval[l] = 0;
+			vbeg[l] -= xval[l]; // for the negative stencils vbeg is +-xval
+			xval[l] = 0; // xval, the starting column index is zero for negative stencils. 
 		}
 	}
 
@@ -173,11 +173,11 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 
 /* A Part */	
 	//#pragma omp for nowait private(i,k) 
-	for(l=0;l<nos;l+=2*(2*dof-1))
+	for(l=0;l<nos;l+=2*(2*dof-1))// for the stencils 000 and positive ones(100,010 etc)
 	{
-		for(i=0;i<(2*dof-1);i++)
+		for(i=0;i<(2*dof-1);i++)// for all degrees of freedom
 		{
-			for(k=vbeg[l+i];k<dof; k++)
+			for(k=vbeg[l+i];k<dof; k++) //vbeg[l+i] = starting y(row) index, few vbegs are non zeros when dof>1
 			{
 				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
 			}
@@ -185,11 +185,11 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	}
 /* F Part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1)) // for the negative stencils ie. 1, 3, 6 etc 
 	{
-		for(i=0;i<(2*dof-1);i++)
+		for(i=0;i<(2*dof-1);i++) 
 		{
-			for(k=vbeg[l+i];k<(lda2+(dof-1)); k++)
+			for(k=vbeg[l+i];k<(lda2+(dof-1)); k++)//starting indices vary whereas ending index would be m*n*dof+(dof-1)
 			{
 				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
 			}
