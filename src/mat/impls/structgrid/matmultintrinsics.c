@@ -246,17 +246,25 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		}
 	}
 //   E part 
+/*#pragma omp parallel if(OPENMP) firstprivate(lda1,lda2,xval,vbeg,vend,offset,dof,nos,x,coeff) shared(y) private(yv,xv,coeffv,xv1,coeffv1) default(none)
+{
 
+#if (SV_DOUBLE_WIDTH > 2)
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv,xv2,xv3,coeffv2,coeffv3) 
+#elif (SV_DOUBLE_WIDTH > 1)
+	#pragma omp for nowait private(l,xv,coeffv,xv1,coeffv1,yv) 
+#endif
+*/
 #if (SV_DOUBLE_WIDTH > 2)
 	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1,xv2,xv3,coeffv2,coeffv3)
 #elif (SV_DOUBLE_WIDTH > 1)
-	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1)
+#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1)
 #endif
 {
 #pragma omp for nowait private(l)
 	for(k=lda2+(dof-1);k<=lda1-lda2-(dof-1)-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
 	{
-       //	printf("Thread=%d\n,k=%d",omp_get_thread_num(),k);
+       	//printf("Thread=%d\n,k=%d",omp_get_thread_num(),k);
 		yv = _sv_loadu_pd((PetscScalar *)(y+k));
 		for(l=0;l<=(nos-SV_DOUBLE_WIDTH);l+=SV_DOUBLE_WIDTH)
 		{
@@ -279,6 +287,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 #if (SV_DOUBLE_WIDTH > 1)
 			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l+1]+k-vbeg[l+1]));
 #endif
+
 
 #if (SV_DOUBLE_WIDTH > 2)
 			xv2 = _sv_loadu_pd((PetscScalar *)(x+xval[l+2]+k-vbeg[l+2]));
@@ -316,7 +325,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
 	}
 }
-	for(;k<lda1-lda2-(dof-1);k++){
+	for(k=(lda1-lda2-(dof-1))-((lda1-lda2-(dof-1)-(lda2+(dof-1)))%SV_DOUBLE_WIDTH);k<lda1-lda2-(dof-1);k++){//k has to be initialized for the present platform(probably due to gcc 1.2.4. It can probably be removed when GCC is upgraded.
 		for(l=0;l<nos;l++)
 		{
 			y[k] += (coeff[offset[l]+k] * x[(xval[l]+k-vbeg[l])]);		
