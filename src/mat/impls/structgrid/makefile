@@ -1,7 +1,7 @@
 
 ALL: lib
 
-CFLAGS   =
+CFLAGS   = -fopenmp
 FFLAGS   =
 SOURCEC  = matstructgrid.c matmultintrinsics.c matmulopenmp.c
 SOURCEF  = 
