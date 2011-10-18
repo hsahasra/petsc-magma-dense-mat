@@ -163,44 +163,162 @@ int e;
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  	//ierr = VecSet(x,one);CHKERRQ(ierr);//this can be modified such that x holds random values
+//  	ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
 	ierr = VecSetRandom(x,PETSC_NULL);
 
-	cols = malloc(sizeof(PetscInt)*nos);
-	vals = malloc(sizeof(PetscScalar)*nos);
+	cols = malloc(sizeof(PetscInt)*dof);
+	vals = malloc(sizeof(PetscScalar)*dof);
 	
 	Mat_SeqSG * sg = (Mat_SeqSG*) matsg->data;
 	
-	PetscInt k,l;
+	PetscInt j,k,l;
         PetscInt lda1 = m*n*p*dof;
         PetscInt lda2 = m*n*dof;
         PetscInt lda3 = m*dof;
+	PetscInt rowval = 0;
 
-	PetscInt *offset = malloc(sizeof(PetscInt)*nos);
-	PetscInt *xval = malloc(sizeof(PetscInt)*nos);
-	for(l=0;l<nos;l++)
-        {
-                offset[l] = l*lda1;
-                xval[l] = sg->idx[l] + sg->idy[l]*lda3 + sg->idz[l]*lda2;
-        }
-	PetscInt count;
 	printf("nos=%d,nz=%d\n",nos,nz);
-	for(i=0;i<nz;i++)
+	for(i=0;i<(m*n*p);i++)
 	{
-		count=0;
-		for(l=0;l<nos;l++)
-        	{
-                        vals[count] = simple_rand();
-			if(xval[l]+i<nz)
-				cols[count++] =  (xval[l]+i);    
-		
-		}
-   		ierr = MatSetValues(mat,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+		if(dim > 2)
+		{
+		j = i - m * n;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 #ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 #endif
+			}
+		}
+		j = i + m * n;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
+			}
+		}
+		}
+		if(dim > 1)
+		{
+		j = i - m;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
+			}
+		}
+		j = i + m;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
+			}
+		}
+		}
+		j = i - 1;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
+			}
+		}
+		j = i;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
+			}
+		}
+		j = i + 1;
+		if(j >= 0 && j < m*n*p)
+		{
+			for(l=0;l<dof;l++)
+			{
+				for(k=0;k<dof;k++)	
+				{
+					vals[k] = simple_rand();
+					cols[k] = j*dof+k; 
+				}
+				rowval = i*dof+l;
+   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#ifdef GPU
+		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+#endif
+			}
+		}
         }
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      AssemblyBegin/End as values can still remain in Cache
@@ -384,8 +502,6 @@ for(e=0;e<NUM_EVENTS;e++)
 #endif
  	free(dims);
   	free(starts);
-	free(offset);
-	free(xval);
 	free(cols);
 	free(vals);
   	ierr = PetscFinalize();
