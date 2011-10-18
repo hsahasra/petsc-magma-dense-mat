@@ -223,11 +223,11 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	}
 /*   C part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	for(k=_largeval;k<lda1; k++)
 	{
-		for(i=0;i<(2*dof-1);i++)
+		for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
 		{
-			for(k=_largeval;k<vend[l+i]; k++)
+			for(i=0;i<(2*dof-1);i++)
 			{
 				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
 			}
