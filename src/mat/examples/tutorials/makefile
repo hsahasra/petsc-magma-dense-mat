@@ -1,5 +1,5 @@
 
-CFLAGS 	        = 
+CFLAGS 	        = -fopenmp 
 FFLAGS	        = 
 CPPFLAGS        = 
 FPPFLAGS        =
@@ -79,7 +79,7 @@ ex16: ex16.o  chkopts
 # See http://www.mcs.anl.gov/petsc/petsc-as/documentation/faq.html#datafiles for how to obtain the datafiles used below
 
 runexSG: 
-	-@${MPIEXEC}  ./exSG -m 2 -n 2 -p 2 -dof 2
+	-@${MPIEXEC}  ./exSG -m 2 -n 2 -p 1 -dof 2 -dim 2
 
 runexSG2: 
 	-@${MPIEXEC}  ./exSG2 

@@ -414,8 +414,14 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	mat->stpoints = (2*dim+1)*(2*dof-1);
 	// neighbors are considered to be one step away
 	mat->dis = 1;
+	mat->m=1;
+	mat->n=1;
+	mat->p=1;
+	if(dim>0)
 	mat->m=dims[0];
+	if(dim>1)
 	mat->n=dims[1];
+	if(dim>2)
 	mat->p=dims[2];
 	mat->nz = mat->dof * mat->m * mat->n * mat->p;
 	printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
