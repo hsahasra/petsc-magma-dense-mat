@@ -1,5 +1,4 @@
 #include <string.h>
-#define start(a,b) (a)>(b)?(a):(b)
 
 #include<omp.h>
 int OPENMP=0;
@@ -177,7 +176,6 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 			xval[l] = 0; // xval, the starting column index is zero for negative stencils. 
 		}
 	}
-	
 	//printf("OPENMP=%d\n",OPENMP);
        	//printf("Thread=%d\n",omp_get_thread_num());
 	
@@ -223,25 +221,13 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 			}
 		}
 	}
-/*   D part */
-	//#pragma omp for nowait private(i,k) 
-	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
-	{
-		for(i=0;i<(2*dof-1);i++)
-		{
-			for(k=lda1-1-(dof-1);k<vend[l+i]; k++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
-		}
-	}
 /*   C part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+	for(k=_largeval;k<lda1; k++)
 	{
-		for(i=0;i<(2*dof-1);i++)
+		for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
 		{
-			for(k=start(_largeval,vbeg[l+i]);k<lda1-1-(dof-1); k++)
+			for(i=0;i<(2*dof-1);i++)
 			{
 				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
 			}
@@ -249,6 +235,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	}
 /*   B part */
 	//#pragma omp for nowait private(l,i) 
+	for(k=dof;k<_smallval; k++)
 	{
 		for(l=0;l<nos;l+=2*(2*dof-1))
 		{
@@ -329,8 +316,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
 	}
 }
-	//for(;k<lda1-lda2-(dof-1);k++){
-	for(k=(lda1-lda2-(dof-1))-((lda1-lda2-(dof-1)-lda2)%SV_DOUBLE_WIDTH);k<lda1-lda2-(dof-1);k++){
+	for(;k<lda1-lda2-(dof-1);k++){
 		for(l=0;l<nos;l++)
 		{
 			y[k] += (coeff[offset[l]+k] * x[(xval[l]+k-vbeg[l])]);		
