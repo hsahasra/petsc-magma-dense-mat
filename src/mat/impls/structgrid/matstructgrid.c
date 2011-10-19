@@ -424,7 +424,7 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	if(dim>2)
 	mat->p=dims[2];
 	mat->nz = mat->dof * mat->m * mat->n * mat->p;
-	printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
+	//printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
 
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idx));CHKERRQ(ierr);
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idy));CHKERRQ(ierr);
@@ -434,6 +434,46 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 	for(i=1;i<dof;i++)
 	{
 		mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+	}
+	if(dim>0)
+	{	
+		mat->idx[cnt] = dof; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = dof+i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+		}
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+		}
+	}	
+	if(dim>1)
+	{
+		mat->idx[cnt] = 0; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
+		}
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = -i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
+		}
+	}	
+	if(dim>2)
+	{
+		mat->idx[cnt] = 0; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
+		}
+		for(i=1;i<dof;i++)
+		{
+			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
+		}
+	}	
+
+	for(i=1;i<dof;i++)
+	{
 		mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
 	}
 	if(dim>0)
@@ -442,15 +482,11 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 		for(i=1;i<dof;i++)
 		{
 			mat->idx[cnt] = -dof+i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
-			mat->idx[cnt] = -dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
 		}
-			
-		mat->idx[cnt] = dof; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
 		for(i=1;i<dof;i++)
 		{
-			mat->idx[cnt] = dof+i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
-			mat->idx[cnt] = dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
-		}	
+			mat->idx[cnt] = -dof-i; mat->idy[cnt] = 0; mat->idz[cnt++] = 0;
+		}
 	}
 	if(dim>1)
 	{
@@ -458,15 +494,11 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 		for(i=1;i<dof;i++)
 		{
 			mat->idx[cnt] = i; mat->idy[cnt] = -1; mat->idz[cnt++] = 0;
-			mat->idx[cnt] = -i; mat->idy[cnt] = -1; mat->idz[cnt++] = 0;
 		}
-			
-		mat->idx[cnt] = 0; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
 		for(i=1;i<dof;i++)
 		{
-			mat->idx[cnt] = i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
-			mat->idx[cnt] = -i; mat->idy[cnt] = 1; mat->idz[cnt++] = 0;
-		}	
+			mat->idx[cnt] = -i; mat->idy[cnt] = -1; mat->idz[cnt++] = 0;
+		}
 	}
 	if(dim>2)
 	{
@@ -474,17 +506,15 @@ PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],con
 		for(i=1;i<dof;i++)
 		{
 			mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = -1;
-			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = -1;
 		}
-			
-		mat->idx[cnt] = 0; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
 		for(i=1;i<dof;i++)
 		{
-			mat->idx[cnt] = i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
-			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = 1;
-		}	
-	}	
+			mat->idx[cnt] = -i; mat->idy[cnt] = 0; mat->idz[cnt++] = -1;
+		}
+	}
  	PetscFunctionReturn(0);	
+
+
 }
 
 /** MatSetUpPreallocation_SeqSG : Allocates space for coefficient matrix

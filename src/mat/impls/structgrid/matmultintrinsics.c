@@ -151,7 +151,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	 lda2 = m*dof;
 	PetscInt lda3 = m*dof;
 	
-	PetscInt _smallval, _largeval, _startval;
+	PetscInt _smallval, _largeval, _secondhalf;
 	if((lda2+(dof-1)) < (lda1-lda2-(dof-1)))
 	{
 		_smallval = (lda2+(dof-1));
@@ -162,6 +162,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		_largeval = (lda2+(dof-1));
 		_smallval = (lda1-lda2-(dof-1));
 	}
+	_secondhalf = dof + dim * (2*dof-1);
 
 	PetscInt xval[nos], offset[nos], vbeg[nos], vend[nos];
 	for(l=0;l<nos;l++)
@@ -179,70 +180,45 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	//printf("OPENMP=%d\n",OPENMP);
        	//printf("Thread=%d\n",omp_get_thread_num());
 	
-	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
+	__sv_dtype yv, xv, coeffv, xv1, coeffv1;
 #ifdef __AVX__
 	__sv_dtype xv2, coeffv2, xv3, coeffv3;
 #endif
 
-
-/* A Part */	
-	//#pragma omp for nowait private(i,k) 
-	for(l=0;l<nos;l+=2*(2*dof-1))// for the stencils 000 and positive ones(100,010 etc)
-	{
-		for(i=0;i<(2*dof-1);i++)// for all degrees of freedom
-		{
-			for(k=vbeg[l+i];k<dof; k++) //vbeg[l+i] = starting y(row) index, few vbegs are non zeros when dof>1
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
-		}
-	}
 /* F Part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1)) // for the negative stencils ie. 1, 3, 6 etc 
+	for(l=_secondhalf;l<nos;l++) // for the negative stencils ie. 1, 3, 6 etc 
 	{
-		for(i=0;i<(2*dof-1);i++) 
+		for(k=vbeg[l];k<(lda2+(dof-1)); k++)//starting indices vary whereas ending index would be m*n*dof+(dof-1)
 		{
-			for(k=vbeg[l+i];k<(lda2+(dof-1)); k++)//starting indices vary whereas ending index would be m*n*dof+(dof-1)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
+			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);	
 		}
 	}
 /*   G part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=0;l<nos;l+=2*(2*dof-1))
+	for(l=0;l<_secondhalf;l++)
 	{
-		for(i=0;i<(2*dof-1);i++)
+		for(k=(lda1-lda2-(dof-1));k<vend[l]; k++)
 		{
-			for(k=(lda1-lda2-(dof-1));k<vend[l+i]; k++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
+			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);	
 		}
 	}
 /*   C part */
 	//#pragma omp for nowait private(i,k) 
 	for(k=_largeval;k<lda1; k++)
 	{
-		for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+		for(l=_secondhalf;l<nos;l++)
 		{
-			for(i=0;i<(2*dof-1);i++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
+			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);	
 		}
 	}
 /*   B part */
 	//#pragma omp for nowait private(l,i) 
-	for(k=dof;k<_smallval; k++)
+	for(k=0;k<_smallval; k++)
 	{
-		for(l=0;l<nos;l+=2*(2*dof-1))
+		for(l=0;l<_secondhalf;l++)
 		{
-			for(i=0;i<(2*dof-1);i++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);
-			}
+			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);
 		}
 	}
 //   E part 
