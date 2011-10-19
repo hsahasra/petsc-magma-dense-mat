@@ -186,14 +186,14 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 #endif
 
 /* F Part */
-	//#pragma omp for nowait private(i,k) 
+        //#pragma omp for nowait private(i,k)
 	for(l=_secondhalf;l<nos;l++) // for the negative stencils ie. 1, 3, 6 etc 
 	{
 		for(k=vbeg[l];k<(lda2+(dof-1)); k++)//starting indices vary whereas ending index would be m*n*dof+(dof-1)
 		{
 			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);	
-		}
-	}
+                }
+        }
 /*   G part */
 	//#pragma omp for nowait private(i,k) 
 	for(l=0;l<_secondhalf;l++)
@@ -255,6 +255,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	{
 		for(l=_secondhalf;l<nos;l++)
 		{
+                        y[k] += coeff[offset[l]+k] * x[xval[l]+k-vbeg[l]];
 		}
 	}
 /*   B part */
