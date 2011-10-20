@@ -165,6 +165,12 @@ OPENMP=0;
 					{
 						vals[k] = simple_rand();
 						cols[k] = j*dof+k; 
+						cols[k] = j*dof+k; 
+					}
+					rowval = i*dof+l;
+   					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+				}
+			}
 					}
 					rowval = i*dof+l;
    					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
@@ -172,6 +178,7 @@ OPENMP=0;
 			}
 		}
         }
+
 
   
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -237,6 +244,7 @@ for(e=0;e<NUM_EVENTS;e++)
    					ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 				}
 			}
+			}
 		}
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -245,7 +253,6 @@ for(e=0;e<NUM_EVENTS;e++)
 if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
 	printf("Sg start error\n");
 #endif
-
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
