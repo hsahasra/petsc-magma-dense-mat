@@ -140,8 +140,12 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	//openmp version
 	//ierr = SG_MatMultOpenmp(v,xx,yy,a->xt,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 //......matmultintrinsic version 2
+	size =  (a->stpoints/(2*a->dof-1))*a->m*a->n*a->p - (2 * (1+a->m));
 	if(a->p > 1)
+	{
 		ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints,3); 
+		size -= 2*a->m*a->n;
+	}
 	else
 		ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints,2); 
 	CHKERRQ(ierr);
@@ -157,7 +161,7 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 //        ierr = SG_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,a->dof,a->stpoints); CHKERRQ(ierr);
 	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
-	ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
+	ierr = PetscLogFlops(2*size*a->dof*a->dof); CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
 
