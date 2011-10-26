@@ -103,6 +103,7 @@ int main(int argc,char **argv)
      vectors that are the same types
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(user.da,&x);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&r);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -269,14 +270,17 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X)
  */
 PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
 {
+  //FormFunction(snes,x,r,(void*)&user);
   AppCtx         *user = (AppCtx*)ptr;
   PetscErrorCode ierr;
   PetscInt       i,j,k,Mx,My,Mz,xs,ys,zs,xm,ym,zm;
   PetscReal      two = 2.0,lambda,hx,hy,hz,hxhzdhy,hyhzdhx,hxhydhz,sc;
   PetscScalar    u_north,u_south,u_east,u_west,u_up,u_down,u,u_xx,u_yy,u_zz,***x,***f;
+  PetscScalar    testx, testf;
   Vec            localX;
 
   PetscFunctionBeginUser;
+  ierr = DMSetVecType(user->da,VECSEQGPU);CHKERRQ(ierr); ///added by dlowell
   ierr = DMGetLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = DMDAGetInfo(user->da,PETSC_IGNORE,&Mx,&My,&Mz,PETSC_IGNORE,PETSC_IGNORE,
                      PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);
@@ -296,28 +300,35 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
      By placing code between these two statements, computations can be
      done while messages are in transition.
   */
+  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>A\n");
   ierr = DMGlobalToLocalBegin(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-
+  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>B\n");
   /*
      Get pointers to vector data
   */
   ierr = DMDAVecGetArray(user->da,localX,&x);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(user->da,F,&f);CHKERRQ(ierr);
-
+  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>C\n");
   /*
      Get local grid boundaries
   */
   ierr = DMDAGetCorners(user->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-
+  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>D\n");
   /*
      Compute function over the locally owned part of the grid
   */
   for (k=zs; k<zs+zm; k++) {
+    //printf("K: %d\n",k);
     for (j=ys; j<ys+ym; j++) {
+      // printf("J: %d\n",j);
       for (i=xs; i<xs+xm; i++) {
+        // printf("I: %d\n",i);
         if (i == 0 || j == 0 || k == 0 || i == Mx-1 || j == My-1 || k == Mz-1) {
+          testx= x[k][j][i];
+          //printf("FormFunction>>>>Pre f[%d][%d][%d]\n",k,j,i);
           f[k][j][i] = x[k][j][i];
+          //printf("FormFunction>>>>Post f[%d][%d][%d]\n",k,j,i);
         } else {
           u          = x[k][j][i];
           u_east     = x[k][j][i+1];
@@ -334,7 +345,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
       }
     }
   }
-
+  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>>>>>E\n");
   /*
      Restore vectors
   */
@@ -342,6 +353,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   ierr = DMDAVecRestoreArray(user->da,F,&f);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = PetscLogFlops(11.0*ym*xm);CHKERRQ(ierr);
+  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>>>>>F\n");
   PetscFunctionReturn(0);
 }
 /* ------------------------------------------------------------------- */

@@ -20,6 +20,9 @@
 #include "petscbt.h"
 #include "petscmat.h"
 #include "../src/mat/impls/aij/seq/aij.h"  
+#include "petscconf.h"
+#include "petscsys.h"
+#include "petscvec.h"
 
 
 //#include <immintrin.h>
@@ -62,39 +65,40 @@ static struct _MatOps MatOps_Values = {
 Added by Deepan */
 #undef __FUNCT__ 
 #define __FUNCT__ "MatSetGrid_SeqSG"
-
-PetscErrorCode MatSetGrid_SeqSG(Mat B, PetscInt m, PetscInt n, PetscInt p)
-{
-	Mat_SeqSG * b = (Mat_SeqSG*) B->data;
-	PetscErrorCode ierr;
-	
+PetscErrorCode MatSetGrid_SeqSG(Mat B, PetscInt m, PetscInt n, PetscInt p){
 	PetscFunctionBegin;
-
-	if(m <= 0 || n <= 0 || p <= 0 ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Grid Dimension should be atleast 1");
+        Mat_SeqSG * b = (Mat_SeqSG*) B->data;
+	PetscErrorCode ierr;
+	if(m <= 0 || n <= 0 || p <= 0 ){ 
+          SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,
+                 "Grid Dimension should be atleast 1");
+        }
 
 	b->m = m;
 	b->n = n;
 	b->p = p;
-	b->nz = m*n*p*b->dof;
+        /*	b->nz = m*n*p*b->dof;
+        b->lda3 = b->m*b->dof;
+        b->lda2 = b->lda3*b->n;
+        b->lda1 = b->lda2*b->p;
+         b->matsize = b->lda1*b->stpoints; */
 	PetscFunctionReturn(0);
 }
 
 /** MatCreate_SeqSG : Creates the struct grid representation 
 Added by Deepan */
+
 #undef __FUNCT__
 #define __FUNCT__ "MatCreate_SeqSG"
-
 PetscErrorCode MatCreate_SeqSG(Mat B)
 {
 	Mat_SeqSG * b;
 	PetscErrorCode ierr;
 	PetscMPIInt size;
 	PetscFunctionBegin;
-
 	ierr = MPI_Comm_size(((PetscObject)B)->comm, &size); CHKERRQ(ierr);
 	if (size > 1) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
-
-	ierr = PetscMalloc(sizeof(Mat_SeqSG),&b);CHKERRQ(ierr);CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(Mat_SeqSG),&b);CHKERRQ(ierr);
 	B->data = (void *)b;
 	memcpy(B->ops,&MatOps_Values,sizeof(struct _MatOps));
 	B->same_nonzero= PETSC_FALSE;
@@ -109,8 +113,11 @@ PetscErrorCode MatCreate_SeqSG(Mat B)
 	b->idx = PETSC_NULL;
 	b->idy = PETSC_NULL;
 	b->idz = PETSC_NULL;
+        b->devptr = PETSC_NULL;
+        b->syncState = MAT_UNALLOC;
+        b->lifetime = MAT_PERSIST;
 	ierr = PetscObjectChangeTypeName((PetscObject)B, MATSTRUCTGRID); CHKERRQ(ierr);
-	PetscFunctionReturn(0);	
+	PetscFunctionReturn(0);
 }
 
 
@@ -147,7 +154,7 @@ PetscErrorCode MatMult_SeqSG(Mat mat, Vec x, Vec y)
 	PetscInt size, i;
 	Mat_SeqSG * a = (Mat_SeqSG *) mat->data;
 	PetscScalar * v = a->a, *xx,*yy;
-	
+        //printf("MatMULT in SeqSG\n");
 	PetscFunctionBegin;
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
@@ -294,7 +301,6 @@ PetscErrorCode SG_MatMult(PetscScalar * coeff, PetscScalar * xi, PetscScalar * x
 Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetValuesBlocked_SeqSG"
-
 PetscErrorCode MatSetValuesBlocked_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], PetscInt ncol,const PetscInt icol[], const PetscScalar y[], InsertMode is)
 {
 	PetscErrorCode ierr;
@@ -319,7 +325,6 @@ PetscErrorCode MatSetValuesBlocked_SeqSG(Mat A, PetscInt nrow,const PetscInt iro
 Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetValues_SeqSG"
-
 PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], PetscInt ncol ,const PetscInt icol[],const PetscScalar y[], InsertMode is)
 {//(*AIJ,1,&i,nz,cols,vals,INSERT_VALUES);
   // printf("..............call to MatSetValues_SeqSG()\n");
@@ -332,13 +337,14 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idx);CHKERRQ(ierr);
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idy);CHKERRQ(ierr);
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idz);CHKERRQ(ierr);
-	
-	m = mat->m;
+       
+	dof = mat->dof;
+ 	m = mat->m;
 	n = mat->n;
 	p = mat->p;
-	stp = mat->stpoints;
+	stp = mat->stpoints; 
 	dis = mat->dis;
-	dof = mat->dof;
+
 	
 	//printf("dof: %d, m: %d, n: %d\n",dof,m,n);
         //printf("m=%d, n=%d, p=%d, stp=%d, dis=%d, dof=%d\n",m,n,p,stp,dis,dof);
@@ -379,21 +385,20 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	ierr = PetscFree(idx);CHKERRQ(ierr);
 	ierr = PetscFree(idy);CHKERRQ(ierr);
 	ierr = PetscFree(idz);CHKERRQ(ierr);
-
 	
-	//Set the flag that indicates that matrix has changed on the CPU side.
-        //This flag is used while copying the matrix to GPU.
-        //Added by Chekuri S. Choudary 
-	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
-	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
-
+	/* Set the flag that indicates that matrix has changed on the CPU side.
+           This flag is used while copying the matrix to GPU.
+           Added by Chekuri S. Choudary */
+	if (mat->syncState != MAT_UNALLOC)mat->syncState = MAT_CPU;
 	PetscFunctionReturn(0);
 }
 
 /** MatSetValuesBlocked_SeqSG : Sets the values in the matrix with the 3d indices supplied
 Added by Deepan */
-PetscErrorCode SetValues_SeqSG(Mat_SeqSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[],const  PetscScalar data[], InsertMode is)
-{
+#undef __FUNCT__
+#define __FUNCT__ "SetValues_SeqSG"
+PetscErrorCode SetValues_SeqSG(Mat_SeqSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[],const  PetscScalar data[], InsertMode is){
+  PetscFunctionBegin;
 	PetscInt i, mx = mat->m, ny= mat->n, pz = mat->p, dof = mat->dof;
 	PetscInt lda1 = mx*dof*ny, lda2 = mx*dof;
 	if(is == ADD_VALUES)
@@ -418,22 +423,27 @@ Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatSetStencil_SeqSG"
 
-PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],const PetscInt starts[], PetscInt dof)
-{
-	Mat_SeqSG * mat = (Mat_SeqSG *)A->data;
+PetscErrorCode MatSetStencil_SeqSG(Mat A, PetscInt dim,const PetscInt dims[],const PetscInt starts[], PetscInt dof){
+ PetscFunctionBegin;
+ Mat_SeqSG * mat = (Mat_SeqSG *)A->data;
 	PetscInt i,cnt=0;
 	PetscErrorCode ierr;
 
 	mat->dof = dof;
 	// number of stencil displacements per stencil neighbor is given by 2*dof-1
 	mat->stpoints = (2*dim+1)*(2*dof-1);
+
 	// neighbors are considered to be one step away
 	mat->dis = 1;
 	mat->m=dims[0];
 	mat->n=dims[1];
 	mat->p=dims[2];
 	mat->nz = mat->dof * mat->m * mat->n * mat->p;
-	printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
+	//printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
+        mat->lda3 = mat->m*mat->dof;
+        mat->lda2 = mat->lda3*mat->n;
+        mat->lda1 = mat->lda2*mat->p;
+        mat->matsize = mat->lda1*mat->stpoints;
 
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idx));CHKERRQ(ierr);
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idy));CHKERRQ(ierr);
@@ -518,13 +528,12 @@ Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatZeroEntries_SeqSG"
 
-PetscErrorCode MatZeroEntries_SeqSG(Mat A)
-{
+PetscErrorCode MatZeroEntries_SeqSG(Mat A){
 	Mat_SeqSG * a = (Mat_SeqSG *)A->data;
 	PetscFunctionBegin;
 	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->stpoints);
-	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
-	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
+	if (a->syncState != MAT_UNALLOC)
+	    a->syncState = MAT_CPU;
 
 	PetscFunctionReturn(0);
 }
@@ -533,9 +542,7 @@ PetscErrorCode MatZeroEntries_SeqSG(Mat A)
 Added by Deepan */
 #undef __FUNCT__
 #define __FUNCT__ "MatGetDiagonal_SeqSG"
-
-PetscErrorCode MatGetDiagonal_SeqSG(Mat A, Vec v)
-{
+PetscErrorCode MatGetDiagonal_SeqSG(Mat A, Vec v){
 	PetscErrorCode ierr;
 	Mat_SeqSG * a = (Mat_SeqSG *) A->data;
 	PetscScalar *x;

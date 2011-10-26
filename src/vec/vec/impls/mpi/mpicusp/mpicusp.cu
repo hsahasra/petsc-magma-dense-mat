@@ -27,6 +27,7 @@ PetscErrorCode VecDestroy_MPICUSP(Vec v)
   PetscFunctionReturn(0);
 }
 
+
 #undef __FUNCT__
 #define __FUNCT__ "VecNorm_MPICUSP"
 PetscErrorCode VecNorm_MPICUSP(Vec xin,NormType type,PetscReal *z)

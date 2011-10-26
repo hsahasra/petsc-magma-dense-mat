@@ -30,7 +30,7 @@ PetscErrorCode KSPSetUp_BCGS(KSP ksp)
 PetscErrorCode KSPSolve_BCGS(KSP ksp)
 {
   PetscErrorCode ierr;
-  PetscInt       i;
+  PetscInt       i,j;
   PetscScalar    rho,rhoold,alpha,beta,omega,omegaold,d1;
   Vec            X,B,V,P,R,RP,T,S;
   PetscReal      dp    = 0.0,d2;
@@ -80,13 +80,24 @@ PetscErrorCode KSPSolve_BCGS(KSP ksp)
   ierr     = VecSet(P,0.0);CHKERRQ(ierr);
   ierr     = VecSet(V,0.0);CHKERRQ(ierr);
 
+  //  PetscScalar *xvec;
+  //PetscInt xsize;
+
   i=0;
   do {
     ierr = VecDot(R,RP,&rho);CHKERRQ(ierr);       /*   rho <- (r,rp)      */
     beta = (rho/rhoold) * (alpha/omegaold);
     ierr = VecAXPBYPCZ(P,1.0,-omegaold*beta,beta,R,V);CHKERRQ(ierr);  /* p <- r - omega * beta* v + beta * p */
     ierr = KSP_PCApplyBAorAB(ksp,P,V,T);CHKERRQ(ierr);  /*   v <- K p           */
-    ierr = VecDot(V,RP,&d1);CHKERRQ(ierr);
+ 
+    //ierr = VecGetSize(V,&xsize);CHKERRQ(ierr);
+    //ierr = VecGetArray(V,&xvec);CHKERRQ(ierr);
+    //printf("Vsize: %d\n",xsize);
+    //if(xsize>10) xsize=10;
+    //for(j=0;j<xsize;j++)printf("V[%d]: %f\n",j,xvec[j]);
+
+
+   ierr = VecDot(V,RP,&d1);CHKERRQ(ierr);
     if (d1 == 0.0) {
       if (ksp->errorifnotconverged) SETERRQ(PetscObjectComm((PetscObject)ksp),PETSC_ERR_NOT_CONVERGED,"KSPSolve has not converged due to Nan or Inf inner product");
       else {

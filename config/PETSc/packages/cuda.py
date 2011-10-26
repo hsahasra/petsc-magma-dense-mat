@@ -15,8 +15,6 @@ class Configure(PETSc.package.NewPackage):
     self.complex          = 1
     self.cudaArch      = ''
     self.CUDAVersion   = '4000' # Version 4.0
-    self.CUSPVersion   = '200' #Version 0.2.0
-    self.ThrustVersion = '100400' #Version 1.4.0
 #
 #   obtain thrust and cusp with
 #   hg clone https://thrust.googlecode.com/hg/ thrust
@@ -28,8 +26,8 @@ class Configure(PETSc.package.NewPackage):
     # Get CUSP from hg clone https://cusp-library.googlecode.com/hg/
 
     self.CUDAVersionStr = str(int(self.CUDAVersion)/1000) + '.' + str(int(self.CUDAVersion)%100)
-    self.ThrustVersionStr = str(int(self.ThrustVersion)/100000) + '.' + str(int(self.ThrustVersion)/100%1000) + '.' + str(int(self.ThrustVersion)%100)
-    self.CUSPVersionStr   = str(int(self.CUSPVersion)/100000) + '.' + str(int(self.CUSPVersion)/100%1000) + '.' + str(int(self.CUSPVersion)%100)
+#    self.ThrustVersionStr = str(int(self.ThrustVersion)/100000) + '.' + str(int(self.ThrustVersion)/100%1000) + '.' + str(int(self.ThrustVersion)%100)
+#   self.CUSPVersionStr   = str(int(self.CUSPVersion)/100000) + '.' + str(int(self.CUSPVersion)/100%1000) + '.' + str(int(self.CUSPVersion)%100)
     return
 
   def __str__(self):
@@ -50,8 +48,8 @@ class Configure(PETSc.package.NewPackage):
     self.headers      = framework.require('config.headers',self)
     self.scalartypes  = framework.require('PETSc.utilities.scalarTypes', self)
     self.languages    = framework.require('PETSc.utilities.languages',   self)
-    self.cusp         = framework.require('config.packages.cusp',        self)
-    self.thrust       = framework.require('config.packages.thrust',      self)
+ ####   self.cusp         = framework.require('config.packages.cusp',        self)
+ ####   self.thrust       = framework.require('config.packages.thrust',      self)
     return
 
   def getSearchDirectories(self):
@@ -95,6 +93,7 @@ class Configure(PETSc.package.NewPackage):
     self.argDB['known-cuda-sizeof-void-p'] = size
     return
 
+
   def configureTypes(self):
     import config.setCompilers
 #    if self.scalartypes.scalartype == 'complex':
@@ -123,6 +122,12 @@ class Configure(PETSc.package.NewPackage):
     self.checkSizeofVoidP()
     return
 
+
+
+
+
+
+
   def checkCUDAVersion(self):
     if 'known-cuda-version' in self.argDB:
       if self.argDB['known-cuda-version'] < self.CUDAVersion:
@@ -138,6 +143,11 @@ class Configure(PETSc.package.NewPackage):
     else:
       raise RuntimeError('Batch configure does not work with CUDA\nOverride all CUDA configuration with options, such as --known-cuda-version')
     return
+
+
+
+
+
 
   def checkThrustVersion(self):
     if 'known-thrust-version' in self.argDB:

@@ -3,6 +3,12 @@
 #define __AIJ_H
 
 #include <petsc-private/matimpl.h>
+#include <cuda.h>
+#include <cusparse.h>
+EXTERN_C_BEGIN
+#include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
+EXTERN_C_END
+
 
 /*
     Struct header shared by SeqAIJ, SeqBAIJ and SeqSBAIJ matrix formats
@@ -183,6 +189,10 @@ PETSC_EXTERN PetscErrorCode MatSeqAIJSetPreallocation_SeqAIJ(Mat,PetscInt,const 
 PETSC_INTERN PetscErrorCode MatILUFactorSymbolic_SeqAIJ_inplace(Mat,Mat,IS,IS,const MatFactorInfo*);
 PETSC_INTERN PetscErrorCode MatILUFactorSymbolic_SeqAIJ(Mat,Mat,IS,IS,const MatFactorInfo*);
 PETSC_INTERN PetscErrorCode MatILUFactorSymbolic_SeqAIJ_ilu0(Mat,Mat,IS,IS,const MatFactorInfo*);
+EXTERN_C_BEGIN
+extern PetscErrorCode MatMult_SeqAIJ(Mat A,Vec,Vec);
+EXTERN_C_END
+
 
 PETSC_INTERN PetscErrorCode MatICCFactorSymbolic_SeqAIJ_inplace(Mat,Mat,IS,const MatFactorInfo*);
 PETSC_INTERN PetscErrorCode MatICCFactorSymbolic_SeqAIJ(Mat,Mat,IS,const MatFactorInfo*);

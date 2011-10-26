@@ -98,6 +98,7 @@ typedef const char* VecType;
 #define VECSTANDARD    "standard"   /* seq on one process and mpi on several */
 #define VECSHARED      "shared"
 #define VECSIEVE       "sieve"
+#define VECSEQGPU      "seqgpu"
 #define VECSEQCUSP     "seqcusp"
 #define VECMPICUSP     "mpicusp"
 #define VECCUSP        "cusp"       /* seqcusp on one process and mpicusp on several */

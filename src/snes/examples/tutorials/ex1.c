@@ -15,7 +15,7 @@ T*/
      petscksp.h   - linear solvers
 */
 #include <petscsnes.h>
-
+//#include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
 /*
    User-defined routines
 */
@@ -34,9 +34,9 @@ int main(int argc,char **argv)
   Vec            x,r;          /* solution, residual vectors */
   Mat            J;            /* Jacobian matrix */
   PetscErrorCode ierr;
-  PetscInt       its;
+  PetscInt       i,its;
   PetscMPIInt    size;
-  PetscScalar    pfive = .5,*xx;
+  PetscScalar    pfive = .5,*xx=PETSC_NULL;
   PetscBool      flg;
 
   PetscInitialize(&argc,&argv,(char*)0,help);
@@ -54,7 +54,9 @@ int main(int argc,char **argv)
   /*
      Create vectors for solution and nonlinear function
   */
+
   ierr = VecCreate(PETSC_COMM_WORLD,&x);CHKERRQ(ierr);
+  //ierr = VecSetFromOptions(x);CHKERRQ(ierr);
   ierr = VecSetSizes(x,PETSC_DECIDE,2);CHKERRQ(ierr);
   ierr = VecSetFromOptions(x);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&r);CHKERRQ(ierr);
@@ -110,6 +112,9 @@ int main(int argc,char **argv)
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   if (!flg) {
     ierr = VecSet(x,pfive);CHKERRQ(ierr);
+    ierr = VecGetArray(x,&xx);CHKERRQ(ierr);
+    for(i=0;i<x->map->n;i++)printf("x[%d]: %f\n",i,xx[i]);
+    ierr = VecRestoreArray(x,&xx);CHKERRQ(ierr);
   } else {
     ierr  = VecGetArray(x,&xx);CHKERRQ(ierr);
     xx[0] = 2.0; xx[1] = 3.0;
@@ -157,8 +162,7 @@ int main(int argc,char **argv)
    Output Parameter:
 .  f - function vector
  */
-PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx)
-{
+PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx){
   PetscErrorCode    ierr;
   const PetscScalar *xx;
   PetscScalar       *ff;
@@ -172,6 +176,8 @@ PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx)
    */
   ierr = VecGetArrayRead(x,&xx);CHKERRQ(ierr);
   ierr = VecGetArray(f,&ff);CHKERRQ(ierr);
+    ierr = VecGetArray(f,&ff);
+    CHKERRQ(ierr);
 
   /* Compute function */
   ff[0] = xx[0]*xx[0] + xx[0]*xx[1] - 3.0;
