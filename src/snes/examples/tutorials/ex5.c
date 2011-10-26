@@ -1,11 +1,11 @@
 
+
 static char help[] = "Bratu nonlinear PDE in 2d.\n\
 We solve the  Bratu (SFI - solid fuel ignition) problem in a 2D rectangular\n\
 domain, using distributed arrays (DMDAs) to partition the parallel grid.\n\
 The command line options include:\n\
   -par <parameter>, where <parameter> indicates the problem's nonlinearity\n\
      problem SFI:  <parameter> = Bratu parameter (0 <= par <= 6.81)\n\n";
-
 /*T
    Concepts: SNES^parallel Bratu example
    Concepts: DMDA^using distributed arrays;
@@ -51,7 +51,6 @@ T*/
 */
 #include <petscdmda.h>
 #include <petscsnes.h>
-
 /* 
    User-defined application context - contains data needed by the 
    application-provided call-back routines, FormJacobianLocal() and
@@ -130,6 +129,7 @@ int main(int argc,char **argv)
      vectors that are the same types
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&x);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set local function evaluation routine
@@ -238,6 +238,7 @@ PetscErrorCode FormInitialGuess(DM da,AppCtx *user,Vec X)
         x[j][i] = 0.0; 
       } else {
         x[j][i] = temp1*sqrt(PetscMin((PetscReal)(PetscMin(i,Mx-i-1))*hx,temp)); 
+        printf("Initial guess x[%d][%d]: %e\n",j,i,x[j][i]);
       }
     }
   }
@@ -284,6 +285,7 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,PetscScalar
         uxx     = (2.0*u - x[j][i-1] - x[j][i+1])*hydhx;
         uyy     = (2.0*u - x[j-1][i] - x[j+1][i])*hxdhy;
         f[j][i] = uxx + uyy - sc*PetscExpScalar(u);
+        printf("formfunction[%d][%d]: %e, address: %X\n",j,i,f[j][i],&f[j][i]);
       }
     }
   }
@@ -494,3 +496,4 @@ PetscErrorCode NonlinearGS(SNES snes,Vec X)
   ierr = DMRestoreLocalVector(da,&localX);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 } 
+

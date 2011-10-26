@@ -1086,6 +1086,7 @@ PetscErrorCode MatMultTranspose_SeqAIJ(Mat A,Vec xx,Vec yy)
   PetscFunctionReturn(0);
 }
 
+/*
 #include <../src/mat/impls/aij/seq/ftn-kernels/fmult.h>
 #undef __FUNCT__  
 #define __FUNCT__ "MatMult_SeqAIJ"
@@ -1112,7 +1113,7 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy)
   aj  = a->j;
   aa  = a->a;
   ii  = a->i;
-  if (usecprow){ /* use compressed row format */
+  if (usecprow){ 
     m    = a->compressedrow.nrows;
     ii   = a->compressedrow.i;
     ridx = a->compressedrow.rindex;
@@ -1123,10 +1124,10 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy)
       sum = 0.0;
       nonzerorow += (n>0);
       PetscSparseDensePlusDot(sum,x,aa,aj,n); 
-      /* for (j=0; j<n; j++) sum += (*aa++)*x[*aj++]; */
+      
       y[*ridx++] = sum;
     }
-  } else { /* do not use compressed row format */
+  } else { 
 #if defined(PETSC_USE_FORTRAN_KERNEL_MULTAIJ)
     fortranmultaij_(&m,x,ii,aj,aa,y);
 #else
@@ -1146,6 +1147,9 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy)
   ierr = VecRestoreArray(yy,&y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+ */
+
+
 
 #if defined(PETSC_HAVE_PTHREADCLASSES)
 

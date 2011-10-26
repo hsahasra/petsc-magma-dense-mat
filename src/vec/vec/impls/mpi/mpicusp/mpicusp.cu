@@ -8,7 +8,7 @@ PETSC_CUDA_EXTERN_C_BEGIN
 PETSC_CUDA_EXTERN_C_END
 #include <../src/vec/vec/impls/seq/seqcusp/cuspvecimpl.h>
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecDestroy_MPICUSP"
 PetscErrorCode VecDestroy_MPICUSP(Vec v)
 {
@@ -26,6 +26,7 @@ PetscErrorCode VecDestroy_MPICUSP(Vec v)
   ierr = VecDestroy_MPI(v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 
 #undef __FUNCT__  
 #define __FUNCT__ "VecNorm_MPICUSP"

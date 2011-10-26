@@ -2,7 +2,14 @@
 #if !defined(__AIJ_H)
 #define __AIJ_H
 
+#include <petscconf.h>
+#include <cuda.h>
+#include <cusparse.h>
 #include <private/matimpl.h>
+EXTERN_C_BEGIN
+#include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
+EXTERN_C_END
+
 
 /*  
     Struct header shared by SeqAIJ, SeqBAIJ and SeqSBAIJ matrix formats
@@ -142,6 +149,11 @@ PETSC_STATIC_INLINE PetscErrorCode MatSeqXAIJFreeAIJ(Mat AA,MatScalar **a,PetscI
 EXTERN_C_BEGIN
 extern PetscErrorCode MatSeqAIJSetPreallocation_SeqAIJ(Mat,PetscInt,const PetscInt*);
 EXTERN_C_END
+
+EXTERN_C_BEGIN
+extern PetscErrorCode MatMult_SeqAIJ(Mat A,Vec,Vec);
+EXTERN_C_END
+
 extern PetscErrorCode MatILUFactorSymbolic_SeqAIJ_inplace(Mat,Mat,IS,IS,const MatFactorInfo*);
 extern PetscErrorCode MatILUFactorSymbolic_SeqAIJ(Mat,Mat,IS,IS,const MatFactorInfo*);
 extern PetscErrorCode MatILUFactorSymbolic_SeqAIJ_ilu0(Mat,Mat,IS,IS,const MatFactorInfo*);
@@ -157,7 +169,7 @@ extern PetscErrorCode MatCopy_SeqAIJ(Mat,Mat,MatStructure);
 extern PetscErrorCode MatMissingDiagonal_SeqAIJ(Mat,PetscBool *,PetscInt*);
 extern PetscErrorCode MatMarkDiagonal_SeqAIJ(Mat);
 
-extern PetscErrorCode MatMult_SeqAIJ(Mat A,Vec,Vec);
+
 extern PetscErrorCode MatMultAdd_SeqAIJ(Mat A,Vec,Vec,Vec);
 extern PetscErrorCode MatMultTranspose_SeqAIJ(Mat A,Vec,Vec);
 extern PetscErrorCode MatMultTransposeAdd_SeqAIJ(Mat A,Vec,Vec,Vec);

@@ -442,6 +442,25 @@ M*/
     }                                                                   \
   } while (0)
 
+
+#define PetscStackCheckByName(i,str,flg,err)                           \
+  do{                                                                  \
+     if(petscstack && (petscstack->currentsize < PETSCSTACKSIZE)){     \
+       flg=0;                                                          \
+       err=0;                                                          \
+       int ss = petscstack->currentsize;                               \
+       if(strcmp(petscstack->function[ss-i],str) == 0){                \
+         flg = 1;                            \
+       }                                     \
+       err=0;                                \
+     }else{                                  \
+       err=1;                                \
+     }                                       \
+  }while(0)
+
+
+
+
 #define PetscStackPush(n) \
   do {if (petscstack && (petscstack->currentsize < PETSCSTACKSIZE)) {    \
     petscstack->function[petscstack->currentsize]  = n; \
