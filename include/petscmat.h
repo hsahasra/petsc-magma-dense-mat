@@ -88,6 +88,8 @@ J*/
 
 #define MATSTRUCTGRIDGPU   "structgridgpu"
 
+#define MATBLOCKSTRUCTGRID "blockstructgrid"
+
 
 
 /*J
