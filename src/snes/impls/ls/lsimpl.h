@@ -5,7 +5,12 @@
 
 #ifndef __SNES_LS_H
 #define __SNES_LS_H
+
+#include <petscconf.h>
+#include <cuda.h>
 #include <private/snesimpl.h>
+//#include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
+
 
 typedef struct {
   PetscErrorCode           (*LineSearch)(SNES,void*,Vec,Vec,Vec,PetscReal,PetscReal,Vec,Vec,PetscReal*,PetscReal*,PetscBool *);
