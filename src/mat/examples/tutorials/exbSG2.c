@@ -3,15 +3,20 @@
 static char help[] = "Simple program to test the performance of matmult for various matrix implementations. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info] Note: All of these flags are required except for info\n\n";
 
 #include<sys/time.h>
-#include "../../impls/structgrid/matstructgrid.h"
+#include "../../impls/blockstructgrid/matblockstructgrid.h"
 #include <petscksp.h> // this includes all the below headers
 //#include<petscsys.h >//      	- base PETSc routines   petscvec.h - vectors
 //#include<petscmat.h>// 	- matrices
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
+#define PAPI
+
+#ifdef PAPI
+#include"papi.h"
+#define NUM_EVENTS 4
+#endif
 
 PetscReal normdiff = 1.0e-6;
-extern int OPENMP;
 
  double simple_rand() {
          int seed;
@@ -36,8 +41,11 @@ double rtclock() {
 int main(int argc,char **args)
 {
 
-OPENMP=0;
-
+#ifdef PAPI
+unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM,PAPI_TLB_DM};
+long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
+int e;
+#endif
   	PetscMPIInt    size;
   	PetscErrorCode ierr;
 
@@ -172,10 +180,20 @@ OPENMP=0;
      Compute solution vectors and Performance test.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#ifdef PAPI
+if (PAPI_start_counters((int *)Events, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+#endif
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_stop_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("CSR Events[%d]= %lld\n",e,values[e]);
+#endif
 
 	printf("\nCSR :\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
@@ -193,10 +211,14 @@ OPENMP=0;
 	Vec     ysg;
   	ierr = VecDuplicate(x,&ysg);CHKERRQ(ierr);
 	Mat     matsg;
+	PetscInt bcols;
+	PetscScalar * bvals;
+	PetscInt nop = ((nost*m*n*p) - (2*(1+m+m*n))) *dof*dof;
   	ierr = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
   	ierr = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
 	MatSetType(matsg,MATSTRUCTGRID);
   	ierr = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
+	bvals = malloc (sizeof(PetscScalar)*dof*dof);
 	MatSetUpPreallocation_SeqSG(matsg);
 	for(i=0;i<m*n*p;i++)
 	{
@@ -209,111 +231,42 @@ OPENMP=0;
 				{
 					for(k=0;k<dof;k++)	
 					{
-						vals[k] = simple_rand();
-						cols[k] = j*dof+k; 
+						bvals[l*dof+k] = simple_rand();
 					}
-					rowval = i*dof+l;
-   					ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 				}
+				rowval = i;
+				bcols = j;
+   				ierr = MatSetValues(matsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
 			}
 		}
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
+#ifdef PAPI
+if (PAPI_start_counters((int*)Events, NUM_EVENTS) != PAPI_OK)
+	printf("Sg start error\n");
+#endif
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_stop_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("sg stop error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);
+#endif
 	
 	printf("\nSG -AVX with Padding(original):\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nop)/((end-start)*1024*1024*1024)); 
 	
 	ierr = VecDestroy(&ysg);CHKERRQ(ierr);
 
-/*SG(AVX+OMP)*/
-#ifdef OMP
-	Vec ysgomp;
-	ierr = VecDuplicate(x,&ysgomp);CHKERRQ(ierr);
-	//SG (AVX+OPENMP)
-	OPENMP=1;
-	
-	for(k=2;k<3;k++){
-	omp_set_num_threads(k);
-	start = rtclock();	
-	for(i=0;i<REP;i++)
-  		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
-	end = rtclock();
-	printf("\nSG - AVX + OPENMP :\n");
-	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
-	}
-  	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
-#endif
 	ierr = MatDestroy(&matsg);CHKERRQ(ierr);
+	free(bvals);
 #endif
 
-#ifdef GPU
-/* GPU*/
-	Vec  	ygpu, ysggpu;      
-	Mat 	matgpu, matsggpu;           
-	ierr = VecDuplicate(x,&ysggpu);CHKERRQ(ierr);
-	ierr = VecDuplicate(x,&ygpu);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
-	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
-	MatSetType(matgpu,MATSEQAIJCUSP);
-	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
-	MatSetUpPreallocation_SeqSG(matsggpu);
-	for(i=0;i<m*n*p;i++)
-	{
-		for(st=0;st<nost;st++)
-        	{
-			j=xval[st]+i;
-			if(j>=0 && j<m*n*p)
-			{
-				printf("i=%d,j=%d\n",i,j);
-				for(l=0;l<dof;l++)
-				{
-					for(k=0;k<dof;k++)	
-					{
-						vals[k] = simple_rand();
-						cols[k] = j*dof+k; 
-					}
-					rowval = i*dof+l;
-					ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   					ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-				}
-			}
-		}
-        }
-  
-  	ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-	//CSR GPU
-	start = rtclock();	
-	for(i=0;i<REP;i++)
-  		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
-	end = rtclock();
-	printf("\nCSR - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
-
-	//SG (GPU)
-	start = rtclock();	
-	for(i=0;i<REP;i++)
-  		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
-	end = rtclock();
-	printf("\nSG - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
-
-	ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
-	ierr = VecDestroy(&ysggpu);CHKERRQ(ierr);
-	ierr = MatDestroy(&matgpu);CHKERRQ(ierr);
-	ierr = MatDestroy(&matsggpu);CHKERRQ(ierr);
-#endif
   	ierr = VecDestroy(&x);CHKERRQ(ierr); 
 	//ierr = MatDestroy(&matip);CHKERRQ(ierr);
 

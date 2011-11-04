@@ -1,5 +1,5 @@
 
-CFLAGS 	        = -fopenmp 
+CFLAGS 	        = -fopenmp -I/opt/software/papi/4.1.3/include
 FFLAGS	        = 
 CPPFLAGS        = 
 FPPFLAGS        =
@@ -25,20 +25,24 @@ exbSG: exbSG.o chkopts
 	-${CLINKER} -o exbSG exbSG.o ${PETSC_MAT_LIB}
 	${RM} exbSG.o
 
+exbSG2: exbSG2.o chkopts
+	-${CLINKER} -L/opt/software/papi/4.1.3/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
+	${RM} exbSG2.o
+
 ex1: ex1.o  chkopts
-	-${CLINKER}  -o ex1 ex1.o ${PETSC_MAT_LIB} 
+	-${CLINKER} -o ex1 ex1.o ${PETSC_MAT_LIB} 
 	${RM} ex1.o
 
 ex2: ex2.o  chkopts
-	-${CLINKER}  -o ex2 ex2.o ${PETSC_MAT_LIB}
+	-${CLINKER} -o ex2 ex2.o ${PETSC_MAT_LIB}
 	${RM} ex2.o
 
 ex2_kds: ex2_kds.o  chkopts
-	-${CLINKER}  -o ex2_kds ex2_kds.o ${PETSC_MAT_LIB}
+	-${CLINKER} -o ex2_kds ex2_kds.o ${PETSC_MAT_LIB}
 	${RM} ex2_kds.o
 
 ex4: ex4.o  chkopts
-	-${CLINKER}  -o ex4 ex4.o ${PETSC_MAT_LIB}
+	-${CLINKER} -o ex4 ex4.o ${PETSC_MAT_LIB}
 	${RM} ex4.o
 
 ex5: ex5.o  chkopts

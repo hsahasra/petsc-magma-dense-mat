@@ -58,6 +58,7 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 	PetscInt lda3 = m;	
 	PetscInt xshift[nos];
 	PetscInt mnos = dim + 1;
+	register PetscInt tempnegRange, tempOffset, tempshift;
 	PetscScalar sttemp[SV_DOUBLE_WIDTH];
 	//printf("OPENMP=%d\n",OPENMP);
        	//printf("Thread=%d\n",omp_get_thread_num());
@@ -86,20 +87,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 	{
 		for(l=0;l<mnos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i - negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
@@ -108,60 +111,121 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
 	for(k = 1; k < lda3; k++)
 	{
-		for(l=0;l<mnos+1;l++)
+		for(l=0;l<mnos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
 		}
+//		for(l=mnos;l<mnos+1;l++)
+//		{
+			l=mnos;
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
+			tempnegRange = negRange[l];
+			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+			{
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+				for (j=0; j<dof; j++)
+				{
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+				}
+			}
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv = _sv_mul_pd(xv,mask_xv);
+			for (j=0; j<dof; j++)
+			{
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+			}
+
+//		}
 		for (j=0; j< dof; j++)
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
 	for(k = lda3; k < lda2; k++)
 	{
-		for(l=0;l<mnos+2;l++)
+		for(l=0;l<mnos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+			}
+
+		}
+		for(l=mnos;l<mnos+2;l++)
+		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
+			tempnegRange = negRange[l];
+			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+			{
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+				for (j=0; j<dof; j++)
+				{
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+				}
+			}
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv = _sv_mul_pd(xv,mask_xv);
+			for (j=0; j<dof; j++)
+			{
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
@@ -170,29 +234,59 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
 	for(k = lda2; k < (lda1- lda2); k++)
 	{
-		for(l=0;l<nos;l++)
+		for(l=0;l<mnos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+			}
+
+		}
+		for(l=mnos;l<nos;l++)
+		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
+			tempnegRange = negRange[l];
+			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+			{
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+				for (j=0; j<dof; j++)
+				{
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+				}
+			}
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv = _sv_mul_pd(xv,mask_xv);
+			for (j=0; j<dof; j++)
+			{
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
@@ -201,8 +295,13 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
@@ -210,40 +309,45 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 	{
 		for(l=0;l<mnos-1;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
 		}
 		for(l=mnos;l<nos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
+			tempnegRange = negRange[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
@@ -252,8 +356,13 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
@@ -261,40 +370,45 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 	{
 		for(l=0;l<mnos-2;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
 		}
 		for(l=mnos;l<nos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
+			tempnegRange = negRange[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
@@ -303,49 +417,60 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
 	for(k = (lda1 - 1); k < (lda1); k++)
 	{
-		for(l=0;l<mnos-3;l++)
-		{
+//		for(l=0;l<mnos-3;l++)
+//		{
+			l=0;
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
-		}
+//		}
 		for(l=mnos;l<nos;l++)
 		{
+			tempOffset = coeffOffset[l];
+			tempshift = xshift[l];
+			tempnegRange = negRange[l];
 			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
 			{
-				xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 				for (j=0; j<dof; j++)
 				{
-					cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+					cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 				}
 			}
-			xv = _sv_loadu_pd(x+(k+xshift[l])*dof + i);
+			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
 			xv = _sv_mul_pd(xv,mask_xv);
 			for (j=0; j<dof; j++)
 			{
-				cv = _sv_loadu_pd (coeff+coeffOffset[l]*bs + k*dof*dof+ j*dof+ i- negRange[l]);
+				cv = _sv_loadu_pd (coeff+tempOffset*bs + k*dof*dof+ j*dof+ i-tempnegRange);
 				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
 			}
 
@@ -354,8 +479,13 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		{
 			_sv_storeu_pd(&sttemp[0], yv[j]);
 			yv[j] = _sv_set_pd(0,0,0,0);
-			for(mt = 0; mt < SV_DOUBLE_WIDTH ; mt++)
-				y[k*dof+j] += sttemp[mt];
+#if (SV_DOUBLE_WIDTH == 1)
+				y[k*dof+j] += sttemp[0];
+#elif (SV_DOUBLE_WIDTH == 2)
+				y[k*dof+j] += sttemp[0] + sttemp[1];
+#else
+				y[k*dof+j] += sttemp[0] + sttemp[1] + sttemp[2] + sttemp[3];
+#endif
 		}
 	}
 
