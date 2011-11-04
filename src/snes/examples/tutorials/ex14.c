@@ -293,7 +293,8 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   hxhzdhy = hx*hz/hy;
   hyhzdhx = hy*hz/hx;
   hxhydhz = hx*hy/hz;
-
+printf("\n\nlambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e, hxhydhz: %e\n\n",
+        lambda, hx, hy, hz, sc, hxhzdhy, hyhzdhx, hxhydhz);
   /*
      Scatter ghost points to local vector,using the 2-step process
         DMGlobalToLocalBegin(),DMGlobalToLocalEnd().
@@ -309,6 +310,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   */
   ierr = DMDAVecGetArray(user->da,localX,&x);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(user->da,F,&f);CHKERRQ(ierr);
+
   //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>C\n");
   /*
      Get local grid boundaries
@@ -324,13 +326,14 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
       // printf("J: %d\n",j);
       for (i=xs; i<xs+xm; i++) {
         // printf("I: %d\n",i);
+        //if(f[k][j][i]!=0.0)printf("FormFunction>>>>  PRE:: f[%d][%d][%d]: %e\n",k,j,i,f[k][j][i]);
         if (i == 0 || j == 0 || k == 0 || i == Mx-1 || j == My-1 || k == Mz-1) {
-          testx= x[k][j][i];
-          //printf("FormFunction>>>>Pre f[%d][%d][%d]\n",k,j,i);
+          //testx= x[k][j][i];
+
           f[k][j][i] = x[k][j][i];
-          //printf("FormFunction>>>>Post f[%d][%d][%d]\n",k,j,i);
         } else {
           u          = x[k][j][i];
+          printf("u_: %e\n",u);
           u_east     = x[k][j][i+1];
           u_west     = x[k][j][i-1];
           u_north    = x[k][j+1][i];
@@ -340,8 +343,10 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
           u_xx       = (-u_east + two*u - u_west)*hyhzdhx;
           u_yy       = (-u_north + two*u - u_south)*hxhzdhy;
           u_zz       = (-u_up + two*u - u_down)*hxhydhz;
+          printf("u_xx: %e, u_yy: %e, u_zz: %e\n",u_xx,u_yy,u_zz);
           f[k][j][i] = u_xx + u_yy + u_zz - sc*PetscExpScalar(u);
         }
+        if(f[k][j][i]!=0.0)printf("FormFunction>>>> POST:: f[%d][%d][%d] %e\n",k,j,i,f[k][j][i]);
       }
     }
   }

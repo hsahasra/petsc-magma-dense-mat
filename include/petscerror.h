@@ -645,18 +645,16 @@ M*/
   } while (0)
 
 
-#define PetscStackCheckByName(i,str,flg,err)                           \
+#define PetscStackCheckByName(i,str,flg)                               \
   do{                                                                  \
-     if(petscstack && (petscstack->currentsize < PETSCSTACKSIZE)){     \
+     if(petscstack &&                                                  \
+        (petscstack->currentsize < PETSCSTACKSIZE) &&                  \
+        (petscstack->currentsize >= i)){                               \
        flg=0;                                                          \
-       err=0;                                                          \
        int ss = petscstack->currentsize;                               \
        if(strcmp(petscstack->function[ss-i],str) == 0){                \
          flg = 1;                            \
        }                                     \
-       err=0;                                \
-     }else{                                  \
-       err=1;                                \
      }                                       \
   }while(0)
 
