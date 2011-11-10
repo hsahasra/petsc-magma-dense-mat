@@ -9,6 +9,12 @@ static char help[] = "Simple program to test the performance of matmult for vari
 //#include<petscmat.h>// 	- matrices
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
+#define PAPI
+
+#ifdef PAPI
+#include"papi.h"
+#define NUM_EVENTS 4
+#endif
 
 PetscReal normdiff = 1.0e-6;
 extern int OPENMP;
@@ -35,6 +41,11 @@ double rtclock() {
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
+#ifdef PAPI
+unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM,PAPI_TLB_DM};
+long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
+int e;
+#endif
 
 OPENMP=0;
 
@@ -171,11 +182,21 @@ OPENMP=0;
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Compute solution vectors and Performance test.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+#ifdef PAPI
+if (PAPI_start_counters((int *)Events, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+#endif
 
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("CSR Events[%d]= %lld\n",e,values[e]);
+#endif
 
 	printf("\nCSR :\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
@@ -220,11 +241,21 @@ OPENMP=0;
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+#ifdef PAPI
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("Sg start error\n");
+#endif
 
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("sg stop error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);
+#endif
 	
 	printf("\nSG -AVX with Padding(original):\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
