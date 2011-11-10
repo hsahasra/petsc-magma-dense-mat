@@ -13,7 +13,7 @@ static char help[] = "Simple program to test the performance of matmult for vari
 
 #ifdef PAPI
 #include"papi.h"
-#define NUM_EVENTS 4
+#define NUM_EVENTS 4 
 #endif
 
 PetscReal normdiff = 1.0e-6;
@@ -42,7 +42,8 @@ int main(int argc,char **args)
 {
 
 #ifdef PAPI
-unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM,PAPI_TLB_DM};
+unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L3_TCM};
+//unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCR,PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L2_ICM,PAPI_L3_DCR,PAPI_L3_TCM};
 long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
 int e;
 #endif
@@ -189,7 +190,7 @@ if (PAPI_start_counters((int *)Events, NUM_EVENTS) != PAPI_OK)
   		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
 	end = rtclock();
 #ifdef PAPI
-if (PAPI_stop_counters(values, NUM_EVENTS) != PAPI_OK)
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
 	printf("error\n");
 for(e=0;e<NUM_EVENTS;e++)
 	printf("CSR Events[%d]= %lld\n",e,values[e]);
@@ -244,7 +245,7 @@ for(e=0;e<NUM_EVENTS;e++)
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
 #ifdef PAPI
-if (PAPI_start_counters((int*)Events, NUM_EVENTS) != PAPI_OK)
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
 	printf("Sg start error\n");
 #endif
 	start = rtclock();	
@@ -252,7 +253,7 @@ if (PAPI_start_counters((int*)Events, NUM_EVENTS) != PAPI_OK)
   		ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
 	end = rtclock();
 #ifdef PAPI
-if (PAPI_stop_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
 	printf("sg stop error\n");
 for(e=0;e<NUM_EVENTS;e++)
 	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);

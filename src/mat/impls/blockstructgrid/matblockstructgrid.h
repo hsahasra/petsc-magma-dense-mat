@@ -24,8 +24,6 @@ PetscInt p;		//z size
 PetscInt nz;		//length of grid elements
 
 // Specific to block 
-PetscInt * coeffOffset; //Offset within 'a' array  at which each stencil elements starts
-PetscInt * negRange; // Number of elements in negative index, i.e., that has to be skipped
 PetscInt bs; // block size , usually dof*dof
 PetscInt tnz; // number of non - zero grid elements
 }Mat_SeqBSG;
