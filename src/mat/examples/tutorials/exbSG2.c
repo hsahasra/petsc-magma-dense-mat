@@ -42,7 +42,7 @@ int main(int argc,char **args)
 {
 
 #ifdef PAPI
-unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L3_TCM};
+unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_LD_INS,PAPI_L2_TCM,PAPI_L3_TCM};
 //unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCR,PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L2_ICM,PAPI_L3_DCR,PAPI_L3_TCM};
 long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
 int e;
