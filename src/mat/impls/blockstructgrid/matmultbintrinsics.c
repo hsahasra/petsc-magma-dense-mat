@@ -52,7 +52,7 @@
 
 PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs)
 {
-	PetscInt i,j,k,l,mt;
+	PetscInt i,j,k,l,mt, rcnt;
 	PetscInt lda1 = m*n*p;
 	PetscInt lda2 = m*n;
 	PetscInt lda3 = m;	
@@ -63,7 +63,7 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 	//printf("OPENMP=%d\n",OPENMP);
        	//printf("Thread=%d\n",omp_get_thread_num());
 	
-	__sv_dtype yv[dof], xv, cv, mask_xv;
+	__sv_dtype yv[dof], xv[(dof/SV_DOUBLE_WIDTH)+1], cv, mask_xv;
 	PetscInt onexdiff = dof % SV_DOUBLE_WIDTH ;
 	if(onexdiff == 0)
 		mask_xv = _sv_set_pd(0,0,0,0);
@@ -88,21 +88,23 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos;l<nos;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
+
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+			//	for (j=0; j<dof; j++)
+			//	{
+					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+			//	}
+				}
 				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
@@ -125,21 +127,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos-1;l<nos;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+		//		for (j=0; j<dof; j++)
+		//		{
+					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+		//		}
+				}
 				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
@@ -162,21 +165,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos-2;l<nos;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+		//		for (j=0; j<dof; j++)
+		//		{
 					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+		//		}
+				}
+				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
@@ -199,21 +203,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos-3;l<nos;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt = 0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+		//		for (j=0; j<dof; j++)
+		//		{
 					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+		//		}
+				}
+				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
@@ -236,21 +241,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos-3;l<nos-1;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+		//		for (j=0; j<dof; j++)
+		//		{
 					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+		//		}
+				}
+				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
@@ -273,21 +279,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos-3;l<nos-2;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+		//		for (j=0; j<dof; j++)
+		//		{
 					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+		//		}
+				}
+				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
@@ -310,21 +317,22 @@ PetscInt BSG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Pets
 		for(l=mnos-3;l<mnos+1;l++)
 		{
 			tempshift = xshift[l];
-			for(i=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
-			{
-				xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-				for (j=0; j<dof; j++)
-				{
-					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
-				}
-			}
-			xv = _sv_loadu_pd(x+(k+tempshift)*dof + i);
-			xv = _sv_mul_pd(xv,mask_xv);
+			for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH)
+				xv[rcnt++] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_loadu_pd(x+(k+tempshift)*dof + i);
+			xv[rcnt] = _sv_mul_pd(xv[rcnt],mask_xv);
 			for (j=0; j<dof; j++)
 			{
+				for(i=0,rcnt=0; (i+SV_DOUBLE_WIDTH) <= dof; i+=SV_DOUBLE_WIDTH,rcnt++)
+				{
+		//		for (j=0; j<dof; j++)
+		//		{
 					cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
-				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv,cv));
+					yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
+		//		}
+				}
+				cv = _sv_loadu_pd (coeff+ k*nos*bs + l*bs + j*dof+ i);
+				yv[j] = _sv_add_pd(yv[j], _sv_mul_pd(xv[rcnt],cv));
 			}
 
 		}
