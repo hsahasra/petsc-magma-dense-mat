@@ -197,8 +197,7 @@ int main(int argc,char **argv)
    Output Parameter:
    X - vector
  */
-PetscErrorCode FormInitialGuess(AppCtx *user,Vec X)
-{
+PetscErrorCode FormInitialGuess(AppCtx *user,Vec X){
   PetscInt       i,j,k,Mx,My,Mz,xs,ys,zs,xm,ym,zm;
   PetscErrorCode ierr;
   PetscReal      lambda,temp1,hx,hy,hz,tempk,tempj;
@@ -229,7 +228,7 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X)
 
   */
   ierr = DMDAGetCorners(user->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-
+  ////printf("Mx: %d, My: %d, Mz: %d, xm: %d, ym: %d, zm: %d\n",Mx,My,Mz,xm,ym,zm);
   /*
      Compute initial guess over the locally owned part of the grid
   */
@@ -293,30 +292,28 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   hxhzdhy = hx*hz/hy;
   hyhzdhx = hy*hz/hx;
   hxhydhz = hx*hy/hz;
-printf("\n\nlambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e, hxhydhz: %e\n\n",
-        lambda, hx, hy, hz, sc, hxhzdhy, hyhzdhx, hxhydhz);
+  ////printf("lambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e, hxhydhz: %e\n",
+  ///      lambda, hx, hy, hz, sc, hxhzdhy, hyhzdhx, hxhydhz);
   /*
      Scatter ghost points to local vector,using the 2-step process
         DMGlobalToLocalBegin(),DMGlobalToLocalEnd().
      By placing code between these two statements, computations can be
      done while messages are in transition.
   */
-  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>A\n");
   ierr = DMGlobalToLocalBegin(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>B\n");
   /*
      Get pointers to vector data
   */
   ierr = DMDAVecGetArray(user->da,localX,&x);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(user->da,F,&f);CHKERRQ(ierr);
 
-  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>C\n");
   /*
      Get local grid boundaries
   */
   ierr = DMDAGetCorners(user->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>D\n");
+  ////printf("Mx: %d, My: %d, Mz: %d, xm: %d, ym: %d, zm: %d\n",Mx,My,Mz,xm,ym,zm);
+
   /*
      Compute function over the locally owned part of the grid
   */
@@ -333,7 +330,7 @@ printf("\n\nlambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e
           f[k][j][i] = x[k][j][i];
         } else {
           u          = x[k][j][i];
-          printf("u_: %e\n",u);
+          //printf("u_: %e\n",u);
           u_east     = x[k][j][i+1];
           u_west     = x[k][j][i-1];
           u_north    = x[k][j+1][i];
@@ -343,14 +340,14 @@ printf("\n\nlambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e
           u_xx       = (-u_east + two*u - u_west)*hyhzdhx;
           u_yy       = (-u_north + two*u - u_south)*hxhzdhy;
           u_zz       = (-u_up + two*u - u_down)*hxhydhz;
-          printf("u_xx: %e, u_yy: %e, u_zz: %e\n",u_xx,u_yy,u_zz);
+          //printf("u_xx: %e, u_yy: %e, u_zz: %e\n",u_xx,u_yy,u_zz);
           f[k][j][i] = u_xx + u_yy + u_zz - sc*PetscExpScalar(u);
         }
-        if(f[k][j][i]!=0.0)printf("FormFunction>>>> POST:: f[%d][%d][%d] %e\n",k,j,i,f[k][j][i]);
+        //if(f[k][j][i]!=0.0)printf("FormFunction>>>> POST:: f[%d][%d][%d] %e\n",k,j,i,f[k][j][i]);
       }
     }
   }
-  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>>>>>E\n");
+
   /*
      Restore vectors
   */
@@ -358,7 +355,6 @@ printf("\n\nlambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e
   ierr = DMDAVecRestoreArray(user->da,F,&f);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = PetscLogFlops(11.0*ym*xm);CHKERRQ(ierr);
-  //printf("FormFunction>>>>>>>>>>>>>>>>>>>>>>>>>F\n");
   PetscFunctionReturn(0);
 }
 /* ------------------------------------------------------------------- */

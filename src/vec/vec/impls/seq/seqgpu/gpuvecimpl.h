@@ -11,15 +11,17 @@
 EXTERN_C_BEGIN
 #include <cuda.h>
 
-
-#define TCOUNT          32
-#define DOTTCOUNT       32
-#define AXPYTCOUNT      32
-#define YTCOUNT         32
-#define NORMTCOUNT      32
-#define PDIVTCOUNT      32
-#define PMULTCOUNT      32
-#define CPYTCOUNT       32
+#define MPLIER          1.0
+#define CHUNKWIDTH      MPLIER*65536.0
+#define TCOUNT          128
+#define THRDOTCNT       64
+#define AXPYTCOUNT      128
+#define AXPBYPCZTCOUNT  128
+#define YTCOUNT         128
+#define THRNRMCNT       64
+#define PDIVTCOUNT      128
+#define PMULTCOUNT      128
+#define CPYTCOUNT       128
 #define NNN		624
 #define MMM		397
 #define INIT_MULT	1812433253	/* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
@@ -41,25 +43,15 @@ __device__ uint	s_seeds[NNN];
 
 
 struct copyCounters{
-
   PetscInt h2d_count;
   PetscInt d2h_count;
- 
   PetscInt h2d_bytes;
   PetscInt d2h_bytes;
-
-
 };
 
 
-
-
-
-
-
-
-
-extern __global__ void kernAXPBYPCZ(double2*, double*, double*, double*);
+static PetscErrorCode PinnedMalloc(PetscScalar** x,PetscInt n);
+static PetscErrorCode PinnedFree(PetscScalar* x);
 extern PetscErrorCode VecDotNorm2_SeqGPU(Vec,Vec,PetscScalar *, PetscScalar *);
 extern PetscErrorCode VecPointwiseDivide_SeqGPU(Vec,Vec,Vec);
 extern PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec,Vec,PetscReal*);
@@ -106,6 +98,7 @@ extern PetscErrorCode VecGetLocalSize_SeqGPU(Vec , PetscInt *);
 extern PetscErrorCode VecGetSize_SeqGPU(Vec , PetscInt *);
 extern PetscErrorCode VecCompare_SeqGPU(Vec,Vec, PetscBool*, PetscInt, PetscInt);
 extern PetscErrorCode VecCheck_SeqGPU(Vec);
+extern __global__ void kernAXPBYPCZ(double*, double*, double*,int*);
 extern __global__ void kernCheck(double*, int*);
 extern __global__ void kernCopyLen(int*, int*);
 extern __global__ void kernCODevice(double*,double*, int*);
@@ -113,13 +106,15 @@ extern __global__ void kernCompare(double*, double*,int*, int*, int*);
 extern __global__ void kernSet(double*, int*);
 extern __global__ void kernScale(double*, int*);
 extern __global__ void kernCopy(double*, double*, int*, int*);
-extern __global__ void kernDot(double*, double* ,int*, double*);
+extern __global__ void kernDot(double*,double*,int*,int*,int*,double*,double*);
+extern __global__ void kernRedDot(double*,double*);
 extern __global__ void kernAXPY(double*, double*, int*);
 extern __global__ void kernWAXPY(double*, double*, int*, double*);
 extern __global__ void kernWXPY(double*, double*, int*, double*);
 extern __global__ void kernWXMY(double*, double*, int*, double*);
 extern __global__ void kernXPY(double*, double*, int*);
-extern __global__ void kernNorm2(double*, int*, double*);
+extern __global__ void kernNorm2_double(double*,int*,int*,int*,double*,double*);
+extern __global__ void kernRedNorm_double(double*,double*);
 extern __global__ void kernPDIV(double* ,double* , int* , double* );
 extern __global__ void kernPMULT(double* ,double* , int* , double* );
 extern __global__ void kernMAXPDIV(double* ,double* , int* , double* );
@@ -152,14 +147,17 @@ extern PetscBool  synchronizeGPU;
 typedef enum {VEC_SINGLE,VEC_PERSIST,VEC_DEALLOC,VEC_COLLECT} VecUsageGPUFlag;
 typedef enum {VEC_UNALLOC,VEC_ALLOC,VEC_GPU, VEC_CPU,VEC_SYNCHED} VecGPUFlag;
 typedef struct{
-  VecUsageGPUFlag   lifetime;
-  VecGPUFlag        syncState;
-  PetscInt          ndims;
-  dim3              dimsize;
-  PetscBool         dimsetflag;
-  PetscInt*         length;
-  PetscScalar*      cpuptr; 
-  PetscScalar*      devptr;
+  VECHEADER
+  VecUsageGPUFlag     lifetime;
+  VecGPUFlag          syncState;
+  PetscBool           dimsetflag;
+  PetscInt*           length;
+  PetscScalar*        cpuptr;
+  PetscScalar*        devptr;
+  PetscScalar*        zval;
+  cudaStream_t        stream;
+  PetscInt*           offset;
+  PetscInt*           segment;
   struct copyCounters vstat;
  }Vec_SeqGPU;
 

@@ -43,6 +43,7 @@ typedef const char* PCType;
 #define PCLU              "lu"
 #define PCSHELL           "shell"
 #define PCBJACOBI         "bjacobi"
+#define PCBJGPU           "bjgpu"
 #define PCMG              "mg"
 #define PCEISENSTAT       "eisenstat"
 #define PCILU             "ilu"
