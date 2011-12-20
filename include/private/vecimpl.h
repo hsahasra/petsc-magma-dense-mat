@@ -351,6 +351,7 @@ PETSC_STATIC_INLINE PetscErrorCode VecRestoreArray(Vec x,PetscScalar *a[])
 }
 
 
+
 /*
      Common header shared by array based vectors, 
    currently Vec_Seq and Vec_MPI
