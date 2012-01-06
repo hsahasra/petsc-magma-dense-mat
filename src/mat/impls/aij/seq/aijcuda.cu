@@ -67,10 +67,11 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
   Vec_SeqGPU *xd=(Vec_SeqGPU*)xx->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)yy->data;
 
-  if(yd->syncState == VEC_GPU || yd->syncState == VEC_SYNCHED){
+  /*if(yd->syncState == VEC_GPU || yd->syncState == VEC_SYNCHED){
     cs=cudaMemcpy(yd->cpuptr,yd->devptr,yy->map->n*sizeof(double),cudaMemcpyDeviceToHost);
     if(cs!=cudaSuccess)printf("Error7: %s\n",cudaGetErrorString(cs));
-  }else if(yd->syncState == VEC_CPU){
+    }else */
+  if(yd->syncState == VEC_CPU){
     cs=cudaMemcpy(yd->devptr,yd->cpuptr,yy->map->n*sizeof(double),cudaMemcpyHostToDevice);
     if(cs!=cudaSuccess)printf("Error8: %s\n",cudaGetErrorString(cs));
   }
@@ -79,10 +80,11 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
   //}
   //ierr = VecCheck_SeqGPU(yy);CHKERRQ(ierr);
 
-  if(xd->syncState == VEC_GPU || xd->syncState == VEC_SYNCHED){
+  /*if(xd->syncState == VEC_GPU || xd->syncState == VEC_SYNCHED){
     cs=cudaMemcpy(xd->cpuptr,xd->devptr,xx->map->n*sizeof(double),cudaMemcpyDeviceToHost);
     if(cs!=cudaSuccess)printf("Error9: %s\n",cudaGetErrorString(cs));
-  }else if(xd->syncState == VEC_CPU){
+    }else*/
+   if(xd->syncState == VEC_CPU){
     cs=cudaMemcpy(xd->devptr,xd->cpuptr,xx->map->n*sizeof(double),cudaMemcpyHostToDevice);
     if(cs!=cudaSuccess)printf("Error10: %s\n",cudaGetErrorString(cs));
   }
@@ -106,10 +108,10 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
   if(dev_csrRowOffsets)cudaFree(dev_csrRowOffsets);
   if(dev_csrIndices)cudaFree(dev_csrIndices);
   if(dev_dataA)cudaFree(dev_dataA);
-  cudaDeviceSynchronize();
+  //cudaDeviceSynchronize();
 
-  cs=cudaMemcpy(yd->cpuptr,yd->devptr,yy->map->n*sizeof(double),cudaMemcpyDeviceToHost);
-  if(cs!=cudaSuccess)printf("Error11: %s\n",cudaGetErrorString(cs));
+  //cs=cudaMemcpy(yd->cpuptr,yd->devptr,yy->map->n*sizeof(double),cudaMemcpyDeviceToHost);
+  //if(cs!=cudaSuccess)printf("Error11: %s\n",cudaGetErrorString(cs));
 
   //for(i=0;i<yy->map->n;i++){
   //   if(yd->cpuptr[i]!=0.)printf("postMM Y[%d]: %e\n",i,yd->cpuptr[i]);
