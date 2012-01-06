@@ -71,7 +71,7 @@ PetscErrorCode VecCheckCUDAStatus(cudaError_t cs,const char *msg){
     PetscFunctionReturn(0);
 }
 
-
+/*-------------------- end error checkers ------------------- */
 
 
 
@@ -223,7 +223,7 @@ PetscErrorCode VecSetRandom_SeqGPU(Vec x,PetscRandom r){
   PetscFunctionBegin;
   static PetscBool seed_flag=PETSC_TRUE;
   PetscErrorCode ierr;
-  PetscInt i,bx,tx;
+  PetscInt i;
   uint *seeds=PETSC_NULL,*devseeds=PETSC_NULL;
   PetscScalar rval;
   dim3 dimBlock,dimGrid;
@@ -237,19 +237,22 @@ PetscErrorCode VecSetRandom_SeqGPU(Vec x,PetscRandom r){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }else if(xd->syncState==VEC_SYNCHED || xd->syncState==VEC_GPU){
-    bx=ceil((float)x->map->n/(float)TCOUNT);
-    ierr = PetscMalloc(bx*sizeof(PetscInt),&seeds);CHKERRQ(ierr);
-    tx=TCOUNT;
-    dimGrid.x=bx; dimGrid.y=1;
-    dimBlock.x=tx; dimBlock.y=1;
+    ierr = PetscMalloc(dimGrid.x*sizeof(PetscInt),&seeds);CHKERRQ(ierr);
+    dimGrid.x=ceil((float)x->map->n/(float)TCOUNT);
+    dimBlock.x=TCOUNT;
+    while(dimGrid.x>MAXBLOCKS){
+      dimGrid.x/=2;
+      dimBlock.x*=2;
+    }
+
     if(seed_flag){
-      for(i=0; i<bx; i++){
+      for(i=0; i<dimGrid.x; i++){
          ierr = PetscRandomGetValue(r,&rval);CHKERRQ(ierr);
          seeds[i]=(uint)(UINT_MAX*rval);
       }
 
-      cms[0] = cudaMalloc((void**)&devseeds,bx*sizeof(uint));
-      ccs[0]=cudaMemcpy(devseeds,seeds,bx*sizeof(uint),cudaMemcpyHostToDevice);
+      cms[0] = cudaMalloc((void**)&devseeds,dimGrid.x*sizeof(uint));
+      ccs[0]=cudaMemcpy(devseeds,seeds,dimGrid.x*sizeof(uint),cudaMemcpyHostToDevice);
       #if(DEBUGVEC)
         ierr = VecCheckCUDAStatus(cms[0],"error in cudaMalloc");CHKERRQ(ierr);
         ierr = VecCheckCUDAStatus(ccs[0],"on copy H2D in VecSetRandom_SeqGPU");CHKERRQ(ierr);
@@ -295,22 +298,23 @@ PetscErrorCode VecCompare_SeqGPU(Vec x, Vec y, PetscBool *same, PetscInt offset,
     PetscFunctionReturn(0);
   }
   PetscErrorCode ierr;
-  int blocks,threads;/* assuming shared memory size is not an issue */
+  dim3 dimGrid, dimBlock;
   if(blocksize && !offset){
-    blocks=ceil((float)blocksize/(float)TCOUNT);
+    dimGrid.x=ceil((float)blocksize/(float)TCOUNT);
   } else {
-    blocks=ceil((float)x->map->n/(float)TCOUNT);
-    blocksize = x->map->n;
+    dimGrid.x=ceil((float)x->map->n/(float)TCOUNT);
   }
-  threads=TCOUNT;
+  dimBlock.x=TCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+      dimGrid.x/=2;
+      dimBlock.x*=2;
+  }
   cudaError_t cudastatus;
   int *devsame=PETSC_NULL;
   int cpusame=0;
   int2 offset_bsize;
   offset_bsize.x = offset;
   offset_bsize.y = blocksize;
-
-
   if(xd->syncState==VEC_CPU && yd->syncState==VEC_CPU){
     ierr = PetscMemcmp((void*)&xd->cpuptr[offset],(void*)&yd->cpuptr[offset],blocksize,same);CHKERRQ(ierr);
     PetscFunctionReturn(0);
@@ -325,9 +329,7 @@ PetscErrorCode VecCompare_SeqGPU(Vec x, Vec y, PetscBool *same, PetscInt offset,
   cudastatus=cudaMemcpyToSymbol("devN",(void*)&x->map->n,sizeof(int),0,cudaMemcpyHostToDevice);
   ierr = VecCheckCUDAStatus(cudastatus,"error in symbol copy to device");CHKERRQ(ierr);
 
-  dim3 dimGrid; dimGrid.x=blocks; dimGrid.y=1;
-  dim3 dimBlock; dimBlock.x=threads; dimBlock.y=1;
-  kernCompare<<<dimGrid,dimBlock>>>(xd->devptr,yd->devptr,xd->length,yd->length,devsame);
+  kernCompare<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(xd->devptr,yd->devptr,xd->length,yd->length,devsame);
   ierr = VecCheckCUDAError("kernCompare launch");CHKERRQ(ierr);
 
   cudastatus=cudaMemcpy(&cpusame,devsame,sizeof(int),cudaMemcpyDeviceToHost);
@@ -340,18 +342,18 @@ PetscErrorCode VecCompare_SeqGPU(Vec x, Vec y, PetscBool *same, PetscInt offset,
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedCompare[];
 #undef __FUNCT__
 #define __FUNCT__ "kernCompare"
 __global__ void kernCompare(double* devX, double* devY, int* lx, int* ly, int* devsame){
-
+  __shared__ unsigned char blockflag;
   int tid = blockIdx.x*blockDim.x+threadIdx.x;
   int2 localOBS = integer2Symbol;
   int localn = localOBS.x+localOBS.y;
   int index = tid+localOBS.x;
   double value=0;
-  __shared__ unsigned char blockflag;
-  __shared__ double chunkX[TCOUNT];
-  __shared__ double chunkY[TCOUNT];
+  double* chunkX = sharedCompare;
+  double* chunkY = sharedCompare + blockDim.x;
 
   if(threadIdx.x==0)blockflag=0;
   __syncthreads();
@@ -377,10 +379,10 @@ __global__ void kernCompare(double* devX, double* devY, int* lx, int* ly, int* d
   return;
 }
 
-/*------------------------------- end compare --------------------------*/
+/*-------------------------- end compare ----------------------------*/
 
 
-/*---------------------------- Vec info functions ----------------------*/
+/*----------------------- Vec info functions ------------------------*/
 
 #undef __FUNCT__
 #define __FUNCT__ "VecView_SeqGPU"
@@ -620,8 +622,13 @@ PetscErrorCode VecSet_SeqGPU(Vec xin,PetscScalar alpha){
   #if(DEBUGVEC)
     PetscErrorCode ierr;
   #endif
-  dim3 dimgrid(ceil((float)xin->map->n/((float)TCOUNT)),1,1);
-  dim3 dimblocks(TCOUNT,1,1);
+  dim3 dimGrid, dimBlock;
+  dimGrid.x = ceil((float)xin->map->n/((float)TCOUNT));
+  dimBlock.x = TCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+     dimGrid.x/=2;
+     dimBlock.x*=2;
+  }
   Vec_SeqGPU* xd = (Vec_SeqGPU*)xin->data;
   #if(DEBUGVEC && VERBOSE)
      printf("Call to VecSet_SeqGPU, alpha: %e\n",alpha);
@@ -632,10 +639,13 @@ PetscErrorCode VecSet_SeqGPU(Vec xin,PetscScalar alpha){
   }else{
     ccs[0]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha,sizeof(double),0,cudaMemcpyHostToDevice);
     #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr); 
+       ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
     #endif
-    kernSet<<<dimgrid,dimblocks>>>(xd->devptr,xd->length);
-    #if(DEBUGVEC) 
+       kernSet<<<dimGrid,dimBlock,dimBlock.x*sizeof(double)>>>(xd->devptr,xd->length);
+    #if(DEBUGVEC)
+       #if(VERBOSE)
+          printf("In VecSet_SeqGPU: blocks: %d, threads: %d\n",dimGrid.x, dimBlock.x);
+       #endif
        ierr = VecCheckCUDAError("Call to kernSet. "); CHKERRQ(ierr);
     #endif
     xd->syncState=VEC_GPU;
@@ -643,15 +653,14 @@ PetscErrorCode VecSet_SeqGPU(Vec xin,PetscScalar alpha){
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedSet[];
 #undef __FUNCT__
 #define __FUNCT__ "kernSet"
 __global__ void kernSet(double* x, int* n){
   int tid = threadIdx.x + blockDim.x*blockIdx.x;
-  __shared__ double chunkX[TCOUNT];
-  chunkX[threadIdx.x] = dblScalarValue;
-  if(tid<*n){
-    x[tid] = chunkX[threadIdx.x]; /* arr[threadIdx.x]; */
-  }
+  double* setptr = sharedSet;
+  setptr[threadIdx.x] = dblScalarValue;
+  if(tid<*n) x[tid] = setptr[threadIdx.x];
 }
 
 
@@ -662,8 +671,13 @@ __global__ void kernSet(double* x, int* n){
 PetscErrorCode VecScale_SeqGPU(Vec x, PetscScalar alpha){
   PetscFunctionBegin;
   PetscErrorCode ierr;
-  dim3 dimgrid(ceil((float)x->map->n/((float)TCOUNT)),1,1);
-  dim3 dimblocks(TCOUNT,1,1);
+  dim3 dimGrid,dimBlock;
+  dimGrid.x=ceil((float)x->map->n/((float)TCOUNT));
+  dimBlock.x=TCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
   #if(DEBUGVEC && VERBOSE)
      printf("VecScale_SeqGPU...alpha: %e\n",alpha);
@@ -684,28 +698,30 @@ PetscErrorCode VecScale_SeqGPU(Vec x, PetscScalar alpha){
     #endif
   }else if (alpha != 1.0){
     ccs[0]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha,sizeof(double),0,cudaMemcpyHostToDevice);
-    #if(DEBUGVEC) 
+    #if(DEBUGVEC)
        ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
     #endif
-    kernScale<<<dimgrid,dimblocks,0,xd->stream>>>(xd->devptr,xd->length);
+       kernScale<<<dimGrid,dimBlock,dimBlock.x*sizeof(double),xd->stream>>>(xd->devptr,xd->length);
     #if(DEBUGVEC)
-       ierr = VecCheckCUDAError("Call to kernScale. "); CHKERRQ(ierr); 
+       ierr = VecCheckCUDAError("Call to kernScale."); CHKERRQ(ierr);
     #endif
   }
   xd->syncState=VEC_GPU;
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedScale[];
 #undef __FUNCT__
 #define __FUNCT__ "kernScale"
 __global__ void kernScale(double* x, int* n){
   int tid = threadIdx.x + blockDim.x*blockIdx.x;
-  __shared__ double arr[TCOUNT];
-  double localdbl=dblScalarValue;
+  double* scaleptr = sharedScale;
+  __shared__ double scalar;
+  scalar=dblScalarValue;
   if(tid<*n){
-    arr[threadIdx.x] = x[tid];
-    arr[threadIdx.x] *= localdbl;
-    x[tid] = arr[threadIdx.x];
+    scaleptr[threadIdx.x] = x[tid];
+    scaleptr[threadIdx.x]*= scalar;
+    x[tid] = scaleptr[threadIdx.x];
   }
 }
 
@@ -748,7 +764,6 @@ PetscErrorCode VecDot_SeqGPU(Vec x,Vec y,PetscScalar *z){
   }
   if(dimGrid.x&1)dimGrid.x++;/* make sure even number of blocks */
   dimBlock.x = THRDOTCNT;
-
 
   /* set up on x stream */
   if(xd->syncState==VEC_CPU){
@@ -853,12 +868,13 @@ PetscErrorCode VecDot_SeqGPU(Vec x,Vec y,PetscScalar *z){
 }
 
 
-extern __shared__ double zDot[];
+extern __shared__ double sharedRedDot[];
 #undef __FUNCT__
 #define __FUNCT__ "kernRedDot"
 __global__ void kernRedDot(double* arr,int* chunks, double* z){/* reduction kernel */
 
   int i = (blockDim.x+1)/2;
+  double* zDot = sharedRedDot;
   zDot[threadIdx.x]=0.;
   if(threadIdx.x<*chunks)zDot[threadIdx.x]=arr[threadIdx.x];
   while(i>0){
@@ -872,7 +888,6 @@ __global__ void kernRedDot(double* arr,int* chunks, double* z){/* reduction kern
     *z=zDot[0];
   }
 }
-
 
 
 #undef __FUNCT__
@@ -899,7 +914,6 @@ __global__ void kernDot(double* devX, double* devY,
     chunkX[threadIdx.x]=0.;
     chunkY[threadIdx.x]=0.;
   }
-
   chunkX[threadIdx.x]*=chunkY[threadIdx.x];
   __syncthreads();
 
@@ -912,11 +926,8 @@ __global__ void kernDot(double* devX, double* devY,
      i/=2;
   }/* end while */
 
-  if(threadIdx.x==0){
-    scratch[blockIdx.x]=chunkX[0];
-  }
+  if(threadIdx.x==0)scratch[blockIdx.x]=chunkX[0];/* else return? */
   __syncthreads();
-
 
   /* grid level reduction */
   while(j>0){
@@ -928,8 +939,6 @@ __global__ void kernDot(double* devX, double* devY,
   }
   if(tid==0)*z=scratch[blockIdx.x];
 }
-
-
 
 
 #undef __FUNCT__
@@ -967,12 +976,10 @@ PetscErrorCode VecAXPBY_SeqGPU(Vec yin,PetscScalar beta,PetscScalar alpha,Vec xi
 PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
   PetscFunctionBegin;
   PetscErrorCode ierr;
-  PetscInt bx,tx;
   Vec_SeqGPU *wd=(Vec_SeqGPU*)w->data;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
-  dim3 dimGrid;
-  dim3 dimBlock;
+  dim3 dimGrid, dimBlock;
   #if(DEBUGVEC && VERBOSE)
      printf("VecWAXPY_SeqGPU...alpha: %e\n",alpha);
   #endif
@@ -987,22 +994,22 @@ PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
+  dimGrid.x=ceil((float)y->map->n/(float)AXPYTCOUNT);
+  dimBlock.x=AXPYTCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   cudaDeviceSynchronize();
-  /* assuming width mem load isn't going to be an issue */
-  bx=ceil((float)y->map->n/(float)AXPYTCOUNT);
-  tx=AXPYTCOUNT;
-  dimGrid.x=bx; dimGrid.y=1;
-  dimBlock.x=tx; dimBlock.y=1;
-
   if(alpha==0.0){
     ierr = VecCopyOverDevice(w,y);CHKERRQ(ierr);
   }else if(alpha==1.0){
-    kernWXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+    kernWXPY<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAError("kernel call to kernWXPY");CHKERRQ(ierr); 
     #endif
   }else if(alpha==-1.0){
-    kernWXMY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+    kernWXMY<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAError("kernel call to kernWXMY");CHKERRQ(ierr);
     #endif
@@ -1011,7 +1018,7 @@ PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
     #if(DEBUGVEC)
        ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
     #endif
-    kernWAXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+    kernWAXPY<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAError("kernel call to kernWAXPY");CHKERRQ(ierr); 
     #endif
@@ -1020,18 +1027,18 @@ PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
   PetscFunctionReturn(0);
 }
 
+
+extern __shared__ double sharedWAXPY[];
 #undef __FUNCT__
 #define __FUNCT__ "kernWAXPY"
 __global__ void  kernWAXPY(double* devY,double* devX, int* vlen, double* devW){
-
  /* w <- y + alpha*x */
   int tid;
   tid = blockIdx.x*blockDim.x+threadIdx.x;
   __shared__ double alphaShared;
-  __shared__ double chunkY[AXPYTCOUNT];
-  __shared__ double chunkX[AXPYTCOUNT];
-  __shared__ double chunkW[AXPYTCOUNT];
-
+  double* chunkX = sharedWAXPY;
+  double* chunkY = sharedWAXPY + blockDim.x;
+  double* chunkW = sharedWAXPY + 2*blockDim.x;
   alphaShared = dblScalarValue;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
@@ -1041,16 +1048,16 @@ __global__ void  kernWAXPY(double* devY,double* devX, int* vlen, double* devW){
   }
 }
 
+extern __shared__ double sharedWXPY[];
 #undef __FUNCT__
 #define __FUNCT__ "kernWXPY"
 __global__ void  kernWXPY(double* devY,double* devX, int* vlen, double* devW){
-
  /* w <- y + x */
   int tid;
   tid = blockIdx.x*blockDim.x+threadIdx.x;
-  __shared__ double chunkY[AXPYTCOUNT];
-  __shared__ double chunkX[AXPYTCOUNT];
-  __shared__ double chunkW[AXPYTCOUNT];
+  double* chunkX = sharedWXPY;
+  double* chunkY = sharedWXPY + blockDim.x;
+  double* chunkW = sharedWXPY + 2*blockDim.x;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
@@ -1059,16 +1066,16 @@ __global__ void  kernWXPY(double* devY,double* devX, int* vlen, double* devW){
   }
 }
 
+extern __shared__ double sharedWXMY[];
 #undef __FUNCT__
 #define __FUNCT__ "kernWXMY"
 __global__ void  kernWXMY(double* devY,double* devX, int* vlen, double* devW){
-
  /* w <- y + alpha*x */
   int tid;
   tid = blockIdx.x*blockDim.x+threadIdx.x;
-  __shared__ double chunkY[AXPYTCOUNT];
-  __shared__ double chunkX[AXPYTCOUNT];
-  __shared__ double chunkW[AXPYTCOUNT];
+  double* chunkX = sharedWXMY;
+  double* chunkY = sharedWXMY + blockDim.x;
+  double* chunkW = sharedWXMY + 2*blockDim.x;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
@@ -1084,25 +1091,22 @@ PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y
   PetscFunctionBegin;
   if(DEBUGVEC && VERBOSE)printf("VecMAXPY_SeqGPU: alpha: %e\n",*alpha);
   PetscErrorCode ierr;
-  PetscInt i;  PetscInt bx,tx;
-  dim3 dimGrid;
-  dim3 dimBlock;
+  PetscInt i;
   PetscScalar *devW;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=PETSC_NULL;
-
   cms[0] = cudaMalloc((void**)&devW,x->map->n*sizeof(double));
-  ccs[0] = cudaMemset(devW,0,x->map->n*sizeof(double));
-
-  /* assuming xwidth mem load isn't going to be an issue */
-  bx=ceil((float)x->map->n/(float)AXPYTCOUNT);
-  tx=AXPYTCOUNT;
-  dimGrid.x=bx; dimGrid.y=1;
-  dimBlock.x=tx; dimBlock.y=1;
-
+  ccs[0] = cudaMemsetAsync(devW,0,x->map->n*sizeof(double),xd->stream);
+  dim3 dimGrid;  dim3 dimBlock;
+  dimGrid.x=ceil((float)x->map->n/(float)AXPYTCOUNT);
+  dimBlock.x=AXPYTCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   #if(DEBUGVEC)
     #if(VERBOSE)
-       printf("Number of vectors in MAXPY: %d, bx: %d, tx: %d\n",nv,bx,tx);
+       printf("Number of vectors in MAXPY: %d, blocks: %d, threads: %d\n",nv,dimGrid.x,dimBlock.x);
     #endif
     ierr = VecCheckCUDAStatus(cms[0],"error in device malloc VecMAXPY_SeqGPU");CHKERRQ(ierr);
     ierr = VecCheckCUDAStatus(ccs[0],"error in device memset VecMAXPY_SeqGPU");CHKERRQ(ierr);
@@ -1117,7 +1121,7 @@ PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y
       ierr = VecCopyOverH2D(y[i],yd->cpuptr);CHKERRQ(ierr);
       yd->syncState=VEC_SYNCHED;
     }
-    ccs[1]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha[i],sizeof(double),0,cudaMemcpyHostToDevice);
+    ccs[1]=cudaMemcpy(yd->scalar,&alpha[i],sizeof(double),cudaMemcpyHostToDevice);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAStatus(ccs[1],"error in symbol copy to device");CHKERRQ(ierr); 
     #endif
@@ -1125,29 +1129,23 @@ PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y
     if(alpha[i]==0){
       continue;
     }else if(alpha[i]==1.){
-      /* assuming width mem load isn't going to be an issue */
-      kernXPY<<<dimGrid,dimBlock>>>(devW,yd->devptr,yd->length);
-      #if(DEBUGVEC)
-        ierr = VecCheckCUDAError("kernel call to kernXPY");CHKERRQ(ierr);
-      #endif
+      kernXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(devW,yd->devptr,yd->length);
     }else{
-      /* assuming width mem load isn't going to be an issue */
-      kernAXPY<<<dimGrid,dimBlock>>>(devW,yd->devptr,yd->length);
-      #if(DEBUGVEC)
-         ierr = VecCheckCUDAError("kernel call to kernAXPY");CHKERRQ(ierr);
-      #endif
+      kernAXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(devW,yd->devptr,yd->length,yd->scalar);
     }
-  }
+    #if(DEBUGVEC)
+         ierr = VecCheckCUDAError("kernel call to kernAXPY or kernXPY in VecMAXPY_SeqGPU");CHKERRQ(ierr);
+    #endif
+  }/* end for */
   if(xd->syncState==VEC_CPU){/* synch x */
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
   cudaDeviceSynchronize();
-  kernXPY<<<dimGrid,dimBlock>>>(xd->devptr,devW,xd->length);
+  kernXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(xd->devptr,devW,xd->length);
   #if(DEBUGVEC)
      ierr = VecCheckCUDAError("kernel call to kernXPY");CHKERRQ(ierr);
   #endif
-
   cms[1] = cudaFree(devW);
   #if(DEBUGVEC)
      ierr = VecCheckCUDAStatus(cms[1],"on cudaFree");CHKERRQ(ierr);
@@ -1156,17 +1154,14 @@ PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedXPY[];
 #undef __FUNCT__
 #define __FUNCT__ "kernXPY"
 __global__ void  kernXPY(double* devY,double* devX, int* vlen){
-
  /* y <- y + x */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
-
-  __shared__ double chunkY[AXPYTCOUNT];
-  __shared__ double chunkX[AXPYTCOUNT];
-
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  double* chunkX = sharedXPY;
+  double* chunkY = sharedXPY + blockDim.x;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
@@ -1180,11 +1175,8 @@ __global__ void  kernXPY(double* devY,double* devX, int* vlen){
 PetscErrorCode VecAXPY_SeqGPU(Vec y,PetscScalar alpha,Vec x){
   PetscFunctionBegin;
   PetscErrorCode ierr;
-  PetscInt bx,tx;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
-  dim3 dimGrid;
-  dim3 dimBlock;
   if(x->map->n!=y->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
@@ -1196,20 +1188,25 @@ PetscErrorCode VecAXPY_SeqGPU(Vec y,PetscScalar alpha,Vec x){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
-  ccs[0]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha,sizeof(double),0,cudaMemcpyHostToDevice);
+  ccs[0]=cudaMemcpyAsync(yd->scalar,&alpha,sizeof(double),cudaMemcpyHostToDevice,yd->stream);
   #if(DEBUGVEC)
    #if(VERBOSE)
       printf("VecAXPY_SeqGPU\n");
    #endif
    ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
   #endif
-  tx=AXPYTCOUNT; bx=ceil((float)x->map->n/(float)AXPYTCOUNT);
-  dimGrid.x=bx;  dimBlock.x=tx;
+  dim3 dimGrid, dimBlock;
+  dimGrid.x=ceil((float)x->map->n/(float)AXPYTCOUNT);
+  dimBlock.x=AXPYTCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   cudaDeviceSynchronize();
   if(alpha==1.){
-    kernXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,yd->length);
-  }else if(alpha!=0){
-    kernAXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,yd->length);
+    kernXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,yd->length);
+  }else if(alpha!=0.){
+    kernAXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,yd->length,yd->scalar);
   }
   #if(DEBUGVEC)
    ierr = VecCheckCUDAError("kernel call in VecAXPY_SeqGPU");CHKERRQ(ierr);
@@ -1218,17 +1215,17 @@ PetscErrorCode VecAXPY_SeqGPU(Vec y,PetscScalar alpha,Vec x){
   PetscFunctionReturn(0);
 }
 
+
+extern __shared__ double sharedAXPY[];
 #undef __FUNCT__
 #define __FUNCT__ "kernAXPY"
-__global__ void  kernAXPY(double* devY,double* devX, int* vlen){
-
+__global__ void  kernAXPY(double* devY,double* devX, int* vlen,double *scalar){
  /* y <- y + alpha*x */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
   __shared__ double alphaShared;
-  __shared__ double chunkY[AXPYTCOUNT];
-  __shared__ double chunkX[AXPYTCOUNT];
-  alphaShared = dblScalarValue;
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  double* chunkX = sharedAXPY;
+  double* chunkY = sharedAXPY + blockDim.x;
+  alphaShared = *scalar;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
@@ -1239,53 +1236,51 @@ __global__ void  kernAXPY(double* devY,double* devX, int* vlen){
 
 #undef __FUNCT__
 #define __FUNCT__ "VecAXPBYPCZ_SeqGPU"
-PetscErrorCode VecAXPBYPCZ_SeqGPU(Vec x, PetscScalar alpha, PetscScalar beta,\
-                           PetscScalar gamma, Vec y, Vec z){
-
+PetscErrorCode VecAXPBYPCZ_SeqGPU(Vec x,PetscScalar alpha,PetscScalar beta,PetscScalar gamma,Vec y,Vec z){
   PetscFunctionBegin;
   #if(DEBUGVEC)
      PetscErrorCode ierr;
+     #if(VERBOSE)
+        printf("VecAXPBYPCZ_SeqGPU\n");
+     #endif
   #endif
-  int blocks=ceil((float)x->map->n/(float)AXPBYPCZTCOUNT);/* assuming shared memory size is not an issue */
-  int threads=AXPBYPCZTCOUNT;
   Vec_SeqGPU* devX = (Vec_SeqGPU*)x->data;
   Vec_SeqGPU* devY = (Vec_SeqGPU*)y->data;
   Vec_SeqGPU* devZ = (Vec_SeqGPU*)z->data;
-
-  double2 alphabeta;
-  alphabeta.x = alpha;
-  alphabeta.y = beta;
-  dim3 dimGrid; dimGrid.x=blocks; dimGrid.y=1;
-  dim3 dimBlock; dimBlock.x=threads; dimBlock.y=1;
-
+  double2 alphabeta;  alphabeta.x = alpha;  alphabeta.y = beta;
+  dim3 dimGrid, dimBlock;
+  dimGrid.x=ceil((float)x->map->n/(float)AXPBYPCZTCOUNT);
+  dimBlock.x=AXPBYPCZTCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   ccs[0]=cudaMemcpyToSymbol("dblScalar2Value",(void*)&alphabeta,sizeof(double2),0,cudaMemcpyHostToDevice);
   ccs[1]=cudaMemcpyToSymbol("dblScalarValue",(void*)&gamma,sizeof(double),0,cudaMemcpyHostToDevice);
-
   #if(DEBUGVEC)
    ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
    ierr = VecCheckCUDAStatus(ccs[1],"error in symbol copy to device");CHKERRQ(ierr);
   #endif
-
   cudaDeviceSynchronize();
-  kernAXPBYPCZ<<<dimGrid,dimBlock>>>(devX->devptr,devY->devptr,devZ->devptr,devX->length);
+  kernAXPBYPCZ<<<dimGrid,dimBlock,4*dimBlock.x*sizeof(double)>>>(devX->devptr,devY->devptr,devZ->devptr,devX->length);
   #if(DEBUGVEC)
      ierr = VecCheckCUDAError("launch kernAXPBYPCZ");CHKERRQ(ierr); 
   #endif
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedAXPBYPCZ[];
 #undef __FUNCT__
 #define __FUNCT__ "kernAXPBYPCZ"
 __global__ void kernAXPBYPCZ(double* devX, double* devY, double* devZ, int* len){
   /* x <- alpha*x + beta*y + gamma*z */
+  __shared__ int localn;
+  localn = *len;
   int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  int localn = *len;
-
-  __shared__ double work[AXPBYPCZTCOUNT];
-  __shared__ double chunkX[AXPBYPCZTCOUNT];
-  __shared__ double chunkY[AXPBYPCZTCOUNT];
-  __shared__ double chunkZ[AXPBYPCZTCOUNT];
-
+  double* work = sharedAXPBYPCZ;
+  double* chunkX = sharedAXPBYPCZ + blockDim.x;
+  double* chunkY = sharedAXPBYPCZ + 2*blockDim.x;
+  double* chunkZ = sharedAXPBYPCZ + 3*blockDim.x;
   if(tid<localn){
     /* read in values to shared */
     chunkX[threadIdx.x]=devX[tid];
@@ -1319,14 +1314,14 @@ __global__ void kernAXPBYPCZ(double* devX, double* devY, double* devZ, int* len)
 #define __FUNCT__ "VecPointwiseMult_SeqGPU"
 PetscErrorCode VecPointwiseMult_SeqGPU(Vec w,Vec x,Vec y){
   PetscFunctionBegin;
-  if(DEBUGVEC && VERBOSE)printf("VecPointwiseMult_SeqGPU\n");
+  #if(DEBUGVEC && VERBOSE)
+     printf("VecPointwiseMult_SeqGPU\n");
+  #endif
   PetscErrorCode ierr;
-  PetscInt bx,tx;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
   Vec_SeqGPU *wd=(Vec_SeqGPU*)y->data;
-  dim3 dimGrid;
-  dim3 dimBlock;
+  dim3 dimGrid, dimBlock;
   if(x->map->n!=y->map->n || w->map->n!=y->map->n || w->map->n!=x->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
@@ -1338,13 +1333,14 @@ PetscErrorCode VecPointwiseMult_SeqGPU(Vec w,Vec x,Vec y){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
-  bx=ceil((float)y->map->n/(float)PMULTCOUNT);
-  tx=PMULTCOUNT;
-  dimGrid.x=bx; dimGrid.y=1;
-  dimBlock.x=tx; dimBlock.y=1;
-
+  dimGrid.x=ceil((float)y->map->n/(float)PMULTCOUNT);
+  dimBlock.x=PMULTCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   cudaDeviceSynchronize();
-  kernPMULT<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+  kernPMULT<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
   #if(DEBUGVEC)
      ierr = VecCheckCUDAError("kernel call to kernPMULT");CHKERRQ(ierr);
   #endif
@@ -1352,16 +1348,15 @@ PetscErrorCode VecPointwiseMult_SeqGPU(Vec w,Vec x,Vec y){
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedPMULT[];
 #undef __FUNCT__
 #define __FUNCT__ "kernPMULT"
 __global__ void  kernPMULT(double* devY,double* devX, int* vlen, double* devW){
-
  /* w <- x./y */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
-  __shared__ double chunkY[PMULTCOUNT];
-  __shared__ double chunkX[PMULTCOUNT];
-  __shared__ double chunkW[PMULTCOUNT];
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  double* chunkX = sharedPMULT;
+  double* chunkY = sharedPMULT + blockDim.x;
+  double* chunkW = sharedPMULT + 2*blockDim.x;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
@@ -1375,15 +1370,16 @@ __global__ void  kernPMULT(double* devY,double* devX, int* vlen, double* devW){
 #define __FUNCT__ "VecMaxPointwiseDivide_SeqGPU"
 PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
   PetscFunctionBegin;
-  //printf("VecMaxPointwiseDivide_SeqGPU...");
+  #if(DEBUGVEC && VERBOSE)
+     printf("VecMaxPointwiseDivide_SeqGPU...");
+  #endif
   PetscErrorCode ierr;
   PetscScalar *devMax,*devScratch,*devPartial;
   PetscInt i,chunks=0,*devChunks,segment,partialsize,scratchsize;
   cudaStream_t* pwdstream;
-  dim3 dimGrid, dimBlock;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
-
+  dim3 dimGrid;  dim3 dimBlock;
   /* figure out how many chunks will be needed */
   chunks = ceil( ((float)x->map->n) /(float)(CHUNKWIDTH));
   pwdstream = (cudaStream_t*)malloc(chunks*sizeof(cudaStream_t));
@@ -1409,7 +1405,6 @@ PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
-
   cms[0]=cudaMalloc((void**)&devMax,sizeof(PetscScalar));
   scratchsize = chunks*dimGrid.x*sizeof(double);
   cms[1] = cudaMalloc((void**)&devScratch,scratchsize);
@@ -1427,15 +1422,13 @@ PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
     ierr = VecCheckCUDAStatus(ccs[1],"devPartial memset in VecMPWD_SeqGPU");CHKERRQ(ierr);
     ierr = VecCheckCUDAStatus(ccs[3],"on copy segment size H2D in VecMPWD_SeqGPU");CHKERRQ(ierr);
   #endif
-
   cudaDeviceSynchronize();
+ #if(DEBUGVEC && VERBOSE)
+  printf("executing overlapping MAXDIV...");
+ #endif
   for(i=0;i<chunks;i++){
     cms[3]=cudaStreamCreate(&(pwdstream[i]));
     ccs[2]=cudaMemcpyAsync(xd->offset,&i,sizeof(int),cudaMemcpyHostToDevice,pwdstream[i]);
-    #if(DEBUGVEC)
-      ierr = VecCheckCUDAStatus(cms[3],"on cudaStreamCreate");CHKERRQ(ierr);
-      ierr = VecCheckCUDAStatus(ccs[2],"on copy array length H2D in VecMPWD_SeqGPU");CHKERRQ(ierr);
-    #endif
     /* Overlapping execution */
     kernMAXPDIV<<<dimGrid,dimBlock,0,pwdstream[i]>>>(xd->devptr,yd->devptr,
                                                      xd->segment,
@@ -1443,10 +1436,12 @@ PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
                                                      xd->offset,
                                                      (devScratch+i*dimGrid.x),
                                                      (devPartial+i));
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAError("kernMAXPDIV launch in VecMPWD_SeqGPU");CHKERRQ(ierr);
-    #endif
-  }
+  }/* end for-loop */
+
+  #if(DEBUGVEC && VERBOSE)
+     cudaDeviceSynchronize();
+     printf("done\n.");
+  #endif
 
   if(chunks>1){
     dimGrid.x=1;
@@ -1494,19 +1489,19 @@ PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
 }
 
 
-extern __shared__ double mlist[];
+extern __shared__ double sharedMAX[];
 #undef __FUNCT__
 #define __FUNCT__ "kernMAX"
 __global__ void  kernMAX(double* maxlist,int *chunks,double* max){
-  int i,tid;
-  tid = threadIdx.x;
-  i = (blockDim.x+1)/2;
+  int tid = threadIdx.x;
+  int i = (blockDim.x+1)/2;
+  double* mlist = sharedMAX;
   mlist[threadIdx.x]=0.;
   if(tid<*chunks) mlist[tid]=maxlist[tid];
   __syncthreads();
   while(i>0){
     if(tid<i){
-      mlist[tid] = (mlist[tid]>mlist[tid+i])?mlist[tid]:mlist[tid+i];
+      mlist[tid]=(mlist[tid]>mlist[tid+i])?mlist[tid]:mlist[tid+i];
     }
     __syncthreads();
     i/=2;
@@ -1538,9 +1533,6 @@ __global__ void  kernMAXPDIV(double* devY,double* devX, int* segmentsize,
     chunkY[threadIdx.x]=devY[item];
     if(chunkY[threadIdx.x]!=0){
       chunkW[threadIdx.x]=fabs(__ddiv_rn(chunkX[threadIdx.x],chunkY[threadIdx.x]));
-      #if(DEBUGVEC && VERBOSE)
-         printf("In kernMAXPDIV: chunkW[%d]: %e\n",threadIdx.x,chunkW[threadIdx.x]);
-      #endif
     }else{
       chunkW[threadIdx.x]=fabs(chunkX[threadIdx.x]);
     }
@@ -1553,9 +1545,6 @@ __global__ void  kernMAXPDIV(double* devY,double* devX, int* segmentsize,
   while(i>0){
     if(threadIdx.x<i){
       chunkW[threadIdx.x]=(chunkW[threadIdx.x]>chunkW[threadIdx.x+i])?chunkW[threadIdx.x]:chunkW[threadIdx.x+i];
-      #if(DEBUGVEC && VERBOSE)
-         printf("In kernMAXPDIV: chunk2W[%d]: %e\n",threadIdx.x,chunkW[threadIdx.x]);
-      #endif
     }
     __syncthreads();
     i/=2;
@@ -1566,9 +1555,6 @@ __global__ void  kernMAXPDIV(double* devY,double* devX, int* segmentsize,
   while(j>0){
     if(threadIdx.x==0 && blockIdx.x<j){
       scratch[blockIdx.x]=(scratch[blockIdx.x]>scratch[blockIdx.x+j])?scratch[blockIdx.x]:scratch[blockIdx.x+j];
-      #if(DEBUGVEC && VERBOSE)
-         printf("In KernMAXPDIV: scratch[%d]: %e\n",blockIdx.x,scratch[blockIdx.x]);
-      #endif
     }
     __syncthreads();
     j/=2;
@@ -1582,12 +1568,10 @@ __global__ void  kernMAXPDIV(double* devY,double* devX, int* segmentsize,
 PetscErrorCode VecPointwiseDivide_SeqGPU(Vec w,Vec x,Vec y){
   PetscFunctionBegin;
   PetscErrorCode ierr;
-  PetscInt bx,tx;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
   Vec_SeqGPU *wd=(Vec_SeqGPU*)y->data;
-  dim3 dimGrid;
-  dim3 dimBlock;
+  dim3 dimGrid, dimBlock;
   #if(DEBUGVEC && VERBOSE)
      printf("Call to VecPointwiseDivide_SeqGPU\n");
   #endif
@@ -1602,27 +1586,29 @@ PetscErrorCode VecPointwiseDivide_SeqGPU(Vec w,Vec x,Vec y){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
-  bx=ceil((float)y->map->n/(float)PDIVTCOUNT);
-  tx=PDIVTCOUNT;
-  dimGrid.x=bx; dimGrid.y=1;
-  dimBlock.x=tx; dimBlock.y=1;
+  dimGrid.x=ceil((float)y->map->n/(float)PDIVTCOUNT);
+  dimBlock.x=PDIVTCOUNT;
+  while(dimGrid.x>MAXBLOCKS){
+    dimGrid.x/=2;
+    dimBlock.x*=2;
+  }
   cudaDeviceSynchronize();
-  kernPDIV<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+  kernPDIV<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
   #if(DEBUGVEC) 
      ierr = VecCheckCUDAError("kernel call to kernPDIV");CHKERRQ(ierr); 
   #endif
   PetscFunctionReturn(0);
 }
 
+extern __shared__ double sharedPDIV[];
 #undef __FUNCT__
 #define __FUNCT__ "kernPDIV"
 __global__ void  kernPDIV(double* devY,double* devX, int* vlen, double* devW){
  /* w <- x./y */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
-  __shared__ double chunkY[PDIVTCOUNT];
-  __shared__ double chunkX[PDIVTCOUNT];
-  __shared__ double chunkW[PDIVTCOUNT];
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  double* chunkX = sharedPDIV;
+  double* chunkY = sharedPDIV + blockDim.x;
+  double* chunkW = sharedPDIV + 2*blockDim.x;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
@@ -1662,7 +1648,6 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
   cudaStream_t* nrmstream;
   dim3 dimGrid, dimBlock;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
-
   if(xd->syncState==VEC_CPU){
     #if(DEBUGVEC && VERBOSE)
        printf("xd state VEC_CPU: copying to device.\n");
@@ -1704,10 +1689,6 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
   for(i=0;i<chunks;i++){/* streaming async kernel calls */
     cms[2]=cudaStreamCreate(&(nrmstream[i]));
     ccs[3]=cudaMemcpyAsync(xd->offset,&i,sizeof(int),cudaMemcpyHostToDevice,nrmstream[i]);
-    #if(DEBUGVEC)
-      ierr = VecCheckCUDAStatus(cms[2],"on cudaStreamCreate");CHKERRQ(ierr);
-      ierr = VecCheckCUDAStatus(ccs[3],"on copy array length H2D in VecNorm_SeqGPU");CHKERRQ(ierr);
-    #endif
     /* Overlapping execution */
     kernNorm2<<<dimGrid,dimBlock,0,nrmstream[i]>>>(xd->devptr,
                                                    xd->segment,
@@ -1715,10 +1696,7 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
                                                    xd->offset,
                                                    devScratch+i*dimGrid.x,
                                                    (devPartial+i));
-    #if(DEBUGVEC)
-        ierr = VecCheckCUDAError("kernNorm2 launch in VecNorm_SeqGPU");CHKERRQ(ierr); 
-    #endif
-  }
+  }/* end for-loop */
   if(chunks>1){
     /* norm2 block reduction */
     dimGrid.x  = 1;
@@ -1773,37 +1751,21 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
 
 
 
-extern __shared__ double zptr[];
+extern __shared__ double sharedRedNorm[];
 #undef __FUNCT__
 #define __FUNCT__ "kernRedNorm"
 __global__ void kernRedNorm(double* arr, int* chunks,double* z){/* reduction kernel */
   int i = (blockDim.x+1)/2;
+  double* zptr = sharedRedNorm;
   zptr[threadIdx.x]=0.;
   if(threadIdx.x<*chunks)zptr[threadIdx.x]=arr[threadIdx.x];
-
-  #if(DEBUGVEC && VERBOSE)
-     printf("In kernRedNorm z[%d]: %e, arr[%d]: %e\n",threadIdx.x,zptr[threadIdx.x],threadIdx.x,arr[threadIdx.x]);
-  #endif
   __syncthreads();
   while(i>0){
-    if(threadIdx.x<i){
-      #if(DEBUGVEC && VERBOSE)
-        printf("in kernRedNorm PRE z[%d]: %e, z[%d]: %e\n",threadIdx.x,zptr[threadIdx.x],threadIdx.x+i,zptr[threadIdx.x+i]);
-      #endif
-      zptr[threadIdx.x]+=zptr[threadIdx.x+i];
-      #if(DEBUGVEC && VERBOSE)
-        printf("in kernRedNorm POST z[%d]: %e, z[%d]: %e\n",threadIdx.x,zptr[threadIdx.x],threadIdx.x+i,zptr[threadIdx.x+i]);
-      #endif
-    }
+    if(threadIdx.x<i) zptr[threadIdx.x]+=zptr[threadIdx.x+i];
     __syncthreads();
     i/=2;
   }/* end while */
-  if(threadIdx.x==0){
-    *z=zptr[0];
-  }
-  #if(DEBUGVEC && VERBOSE)
-     if(threadIdx.x==0)printf("in kernRedNorm: z: %e, zptr[0]: %e\n",*z,zptr[0]); 
-  #endif
+  if(threadIdx.x==0)*z=zptr[0];
 }
 
 
@@ -1825,16 +1787,10 @@ __global__ void kernNorm2(double* devX,
 
   if(item<n){/* read in values to shared */
     chunkX[threadIdx.x]=devX[item]; /* offset values */
-    #if(DEBUGVEC && VERBOSE)
-       printf("in kernNorm2: chunkX[%d]: %e\n",threadIdx.x,chunkX[threadIdx.x]);
-    #endif
   }else{
     chunkX[threadIdx.x]=0.0;
   }
   chunkX[threadIdx.x]*=chunkX[threadIdx.x];
-  #if(DEBUGVEC && VERBOSE)
-     printf("in kernNorm2: chunkX[%d]: %e\n",threadIdx.x,chunkX[threadIdx.x]);
-  #endif
   __syncthreads();
 
   /* block level reduction */
@@ -1848,9 +1804,6 @@ __global__ void kernNorm2(double* devX,
   __syncthreads();
   if(threadIdx.x==0){
     scratch[blockIdx.x]=chunkX[0];
-    #if(DEBUGVEC && VERBOSE)
-       printf("in kernNorm2: scratch[%d]: %e, chunk[0]: %e\n",blockIdx.x,scratch[blockIdx.x],chunkX[0]);
-    #endif
   }
   __syncthreads();
 
@@ -1858,21 +1811,11 @@ __global__ void kernNorm2(double* devX,
   while(j>0){
     if(threadIdx.x==0 && blockIdx.x<j){
       scratch[blockIdx.x]+=scratch[blockIdx.x+j];
-      #if(DEBUGVEC && VERBOSE)
-         printf("############## scratch[%d]: %e\n",blockIdx.x,scratch[blockIdx.x]);
-      #endif
     }
     __syncthreads();
     j/=2;
   }/* end while */
-  if(tid==0){
-    *z=scratch[blockIdx.x];
-    __threadfence();
-    #if(DEBUGVEC && VERBOSE)
-      printf(">>>>>>>>>>>>>> scratch[%d]: %e, z: %e\n",blockIdx.x,scratch[blockIdx.x],*z);
-    #endif
-    //correct semantics up to here
-  }
+  if(tid==0)*z=scratch[blockIdx.x];
 }
 
 /*
@@ -1975,10 +1918,9 @@ PetscErrorCode VecCopy_SeqGPU(Vec s,Vec d){
   PetscErrorCode ierr;
   Vec_SeqGPU *sd=(Vec_SeqGPU*)s->data;
   Vec_SeqGPU *dd=(Vec_SeqGPU*)d->data;
- 
   if(d->map->n!=s->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
-   }
+  }
   if(dd->syncState==VEC_UNALLOC){
      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Destination vector unalloced.");
   }
@@ -1991,15 +1933,8 @@ PetscErrorCode VecCopy_SeqGPU(Vec s,Vec d){
   }
   ierr = VecCopyOverDevice(d,s); CHKERRQ(ierr);
   dd->syncState=sd->syncState;/* synch signal copy */
-  #if(DEBUGVEC)
-    #if(VERBOSE)
-       printf("Call to VecCopy_SeqGPU\n");
-    #endif
-
-    PetscBool same=PETSC_FALSE;
-    cudaDeviceSynchronize();
-    ierr = VecCompare_SeqGPU(s,d,&same,0,0);CHKERRQ(ierr);
-    if(!same)SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Vector duplication failed.");
+  #if(DEBUGVEC && VERBOSE)
+     printf("Call to VecCopy_SeqGPU\n");
   #endif
   PetscFunctionReturn(0);
 }
@@ -2085,7 +2020,6 @@ PetscErrorCode  VecPlaceArray_SeqGPU(Vec x,const PetscScalar* array){
   PetscFunctionReturn(0);
 }
 
-
 #undef __FUNCT__
 #define __FUNCT__ "VecResetArray_SeqGPU"
 PetscErrorCode  VecResetArray_SeqGPU(Vec x){
@@ -2105,7 +2039,6 @@ PetscErrorCode  VecResetArray_SeqGPU(Vec x){
   cudaDeviceSynchronize();
   PetscFunctionReturn(0);
 }
-
 
 
 #undef __FUNCT__
@@ -2225,6 +2158,7 @@ PetscErrorCode  VecCreate_SeqGPU(Vec V){
   cms[4]=cudaMalloc((void**)&(seqgpu->segment),sizeof(int));
   /* allocate the variable for vector single value result */
   cms[5]=cudaMalloc((void**)&(seqgpu->zval),sizeof(double));
+  cms[6]=cudaMalloc((void**)&(seqgpu->scalar),sizeof(double));
   /* using pinned memory */
   ierr = PinnedMalloc(&(seqgpu->cpuptr),V->map->n*sizeof(PetscScalar));CHKERRQ(ierr);
   ierr = PetscMemzero(seqgpu->cpuptr,V->map->n*sizeof(PetscScalar));CHKERRQ(ierr);
@@ -2243,10 +2177,10 @@ PetscErrorCode  VecCreate_SeqGPU(Vec V){
     ierr = VecCheckCUDAStatus(cms[3],"Alloc devoffset in VecCreate_SeqGPU");   CHKERRQ(ierr);
     ierr = VecCheckCUDAStatus(cms[4],"Alloc dev segment in VecCreate_SeqGPU"); CHKERRQ(ierr);
     ierr = VecCheckCUDAStatus(cms[5],"Alloc dev zval in VecCreate_SeqGPU");    CHKERRQ(ierr);
+    ierr = VecCheckCUDAStatus(cms[6],"Alloc dev scalar in VecCreate_SeqGPU");    CHKERRQ(ierr);
   #endif
   PetscFunctionReturn(0);
 }
-
 
 
 
@@ -2262,14 +2196,16 @@ PetscErrorCode VecDestroy_SeqGPU(Vec v){
       cms[1]=cudaFree(vd->length);  vd->length=PETSC_NULL;
       cms[2]=cudaFree(vd->segment); vd->segment=PETSC_NULL;
       cms[3]=cudaFree(vd->zval);    vd->zval=PETSC_NULL;
-      cms[4] = cudaStreamDestroy(vd->stream);
+      cms[4]=cudaFree(vd->scalar);  vd->scalar=PETSC_NULL;
+      cms[5] = cudaStreamDestroy(vd->stream);
       ierr = PinnedFree(vd->cpuptr); CHKERRQ(ierr);
       #if(DEBUGVEC)
         ierr=VecCheckCUDAStatus(cms[0],"destroying devptr in VecDestroy_SeqGPU"); CHKERRQ(ierr);
         ierr=VecCheckCUDAStatus(cms[1],"destroying length in VecDestroy_SeqGPU"); CHKERRQ(ierr);
         ierr=VecCheckCUDAStatus(cms[2],"destroying segment in VecDestroy_SeqGPU");CHKERRQ(ierr);
         ierr=VecCheckCUDAStatus(cms[3],"destroying zval in VecDestroy_SeqGPU");   CHKERRQ(ierr);
-        ierr=VecCheckCUDAStatus(cms[4],"destroying stream in VecDestroy_SeqGPU"); CHKERRQ(ierr);
+        ierr=VecCheckCUDAStatus(cms[4],"destroying scalar in VecDestroy_SeqGPU"); CHKERRQ(ierr);
+        ierr=VecCheckCUDAStatus(cms[5],"destroying stream in VecDestroy_SeqGPU"); CHKERRQ(ierr);
       #endif
       vd->syncState = VEC_UNALLOC;
   }

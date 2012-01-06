@@ -10,12 +10,13 @@
 
 EXTERN_C_BEGIN
 #include <cuda.h>
-#define DEBUGVEC        0
-#define VERBOSE         0
-#define MPLIER          4.0
+#define DEBUGVEC        1
+#define VERBOSE         1
+#define MPLIER          8.0
 #define CHUNKWIDTH      MPLIER*65536.0
 #define TCOUNT          128
 #define MAXTHREADS      1024
+#define MAXBLOCKS       65536
 #define THRDOTCNT       256
 #define AXPYTCOUNT      128
 #define AXPBYPCZTCOUNT  128
@@ -109,7 +110,7 @@ extern __global__ void kernScale(double*, int*);
 extern __global__ void kernCopy(double*, double*, int*, int*);
 extern __global__ void kernDot(double*,double*,int*,int*,int*,double*,double*);
 extern __global__ void kernRedDot(double*,int*,double*);
-extern __global__ void kernAXPY(double*, double*, int*);
+extern __global__ void kernAXPY(double*, double*, int*,double*);
 extern __global__ void kernWAXPY(double*, double*, int*, double*);
 extern __global__ void kernWXPY(double*, double*, int*, double*);
 extern __global__ void kernWXMY(double*, double*, int*, double*);
@@ -154,6 +155,7 @@ typedef struct{
   VecGPUFlag          syncState;
   //PetscBool           dimsetflag;
   PetscInt*           length;
+  PetscScalar*        scalar;
   PetscScalar*        cpuptr;
   PetscScalar*        devptr;
   PetscScalar*        zval;
