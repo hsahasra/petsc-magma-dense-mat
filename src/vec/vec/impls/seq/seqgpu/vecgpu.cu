@@ -927,14 +927,15 @@ __global__ void kernDot(double* devX, double* devY,
   }/* end while */
 
   if(threadIdx.x==0)scratch[blockIdx.x]=chunkX[0];/* else return? */
-  __syncthreads();
+  else return;
+  __threadfence();
 
   /* grid level reduction */
   while(j>0){
     if(threadIdx.x==0 && blockIdx.x<j){
       scratch[blockIdx.x]+=scratch[blockIdx.x+j];
-    }
-    __syncthreads();
+    }else return;
+    __threadfence();
     j/=2;
   }
   if(tid==0)*z=scratch[blockIdx.x];
@@ -1550,13 +1551,14 @@ __global__ void  kernMAXPDIV(double* devY,double* devX, int* segmentsize,
     i/=2;
   }
   if(threadIdx.x==0)scratch[blockIdx.x]=chunkW[0];
-
+  else return;
+  __threadfence();
   /* grid level reduction */
   while(j>0){
     if(threadIdx.x==0 && blockIdx.x<j){
       scratch[blockIdx.x]=(scratch[blockIdx.x]>scratch[blockIdx.x+j])?scratch[blockIdx.x]:scratch[blockIdx.x+j];
-    }
-    __syncthreads();
+    }else return;
+    __threadfence();
     j/=2;
   }
   if(tid==0)*maxitem=scratch[0];
@@ -1804,15 +1806,15 @@ __global__ void kernNorm2(double* devX,
   __syncthreads();
   if(threadIdx.x==0){
     scratch[blockIdx.x]=chunkX[0];
-  }
-  __syncthreads();
+  }else return;
+  __threadfence();
 
   /* grid level reduction */
   while(j>0){
     if(threadIdx.x==0 && blockIdx.x<j){
       scratch[blockIdx.x]+=scratch[blockIdx.x+j];
-    }
-    __syncthreads();
+    }else return;
+    __threadfence();
     j/=2;
   }/* end while */
   if(tid==0)*z=scratch[blockIdx.x];
