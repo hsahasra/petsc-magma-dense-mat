@@ -10,18 +10,18 @@
 
 EXTERN_C_BEGIN
 #include <cuda.h>
-#define DEBUGVEC        1
-#define VERBOSE         1
-#define MPLIER          8.0
+#define DEBUGVEC        0
+#define VERBOSE         0
+#define MPLIER          4.0
 #define CHUNKWIDTH      MPLIER*65536.0
 #define TCOUNT          128
 #define MAXTHREADS      1024
 #define MAXBLOCKS       65536
-#define THRDOTCNT       256
+#define THRDOTCNT       64
 #define AXPYTCOUNT      128
 #define AXPBYPCZTCOUNT  128
-#define THRNRMCNT       256
-#define PDIVTCOUNT      256
+#define THRNRMCNT       64
+#define PDIVTCOUNT      64
 #define PMULTCOUNT      128
 #define CPYTCOUNT       128
 #define NNN		624
@@ -52,6 +52,7 @@ struct copyCounters{
 };
  */
 
+static PetscErrorCode VecView_Seq_ASCII(Vec ,PetscViewer);
 static PetscErrorCode PinnedMalloc(PetscScalar** x,PetscInt n);
 static PetscErrorCode PinnedFree(PetscScalar* x);
 extern PetscErrorCode VecDotNorm2_SeqGPU(Vec,Vec,PetscScalar *, PetscScalar *);
@@ -76,7 +77,6 @@ extern PetscErrorCode VecAXPBY_SeqGPU(Vec,PetscScalar,PetscScalar,Vec);
 extern PetscErrorCode VecDuplicate_SeqGPU(Vec,Vec *);
 extern PetscErrorCode VecNorm_SeqGPU(Vec,NormType,PetscReal*);
 extern PetscErrorCode VecCreate_SeqGPU(Vec);
-static PetscErrorCode VecView_Seq_ASCII(Vec ,PetscViewer);
 extern PetscErrorCode VecView_SeqGPU(Vec,PetscViewer);
 extern PetscErrorCode VecDestroy_SeqGPU(Vec);
 extern PetscErrorCode VecDestroyVecs_SeqGPU(PetscInt,Vec*);
