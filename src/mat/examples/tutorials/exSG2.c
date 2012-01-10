@@ -1,6 +1,6 @@
 /* Program usage:  mpiexec ex1 [-help] for all PETSc options
 */
-static char help[] = "Simple program to test the performance of matmult for various matrix implementations. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]\n\n";
+static char help[] = "Simple program to test the performance of matmult for various matrix implementations. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info] Note: All of these flags are required except for info\n\n";
 
 #include<sys/time.h>
 #include "../../impls/structgrid/matstructgrid.h"
@@ -9,6 +9,12 @@ static char help[] = "Simple program to test the performance of matmult for vari
 //#include<petscmat.h>// 	- matrices
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
+//#define PAPI
+
+#ifdef PAPI
+#include"papi.h"
+#define NUM_EVENTS 4
+#endif
 
 PetscReal normdiff = 1.0e-6;
 extern int OPENMP;
@@ -26,15 +32,20 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
-#define CSR
-#define SG
+//#define CSR
+//#define SG
 //#define OMP
-//#define GPU
+#define GPU
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
+#ifdef PAPI
+unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM,PAPI_TLB_DM};
+long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
+int e;
+#endif
 
 OPENMP=0;
 
@@ -46,7 +57,7 @@ OPENMP=0;
   	if (size != 1) SETERRQ(PETSC_COMM_WORLD,1,"This is a uniprocessor example only!");
 
     /*Default values*/
-	PetscInt m=2,n=2,p=2,dim=3,dof=1;
+	PetscInt m=1,n=1,p=1,dim=3,dof=1;
 	PetscInt nos;
 	PetscInt info=0;
 	long REP=1;
@@ -76,92 +87,6 @@ OPENMP=0;
 	dims[0]=m;dims[1]=n;dims[2]=p;
 	nz=m*n*p*dof;
 
-	/*Mat     matip;
-	ierr = MatCreate(PETSC_COMM_WORLD,&matip);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matip,nz,nz,nz,nz);CHKERRQ(ierr);
-	ierr = MatSetType(matip,MATSTRUCTGRID);//CHKERRQ(ierr);
-  	ierr = MatSetStencil(matip,dim,dims,starts,dof);CHKERRQ(ierr);
-	Mat_SeqSG * sg = (Mat_SeqSG*) matip->data;
-	*/
-	
-	PetscInt *idx =  malloc (sizeof(PetscInt)*nos);
-	PetscInt *idy =  malloc (sizeof(PetscInt)*nos);
-	PetscInt *idz =  malloc (sizeof(PetscInt)*nos);
-	int cnt=0;	
-	idx[cnt] = 0; idy[cnt]=0; idz[cnt++]= 0;
-	for(i=1;i<dof;i++)
-	{
-		idx[cnt] = i; idy[cnt] = 0; idz[cnt++] = 0;
-		idx[cnt] = -i; idy[cnt] = 0; idz[cnt++] = 0;
-	}
-	if(dim>0)
-	{	
-		idx[cnt] = -dof; idy[cnt] = 0; idz[cnt++] = 0;
-		for(i=1;i<dof;i++)
-		{
-			idx[cnt] = -dof+i; idy[cnt] = 0; idz[cnt++] = 0;
-			idx[cnt] = -dof-i; idy[cnt] = 0; idz[cnt++] = 0;
-		}
-			
-		idx[cnt] = dof; idy[cnt] = 0; idz[cnt++] = 0;
-		for(i=1;i<dof;i++)
-		{
-			idx[cnt] = dof+i; idy[cnt] = 0; idz[cnt++] = 0;
-			idx[cnt] = dof-i; idy[cnt] = 0; idz[cnt++] = 0;
-		}	
-	}
-	if(dim>1)
-	{
-		idx[cnt] = 0; idy[cnt] = -1; idz[cnt++] = 0;
-		for(i=1;i<dof;i++)
-		{
-			idx[cnt] = i; idy[cnt] = -1; idz[cnt++] = 0;
-			idx[cnt] = -i; idy[cnt] = -1; idz[cnt++] = 0;
-		}
-			
-		idx[cnt] = 0; idy[cnt] = 1; idz[cnt++] = 0;
-		for(i=1;i<dof;i++)
-		{
-			idx[cnt] = i; idy[cnt] = 1; idz[cnt++] = 0;
-			idx[cnt] = -i; idy[cnt] = 1; idz[cnt++] = 0;
-		}	
-	}
-	if(dim>2)
-	{
-		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = -1;
-		for(i=1;i<dof;i++)
-		{
-			idx[cnt] = i; idy[cnt] = 0; idz[cnt++] = -1;
-			idx[cnt] = -i; idy[cnt] = 0; idz[cnt++] = -1;
-		}
-		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = 1;
-	}
-	PetscInt k,l;
-        PetscInt lda1 = m*n*p*dof;
-        PetscInt lda2 = m*n*dof;
-        PetscInt lda3 = m*dof;
-	PetscInt *offset = malloc(sizeof(PetscInt)*nos);
-	PetscInt *xval = malloc(sizeof(PetscInt)*nos);
-	cols = malloc(sizeof(PetscInt)*nos);
-	vals = malloc(sizeof(PetscScalar)*nos);
-
-	for(l=0;l<nos;l++)
-        {
-                offset[l] = l*lda1;
-		printf("idx[%d]=%d\n",l,idx[l]);
-		fflush(stdout);
-                xval[l] = idx[l] + idy[l]*lda3 + idz[l]*lda2;
-        }
-/*	
-	for(l=0;l<nos;l++)
-        {
-                offset[l] = l*lda1;
-		printf("sg->idx[%d]=%d\n",l,sg->idx[l]);
-		fflush(stdout);
-                xval[l] = sg->idx[l] + sg->idy[l]*lda3 + sg->idz[l]*lda2;
-        }
-*/	
-	PetscInt count;
 	Vec x;
 	double start,end;
   	ierr = VecCreate(PETSC_COMM_WORLD,&x);CHKERRQ(ierr);
@@ -169,6 +94,44 @@ OPENMP=0;
   	ierr = VecSetFromOptions(x);CHKERRQ(ierr);
 	ierr = VecSetRandom(x,PETSC_NULL);
 
+	cols = malloc(sizeof(PetscInt)*dof);
+	vals = malloc(sizeof(PetscScalar)*dof);
+	
+	PetscInt j,k,l,st;
+        PetscInt lda2 = m*n;
+        PetscInt lda3 = m;
+	PetscInt rowval = 0;
+
+	PetscInt nost;
+	nost =  (dim*2+1);
+	PetscInt *xval = malloc(sizeof(PetscInt)*nost);
+	PetscInt *idx = malloc(sizeof(PetscInt)*nost);
+	PetscInt *idy = malloc(sizeof(PetscInt)*nost);
+	PetscInt *idz = malloc(sizeof(PetscInt)*nost);
+
+	PetscInt cnt=0;
+	idx[cnt] = 0; idy[cnt]=0; idz[cnt++]= 0;
+	if(dim>0)
+	{	
+		idx[cnt] = -1; idy[cnt] = 0; idz[cnt++] = 0;
+		idx[cnt] = 1; idy[cnt] = 0; idz[cnt++] = 0;
+	}
+	if(dim>1)
+	{
+		idx[cnt] = 0; idy[cnt] = -1; idz[cnt++] = 0;
+		idx[cnt] = 0; idy[cnt] = 1; idz[cnt++] = 0;
+	}
+	if(dim>2)
+	{
+		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = -1;
+		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = 1;
+	}
+	for(st=0;st<nost;st++)
+        {
+                xval[st] = idx[st] + idy[st]*lda3 + idz[st]*lda2;
+		printf("st=%d, idx=%d, idy=%d, idz=%d, xval=%d\n",st,idx[st],idy[st],idz[st],xval[st]);
+        }
+	printf("nost=%d, nos=%d, nz=%d\n",nost,nos,nz);
 /*CSR*/
 #ifdef CSR
 	Vec  	y;
@@ -189,19 +152,27 @@ OPENMP=0;
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	//ierr = VecSet(x,one);CHKERRQ(ierr);//this can be modified such that x holds random values
-
-	for(i=0;i<nz;i++)
+	for(i=0;i<m*n*p;i++)
 	{
-		count=0;
-		for(l=0;l<nos;l++)
+		for(st=0;st<nost;st++)
         	{
-                        vals[count] = simple_rand();
-			if(xval[l]+i<nz)
-				cols[count++] =  (xval[l]+i);    
-		
+			j=xval[st]+i;
+			if(j>=0 && j<m*n*p)
+			{
+				for(l=0;l<dof;l++)
+				{
+					for(k=0;k<dof;k++)	
+					{
+						vals[k] = simple_rand();
+						cols[k] = j*dof+k; 
+					}
+					rowval = i*dof+l;
+   					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+				}
+			}
 		}
-   		ierr = MatSetValues(mat,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
         }
+
   
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      AssemblyBegin/End as values can still remain in Cache
@@ -211,11 +182,21 @@ OPENMP=0;
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Compute solution vectors and Performance test.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+#ifdef PAPI
+if (PAPI_start_counters((int *)Events, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+#endif
 
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("CSR Events[%d]= %lld\n",e,values[e]);
+#endif
 
 	printf("\nCSR :\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
@@ -238,26 +219,43 @@ OPENMP=0;
 	MatSetType(matsg,MATSTRUCTGRID);
   	ierr = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
 	MatSetUpPreallocation_SeqSG(matsg);
-	for(i=0;i<nz;i++)
+	for(i=0;i<m*n*p;i++)
 	{
-		count=0;
-		for(l=0;l<nos;l++)
+		for(st=0;st<nost;st++)
         	{
-                        vals[count] = simple_rand();
-			if(xval[l]+i<nz)
-				cols[count++] =  (xval[l]+i);    
-		
+			j=xval[st]+i;
+			if(j>=0 && j<m*n*p)
+			{
+				for(l=0;l<dof;l++)
+				{
+					for(k=0;k<dof;k++)	
+					{
+						vals[k] = simple_rand();
+						cols[k] = j*dof+k; 
+					}
+					rowval = i*dof+l;
+   					ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+				}
+			}
 		}
-   		ierr = MatSetValues(matsg,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-		
+#ifdef PAPI
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("Sg start error\n");
+#endif
 
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matsg,x,ysg);CHKERRQ(ierr);
 	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("sg stop error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);
+#endif
 	
 	printf("\nSG -AVX with Padding(original):\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
@@ -291,47 +289,57 @@ OPENMP=0;
 	Mat 	matgpu, matsggpu;           
 	ierr = VecDuplicate(x,&ysggpu);CHKERRQ(ierr);
 	ierr = VecDuplicate(x,&ygpu);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
+//  	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
+// 	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
   	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
   	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
-	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
+//	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
 	MatSetType(matgpu,MATSEQAIJCUSP);
-	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
-	MatSetUpPreallocation_SeqSG(matsggpu);
-	for(i=0;i<nz;i++)
+//	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
+//	MatSetUpPreallocation_SeqSG(matsggpu);
+	MatSeqAIJSetPreallocation(matgpu,nos,PETSC_NULL);
+	for(i=0;i<m*n*p;i++)
 	{
-		count=0;
-		for(l=0;l<nos;l++)
+		for(st=0;st<nost;st++)
         	{
-                        vals[count] = simple_rand();
-			if(xval[l]+i<nz)
-				cols[count++] =  (xval[l]+i);    
-		
+			j=xval[st]+i;
+			if(j>=0 && j<m*n*p)
+			{
+			  //printf("i=%d,j=%d\n",i,j);
+				for(l=0;l<dof;l++)
+				{
+					for(k=0;k<dof;k++)	
+					{
+						vals[k] =0.45;	// simple_rand();
+						cols[k] = j*dof+k; 
+					}
+					rowval = i*dof+l;
+				//	ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   					ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);//CHKERRQ(ierr);
+				}
+			}
 		}
-   		ierr = MatSetValues(matgpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsggpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
         }
   
   	ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 	//CSR GPU
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*(dim*2+1)*nz)/((end-start)*1024*1024*1024)); 
 
 	//SG (GPU)
-	start = rtclock();	
-	for(i=0;i<REP;i++)
-  		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
-	end = rtclock();
-	printf("\nSG - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+//	start = rtclock();	
+//	for(i=0;i<REP;i++)
+//  		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
+//	end = rtclock();
+//	printf("\nSG - GPU:\n");
+//	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
 
 	ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
 	ierr = VecDestroy(&ysggpu);CHKERRQ(ierr);
@@ -343,7 +351,6 @@ OPENMP=0;
 
  	free(dims);
   	free(starts);
-	free(offset);
 	free(xval);
 	free(cols);
 	free(vals);

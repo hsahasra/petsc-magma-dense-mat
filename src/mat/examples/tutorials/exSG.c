@@ -1,6 +1,6 @@
 /* Program usage:  mpiexec ex1 [-help] for all PETSc options
 */
-static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency (when REP=1)and also tested for performance. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]. Note: It is preferable to use exSG2 while checking performance (especially for big inputs) as it has less memory footprint\n\n";
+static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency (when REP=1)and also tested for performance. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]. All of these flags are required except for info. Note: It is preferable to use exSG2 while checking performance (especially for big inputs) as it has less memory footprint.\n\n";
 
 #include<sys/time.h>
 #include "../../impls/structgrid/matstructgrid.h"
@@ -10,9 +10,9 @@ static char help[] = "Simple program which does matrix vector multiplication usi
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
 
-#define OMP// enable to check OPENMP version
+//#define OMP// enable to check OPENMP version
 #define NUM_THREADS 2
-//#define GPU //enable to check GPU versions
+#define GPU //enable to check GPU versions
 
 //#define PAPI// enable this to use PAPI directly without HPCToolkit and specify the required counters
 #ifdef PAPI
@@ -169,158 +169,69 @@ int e;
 	cols = malloc(sizeof(PetscInt)*dof);
 	vals = malloc(sizeof(PetscScalar)*dof);
 	
-	Mat_SeqSG * sg = (Mat_SeqSG*) matsg->data;
-	
-	PetscInt j,k,l;
-        PetscInt lda1 = m*n*p*dof;
-        PetscInt lda2 = m*n*dof;
-        PetscInt lda3 = m*dof;
+	PetscInt j,k,l,st;
+        PetscInt lda2 = m*n;
+        PetscInt lda3 = m;
 	PetscInt rowval = 0;
 
-	printf("nos=%d,nz=%d\n",nos,nz);
-	for(i=0;i<(m*n*p);i++)
+	PetscInt nost;
+	nost =  (dim*2+1);
+	PetscInt *xval = malloc(sizeof(PetscInt)*nost);
+	PetscInt *idx = malloc(sizeof(PetscInt)*nost);
+	PetscInt *idy = malloc(sizeof(PetscInt)*nost);
+	PetscInt *idz = malloc(sizeof(PetscInt)*nost);
+
+	PetscInt cnt=0;
+	idx[cnt] = 0; idy[cnt]=0; idz[cnt++]= 0;
+	if(dim>0)
+	{	
+		idx[cnt] = -1; idy[cnt] = 0; idz[cnt++] = 0;
+		idx[cnt] = 1; idy[cnt] = 0; idz[cnt++] = 0;
+	}
+	if(dim>1)
 	{
-		if(dim > 2)
-		{
-		j = i - m * n;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
+		idx[cnt] = 0; idy[cnt] = -1; idz[cnt++] = 0;
+		idx[cnt] = 0; idy[cnt] = 1; idz[cnt++] = 0;
+	}
+	if(dim>2)
+	{
+		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = -1;
+		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = 1;
+	}
+	for(st=0;st<nost;st++)
+        {
+                xval[st] = idx[st] + idy[st]*lda3 + idz[st]*lda2;
+		//printf("st=%d, idx=%d, idy=%d, idz=%d, xval=%d\n",st,idx[st],idy[st],idz[st],xval[st]);
+        }
+	printf("nost=%d, nos=%d, nz=%d\n",nost,nos,nz);
+	for(i=0;i<m*n*p;i++)
+	{
+		for(st=0;st<nost;st++)
+        	{
+			j=xval[st]+i;
+			if(j>=0 && j<m*n*p)
 			{
-				for(k=0;k<dof;k++)	
+				//printf("i=%d,j=%d\n",i,j);
+				for(l=0;l<dof;l++)
 				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
-				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+					for(k=0;k<dof;k++)	
+					{
+						vals[k] = 0.5;//simple_rand();
+						cols[k] = j*dof+k; 
+					}
+					rowval = i*dof+l;
+   					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   					ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 #ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+					ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   					ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 #endif
-			}
-		}
-		j = i + m * n;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
-			{
-				for(k=0;k<dof;k++)	
-				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
 				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#endif
-			}
-		}
-		}
-		if(dim > 1)
-		{
-		j = i - m;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
-			{
-				for(k=0;k<dof;k++)	
-				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
-				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#endif
-			}
-		}
-		j = i + m;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
-			{
-				for(k=0;k<dof;k++)	
-				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
-				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#endif
-			}
-		}
-		}
-		j = i - 1;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
-			{
-				for(k=0;k<dof;k++)	
-				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
-				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#endif
-			}
-		}
-		j = i;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
-			{
-				for(k=0;k<dof;k++)	
-				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
-				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#endif
-			}
-		}
-		j = i + 1;
-		if(j >= 0 && j < m*n*p)
-		{
-			for(l=0;l<dof;l++)
-			{
-				for(k=0;k<dof;k++)	
-				{
-					vals[k] = simple_rand();
-					cols[k] = j*dof+k; 
-				}
-				rowval = i*dof+l;
-   		ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#ifdef GPU
-		ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   		ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-#endif
 			}
 		}
         }
-    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+      /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      AssemblyBegin/End as values can still remain in Cache
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -366,7 +277,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("Events[%d]= %lld\n",e,values[e]);
 #endif
 	printf("\nCSR :\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 	fflush(stdout);	
 	//SG (AVX)
 	OPENMP = 0;
@@ -385,7 +296,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("Events[%d]= %lld\n",e,values[e]);
 #endif
 	printf("\nSG -AVX with Padding(original):\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 
 #ifdef OMP
 	//SG (AVX+OPENMP)
@@ -397,7 +308,7 @@ for(e=0;e<NUM_EVENTS;e++)
   		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - AVX + OPENMP :\n");
-	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 #endif
 
 #ifdef GPU
@@ -407,7 +318,7 @@ for(e=0;e<NUM_EVENTS;e++)
   		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 
 	//SG (GPU)
 	start = rtclock();	
@@ -415,7 +326,7 @@ for(e=0;e<NUM_EVENTS;e++)
   		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 #endif
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
