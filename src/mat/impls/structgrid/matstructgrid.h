@@ -6,43 +6,26 @@
 #include "petsc-private/vecimpl.h"
 
 
-
-typedef enum {MAT_SINGLE,MAT_PERSIST,MAT_DEALLOC,MAT_COLLECT} MatUsageGPUFlag;
-typedef enum {MAT_UNALLOC,MAT_ALLOC,MAT_GPU,MAT_CPU,MAT_SYNCHED} MatGPUFlag;
-
-
-
 /*
 The following structure defines the structgrid datatype. It is a subclass 
 of generic matrix datatype and makes an implementation inheritance. 
 */
-typedef struct{                             
-    PetscScalar* a; 	        //data
-    PetscInt* idx;		//x indices
-    PetscInt* idy;		//y indices
-    PetscInt* idz;		//z indices
-    PetscInt stpoints;	        //num of stencil points
-    PetscInt dis;		//stencil Width
-    PetscInt dof;		//degrees of freedom
-    PetscInt m;		        //x size
-    PetscInt n;		        //y size
-    PetscInt p;		        //z size
-    PetscInt nz;	        //number of grid elements
-    PetscInt nos;
-    PetscInt lda1;
-    PetscInt lda2;
-    PetscInt lda3;
-    PetscInt matsize;
-    PetscScalar * xt;
-    PetscScalar* devptr;
-    MatUsageGPUFlag lifetime;
-    MatGPUFlag      syncState;
+typedef struct 
+{                             
+PetscScalar * a; 	//data
+PetscInt * idx;		//x indices
+PetscInt * idy;		//y indices
+PetscInt * idz;		//z indices
+PetscInt stpoints;	//numberof stencil points
+PetscInt dis;		//Stencil Width
+PetscInt dof;		//Degrees of Freedom
+PetscInt m;		//x- size
+PetscInt n;		//y - size
+PetscInt p;		//z size
+PetscInt nz;		//number of grid elements
+
+PetscScalar * xt;
 }Mat_SeqSG;
-
-
-
-
-
 
 extern PetscErrorCode MatCreate_SeqSG(Mat);
 extern PetscErrorCode MatDestroy_SeqSG(Mat);
@@ -59,8 +42,5 @@ extern PetscErrorCode MatRestoreRow_SeqSG(Mat , PetscInt, PetscInt *, PetscInt *
 extern PetscErrorCode MatGetRowMaxAbs_SeqSG(Mat, Vec, PetscInt[]);
 extern PetscErrorCode MatView_SeqSG(Mat,PetscViewer);
 extern PetscErrorCode MatConvert_SGtoAIJ(Mat, Mat*);
-
-
 #endif
-
 

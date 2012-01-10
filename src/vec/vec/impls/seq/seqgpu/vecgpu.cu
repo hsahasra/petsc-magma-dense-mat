@@ -889,7 +889,6 @@ __global__ void kernRedDot(double* arr,int* chunks, double* z){/* reduction kern
   }
 }
 
-
 #undef __FUNCT__
 #define __FUNCT__ "kernDot"
 __global__ void kernDot(double* devX, double* devY,

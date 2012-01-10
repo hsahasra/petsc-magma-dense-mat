@@ -17,11 +17,11 @@ EXTERN_C_BEGIN
 #define TCOUNT          128
 #define MAXTHREADS      1024
 #define MAXBLOCKS       65536
-#define THRDOTCNT       64
+#define THRDOTCNT       128
 #define AXPYTCOUNT      128
 #define AXPBYPCZTCOUNT  128
-#define THRNRMCNT       64
-#define PDIVTCOUNT      64
+#define THRNRMCNT       128
+#define PDIVTCOUNT      128
 #define PMULTCOUNT      128
 #define CPYTCOUNT       128
 #define NNN		624

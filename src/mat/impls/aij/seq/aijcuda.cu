@@ -17,7 +17,7 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
   cusparseMatDescr_t descrip=0;
   cudaError_t        cs;
   cusparseStatus_t   csrs=CUSPARSE_STATUS_SUCCESS;
-  
+
   /* set up cusparse library handle and environment */
   if(cusparseCreate(&handle)!=CUSPARSE_STATUS_SUCCESS){
      printf("cusparse handle creation error.\nExiting...\n");

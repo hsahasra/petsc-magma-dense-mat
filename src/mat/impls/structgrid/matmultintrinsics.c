@@ -151,7 +151,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	 lda2 = m*dof;
 	PetscInt lda3 = m*dof;
 	
-	PetscInt _smallval, _largeval, _startval;
+	PetscInt _smallval, _largeval, _secondhalf;
 	if((lda2+(dof-1)) < (lda1-lda2-(dof-1)))
 	{
 		_smallval = (lda2+(dof-1));
@@ -162,6 +162,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 		_largeval = (lda2+(dof-1));
 		_smallval = (lda1-lda2-(dof-1));
 	}
+	_secondhalf = dof + dim * (2*dof-1);
 
 	PetscInt xval[nos], offset[nos], vbeg[nos], vend[nos];
 	for(l=0;l<nos;l++)
@@ -179,70 +180,137 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 	//printf("OPENMP=%d\n",OPENMP);
        	//printf("Thread=%d\n",omp_get_thread_num());
 	
-	__sv_dtype yv, xv, coeffv,xv1,coeffv1;
+	__sv_dtype yv, xv, coeffv, xv1, coeffv1;
 #ifdef __AVX__
 	__sv_dtype xv2, coeffv2, xv3, coeffv3;
 #endif
 
-
-/* A Part */	
-	//#pragma omp for nowait private(i,k) 
-	for(l=0;l<nos;l+=2*(2*dof-1))// for the stencils 000 and positive ones(100,010 etc)
-	{
-		for(i=0;i<(2*dof-1);i++)// for all degrees of freedom
-		{
-			for(k=vbeg[l+i];k<dof; k++) //vbeg[l+i] = starting y(row) index, few vbegs are non zeros when dof>1
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
-		}
-	}
 /* F Part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=(2*dof-1);l<nos;l+=2*(2*dof-1)) // for the negative stencils ie. 1, 3, 6 etc 
+	for(l=_secondhalf;l<nos;l++) // for the negative stencils ie. 1, 3, 6 etc 
 	{
-		for(i=0;i<(2*dof-1);i++) 
+		for(k=vbeg[l];k<(lda2+(dof-1)); k++)//starting indices vary whereas ending index would be m*n*dof+(dof-1)
 		{
-			for(k=vbeg[l+i];k<(lda2+(dof-1)); k++)//starting indices vary whereas ending index would be m*n*dof+(dof-1)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
+			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);	
 		}
 	}
 /*   G part */
 	//#pragma omp for nowait private(i,k) 
-	for(l=0;l<nos;l+=2*(2*dof-1))
+	for(l=0;l<_secondhalf;l++)
 	{
-		for(i=0;i<(2*dof-1);i++)
+		for(k=(lda1-lda2-(dof-1));k<vend[l]; k++)
 		{
-			for(k=(lda1-lda2-(dof-1));k<vend[l+i]; k++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
+			y[k] += (coeff[offset[l]+k] * x[(xval[l])+(k-vbeg[l])]);	
 		}
 	}
 /*   C part */
 	//#pragma omp for nowait private(i,k) 
-	for(k=_largeval;k<lda1; k++)
+#if (SV_DOUBLE_WIDTH > 2)
+	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1,xv2,xv3,coeffv2,coeffv3)
+#elif (SV_DOUBLE_WIDTH > 1)
+	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1)
+#endif
+{
+#pragma omp for nowait private(l)
+	for(k=_largeval;k<=lda1-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
 	{
-		for(l=(2*dof-1);l<nos;l+=2*(2*dof-1))
+		yv = _sv_loadu_pd((PetscScalar *)(y+k));
+		for(l=_secondhalf;l<=nos-SV_DOUBLE_WIDTH;l+=SV_DOUBLE_WIDTH)
 		{
-			for(i=0;i<(2*dof-1);i++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);	
-			}
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+#if (SV_DOUBLE_WIDTH > 1)
+			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l+1]+k-vbeg[l+1]));
+#endif
+#if (SV_DOUBLE_WIDTH > 2)
+			xv2 = _sv_loadu_pd((PetscScalar *)(x+xval[l+2]+k-vbeg[l+2]));
+			xv3 = _sv_loadu_pd((PetscScalar *)(x+xval[l+3]+k-vbeg[l+3]));
+#endif
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+#if (SV_DOUBLE_WIDTH > 1)
+			coeffv1 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+1]+k));
+#endif
+#if (SV_DOUBLE_WIDTH > 2)
+			coeffv2 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+2]+k));
+			coeffv3 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+3]+k));
+#endif
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+#if (SV_DOUBLE_WIDTH > 1)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv1,xv1));
+#endif
+#if (SV_DOUBLE_WIDTH > 2)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv2,xv2));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv3,xv3));
+#endif
+		}
+		for(;l<nos;l++)
+		{
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+		}
+		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
+	}
+}
+	for(k=lda1-((lda1-_largeval)%SV_DOUBLE_WIDTH);k<lda1;k++)
+	{
+		for(l=_secondhalf;l<nos;l++)
+		{
 		}
 	}
 /*   B part */
 	//#pragma omp for nowait private(l,i) 
 	for(k=dof;k<_smallval; k++)
+#if (SV_DOUBLE_WIDTH > 2)
+#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1,xv2,xv3,coeffv2,coeffv3)
+#elif (SV_DOUBLE_WIDTH > 1)
+	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1)
+#endif
+{
+#pragma omp for nowait private(l)
+	for(k=0;k<=_smallval-SV_DOUBLE_WIDTH; k+=SV_DOUBLE_WIDTH)
 	{
-		for(l=0;l<nos;l+=2*(2*dof-1))
+		yv = _sv_loadu_pd((PetscScalar *)(y+k));
+		for(l=0;l<=_secondhalf-SV_DOUBLE_WIDTH;l+=SV_DOUBLE_WIDTH)
 		{
-			for(i=0;i<(2*dof-1);i++)
-			{
-				y[k] += (coeff[offset[l+i]+k] * x[(xval[l+i])+(k-vbeg[l+i])]);
-			}
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+#if (SV_DOUBLE_WIDTH > 1)
+			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l+1]+k-vbeg[l+1]));
+#endif
+#if (SV_DOUBLE_WIDTH > 2)
+			xv2 = _sv_loadu_pd((PetscScalar *)(x+xval[l+2]+k-vbeg[l+2]));
+			xv3 = _sv_loadu_pd((PetscScalar *)(x+xval[l+3]+k-vbeg[l+3]));
+#endif
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+#if (SV_DOUBLE_WIDTH > 1)
+			coeffv1 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+1]+k));
+#endif
+#if (SV_DOUBLE_WIDTH > 2)
+			coeffv2 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+2]+k));
+			coeffv3 = _sv_loadu_pd((PetscScalar *)(coeff+offset[l+3]+k));
+#endif
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+#if (SV_DOUBLE_WIDTH > 1)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv1,xv1));
+#endif
+#if (SV_DOUBLE_WIDTH > 2)
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv2,xv2));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv3,xv3));
+#endif
+		}
+		for(;l<_secondhalf;l++)
+		{
+			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
+			coeffv = _sv_loadu_pd((PetscScalar *)(coeff+offset[l]+k));
+			yv = _sv_add_pd(yv,_sv_mul_pd(coeffv,xv));
+		}
+		_sv_storeu_pd((PetscScalar *)(y+k),yv);	
+	}
+}
+	for(k=_smallval-(_smallval%SV_DOUBLE_WIDTH);k<_smallval;k++)
+	{
+		for(l=0;l<_secondhalf;l++)
+		{
+			y[k] += coeff[offset[l]+k] * x[xval[l]+k-vbeg[l]]; 
 		}
 	}
 //   E part 
@@ -258,7 +326,7 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 #if (SV_DOUBLE_WIDTH > 2)
 	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1,xv2,xv3,coeffv2,coeffv3)
 #elif (SV_DOUBLE_WIDTH > 1)
-#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1)
+	#pragma omp parallel if(OPENMP) private(yv,xv,coeffv,xv1,coeffv1)
 #endif
 {
 #pragma omp for nowait private(l)
@@ -283,7 +351,6 @@ PetscInt SG_MatMult(PetscScalar * coeff, PetscScalar * x, PetscScalar * y, Petsc
 #endif
 
 			xv = _sv_loadu_pd((PetscScalar *)(x+xval[l]+k-vbeg[l]));
-
 #if (SV_DOUBLE_WIDTH > 1)
 			xv1 = _sv_loadu_pd((PetscScalar *)(x+xval[l+1]+k-vbeg[l+1]));
 #endif

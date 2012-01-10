@@ -1,6 +1,6 @@
 /* Program usage:  mpiexec ex1 [-help] for all PETSc options
 */
-static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency (when REP=1)and also tested for performance. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]. Note: It is preferable to use exSG2 while checking performance (especially for big inputs) as it has less memory footprint\n\n";
+static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency (when REP=1)and also tested for performance. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]. All of these flags are required except for info. Note: It is preferable to use exSG2 while checking performance (especially for big inputs) as it has less memory footprint.\n\n";
 
 #include<sys/time.h>
 #include "../../impls/structgrid/matstructgrid.h"
@@ -10,9 +10,9 @@ static char help[] = "Simple program which does matrix vector multiplication usi
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
 
-#define OMP// enable to check OPENMP version
+//#define OMP// enable to check OPENMP version
 #define NUM_THREADS 2
-//#define GPU //enable to check GPU versions
+#define GPU //enable to check GPU versions
 
 //#define PAPI// enable this to use PAPI directly without HPCToolkit and specify the required counters
 #ifdef PAPI
@@ -169,12 +169,9 @@ int e;
 	cols = malloc(sizeof(PetscInt)*nos);
 	vals = malloc(sizeof(PetscScalar)*nos);
 	
-	Mat_SeqSG * sg = (Mat_SeqSG*) matsg->data;
-	
+	PetscInt j,k,l,st;
+        PetscInt lda2 = m*n;
 	PetscInt k,l;
-        PetscInt lda1 = m*n*p*dof;
-        PetscInt lda2 = m*n*dof;
-        PetscInt lda3 = m*dof;
 
 	PetscInt *offset = malloc(sizeof(PetscInt)*nos);
 	PetscInt *xval = malloc(sizeof(PetscInt)*nos);
@@ -186,6 +183,7 @@ int e;
 	PetscInt count;
 	printf("nos=%d,nz=%d\n",nos,nz);
 	for(i=0;i<nz;i++)
+				//printf("i=%d,j=%d\n",i,j);
 	{
 		count=0;
 		for(l=0;l<nos;l++)
@@ -202,7 +200,9 @@ int e;
    		ierr = MatSetValues(matgpu,1,&i,count,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 #endif
         }
-    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+        }
+
+      /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      AssemblyBegin/End as values can still remain in Cache
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -248,7 +248,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("Events[%d]= %lld\n",e,values[e]);
 #endif
 	printf("\nCSR :\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 	fflush(stdout);	
 	//SG (AVX)
 	OPENMP = 0;
@@ -267,7 +267,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("Events[%d]= %lld\n",e,values[e]);
 #endif
 	printf("\nSG -AVX with Padding(original):\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 
 #ifdef OMP
 	//SG (AVX+OPENMP)
@@ -279,7 +279,7 @@ for(e=0;e<NUM_EVENTS;e++)
   		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - AVX + OPENMP :\n");
-	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 #endif
 
 #ifdef GPU
@@ -288,7 +288,7 @@ for(e=0;e<NUM_EVENTS;e++)
 		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 
 	//SG (GPU)
 	start = rtclock();	
@@ -296,7 +296,7 @@ for(e=0;e<NUM_EVENTS;e++)
   		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 #endif
 
   */  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

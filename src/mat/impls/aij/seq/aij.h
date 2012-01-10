@@ -109,17 +109,26 @@ PETSC_INTERN PetscErrorCode MatDuplicateNoCreate_SeqAIJ(Mat,Mat,MatDuplicateOpti
 PETSC_INTERN PetscErrorCode MatLUFactorNumeric_SeqAIJ_Inode_inplace(Mat,Mat,const MatFactorInfo*);
 PETSC_INTERN PetscErrorCode MatLUFactorNumeric_SeqAIJ_Inode(Mat,Mat,const MatFactorInfo*);
 
+
+typedef struct{
+  cusparseHandle_t   handle;
+  cusparseMatDescr_t descrip;
+  PetscInt           *dev_csrRowOffsets;
+  PetscInt           *dev_csrIndices;
+  PetscScalar        *dev_dataA;
+}CudaSparseVars;
+
+
+
 typedef struct {
   SEQAIJHEADER(MatScalar);
   Mat_SeqAIJ_Inode inode;
   MatScalar        *saved_values;             /* location for stashing nonzero values of matrix */
-
   PetscScalar *idiag,*mdiag,*ssor_work;       /* inverse of diagonal entries, diagonal values and workspace for Eisenstat trick */
   PetscBool   idiagvalid;                     /* current idiag[] and mdiag[] are valid */
   PetscScalar *ibdiag;                        /* inverses of block diagonals */
   PetscBool   ibdiagvalid;                    /* inverses of block diagonals are valid. */
   PetscScalar fshift,omega;                   /* last used omega and fshift */
-
   ISColoring coloring;                        /* set with MatADSetColoring() used by MatADSetValues() */
 
   PetscScalar       *matmult_abdense;    /* used by MatMatMult() */
@@ -128,6 +137,10 @@ typedef struct {
   Mat_RARt          *rart;               /* used by MatRARt() */
   Mat_MatMatTransMult *abt;              /* used by MatMatTransposeMult() */
 } Mat_SeqAIJ;
+
+
+
+
 
 /*
   Frees the a, i, and j arrays from the XAIJ (AIJ, BAIJ, and SBAIJ) matrix types
