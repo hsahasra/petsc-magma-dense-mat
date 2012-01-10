@@ -390,12 +390,12 @@ PetscErrorCode MatMult_SeqAIJCUSP(Mat A,Vec xx,Vec yy)
 			{
 			printf("\nCSR MatrixMul Kernel Permormance for m *%d* and n size *%d* \n",(int)A->stencil.dims[0],(int)A->stencil.dims[1]);
 			}
-  if (kcalls==1000)
+  if (kcalls==100)
 		{
 		tkernel=tend1-tbegin1;
 		printf("Kernel time(sec) : %f\n",tkernel);
 		printf("Performance in Megaflops for %d Kernel calls\n",kcalls);
-		printf("Performance in Megaflops without copy time = %f\n",(2*5*(A->stencil.dims[0])*(A->stencil.dims[1])*1.0e-6)/(temp1/(kcalls+1)));
+		printf("Performance in Megaflops without copy time = $%f$ \n",(2*(a->nz)*1.0e-6)/(temp1/(kcalls+1)));
 		}
 
 kcalls++;

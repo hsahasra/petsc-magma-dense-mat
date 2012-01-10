@@ -27,6 +27,10 @@
 #define BLOCKWIDTH_X 4		
 #define BLOCKWIDTH_Y 1   
 
+//block size is 1x256. 
+#define BLOCKWIDTH_X 4		
+#define BLOCKWIDTH_Y 1   
+
 // ----------------------------------------------------------
 // hardcodiing the shared memory size this should be set
 // to give maximum performance, however should be
@@ -854,10 +858,26 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 				}
 			}
 							
+							
+							y_reg+= ptr_coeff[offset + reg2] * fetch_double(tex_x_double,Index);
+							}
+			
+				  /* if (threadIdx.y==0){
+							cuPrintf("l= %d ptr_coeff= %f X= %f X_Index =%d Index =%d y_sm=%f \n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),X_Index,Index, y_reg);
+						} */  
+					}
+				}
+			}
+							
 				
 				ptr_y[reg2]= y_reg;
 	}
 	
+
+//------------------------------------------------------------------------------------
+//   The function is a wrapper function which sets up the device memory, transfers
+//   data to and from the device, and calls the MatMult kernel. 
+//------------------------------------------------------------------------------------ 
 
 //------------------------------------------------------------------------------------
 //   The function is a wrapper function which sets up the device memory, transfers
@@ -882,6 +902,15 @@ int cons=m*DOF;
 int cons1=m*n*DOF;
 
  //Reducing to a Single offset instead of using three offsets int the x,y and z direction.  
+  idx[1]=DOF;
+  idx[2]=-DOF;
+  idx[3]=cons;
+  idx[4]=-cons;
+  if(nos==7)
+    {
+     idx[5]=cons1;
+     idx[6]=-cons1;       
+    }
   
   idx[0]=0;
   idx[1]=DOF;
@@ -958,6 +987,8 @@ cudaBindTexture(0, tex_x_double, d_x, size_xy);
 
 #if(_DBGFLAG)
  cudaPrintfInit();
+}
+
  tend1=getclock();
  tsetup=tend1-tbegin1;
  tbegin2=getclock();
@@ -978,6 +1009,16 @@ cudaBindTexture(0, tex_x_double, d_x, size_xy);
 				
 	if (DOF==1)
 		{
+		MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
+		}
+	else{
+		MatMul_Kernel_tex<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos, DOF);
+		}
+   
+// check if kernel execution generated and error
+   //cutilCheckMsg("Kernel execution failed");
+			
+		/* 
 		MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
 		}
 	else{
