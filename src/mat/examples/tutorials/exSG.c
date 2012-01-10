@@ -10,9 +10,9 @@ static char help[] = "Simple program which does matrix vector multiplication usi
 // #include<petscis.h>//     	- index sets            petscksp.h - Krylov subspace methods
 //#include<petscviewer.h>// 	- viewers               petscpc.h  - preconditioners
 
-#define OMP// enable to check OPENMP version
+//#define OMP// enable to check OPENMP version
 #define NUM_THREADS 2
-//#define GPU //enable to check GPU versions
+#define GPU //enable to check GPU versions
 
 //#define PAPI// enable this to use PAPI directly without HPCToolkit and specify the required counters
 #ifdef PAPI
@@ -216,7 +216,7 @@ int e;
 				{
 					for(k=0;k<dof;k++)	
 					{
-						vals[k] = simple_rand();
+						vals[k] = 0.5;//simple_rand();
 						cols[k] = j*dof+k; 
 					}
 					rowval = i*dof+l;
