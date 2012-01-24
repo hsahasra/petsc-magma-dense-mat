@@ -162,7 +162,7 @@ int main(int argc,char **args)
 				{
 					for(k=0;k<dof;k++)	
 					{
-						vals[k] = cnt++;//simple_rand();
+						vals[k] = simple_rand();
 						bvals[l*dof+k] = vals[k];
 						cols[k] = j*dof+k; 
 					}
@@ -189,6 +189,7 @@ int main(int argc,char **args)
 	if(info){
   	printf("\nInputs:\n");
   	ierr = MatView(mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   	ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

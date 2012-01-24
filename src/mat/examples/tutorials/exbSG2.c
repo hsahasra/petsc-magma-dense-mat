@@ -13,13 +13,13 @@ static char help[] = "Simple program to test the performance of matmult for vari
 
 #ifdef PAPI
 #include"papi.h"
-#define NUM_EVENTS 4 
+#define NUM_EVENTS 1 
 #endif
 
 PetscReal normdiff = 1.0e-6;
 
+unsigned int seed = 1;
  double simple_rand() {
-         int seed;
          seed = (1103515245*seed+12345)%4294967296;
          return (1000.0*seed)/4294967296;
  }
@@ -42,7 +42,7 @@ int main(int argc,char **args)
 {
 
 #ifdef PAPI
-unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCM,PAPI_LD_INS,PAPI_L2_TCM,PAPI_L3_TCM};
+unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
 //unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCR,PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L2_ICM,PAPI_L3_DCR,PAPI_L3_TCM};
 long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
 int e;
@@ -72,16 +72,16 @@ int e;
 	int rep=1;
 	ierr = PetscOptionsGetInt(PETSC_NULL,"-REP",&rep,PETSC_NULL);CHKERRQ(ierr);
   	REP = (long)rep;
-	printf("Reps = %d, m=%d,n=%d,p=%d, dim=%d, dof=%d\n",REP,m,n,p,dim, dof);
+	printf("Reps = %ld, m=%d,n=%d,p=%d, dim=%d, dof=%d\n",REP,m,n,p,dim, dof);
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         Set dims[], nz and nos.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 	PetscScalar    *vals;
-	PetscInt       i, nz, *dims, *starts, *rows, *cols;
+	PetscInt       i, nz, *dims, *starts,  *cols;
  	dims = malloc(sizeof(PetscInt)*dim);
   	starts = malloc(sizeof(PetscInt)*dim);
-	nos = (dim*2+1)*(2*dof-1);
+	nos = (dim*2+1)*(dof*2-1);
 	dims[0]=m;dims[1]=n;dims[2]=p;
 	nz=m*n*p*dof;
 
@@ -197,7 +197,8 @@ for(e=0;e<NUM_EVENTS;e++)
 #endif
 
 	printf("\nCSR :\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
+	PetscInt nz1 = ((nost*m*n*p) - (2*(1+m+m*n))) *dof*dof;
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nz1)/((end-start)*1024*1024*1024)); 
 	fflush(stdout);	
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Cleaning
@@ -217,10 +218,10 @@ for(e=0;e<NUM_EVENTS;e++)
 	PetscInt nop = ((nost*m*n*p) - (2*(1+m+m*n))) *dof*dof;
   	ierr = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
   	ierr = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
-	MatSetType(matsg,MATSTRUCTGRID);
+	MatSetType(matsg,MATBLOCKSTRUCTGRID);
   	ierr = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
 	bvals = malloc (sizeof(PetscScalar)*dof*dof);
-	MatSetUpPreallocation_SeqSG(matsg);
+	MatSetUpPreallocation_SeqBSG(matsg);
 	for(i=0;i<m*n*p;i++)
 	{
 		for(st=0;st<nost;st++)
@@ -243,9 +244,10 @@ for(e=0;e<NUM_EVENTS;e++)
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  	//ierr = MatView(matsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 #ifdef PAPI
-if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
 	printf("Sg start error\n");
 #endif
 	start = rtclock();	

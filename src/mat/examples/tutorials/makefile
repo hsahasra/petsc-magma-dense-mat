@@ -31,6 +31,10 @@ exbSG2: exbSG2.o chkopts
 	-${CLINKER} -L/soft/papi-4.1.3/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
 	${RM} exbSG2.o
 
+exbSG3: exbSG3.o chkopts
+	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG3 exbSG3.o ${PETSC_MAT_LIB}
+	${RM} exbSG3.o
+
 ex1: ex1.o  chkopts
 	-${CLINKER}  -o ex1 ex1.o ${PETSC_MAT_LIB}
 	${RM} ex1.o

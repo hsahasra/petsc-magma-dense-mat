@@ -2,9 +2,12 @@
 
 
 #include "../src/mat/impls/blockstructgrid/matblockstructgrid.h"
+#include "../src/mat/impls/blockstructgrid/commonfunctions.h"
 #include "petscblaslapack.h"
 #include "petscbt.h"
 #include "petscmat.h"
+#include <string.h>
+#include <immintrin.h>
 #include "../src/mat/impls/aij/seq/aij.h"  
 
 
@@ -52,8 +55,6 @@ Added by Deepan */
 PetscErrorCode MatSetGrid_SeqBSG(Mat B, PetscInt m, PetscInt n, PetscInt p)
 {
 	Mat_SeqBSG * b = (Mat_SeqBSG*) B->data;
-	PetscErrorCode ierr;
-	
 	PetscFunctionBegin;
 
 	if(m <= 0 || n <= 0 || p <= 0 ) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Grid Dimension should be atleast 1");
@@ -86,6 +87,7 @@ PetscErrorCode MatCreate_SeqBSG(Mat B)
 	B->same_nonzero= PETSC_FALSE;
 	B->spptr = 0;
 	b->a = 0;
+	b->coeff = 0;
 	b->m = 0;
 	b->n = 0;
 	b->p = 0;
@@ -95,7 +97,6 @@ PetscErrorCode MatCreate_SeqBSG(Mat B)
 	b->idy = PETSC_NULL;
 	b->idz = PETSC_NULL;
 
-	b->tnz = 0;
 	b->bs = 0;
 	ierr = PetscObjectChangeTypeName((PetscObject)B, MATBLOCKSTRUCTGRID); CHKERRQ(ierr);
 	PetscFunctionReturn(0);	
@@ -114,6 +115,7 @@ PetscErrorCode MatDestroy_SeqBSG(Mat A)
 #if defined(PETSC_USE_LOG)
 	PetscLogObjectState((PetscObject)A,"X-size= %D, Y-size=%D, Z-size=%D, NZ=%D",a->m,a->n,a->p,a->nz*a->stpoints);
 #endif
+	ierr = PetscFree(a->coeff);CHKERRQ(ierr);
 	ierr = PetscFree(a->a);CHKERRQ(ierr);
 	ierr = PetscFree(a->idx);CHKERRQ(ierr);
 	ierr = PetscFree(a->idy);CHKERRQ(ierr);
@@ -132,18 +134,33 @@ Added by Deepan */
 PetscErrorCode MatMult_SeqBSG(Mat mat, Vec x, Vec y)
 {
 	PetscErrorCode ierr;
-	PetscInt size, i;
 	Mat_SeqBSG * a = (Mat_SeqBSG *) mat->data;
-	PetscScalar * v = a->a, *xx,*yy;
+	PetscScalar ** v = a->coeff,*yy;
+	const PetscScalar *xx;
 	
 	PetscFunctionBegin;
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
-	ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
+	ierr = VecGetArrayRead(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
-	ierr = BSG_MatMult(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	if(a->dof == 1)
+	ierr = BSG_MatMult_1(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else if(a->dof == 2)
+	ierr = BSG_MatMult_2(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else if (a->dof == 3)
+	ierr = BSG_MatMult_3(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else if (a->dof == 4)
+	ierr = BSG_MatMult_4(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else if (a->dof == 5)
+	ierr = BSG_MatMult_5(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else if (a->dof == 6)
+	ierr = BSG_MatMult_6(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else if (a->dof%2 == 0)
+	ierr = BSG_MatMult_Neven(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	else
+	ierr = BSG_MatMult_Nodd(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
 	CHKERRQ(ierr);
 
-	ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
+	ierr = VecRestoreArrayRead(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
 	ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
 	PetscFunctionReturn(0);
@@ -231,28 +248,58 @@ PetscErrorCode MatSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[], P
 Added by Deepan */
 PetscErrorCode SetValues_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
 {
-	PetscInt i,j,mx = mat->m, ny= mat->n, pz = mat->p, dof = mat->dof, bs = mat->bs , nos = mat->stpoints;
-	PetscInt lda1 = mx*ny, lda2 = mx, pos;
-	if(is == ADD_VALUES)
+	PetscInt i,j,k,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt lda1 = mx*ny*bs, lda2 = mx*bs;
+	if(dof % 2 == 0)
 	{
-		for(i=0;i<n;i++)
+		if(is == ADD_VALUES)
 		{
-			pos = (nos*bs*(lda1*idz[i]+lda2*idy[i]+idx[i]))+(ioffsets[i]*bs);
-			for(j=0;j<bs;j++)
-				mat->a[pos + j] += data[i*bs+j];
+			for(i=0;i<n;i++)
+			{
+				for(j=0;j<dof;j++)
+					for(k=0;k<dof;k++)
+						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*dof+k] += data[i*bs+j*dof+k];
+			}
+		}
+		else
+		{
+			for(i=0;i<n;i++)
+			{
+				for(j=0;j<dof;j++)
+					for(k=0;k<dof;k++)
+						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*dof+k] = data[i*bs+j*dof+k];
+			}
 		}
 	}
 	else
 	{
-		for(i=0;i<n;i++)
+		if(is == ADD_VALUES)
 		{
-			pos = (nos*bs*(lda1*idz[i]+lda2*idy[i]+idx[i]))+(ioffsets[i]*bs);
-			for(j=0;j<bs;j++)
+			for(i=0;i<n;i++)
 			{
-				//printf("\n%d  %f", pos+j, data[i*bs+j]);
-				mat->a[pos + j] = data[i*bs+j];
+				for(j=0;j<dof;j++)
+				{
+					for(k=0;k<dof-1;k++)
+						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*(dof-1)+k] += data[i*bs+j*dof+k];
+			
+					mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+dof*(dof-1)+j] += data[i*bs+(j+1)*dof-1];
+				}
 			}
 		}
+		else
+		{
+			for(i=0;i<n;i++)
+			{
+				for(j=0;j<dof;j++)
+				{
+					for(k=0;k<dof-1;k++)
+						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*(dof-1)+k] = data[i*bs+j*dof+k];
+
+					mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+dof*(dof-1)+j] = data[i*bs+(j+1)*dof-1];
+				}
+			}
+		}
+
 	}
 
 
@@ -269,7 +316,7 @@ Added by Deepan */
 PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],const PetscInt starts[], PetscInt dof)
 {
 	Mat_SeqBSG * mat = (Mat_SeqBSG *)A->data;
-	PetscInt i,cnt=0, mnos = dim;
+	PetscInt mnos = dim;
 	PetscErrorCode ierr;
 
 	mat->dof = dof;
@@ -288,13 +335,24 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 	if(dim>2)
 	mat->p=dims[2];
 	mat->nz =  mat->m * mat->n * mat->p;
-	mat->tnz = mat->stpoints*mat->nz;
 	//printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
 
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idx));CHKERRQ(ierr);
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idy));CHKERRQ(ierr);
 	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idz));CHKERRQ(ierr);
 /*Do not change the order of the stencil. MatMult depends on the order of these stencils.*/	
+	if(dim>2)
+	{
+		mat->idx[mnos-3] = 0; mat->idy[mnos-3] = 0; mat->idz[mnos-3] = -1; 
+	}	
+	if(dim>1)
+	{
+		mat->idx[mnos-2] = 0; mat->idy[mnos-2] = -1; mat->idz[mnos-2] = 0;
+	}	
+	if(dim>0)
+	{	
+		mat->idx[mnos-1] = -1; mat->idy[mnos-1] = 0; mat->idz[mnos-1] = 0;
+	}	
 	mat->idx[mnos] = 0; mat->idy[mnos]=0; mat->idz[mnos]= 0;
 	if(dim > 0)
 	{
@@ -308,18 +366,6 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 	{
 		mat->idx[mnos+3] = 0; mat->idy[mnos+3] = 0; mat->idz[mnos+3] = 1;
 	}
-	if(dim>0)
-	{	
-		mat->idx[mnos-1] = -1; mat->idy[mnos-1] = 0; mat->idz[mnos-1] = 0;
-	}	
-	if(dim>1)
-	{
-		mat->idx[mnos-2] = 0; mat->idy[mnos-2] = -1; mat->idz[mnos-2] = 0;
-	}	
-	if(dim>2)
-	{
-		mat->idx[mnos-3] = 0; mat->idy[mnos-3] = 0; mat->idz[mnos-3] = -1; 
-	}	
  	PetscFunctionReturn(0);	
 }
 
@@ -331,11 +377,15 @@ Added by Deepan */
 PetscErrorCode MatSetUpPreallocation_SeqBSG(Mat mat)
 {
 	PetscErrorCode ierr;
+	PetscInt i;
 	PetscFunctionBegin;
 	Mat_SeqBSG * a = (Mat_SeqBSG *)mat->data;
 	PetscFunctionBegin;
-	ierr = PetscMalloc(sizeof(PetscScalar)*a->tnz*a->bs,&(a->a));CHKERRQ(ierr);
-	memset(a->a, 0,sizeof(PetscScalar)*a->tnz*a->bs);
+	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
+	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
+	ierr = PetscMalloc(sizeof(PetscScalar*)*a->stpoints,&(a->coeff));CHKERRQ(ierr);
+	for(i=0;i<a->stpoints;i++)
+		a->coeff[i] = a->a+(i*a->nz*a->bs);
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }
@@ -349,7 +399,7 @@ PetscErrorCode MatZeroEntries_SeqBSG(Mat A)
 {
 	Mat_SeqBSG * a = (Mat_SeqBSG *)A->data;
 	PetscFunctionBegin;
-	memset(a->a,0,sizeof(PetscScalar)*a->tnz*a->bs);
+	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
 
@@ -362,9 +412,9 @@ PetscErrorCode MatView_SeqBSG(Mat A,PetscViewer viewer)
 {
 	PetscErrorCode ierr;
 	Mat_SeqBSG * a = (Mat_SeqBSG *)A->data;
-	PetscInt dof = a->dof, m = a->m , n = a->n , p = a->p, stpoints = a->stpoints, tnz = a->tnz, bs= a->bs;
-	PetscInt stcount, icount, jcount, kcount;
-	PetscScalar * data = a->a;
+	PetscInt nz = a->nz,  stpoints = a->stpoints, bs= a->bs;
+	PetscInt stcount, icount, jcount;
+	PetscScalar ** data = a->coeff;
 	PetscFunctionBegin;
 
 	ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
@@ -401,9 +451,18 @@ PetscErrorCode MatView_SeqBSG(Mat A,PetscViewer viewer)
 		}
 	}
 */
-	for(stcount = 0; stcount < tnz*bs ; stcount++)
+	for(stcount = 0; stcount < stpoints ; stcount++)
 	{
-		ierr = PetscViewerASCIIPrintf(viewer,"\n%D : (%G) ",stcount , data[stcount]);CHKERRQ(ierr);
+		ierr = PetscViewerASCIIPrintf(viewer,"\n\nStpoints %D\n ",stcount , data[stcount]);CHKERRQ(ierr);
+		for(icount = 0; icount < nz ; icount++)
+		{
+			ierr = PetscViewerASCIIPrintf(viewer,"%D : [ ",icount);CHKERRQ(ierr);
+			for(jcount = 0; jcount < bs ; jcount++)
+			{
+				ierr = PetscViewerASCIIPrintf(viewer,"(%G)  ",data[stcount][icount*bs+jcount]);CHKERRQ(ierr);
+			}
+			ierr = PetscViewerASCIIPrintf(viewer," ]\n");CHKERRQ(ierr);
+		}
 	}
 	ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 	ierr = PetscViewerASCIIUseTabs(viewer,PETSC_TRUE);CHKERRQ(ierr);
