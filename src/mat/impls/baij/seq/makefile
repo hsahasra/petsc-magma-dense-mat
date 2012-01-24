@@ -1,7 +1,7 @@
 
 ALL: lib
 
-CFLAGS   =
+CFLAGS   = -g -save-temps#-g -c -Wa,-alh
 FFLAGS   =
 CPPFLAGS =
 SOURCEC  = baij.c baij2.c baijfact.c baijfact2.c dgefa.c dgedi.c dgefa3.c \

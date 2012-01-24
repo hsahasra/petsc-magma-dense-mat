@@ -25,7 +25,7 @@ PetscInt nz;		//length of grid elements
 
 // Specific to block 
 PetscInt bs; // block size , usually dof*dof
-PetscInt tnz; // number of non - zero grid elements
+PetscScalar ** coeff;
 }Mat_SeqBSG;
 
 extern PetscErrorCode MatCreate_SeqBSG(Mat);
@@ -38,5 +38,6 @@ extern PetscErrorCode MatSetUpPreallocation_SeqBSG(Mat);
 extern PetscErrorCode MatSetGrid_SeqBSG(Mat,PetscInt, PetscInt, PetscInt);
 extern PetscErrorCode MatZeroEntries_SeqBSG(Mat);
 extern PetscErrorCode MatView_SeqBSG(Mat, PetscViewer);
+
 #endif
 
