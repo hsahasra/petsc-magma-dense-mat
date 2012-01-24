@@ -153,7 +153,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ct,const PetscScalar * x, PetscScalar * y,
 	const PetscInt lda1 = lda2 * p;
 	const PetscInt mnos = 3;
 	const PetscScalar *xt[7];
-	__m128d mx0, mx1, msum0, msum1, msum2, msum3, msumf1,msumf2, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
+	__m128d mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
 	for(l=0;l<7;l++)
 		xt[l] = x + (idx[l] + idy[l]*lda3 + idz[l]*lda2)*dof;
 	
@@ -547,7 +547,7 @@ PetscInt BSG_MatMult_Neven_old(PetscScalar ** ct,const PetscScalar * x, PetscSca
 
 PetscInt BSG_MatMult_Neven(PetscScalar ** ct,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs)
 {
-	PetscInt i,j,k,l, t1, t2, t3, t4, l1,l2;
+	PetscInt i,k,l, t1, t2, l1,l2;
 	const PetscInt lda3 = m;
 	const PetscInt lda2 = lda3 * n;
 	const PetscInt lda1 = lda2 * p;
@@ -1008,10 +1008,10 @@ PetscInt BSG_MatMult_3(PetscScalar ** ct,const PetscScalar * x, PetscScalar * y,
 	PetscFunctionReturn(0);
 }
 
-#define inline_stage1_5()  mx0 = _mm_loadu_pd(xt[l]+t1);\
-		 	mx1 = _mm_loadu_pd(xt[l]+t1+2);\
-			mx2 = _mm_load1_pd(xt[l]+t1+4);\
-                        mc0 = _mm_loadu_pd(ct[l]+t2);\
+#define inline_stage1_5()	mx0 = _mm_loadu_pd(xt[l]+t1);\
+				mx1 = _mm_loadu_pd(xt[l]+t1+2);\
+				mx2 = _mm_load1_pd(xt[l]+t1+4);\
+			mc0 = _mm_loadu_pd(ct[l]+t2);\
                         mc1 = _mm_loadu_pd(ct[l]+t2+2);\
 			mc2 = _mm_loadu_pd(ct[l]+t2+4);\
 			mc3 = _mm_loadu_pd(ct[l]+t2+6);\
@@ -1026,6 +1026,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ct,const PetscScalar * x, PetscScalar * y,
                 msum0 =_mm_set_pd(0,0);\
                 msum1 =_mm_set_pd(0,0);\
                 msum2 =_mm_set_pd(0,0)
+
 
 #define save_stage1_5() msum0 = _mm_hadd_pd(msum0,msum1);\
 		msum0 = _mm_add_pd(msum0,msum2);\
@@ -1438,7 +1439,7 @@ PetscInt BSG_MatMult_5_ver1(PetscScalar ** ct,const PetscScalar * x, PetscScalar
 
 PetscInt BSG_MatMult_Nodd(PetscScalar ** ct,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs)
 {
-	PetscInt i,j,k,l, t1, t2, t3, t4, l1,l2;
+	PetscInt i,k,l, t1, t2, l1,l2;
 	const PetscInt lda3 = m;
 	const PetscInt lda2 = lda3 * n;
 	const PetscInt lda1 = lda2 * p;

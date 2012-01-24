@@ -26,6 +26,9 @@ PetscInt nz;		//length of grid elements
 // Specific to block 
 PetscInt bs; // block size , usually dof*dof
 PetscScalar ** coeff;
+
+PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt );
+
 }Mat_SeqBSG;
 
 extern PetscErrorCode MatCreate_SeqBSG(Mat);

@@ -142,22 +142,7 @@ PetscErrorCode MatMult_SeqBSG(Mat mat, Vec x, Vec y)
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArrayRead(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
-	if(a->dof == 1)
-	ierr = BSG_MatMult_1(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else if(a->dof == 2)
-	ierr = BSG_MatMult_2(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else if (a->dof == 3)
-	ierr = BSG_MatMult_3(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else if (a->dof == 4)
-	ierr = BSG_MatMult_4(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else if (a->dof == 5)
-	ierr = BSG_MatMult_5(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else if (a->dof == 6)
-	ierr = BSG_MatMult_6(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else if (a->dof%2 == 0)
-	ierr = BSG_MatMult_Neven(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
-	else
-	ierr = BSG_MatMult_Nodd(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	ierr = a->multfunc(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
 	CHKERRQ(ierr);
 
 	ierr = VecRestoreArrayRead(x,&xx); CHKERRQ(ierr);
@@ -366,6 +351,22 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 	{
 		mat->idx[mnos+3] = 0; mat->idy[mnos+3] = 0; mat->idz[mnos+3] = 1;
 	}
+	if(mat->dof == 1)
+		mat->multfunc = &BSG_MatMult_1;
+	else if(mat->dof == 2)
+		mat->multfunc = &BSG_MatMult_2;
+	else if (mat->dof == 3)
+		mat->multfunc = &BSG_MatMult_3;
+	else if (mat->dof == 4)
+		mat->multfunc = &BSG_MatMult_4;
+	else if (mat->dof == 5)
+		mat->multfunc = &BSG_MatMult_5;
+	else if (mat->dof == 6)
+		mat->multfunc = &BSG_MatMult_6;
+	else if (mat->dof%2 == 0)
+		mat->multfunc = &BSG_MatMult_Neven;
+	else
+		mat->multfunc = &BSG_MatMult_Nodd;
  	PetscFunctionReturn(0);	
 }
 

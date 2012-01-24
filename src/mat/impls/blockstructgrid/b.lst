@@ -1,0 +1,3308 @@
+/home/dpnkarthik/petsc-rnet/PETSC_RNET/bin/mpicc -o matmultbintrinsics.o -c -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -O3  -msse3 -g -Wa,-alhd  -I/home/dpnkarthik/petsc-rnet/include -I/home/dpnkarthik/petsc-rnet/PETSC_RNET/include -I/home/dpnkarthik/softwares/cuda/include    -D__INSDIR__=src/mat/impls/blockstructgrid  matmultbintrinsics.c
+GAS LISTING /tmp/ccHOhm8S.s 			page 1
+
+
+   1              		.file	"matmultbintrinsics.c"
+   9              	.Ltext0:
+  10              		.p2align 4,,15
+  11              	.globl BSG_MatMult_2_ver1
+  13              	BSG_MatMult_2_ver1:
+  14              	.LFB588:
+  15              		.file 1 "matmultbintrinsics.c"
+   0:matmultbintrinsics.c **** #include <string.h>
+   1:matmultbintrinsics.c **** #include <immintrin.h>
+   2:matmultbintrinsics.c **** 
+   3:matmultbintrinsics.c **** //#define SPREFETCH
+   4:matmultbintrinsics.c **** 
+   5:matmultbintrinsics.c **** 
+   6:matmultbintrinsics.c **** 
+   7:matmultbintrinsics.c **** #include "../src/mat/impls/blockstructgrid/matblockstructgrid.h"
+   8:matmultbintrinsics.c **** 
+   9:matmultbintrinsics.c **** /*  -------------------------------------------------------------------- 
+  10:matmultbintrinsics.c ****      This file implements matrix multiplication for the structgrid data type. 
+  11:matmultbintrinsics.c ****      The routine employs SSE/AVX intrinsics if they are available on the machine.
+  12:matmultbintrinsics.c ****      Otherwise, the computations default to normal PetscScalar operations. 
+  13:matmultbintrinsics.c ****      The instruction for fused addmultiply has not been implemented of date.
+  14:matmultbintrinsics.c **** 
+  15:matmultbintrinsics.c ****      Author: Chekuri S. Choudary, RNET
+  16:matmultbintrinsics.c **** */
+  17:matmultbintrinsics.c **** 
+  18:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+  19:matmultbintrinsics.c **** {
+  16              		.loc 1 20 0
+  17              		.cfi_startproc
+  18              	.LVL0:
+  19 0000 4157     		pushq	%r15
+  20              		.cfi_def_cfa_offset 16
+  21              		.cfi_offset 15, -16
+  22 0002 4156     		pushq	%r14
+  23              		.cfi_def_cfa_offset 24
+  24              		.cfi_offset 14, -24
+  25 0004 4155     		pushq	%r13
+  26              		.cfi_def_cfa_offset 32
+  27              		.cfi_offset 13, -32
+  28 0006 4154     		pushq	%r12
+  29              		.cfi_def_cfa_offset 40
+  30              		.cfi_offset 12, -40
+  31 0008 55       		pushq	%rbp
+  32              		.cfi_def_cfa_offset 48
+  33              		.cfi_offset 6, -48
+  34 0009 53       		pushq	%rbx
+  35              		.cfi_def_cfa_offset 56
+  36              		.cfi_offset 3, -56
+  37 000a 4883EC60 		subq	$96, %rsp
+  38              		.cfi_def_cfa_offset 152
+  39              	.LVL1:
+  20:matmultbintrinsics.c **** 	PetscInt i,j,k,l, t1, t2;
+  21:matmultbintrinsics.c **** 	PetscInt lda3 = m;
+  22:matmultbintrinsics.c **** 	PetscInt lda2 = lda3 * n;
+  40              		.loc 1 23 0
+  41 000e 8B842498 		movl	152(%rsp), %eax
+  41      000000
+GAS LISTING /tmp/ccHOhm8S.s 			page 2
+
+
+  20:matmultbintrinsics.c **** 	PetscInt i,j,k,l, t1, t2;
+  42              		.loc 1 20 0
+  43 0015 8B9C24C8 		movl	200(%rsp), %ebx
+  43      000000
+  44              		.loc 1 23 0
+  45 001c 0FAF8424 		imull	160(%rsp), %eax
+  45      A0000000 
+  23:matmultbintrinsics.c **** 	PetscInt lda1 = lda2 * p;
+  24:matmultbintrinsics.c **** 	PetscInt mnos = dim;
+  25:matmultbintrinsics.c **** 	const PetscScalar *xt[7];
+  26:matmultbintrinsics.c **** 	const MatScalar   *ct[7];
+  27:matmultbintrinsics.c **** 	PetscScalar sum0, sum1, x0, x1;
+  28:matmultbintrinsics.c **** 	for(l=0;l<3;l++)
+  29:matmultbintrinsics.c **** 	{
+  30:matmultbintrinsics.c **** 		xt[l] = x;
+  46              		.loc 1 31 0
+  47 0024 48897424 		movq	%rsi, 24(%rsp)
+  47      18
+  20:matmultbintrinsics.c **** 	PetscInt i,j,k,l, t1, t2;
+  48              		.loc 1 20 0
+  49 0029 448B9424 		movl	184(%rsp), %r10d
+  49      B8000000 
+  23:matmultbintrinsics.c **** 	PetscInt lda1 = lda2 * p;
+  50              		.loc 1 23 0
+  51 0031 894424A0 		movl	%eax, -96(%rsp)
+  52              	.LVL2:
+  31:matmultbintrinsics.c **** 		ct[l] = coeff[l] - (idx[l] + idy[l]*lda3 + idz[l]*lda2)*bs;
+  53              		.loc 1 32 0
+  54 0035 8B6C24A0 		movl	-96(%rsp), %ebp
+  24:matmultbintrinsics.c **** 	PetscInt lda1 = lda2 * p;
+  55              		.loc 1 24 0
+  56 0039 0FAF8424 		imull	168(%rsp), %eax
+  56      A8000000 
+  57              	.LVL3:
+  58              		.loc 1 32 0
+  59 0041 410FAF29 		imull	(%r9), %ebp
+  60              	.LVL4:
+  24:matmultbintrinsics.c **** 	PetscInt lda1 = lda2 * p;
+  61              		.loc 1 24 0
+  62 0045 894424C4 		movl	%eax, -60(%rsp)
+  63              	.LVL5:
+  64              		.loc 1 32 0
+  65 0049 8B842498 		movl	152(%rsp), %eax
+  65      000000
+  66              	.LVL6:
+  67 0050 410FAF00 		imull	(%r8), %eax
+  68 0054 0301     		addl	(%rcx), %eax
+  69 0056 01E8     		addl	%ebp, %eax
+  70 0058 8B6C24A0 		movl	-96(%rsp), %ebp
+  71 005c 0FAFC3   		imull	%ebx, %eax
+  72 005f 410FAF69 		imull	4(%r9), %ebp
+  72      04
+  73 0064 4898     		cltq
+  74 0066 48C1E003 		salq	$3, %rax
+  75 006a 48F7D8   		negq	%rax
+  76 006d 480307   		addq	(%rdi), %rax
+  31:matmultbintrinsics.c **** 		ct[l] = coeff[l] - (idx[l] + idy[l]*lda3 + idz[l]*lda2)*bs;
+GAS LISTING /tmp/ccHOhm8S.s 			page 3
+
+
+  77              		.loc 1 31 0
+  78 0070 48897424 		movq	%rsi, 32(%rsp)
+  78      20
+  79              		.loc 1 32 0
+  80 0075 48894424 		movq	%rax, -40(%rsp)
+  80      D8
+  81              	.LVL7:
+  82 007a 8B842498 		movl	152(%rsp), %eax
+  82      000000
+  83 0081 410FAF40 		imull	4(%r8), %eax
+  83      04
+  84 0086 034104   		addl	4(%rcx), %eax
+  85 0089 01E8     		addl	%ebp, %eax
+  86 008b 8B6C24A0 		movl	-96(%rsp), %ebp
+  87 008f 0FAFC3   		imull	%ebx, %eax
+  88 0092 410FAF69 		imull	8(%r9), %ebp
+  88      08
+  89 0097 4898     		cltq
+  90 0099 48C1E003 		salq	$3, %rax
+  91 009d 48F7D8   		negq	%rax
+  92 00a0 48034708 		addq	8(%rdi), %rax
+  31:matmultbintrinsics.c **** 		ct[l] = coeff[l] - (idx[l] + idy[l]*lda3 + idz[l]*lda2)*bs;
+  93              		.loc 1 31 0
+  94 00a4 48897424 		movq	%rsi, 40(%rsp)
+  94      28
+  95              		.loc 1 32 0
+  96 00a9 48894424 		movq	%rax, -32(%rsp)
+  96      E0
+  97              	.LVL8:
+  98 00ae 8B842498 		movl	152(%rsp), %eax
+  98      000000
+  99 00b5 410FAF40 		imull	8(%r8), %eax
+  99      08
+ 100 00ba 034108   		addl	8(%rcx), %eax
+ 101 00bd 01E8     		addl	%ebp, %eax
+ 102 00bf 0FAFC3   		imull	%ebx, %eax
+ 103 00c2 4898     		cltq
+ 104 00c4 48C1E003 		salq	$3, %rax
+ 105 00c8 48F7D8   		negq	%rax
+ 106 00cb 48034710 		addq	16(%rdi), %rax
+ 107 00cf 48894424 		movq	%rax, -24(%rsp)
+ 107      E8
+ 108              	.LVL9:
+  32:matmultbintrinsics.c **** 	}
+  33:matmultbintrinsics.c **** 	for(;l<7;l++)
+  34:matmultbintrinsics.c **** 	{
+  35:matmultbintrinsics.c **** 		xt[l] = x + (idx[l] + idy[l]*lda3 + idz[l]*lda2)*dof;
+ 109              		.loc 1 36 0
+ 110 00d4 8B842498 		movl	152(%rsp), %eax
+ 110      000000
+ 111 00db 410FAF40 		imull	12(%r8), %eax
+ 111      0C
+ 112 00e0 8B5C24A0 		movl	-96(%rsp), %ebx
+ 113 00e4 410FAF59 		imull	12(%r9), %ebx
+ 113      0C
+ 114 00e9 03410C   		addl	12(%rcx), %eax
+ 115 00ec 01D8     		addl	%ebx, %eax
+GAS LISTING /tmp/ccHOhm8S.s 			page 4
+
+
+ 116 00ee 8B5C24A0 		movl	-96(%rsp), %ebx
+ 117 00f2 0FAF8424 		imull	176(%rsp), %eax
+ 117      B0000000 
+ 118 00fa 4898     		cltq
+ 119 00fc 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 120 0100 48894424 		movq	%rax, 48(%rsp)
+ 120      30
+  36:matmultbintrinsics.c **** 		ct[l] = coeff[l];
+ 121              		.loc 1 37 0
+ 122 0105 488B4718 		movq	24(%rdi), %rax
+ 123 0109 48894424 		movq	%rax, -16(%rsp)
+ 123      F0
+ 124              	.LVL10:
+  36:matmultbintrinsics.c **** 		ct[l] = coeff[l];
+ 125              		.loc 1 36 0
+ 126 010e 8B842498 		movl	152(%rsp), %eax
+ 126      000000
+ 127 0115 410FAF40 		imull	16(%r8), %eax
+ 127      10
+ 128 011a 034110   		addl	16(%rcx), %eax
+ 129 011d 410FAF59 		imull	16(%r9), %ebx
+ 129      10
+ 130 0122 01D8     		addl	%ebx, %eax
+ 131 0124 8B5C24A0 		movl	-96(%rsp), %ebx
+ 132 0128 0FAF8424 		imull	176(%rsp), %eax
+ 132      B0000000 
+ 133 0130 410FAF59 		imull	20(%r9), %ebx
+ 133      14
+ 134 0135 4898     		cltq
+ 135 0137 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 136 013b 48894424 		movq	%rax, 56(%rsp)
+ 136      38
+ 137              		.loc 1 37 0
+ 138 0140 488B4720 		movq	32(%rdi), %rax
+ 139 0144 48894424 		movq	%rax, -8(%rsp)
+ 139      F8
+ 140              	.LVL11:
+  36:matmultbintrinsics.c **** 		ct[l] = coeff[l];
+ 141              		.loc 1 36 0
+ 142 0149 8B842498 		movl	152(%rsp), %eax
+ 142      000000
+ 143 0150 410FAF40 		imull	20(%r8), %eax
+ 143      14
+ 144 0155 034114   		addl	20(%rcx), %eax
+ 145 0158 01D8     		addl	%ebx, %eax
+ 146 015a 0FAF8424 		imull	176(%rsp), %eax
+ 146      B0000000 
+ 147 0162 4898     		cltq
+ 148 0164 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 149 0168 48894424 		movq	%rax, 64(%rsp)
+ 149      40
+ 150              		.loc 1 37 0
+ 151 016d 488B4728 		movq	40(%rdi), %rax
+ 152 0171 48890424 		movq	%rax, (%rsp)
+ 153              	.LVL12:
+  36:matmultbintrinsics.c **** 		ct[l] = coeff[l];
+ 154              		.loc 1 36 0
+GAS LISTING /tmp/ccHOhm8S.s 			page 5
+
+
+ 155 0175 8B842498 		movl	152(%rsp), %eax
+ 155      000000
+ 156 017c 410FAF40 		imull	24(%r8), %eax
+ 156      18
+ 157 0181 034118   		addl	24(%rcx), %eax
+ 158 0184 8B4C24A0 		movl	-96(%rsp), %ecx
+ 159              	.LVL13:
+ 160 0188 410FAF49 		imull	24(%r9), %ecx
+ 160      18
+ 161 018d 01C8     		addl	%ecx, %eax
+ 162 018f 0FAF8424 		imull	176(%rsp), %eax
+ 162      B0000000 
+ 163 0197 4898     		cltq
+ 164 0199 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 165 019d 48894424 		movq	%rax, 72(%rsp)
+ 165      48
+  37:matmultbintrinsics.c **** 	}
+  38:matmultbintrinsics.c **** 	
+  39:matmultbintrinsics.c **** 	for(k = 0; k < 1; k++)
+  40:matmultbintrinsics.c **** 	{
+  41:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+  42:matmultbintrinsics.c **** 		for(l=mnos;l<nos;l++)
+ 166              		.loc 1 43 0
+ 167 01a2 44399424 		cmpl	%r10d, 192(%rsp)
+ 167      C0000000 
+  37:matmultbintrinsics.c **** 	}
+ 168              		.loc 1 37 0
+ 169 01aa 488B4730 		movq	48(%rdi), %rax
+ 170 01ae 48894424 		movq	%rax, 8(%rsp)
+ 170      08
+ 171              	.LVL14:
+ 172              		.loc 1 43 0
+ 173 01b3 0F8D3507 		jge	.L51
+ 173      0000
+ 174 01b9 660F57C0 		xorpd	%xmm0, %xmm0
+ 175 01bd 8B8C24C0 		movl	192(%rsp), %ecx
+ 175      000000
+ 176 01c4 F20F1144 		movsd	%xmm0, -48(%rsp)
+ 176      24D0
+ 177 01ca 660F28D8 		movapd	%xmm0, %xmm3
+ 178 01ce 660F28E0 		movapd	%xmm0, %xmm4
+ 179              	.LVL15:
+ 180              		.p2align 4,,10
+ 181 01d2 660F1F44 		.p2align 3
+ 181      0000
+ 182              	.L4:
+  43:matmultbintrinsics.c **** 		{
+  44:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 183              		.loc 1 45 0
+ 184 01d8 4863C1   		movslq	%ecx, %rax
+  43:matmultbintrinsics.c **** 		{
+ 185              		.loc 1 43 0
+ 186 01db 83C101   		addl	$1, %ecx
+ 187              	.LVL16:
+ 188              		.loc 1 45 0
+ 189 01de 488B5CC4 		movq	24(%rsp,%rax,8), %rbx
+ 189      18
+GAS LISTING /tmp/ccHOhm8S.s 			page 6
+
+
+  45:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 190              		.loc 1 46 0
+ 191 01e3 488B44C4 		movq	-40(%rsp,%rax,8), %rax
+ 191      D8
+ 192              	.LVL17:
+  43:matmultbintrinsics.c **** 		{
+ 193              		.loc 1 43 0
+ 194 01e8 4439D1   		cmpl	%r10d, %ecx
+  45:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 195              		.loc 1 45 0
+ 196 01eb F20F1003 		movsd	(%rbx), %xmm0
+ 197              	.LVL18:
+ 198 01ef F20F1053 		movsd	8(%rbx), %xmm2
+ 198      08
+ 199              	.LVL19:
+ 200              		.loc 1 46 0
+ 201 01f4 F20F1008 		movsd	(%rax), %xmm1
+ 202 01f8 F20F1068 		movsd	16(%rax), %xmm5
+ 202      10
+ 203 01fd F20F59C8 		mulsd	%xmm0, %xmm1
+ 204 0201 F20F59EA 		mulsd	%xmm2, %xmm5
+  46:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 205              		.loc 1 47 0
+ 206 0205 F20F5940 		mulsd	8(%rax), %xmm0
+ 206      08
+ 207 020a F20F5950 		mulsd	24(%rax), %xmm2
+ 207      18
+  46:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 208              		.loc 1 46 0
+ 209 020f F20F58CD 		addsd	%xmm5, %xmm1
+ 210              		.loc 1 47 0
+ 211 0213 F20F58C2 		addsd	%xmm2, %xmm0
+  46:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 212              		.loc 1 46 0
+ 213 0217 F20F58E1 		addsd	%xmm1, %xmm4
+ 214              	.LVL20:
+ 215              		.loc 1 47 0
+ 216 021b F20F58D8 		addsd	%xmm0, %xmm3
+ 217              	.LVL21:
+  43:matmultbintrinsics.c **** 		{
+ 218              		.loc 1 43 0
+ 219 021f 75B7     		jne	.L4
+ 220              	.LVL22:
+ 221              	.L3:
+  47:matmultbintrinsics.c **** 		}
+  48:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+  49:matmultbintrinsics.c **** 	}
+  50:matmultbintrinsics.c **** 
+  51:matmultbintrinsics.c **** 	for(/*k = 1*/; k < lda3; k++)
+ 222              		.loc 1 52 0
+ 223 0221 83BC2498 		cmpl	$1, 152(%rsp)
+ 223      00000001 
+  49:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 224              		.loc 1 49 0
+ 225 0229 F20F1122 		movsd	%xmm4, (%rdx)
+ 226              		.loc 1 52 0
+ 227 022d 41BE0100 		movl	$1, %r14d
+GAS LISTING /tmp/ccHOhm8S.s 			page 7
+
+
+ 227      0000
+  49:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 228              		.loc 1 49 0
+ 229 0233 F20F115A 		movsd	%xmm3, 8(%rdx)
+ 229      08
+ 230              	.LVL23:
+ 231              		.loc 1 52 0
+ 232 0238 0F8EF700 		jle	.L6
+ 232      0000
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 233              		.loc 1 19 0
+ 234 023e 48638424 		movslq	176(%rsp), %rax
+ 234      B0000000 
+ 235              		.loc 1 52 0
+ 236 0246 448BBC24 		movl	192(%rsp), %r15d
+ 236      C0000000 
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 237              		.loc 1 19 0
+ 238 024e 41BD0100 		movl	$1, %r13d
+ 238      0000
+  52:matmultbintrinsics.c **** 	{
+  53:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+  54:matmultbintrinsics.c **** 		for(l=mnos-1;l<nos;l++)
+ 239              		.loc 1 55 0
+ 240 0254 4C8B6424 		movq	-48(%rsp), %r12
+ 240      D0
+  52:matmultbintrinsics.c **** 	{
+ 241              		.loc 1 52 0
+ 242 0259 4183EF01 		subl	$1, %r15d
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 243              		.loc 1 19 0
+ 244 025d 4C8D34C5 		leaq	0(,%rax,8), %r14
+ 244      00000000 
+ 245 0265 488D2CC5 		leaq	8(,%rax,8), %rbp
+ 245      08000000 
+ 246 026d 8B8424B0 		movl	176(%rsp), %eax
+ 246      000000
+ 247 0274 4C89F7   		movq	%r14, %rdi
+ 248              	.LVL24:
+ 249 0277 0FAFC0   		imull	%eax, %eax
+ 250 027a 4898     		cltq
+ 251 027c 48C1E003 		salq	$3, %rax
+ 252 0280 48894424 		movq	%rax, -88(%rsp)
+ 252      A8
+ 253 0285 4889C6   		movq	%rax, %rsi
+ 254              	.LVL25:
+ 255 0288 0F1F8400 		.p2align 4,,10
+ 255      00000000 
+ 256              		.p2align 3
+ 257              	.L10:
+ 258              		.loc 1 55 0
+ 259 0290 4C896424 		movq	%r12, -112(%rsp)
+ 259      90
+ 260 0295 4539FA   		cmpl	%r15d, %r10d
+ 261 0298 F20F105C 		movsd	-112(%rsp), %xmm3
+ 261      2490
+ 262 029e 660F28E3 		movapd	%xmm3, %xmm4
+GAS LISTING /tmp/ccHOhm8S.s 			page 8
+
+
+ 263 02a2 7E62     		jle	.L8
+ 264 02a4 4C8D5E10 		leaq	16(%rsi), %r11
+ 265 02a8 4C8D4E08 		leaq	8(%rsi), %r9
+ 266 02ac 4C8D4618 		leaq	24(%rsi), %r8
+ 267 02b0 4489F8   		movl	%r15d, %eax
+ 268              	.LVL26:
+ 269              		.p2align 4,,10
+ 270 02b3 0F1F4400 		.p2align 3
+ 270      00
+ 271              	.L9:
+  55:matmultbintrinsics.c **** 		{
+  56:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 272              		.loc 1 57 0
+ 273 02b8 4863C8   		movslq	%eax, %rcx
+  55:matmultbintrinsics.c **** 		{
+ 274              		.loc 1 55 0
+ 275 02bb 83C001   		addl	$1, %eax
+ 276              	.LVL27:
+ 277              		.loc 1 57 0
+ 278 02be 488B5CCC 		movq	24(%rsp,%rcx,8), %rbx
+ 278      18
+  57:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 279              		.loc 1 58 0
+ 280 02c3 488B4CCC 		movq	-40(%rsp,%rcx,8), %rcx
+ 280      D8
+ 281              	.LVL28:
+  55:matmultbintrinsics.c **** 		{
+ 282              		.loc 1 55 0
+ 283 02c8 4439D0   		cmpl	%r10d, %eax
+  57:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 284              		.loc 1 57 0
+ 285 02cb F20F1004 		movsd	(%rbx,%rdi), %xmm0
+ 285      3B
+ 286              	.LVL29:
+ 287 02d0 F20F1014 		movsd	(%rbx,%rbp), %xmm2
+ 287      2B
+ 288              	.LVL30:
+ 289              		.loc 1 58 0
+ 290 02d5 F20F100C 		movsd	(%rcx,%rsi), %xmm1
+ 290      31
+ 291 02da F2420F10 		movsd	(%rcx,%r11), %xmm5
+ 291      2C19
+ 292 02e0 F20F59C8 		mulsd	%xmm0, %xmm1
+ 293 02e4 F20F59EA 		mulsd	%xmm2, %xmm5
+  58:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 294              		.loc 1 59 0
+ 295 02e8 F2420F59 		mulsd	(%rcx,%r9), %xmm0
+ 295      0409
+ 296 02ee F2420F59 		mulsd	(%rcx,%r8), %xmm2
+ 296      1401
+  58:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 297              		.loc 1 58 0
+ 298 02f4 F20F58CD 		addsd	%xmm5, %xmm1
+ 299              		.loc 1 59 0
+ 300 02f8 F20F58C2 		addsd	%xmm2, %xmm0
+  58:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 301              		.loc 1 58 0
+GAS LISTING /tmp/ccHOhm8S.s 			page 9
+
+
+ 302 02fc F20F58E1 		addsd	%xmm1, %xmm4
+ 303              	.LVL31:
+ 304              		.loc 1 59 0
+ 305 0300 F20F58D8 		addsd	%xmm0, %xmm3
+ 306              	.LVL32:
+  55:matmultbintrinsics.c **** 		{
+ 307              		.loc 1 55 0
+ 308 0304 75B2     		jne	.L9
+ 309              	.LVL33:
+ 310              	.L8:
+  59:matmultbintrinsics.c **** 		}
+  60:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 311              		.loc 1 61 0
+ 312 0306 F20F1124 		movsd	%xmm4, (%rdx,%rdi)
+ 312      3A
+  52:matmultbintrinsics.c **** 	for(/*k = 1*/; k < lda3; k++)
+ 313              		.loc 1 52 0
+ 314 030b 4183C501 		addl	$1, %r13d
+ 315              	.LVL34:
+ 316 030f 4C01F7   		addq	%r14, %rdi
+ 317              		.loc 1 61 0
+ 318 0312 F20F111C 		movsd	%xmm3, (%rdx,%rbp)
+ 318      2A
+  52:matmultbintrinsics.c **** 	for(/*k = 1*/; k < lda3; k++)
+ 319              		.loc 1 52 0
+ 320 0317 48037424 		addq	-88(%rsp), %rsi
+ 320      A8
+ 321 031c 4C01F5   		addq	%r14, %rbp
+ 322 031f 443BAC24 		cmpl	152(%rsp), %r13d
+ 322      98000000 
+ 323 0327 0F8563FF 		jne	.L10
+ 323      FFFF
+ 324 032d 448BB424 		movl	152(%rsp), %r14d
+ 324      98000000 
+ 325              	.LVL35:
+ 326              	.L6:
+  61:matmultbintrinsics.c **** 	}
+  62:matmultbintrinsics.c **** 
+  63:matmultbintrinsics.c **** 	for(/*k = lda3*/; k < lda2; k++)
+ 327              		.loc 1 64 0
+ 328 0335 44397424 		cmpl	%r14d, -96(%rsp)
+ 328      A0
+ 329 033a 0F8EFF00 		jle	.L11
+ 329      0000
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 330              		.loc 1 19 0
+ 331 0340 8B8424B0 		movl	176(%rsp), %eax
+ 331      000000
+ 332 0347 4C63AC24 		movslq	176(%rsp), %r13
+ 332      B0000000 
+ 333              		.loc 1 64 0
+ 334 034f 448BBC24 		movl	192(%rsp), %r15d
+ 334      C0000000 
+  64:matmultbintrinsics.c **** 	{
+  65:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+  66:matmultbintrinsics.c **** 		for(l=mnos-2;l<nos;l++)
+ 335              		.loc 1 67 0
+GAS LISTING /tmp/ccHOhm8S.s 			page 10
+
+
+ 336 0357 4C8B6424 		movq	-48(%rsp), %r12
+ 336      D0
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 337              		.loc 1 19 0
+ 338 035c 410FAFC6 		imull	%r14d, %eax
+  64:matmultbintrinsics.c **** 	{
+ 339              		.loc 1 64 0
+ 340 0360 4183EF02 		subl	$2, %r15d
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 341              		.loc 1 19 0
+ 342 0364 49C1E503 		salq	$3, %r13
+ 343 0368 4898     		cltq
+ 344 036a 488D2CC5 		leaq	0(,%rax,8), %rbp
+ 344      00000000 
+ 345 0372 488D3CC5 		leaq	8(,%rax,8), %rdi
+ 345      08000000 
+ 346 037a 8B8424B0 		movl	176(%rsp), %eax
+ 346      000000
+ 347 0381 0FAFC0   		imull	%eax, %eax
+ 348 0384 4863C8   		movslq	%eax, %rcx
+ 349 0387 410FAFC6 		imull	%r14d, %eax
+ 350 038b 48C1E103 		salq	$3, %rcx
+ 351 038f 48894C24 		movq	%rcx, -88(%rsp)
+ 351      A8
+ 352 0394 4863F0   		movslq	%eax, %rsi
+ 353 0397 48C1E603 		salq	$3, %rsi
+ 354 039b 0F1F4400 		.p2align 4,,10
+ 354      00
+ 355              		.p2align 3
+ 356              	.L15:
+ 357              	.LVL36:
+ 358              		.loc 1 67 0
+ 359 03a0 4C896424 		movq	%r12, -112(%rsp)
+ 359      90
+ 360 03a5 4539FA   		cmpl	%r15d, %r10d
+ 361 03a8 F20F105C 		movsd	-112(%rsp), %xmm3
+ 361      2490
+ 362 03ae 660F28E3 		movapd	%xmm3, %xmm4
+ 363 03b2 7E62     		jle	.L13
+ 364              	.LVL37:
+ 365 03b4 4C8D5E10 		leaq	16(%rsi), %r11
+ 366 03b8 4C8D4E08 		leaq	8(%rsi), %r9
+ 367 03bc 4C8D4618 		leaq	24(%rsi), %r8
+ 368 03c0 4489F8   		movl	%r15d, %eax
+ 369              	.LVL38:
+ 370              		.p2align 4,,10
+ 371 03c3 0F1F4400 		.p2align 3
+ 371      00
+ 372              	.L14:
+  67:matmultbintrinsics.c **** 		{
+  68:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 373              		.loc 1 69 0
+ 374 03c8 4863C8   		movslq	%eax, %rcx
+  67:matmultbintrinsics.c **** 		{
+ 375              		.loc 1 67 0
+ 376 03cb 83C001   		addl	$1, %eax
+ 377              	.LVL39:
+GAS LISTING /tmp/ccHOhm8S.s 			page 11
+
+
+ 378              		.loc 1 69 0
+ 379 03ce 488B5CCC 		movq	24(%rsp,%rcx,8), %rbx
+ 379      18
+  69:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 380              		.loc 1 70 0
+ 381 03d3 488B4CCC 		movq	-40(%rsp,%rcx,8), %rcx
+ 381      D8
+ 382              	.LVL40:
+  67:matmultbintrinsics.c **** 		{
+ 383              		.loc 1 67 0
+ 384 03d8 4439D0   		cmpl	%r10d, %eax
+  69:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 385              		.loc 1 69 0
+ 386 03db F20F1004 		movsd	(%rbx,%rbp), %xmm0
+ 386      2B
+ 387              	.LVL41:
+ 388 03e0 F20F1014 		movsd	(%rbx,%rdi), %xmm2
+ 388      3B
+ 389              	.LVL42:
+ 390              		.loc 1 70 0
+ 391 03e5 F20F100C 		movsd	(%rcx,%rsi), %xmm1
+ 391      31
+ 392 03ea F2420F10 		movsd	(%rcx,%r11), %xmm5
+ 392      2C19
+ 393 03f0 F20F59C8 		mulsd	%xmm0, %xmm1
+ 394 03f4 F20F59EA 		mulsd	%xmm2, %xmm5
+  70:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 395              		.loc 1 71 0
+ 396 03f8 F2420F59 		mulsd	(%rcx,%r9), %xmm0
+ 396      0409
+ 397 03fe F2420F59 		mulsd	(%rcx,%r8), %xmm2
+ 397      1401
+  70:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 398              		.loc 1 70 0
+ 399 0404 F20F58CD 		addsd	%xmm5, %xmm1
+ 400              		.loc 1 71 0
+ 401 0408 F20F58C2 		addsd	%xmm2, %xmm0
+  70:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 402              		.loc 1 70 0
+ 403 040c F20F58E1 		addsd	%xmm1, %xmm4
+ 404              	.LVL43:
+ 405              		.loc 1 71 0
+ 406 0410 F20F58D8 		addsd	%xmm0, %xmm3
+ 407              	.LVL44:
+  67:matmultbintrinsics.c **** 		{
+ 408              		.loc 1 67 0
+ 409 0414 75B2     		jne	.L14
+ 410              	.LVL45:
+ 411              	.L13:
+  71:matmultbintrinsics.c **** 		}
+  72:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 412              		.loc 1 73 0
+ 413 0416 F20F1124 		movsd	%xmm4, (%rdx,%rbp)
+ 413      2A
+  64:matmultbintrinsics.c **** 	for(/*k = lda3*/; k < lda2; k++)
+ 414              		.loc 1 64 0
+ 415 041b 4183C601 		addl	$1, %r14d
+GAS LISTING /tmp/ccHOhm8S.s 			page 12
+
+
+ 416              	.LVL46:
+ 417 041f 4C01ED   		addq	%r13, %rbp
+ 418              		.loc 1 73 0
+ 419 0422 F20F111C 		movsd	%xmm3, (%rdx,%rdi)
+ 419      3A
+  64:matmultbintrinsics.c **** 	for(/*k = lda3*/; k < lda2; k++)
+ 420              		.loc 1 64 0
+ 421 0427 48037424 		addq	-88(%rsp), %rsi
+ 421      A8
+ 422 042c 4C01EF   		addq	%r13, %rdi
+ 423 042f 44397424 		cmpl	%r14d, -96(%rsp)
+ 423      A0
+ 424 0434 0F8F66FF 		jg	.L15
+ 424      FFFF
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 425              		.loc 1 19 0
+ 426 043a 448B7424 		movl	-96(%rsp), %r14d
+ 426      A0
+ 427              	.LVL47:
+ 428              	.L11:
+  73:matmultbintrinsics.c **** 	}
+  74:matmultbintrinsics.c **** 
+  75:matmultbintrinsics.c **** 	for(/*k = lda2*/; k < (lda1- lda2); k++)
+ 429              		.loc 1 76 0
+ 430 043f 8B4424C4 		movl	-60(%rsp), %eax
+ 431 0443 2B4424A0 		subl	-96(%rsp), %eax
+ 432 0447 4139C6   		cmpl	%eax, %r14d
+ 433 044a 894424A8 		movl	%eax, -88(%rsp)
+ 434 044e 0F8D0A01 		jge	.L16
+ 434      0000
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 435              		.loc 1 19 0
+ 436 0454 48638424 		movslq	176(%rsp), %rax
+ 436      B0000000 
+ 437 045c 4C8B7C24 		movq	-48(%rsp), %r15
+ 437      D0
+ 438 0461 4C8D6424 		leaq	24(%rsp), %r12
+ 438      18
+ 439              	.LVL48:
+ 440 0466 4C8D5C24 		leaq	-40(%rsp), %r11
+ 440      D8
+ 441 046b 48C1E003 		salq	$3, %rax
+ 442 046f 48894424 		movq	%rax, -96(%rsp)
+ 442      A0
+ 443 0474 8B8424B0 		movl	176(%rsp), %eax
+ 443      000000
+ 444 047b 410FAFC6 		imull	%r14d, %eax
+ 445 047f 4898     		cltq
+ 446 0481 488D3CC5 		leaq	0(,%rax,8), %rdi
+ 446      00000000 
+ 447 0489 488D34C5 		leaq	8(,%rax,8), %rsi
+ 447      08000000 
+ 448 0491 8B8424B0 		movl	176(%rsp), %eax
+ 448      000000
+ 449 0498 0FAFC0   		imull	%eax, %eax
+ 450 049b 4863C8   		movslq	%eax, %rcx
+ 451 049e 410FAFC6 		imull	%r14d, %eax
+GAS LISTING /tmp/ccHOhm8S.s 			page 13
+
+
+ 452 04a2 48C1E103 		salq	$3, %rcx
+ 453 04a6 48894C24 		movq	%rcx, -56(%rsp)
+ 453      C8
+ 454 04ab 4863D8   		movslq	%eax, %rbx
+ 455 04ae 418D42FF 		leal	-1(%r10), %eax
+ 456 04b2 48C1E303 		salq	$3, %rbx
+ 457 04b6 4C8D2CC5 		leaq	8(,%rax,8), %r13
+ 457      08000000 
+ 458 04be 6690     		.p2align 4,,10
+ 459              		.p2align 3
+ 460              	.L20:
+ 461              	.LVL49:
+  76:matmultbintrinsics.c **** 	{
+  77:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+  78:matmultbintrinsics.c **** 		for(l=0;l<nos;l++)
+ 462              		.loc 1 79 0
+ 463 04c0 4C897C24 		movq	%r15, -112(%rsp)
+ 463      90
+ 464 04c5 4585D2   		testl	%r10d, %r10d
+ 465 04c8 F20F105C 		movsd	-112(%rsp), %xmm3
+ 465      2490
+ 466 04ce 660F28E3 		movapd	%xmm3, %xmm4
+ 467 04d2 7E5D     		jle	.L18
+ 468 04d4 4C8D4B10 		leaq	16(%rbx), %r9
+ 469 04d8 4C8D4308 		leaq	8(%rbx), %r8
+ 470 04dc 488D6B18 		leaq	24(%rbx), %rbp
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 471              		.loc 1 19 0
+ 472 04e0 31C0     		xorl	%eax, %eax
+ 473              	.LVL50:
+ 474              		.p2align 4,,10
+ 475 04e2 660F1F44 		.p2align 3
+ 475      0000
+ 476              	.L19:
+  79:matmultbintrinsics.c **** 		{
+  80:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 477              		.loc 1 81 0
+ 478 04e8 498B0C04 		movq	(%r12,%rax), %rcx
+ 479 04ec F20F1004 		movsd	(%rcx,%rdi), %xmm0
+ 479      39
+ 480              	.LVL51:
+ 481 04f1 F20F1014 		movsd	(%rcx,%rsi), %xmm2
+ 481      31
+ 482              	.LVL52:
+  81:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 483              		.loc 1 82 0
+ 484 04f6 498B0C03 		movq	(%r11,%rax), %rcx
+  82:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 485              		.loc 1 83 0
+ 486 04fa 4883C008 		addq	$8, %rax
+ 487              	.LVL53:
+  79:matmultbintrinsics.c **** 		{
+ 488              		.loc 1 79 0
+ 489 04fe 4C39E8   		cmpq	%r13, %rax
+  82:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 490              		.loc 1 82 0
+ 491 0501 F20F100C 		movsd	(%rcx,%rbx), %xmm1
+GAS LISTING /tmp/ccHOhm8S.s 			page 14
+
+
+ 491      19
+ 492 0506 F2420F10 		movsd	(%rcx,%r9), %xmm5
+ 492      2C09
+ 493 050c F20F59C8 		mulsd	%xmm0, %xmm1
+ 494 0510 F20F59EA 		mulsd	%xmm2, %xmm5
+ 495              		.loc 1 83 0
+ 496 0514 F2420F59 		mulsd	(%rcx,%r8), %xmm0
+ 496      0401
+ 497 051a F20F5914 		mulsd	(%rcx,%rbp), %xmm2
+ 497      29
+  82:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 498              		.loc 1 82 0
+ 499 051f F20F58CD 		addsd	%xmm5, %xmm1
+ 500              		.loc 1 83 0
+ 501 0523 F20F58C2 		addsd	%xmm2, %xmm0
+  82:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 502              		.loc 1 82 0
+ 503 0527 F20F58E1 		addsd	%xmm1, %xmm4
+ 504              	.LVL54:
+ 505              		.loc 1 83 0
+ 506 052b F20F58D8 		addsd	%xmm0, %xmm3
+ 507              	.LVL55:
+  79:matmultbintrinsics.c **** 		{
+ 508              		.loc 1 79 0
+ 509 052f 75B7     		jne	.L19
+ 510              	.LVL56:
+ 511              	.L18:
+  83:matmultbintrinsics.c **** 		}
+  84:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 512              		.loc 1 85 0
+ 513 0531 F20F1124 		movsd	%xmm4, (%rdx,%rdi)
+ 513      3A
+  76:matmultbintrinsics.c **** 	for(/*k = lda2*/; k < (lda1- lda2); k++)
+ 514              		.loc 1 76 0
+ 515 0536 4183C601 		addl	$1, %r14d
+ 516              	.LVL57:
+ 517 053a 48037C24 		addq	-96(%rsp), %rdi
+ 517      A0
+ 518              		.loc 1 85 0
+ 519 053f F20F111C 		movsd	%xmm3, (%rdx,%rsi)
+ 519      32
+  76:matmultbintrinsics.c **** 	for(/*k = lda2*/; k < (lda1- lda2); k++)
+ 520              		.loc 1 76 0
+ 521 0544 48035C24 		addq	-56(%rsp), %rbx
+ 521      C8
+ 522 0549 48037424 		addq	-96(%rsp), %rsi
+ 522      A0
+ 523 054e 44397424 		cmpl	%r14d, -88(%rsp)
+ 523      A8
+ 524 0553 0F8F67FF 		jg	.L20
+ 524      FFFF
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 525              		.loc 1 19 0
+ 526 0559 448B7424 		movl	-88(%rsp), %r14d
+ 526      A8
+ 527              	.LVL58:
+ 528              	.L16:
+GAS LISTING /tmp/ccHOhm8S.s 			page 15
+
+
+  85:matmultbintrinsics.c **** 	}
+  86:matmultbintrinsics.c **** 
+  87:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda2)*/; k < (lda1 - lda3); k++)
+ 529              		.loc 1 88 0
+ 530 055e 8B4C24C4 		movl	-60(%rsp), %ecx
+ 531 0562 2B8C2498 		subl	152(%rsp), %ecx
+ 531      000000
+ 532 0569 4439F1   		cmpl	%r14d, %ecx
+ 533 056c 894C24A0 		movl	%ecx, -96(%rsp)
+ 534 0570 0F8E1901 		jle	.L21
+ 534      0000
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 535              		.loc 1 19 0
+ 536 0576 48638424 		movslq	176(%rsp), %rax
+ 536      B0000000 
+ 537 057e 4C8B7C24 		movq	-48(%rsp), %r15
+ 537      D0
+ 538 0583 4C8D6424 		leaq	24(%rsp), %r12
+ 538      18
+ 539              	.LVL59:
+ 540 0588 4C8D5C24 		leaq	-40(%rsp), %r11
+ 540      D8
+ 541 058d 44895424 		movl	%r10d, -80(%rsp)
+ 541      B0
+ 542 0592 4C8D04C5 		leaq	0(,%rax,8), %r8
+ 542      00000000 
+ 543 059a 8B8424B0 		movl	176(%rsp), %eax
+ 543      000000
+ 544 05a1 410FAFC6 		imull	%r14d, %eax
+ 545 05a5 4898     		cltq
+ 546 05a7 488D3CC5 		leaq	0(,%rax,8), %rdi
+ 546      00000000 
+ 547 05af 488D34C5 		leaq	8(,%rax,8), %rsi
+ 547      08000000 
+ 548 05b7 8B8424B0 		movl	176(%rsp), %eax
+ 548      000000
+ 549 05be 0FAFC0   		imull	%eax, %eax
+ 550 05c1 4863C8   		movslq	%eax, %rcx
+ 551 05c4 410FAFC6 		imull	%r14d, %eax
+ 552 05c8 48C1E103 		salq	$3, %rcx
+ 553 05cc 48894C24 		movq	%rcx, -88(%rsp)
+ 553      A8
+ 554 05d1 4863D8   		movslq	%eax, %rbx
+ 555 05d4 418D42FE 		leal	-2(%r10), %eax
+ 556 05d8 4D89C2   		movq	%r8, %r10
+ 557 05db 48C1E303 		salq	$3, %rbx
+ 558 05df 4C8D2CC5 		leaq	8(,%rax,8), %r13
+ 558      08000000 
+ 559 05e7 660F1F84 		.p2align 4,,10
+ 559      00000000 
+ 559      00
+ 560              		.p2align 3
+ 561              	.L25:
+ 562              	.LVL60:
+  88:matmultbintrinsics.c **** 	{
+  89:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+  90:matmultbintrinsics.c **** 		for(l=0;l<nos-1;l++)
+GAS LISTING /tmp/ccHOhm8S.s 			page 16
+
+
+ 563              		.loc 1 91 0
+ 564 05f0 837C24B0 		cmpl	$1, -80(%rsp)
+ 564      01
+ 565 05f5 4C897C24 		movq	%r15, -112(%rsp)
+ 565      90
+ 566 05fa F20F105C 		movsd	-112(%rsp), %xmm3
+ 566      2490
+ 567 0600 660F28E3 		movapd	%xmm3, %xmm4
+ 568 0604 7E5B     		jle	.L23
+ 569 0606 4C8D4B10 		leaq	16(%rbx), %r9
+ 570 060a 4C8D4308 		leaq	8(%rbx), %r8
+ 571 060e 488D6B18 		leaq	24(%rbx), %rbp
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 572              		.loc 1 19 0
+ 573 0612 31C0     		xorl	%eax, %eax
+ 574              	.LVL61:
+ 575              		.p2align 4,,10
+ 576 0614 0F1F4000 		.p2align 3
+ 577              	.L24:
+  91:matmultbintrinsics.c **** 		{
+  92:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 578              		.loc 1 93 0
+ 579 0618 498B0C04 		movq	(%r12,%rax), %rcx
+ 580 061c F20F1004 		movsd	(%rcx,%rdi), %xmm0
+ 580      39
+ 581              	.LVL62:
+ 582 0621 F20F1014 		movsd	(%rcx,%rsi), %xmm2
+ 582      31
+ 583              	.LVL63:
+  93:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 584              		.loc 1 94 0
+ 585 0626 498B0C03 		movq	(%r11,%rax), %rcx
+  94:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 586              		.loc 1 95 0
+ 587 062a 4883C008 		addq	$8, %rax
+ 588              	.LVL64:
+  91:matmultbintrinsics.c **** 		{
+ 589              		.loc 1 91 0
+ 590 062e 4C39E8   		cmpq	%r13, %rax
+  94:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 591              		.loc 1 94 0
+ 592 0631 F20F100C 		movsd	(%rcx,%rbx), %xmm1
+ 592      19
+ 593 0636 F2420F10 		movsd	(%rcx,%r9), %xmm5
+ 593      2C09
+ 594 063c F20F59C8 		mulsd	%xmm0, %xmm1
+ 595 0640 F20F59EA 		mulsd	%xmm2, %xmm5
+ 596              		.loc 1 95 0
+ 597 0644 F2420F59 		mulsd	(%rcx,%r8), %xmm0
+ 597      0401
+ 598 064a F20F5914 		mulsd	(%rcx,%rbp), %xmm2
+ 598      29
+  94:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 599              		.loc 1 94 0
+ 600 064f F20F58CD 		addsd	%xmm5, %xmm1
+ 601              		.loc 1 95 0
+ 602 0653 F20F58C2 		addsd	%xmm2, %xmm0
+GAS LISTING /tmp/ccHOhm8S.s 			page 17
+
+
+  94:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 603              		.loc 1 94 0
+ 604 0657 F20F58E1 		addsd	%xmm1, %xmm4
+ 605              	.LVL65:
+ 606              		.loc 1 95 0
+ 607 065b F20F58D8 		addsd	%xmm0, %xmm3
+ 608              	.LVL66:
+  91:matmultbintrinsics.c **** 		{
+ 609              		.loc 1 91 0
+ 610 065f 75B7     		jne	.L24
+ 611              	.LVL67:
+ 612              	.L23:
+  95:matmultbintrinsics.c **** 		}
+  96:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 613              		.loc 1 97 0
+ 614 0661 F20F1124 		movsd	%xmm4, (%rdx,%rdi)
+ 614      3A
+  88:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda2)*/; k < (lda1 - lda3); k++)
+ 615              		.loc 1 88 0
+ 616 0666 4183C601 		addl	$1, %r14d
+ 617              	.LVL68:
+ 618 066a 4C01D7   		addq	%r10, %rdi
+ 619              		.loc 1 97 0
+ 620 066d F20F111C 		movsd	%xmm3, (%rdx,%rsi)
+ 620      32
+  88:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda2)*/; k < (lda1 - lda3); k++)
+ 621              		.loc 1 88 0
+ 622 0672 48035C24 		addq	-88(%rsp), %rbx
+ 622      A8
+ 623 0677 4C01D6   		addq	%r10, %rsi
+ 624 067a 44397424 		cmpl	%r14d, -96(%rsp)
+ 624      A0
+ 625 067f 0F8F6BFF 		jg	.L25
+ 625      FFFF
+ 626 0685 448B5424 		movl	-80(%rsp), %r10d
+ 626      B0
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 627              		.loc 1 19 0
+ 628 068a 448B7424 		movl	-96(%rsp), %r14d
+ 628      A0
+ 629              	.LVL69:
+ 630              	.L21:
+  97:matmultbintrinsics.c **** 	}
+  98:matmultbintrinsics.c **** 
+  99:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda3)*/; k < (lda1 - 1); k++)
+ 631              		.loc 1 100 0
+ 632 068f 8B4424C4 		movl	-60(%rsp), %eax
+ 633 0693 83E801   		subl	$1, %eax
+ 634 0696 4439F0   		cmpl	%r14d, %eax
+ 635 0699 894424A0 		movl	%eax, -96(%rsp)
+ 636 069d 0F8E2C01 		jle	.L26
+ 636      0000
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 637              		.loc 1 19 0
+ 638 06a3 48638424 		movslq	176(%rsp), %rax
+ 638      B0000000 
+ 639 06ab 4C8B7C24 		movq	-48(%rsp), %r15
+GAS LISTING /tmp/ccHOhm8S.s 			page 18
+
+
+ 639      D0
+ 640 06b0 4C8D6424 		leaq	24(%rsp), %r12
+ 640      18
+ 641              	.LVL70:
+ 642 06b5 488D6C24 		leaq	-40(%rsp), %rbp
+ 642      D8
+ 643 06ba 4589F3   		movl	%r14d, %r11d
+ 644 06bd 44897424 		movl	%r14d, -56(%rsp)
+ 644      C8
+ 645 06c2 44895424 		movl	%r10d, -88(%rsp)
+ 645      A8
+ 646 06c7 488D1CC5 		leaq	0(,%rax,8), %rbx
+ 646      00000000 
+ 647 06cf 8B8424B0 		movl	176(%rsp), %eax
+ 647      000000
+ 648 06d6 410FAFC6 		imull	%r14d, %eax
+ 649 06da 4898     		cltq
+ 650 06dc 4C8D04C5 		leaq	0(,%rax,8), %r8
+ 650      00000000 
+ 651 06e4 488D3CC5 		leaq	8(,%rax,8), %rdi
+ 651      08000000 
+ 652 06ec 8B8424B0 		movl	176(%rsp), %eax
+ 652      000000
+ 653 06f3 0FAFC0   		imull	%eax, %eax
+ 654 06f6 4863C8   		movslq	%eax, %rcx
+ 655 06f9 410FAFC6 		imull	%r14d, %eax
+ 656 06fd 48C1E103 		salq	$3, %rcx
+ 657 0701 4989DE   		movq	%rbx, %r14
+ 658              	.LVL71:
+ 659 0704 48894C24 		movq	%rcx, -80(%rsp)
+ 659      B0
+ 660 0709 4863F0   		movslq	%eax, %rsi
+ 661 070c 418D42FD 		leal	-3(%r10), %eax
+ 662 0710 48C1E603 		salq	$3, %rsi
+ 663 0714 4C8D2CC5 		leaq	8(,%rax,8), %r13
+ 663      08000000 
+ 664 071c 0F1F4000 		.p2align 4,,10
+ 665              		.p2align 3
+ 666              	.L30:
+ 667              	.LVL72:
+ 100:matmultbintrinsics.c **** 	{
+ 101:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+ 102:matmultbintrinsics.c **** 		for(l=0;l<nos-2;l++)
+ 668              		.loc 1 103 0
+ 669 0720 837C24A8 		cmpl	$2, -88(%rsp)
+ 669      02
+ 670 0725 4C897C24 		movq	%r15, -112(%rsp)
+ 670      90
+ 671 072a F20F105C 		movsd	-112(%rsp), %xmm3
+ 671      2490
+ 672 0730 660F28E3 		movapd	%xmm3, %xmm4
+ 673 0734 7E5D     		jle	.L28
+ 674 0736 4C8D5610 		leaq	16(%rsi), %r10
+ 675 073a 4C8D4E08 		leaq	8(%rsi), %r9
+ 676 073e 488D5E18 		leaq	24(%rsi), %rbx
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 677              		.loc 1 19 0
+GAS LISTING /tmp/ccHOhm8S.s 			page 19
+
+
+ 678 0742 31C0     		xorl	%eax, %eax
+ 679              	.LVL73:
+ 680              		.p2align 4,,10
+ 681 0744 0F1F4000 		.p2align 3
+ 682              	.L29:
+ 103:matmultbintrinsics.c **** 		{
+ 104:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 683              		.loc 1 105 0
+ 684 0748 498B0C04 		movq	(%r12,%rax), %rcx
+ 685 074c F2420F10 		movsd	(%rcx,%r8), %xmm0
+ 685      0401
+ 686              	.LVL74:
+ 687 0752 F20F1014 		movsd	(%rcx,%rdi), %xmm2
+ 687      39
+ 688              	.LVL75:
+ 105:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+ 689              		.loc 1 106 0
+ 690 0757 488B4C05 		movq	0(%rbp,%rax), %rcx
+ 690      00
+ 106:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 691              		.loc 1 107 0
+ 692 075c 4883C008 		addq	$8, %rax
+ 693              	.LVL76:
+ 103:matmultbintrinsics.c **** 		{
+ 694              		.loc 1 103 0
+ 695 0760 4C39E8   		cmpq	%r13, %rax
+ 106:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 696              		.loc 1 106 0
+ 697 0763 F20F100C 		movsd	(%rcx,%rsi), %xmm1
+ 697      31
+ 698 0768 F2420F10 		movsd	(%rcx,%r10), %xmm5
+ 698      2C11
+ 699 076e F20F59C8 		mulsd	%xmm0, %xmm1
+ 700 0772 F20F59EA 		mulsd	%xmm2, %xmm5
+ 701              		.loc 1 107 0
+ 702 0776 F2420F59 		mulsd	(%rcx,%r9), %xmm0
+ 702      0409
+ 703 077c F20F5914 		mulsd	(%rcx,%rbx), %xmm2
+ 703      19
+ 106:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 704              		.loc 1 106 0
+ 705 0781 F20F58CD 		addsd	%xmm5, %xmm1
+ 706              		.loc 1 107 0
+ 707 0785 F20F58C2 		addsd	%xmm2, %xmm0
+ 106:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 708              		.loc 1 106 0
+ 709 0789 F20F58E1 		addsd	%xmm1, %xmm4
+ 710              	.LVL77:
+ 711              		.loc 1 107 0
+ 712 078d F20F58D8 		addsd	%xmm0, %xmm3
+ 713              	.LVL78:
+ 103:matmultbintrinsics.c **** 		{
+ 714              		.loc 1 103 0
+ 715 0791 75B5     		jne	.L29
+ 716              	.LVL79:
+ 717              	.L28:
+ 107:matmultbintrinsics.c **** 		}
+GAS LISTING /tmp/ccHOhm8S.s 			page 20
+
+
+ 108:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 718              		.loc 1 109 0
+ 719 0793 F2420F11 		movsd	%xmm4, (%rdx,%r8)
+ 719      2402
+ 100:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda3)*/; k < (lda1 - 1); k++)
+ 720              		.loc 1 100 0
+ 721 0799 4183C301 		addl	$1, %r11d
+ 722              	.LVL80:
+ 723 079d 4D01F0   		addq	%r14, %r8
+ 724              		.loc 1 109 0
+ 725 07a0 F20F111C 		movsd	%xmm3, (%rdx,%rdi)
+ 725      3A
+ 100:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda3)*/; k < (lda1 - 1); k++)
+ 726              		.loc 1 100 0
+ 727 07a5 48037424 		addq	-80(%rsp), %rsi
+ 727      B0
+ 728 07aa 4C01F7   		addq	%r14, %rdi
+ 729 07ad 44395C24 		cmpl	%r11d, -96(%rsp)
+ 729      A0
+ 730 07b2 0F8F68FF 		jg	.L30
+ 730      FFFF
+ 731 07b8 448B7424 		movl	-56(%rsp), %r14d
+ 731      C8
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 732              		.loc 1 19 0
+ 733 07bd 8B4C24C4 		movl	-60(%rsp), %ecx
+ 734 07c1 4489F0   		movl	%r14d, %eax
+ 735 07c4 F7D0     		notl	%eax
+ 736 07c6 8D4401FF 		leal	-1(%rcx,%rax), %eax
+ 737 07ca 468D7430 		leal	1(%rax,%r14), %r14d
+ 737      01
+ 738              	.LVL81:
+ 739              	.L26:
+ 109:matmultbintrinsics.c **** 	}
+ 110:matmultbintrinsics.c **** 
+ 111:matmultbintrinsics.c **** 	for(/*k = (lda1 - 1)*/; k < (lda1); k++)
+ 740              		.loc 1 112 0
+ 741 07cf 44397424 		cmpl	%r14d, -60(%rsp)
+ 741      C4
+ 742 07d4 0F8E0301 		jle	.L31
+ 742      0000
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 743              		.loc 1 19 0
+ 744 07da 8B8424B0 		movl	176(%rsp), %eax
+ 744      000000
+ 745 07e1 4C63BC24 		movslq	176(%rsp), %r15
+ 745      B0000000 
+ 746 07e9 4C8D5C24 		leaq	24(%rsp), %r11
+ 746      18
+ 747              	.LVL82:
+ 748 07ee 4C8B6C24 		movq	-48(%rsp), %r13
+ 748      D0
+ 749 07f3 4C8D5424 		leaq	-40(%rsp), %r10
+ 749      D8
+ 750 07f8 410FAFC6 		imull	%r14d, %eax
+ 751 07fc 49C1E703 		salq	$3, %r15
+ 752 0800 4898     		cltq
+GAS LISTING /tmp/ccHOhm8S.s 			page 21
+
+
+ 753 0802 488D3CC5 		leaq	0(,%rax,8), %rdi
+ 753      00000000 
+ 754 080a 488D34C5 		leaq	8(,%rax,8), %rsi
+ 754      08000000 
+ 755 0812 8B8424B0 		movl	176(%rsp), %eax
+ 755      000000
+ 756 0819 0FAFC0   		imull	%eax, %eax
+ 757 081c 4863C8   		movslq	%eax, %rcx
+ 758 081f 410FAFC6 		imull	%r14d, %eax
+ 759 0823 48C1E103 		salq	$3, %rcx
+ 760 0827 48894C24 		movq	%rcx, -72(%rsp)
+ 760      B8
+ 761 082c 4863D8   		movslq	%eax, %rbx
+ 762 082f 8B8424C0 		mov	192(%rsp), %eax
+ 762      000000
+ 763 0836 48C1E303 		salq	$3, %rbx
+ 764 083a 4C8D24C5 		leaq	8(,%rax,8), %r12
+ 764      08000000 
+ 765              		.p2align 4,,10
+ 766 0842 660F1F44 		.p2align 3
+ 766      0000
+ 767              	.L35:
+ 768              	.LVL83:
+ 112:matmultbintrinsics.c **** 	{
+ 113:matmultbintrinsics.c **** 		sum1 = 0.0; sum0= 0.0;t1= k*dof; t2 = t1*dof;
+ 114:matmultbintrinsics.c **** 		for(l=0;l<=mnos;l++)
+ 769              		.loc 1 115 0
+ 770 0848 8B8424C0 		movl	192(%rsp), %eax
+ 770      000000
+ 771 084f 4C896C24 		movq	%r13, -112(%rsp)
+ 771      90
+ 772 0854 F20F105C 		movsd	-112(%rsp), %xmm3
+ 772      2490
+ 773 085a 85C0     		testl	%eax, %eax
+ 774 085c 660F28E3 		movapd	%xmm3, %xmm4
+ 775 0860 7857     		js	.L33
+ 776 0862 4C8D4B10 		leaq	16(%rbx), %r9
+ 777 0866 4C8D4308 		leaq	8(%rbx), %r8
+ 778 086a 488D6B18 		leaq	24(%rbx), %rbp
+  19:matmultbintrinsics.c **** PetscInt BSG_MatMult_2_ver1(PetscScalar ** coeff, PetscScalar * x, PetscScalar * y, PetscInt * idx,
+ 779              		.loc 1 19 0
+ 780 086e 31C0     		xorl	%eax, %eax
+ 781              	.LVL84:
+ 782              		.p2align 4,,10
+ 783              		.p2align 3
+ 784              	.L34:
+ 115:matmultbintrinsics.c **** 		{
+ 116:matmultbintrinsics.c **** 			x0 = xt[l][t1]; x1 = xt[l][t1+1];
+ 785              		.loc 1 117 0
+ 786 0870 498B0C03 		movq	(%r11,%rax), %rcx
+ 787 0874 F20F1004 		movsd	(%rcx,%rdi), %xmm0
+ 787      39
+ 788              	.LVL85:
+ 789 0879 F20F1014 		movsd	(%rcx,%rsi), %xmm2
+ 789      31
+ 790              	.LVL86:
+ 117:matmultbintrinsics.c **** 			sum0 += ct[l][t2]*x0 + ct[l][t2+2]*x1;
+GAS LISTING /tmp/ccHOhm8S.s 			page 22
+
+
+ 791              		.loc 1 118 0
+ 792 087e 498B0C02 		movq	(%r10,%rax), %rcx
+ 118:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 793              		.loc 1 119 0
+ 794 0882 4883C008 		addq	$8, %rax
+ 795              	.LVL87:
+ 115:matmultbintrinsics.c **** 		{
+ 796              		.loc 1 115 0
+ 797 0886 4C39E0   		cmpq	%r12, %rax
+ 118:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 798              		.loc 1 118 0
+ 799 0889 F20F100C 		movsd	(%rcx,%rbx), %xmm1
+ 799      19
+ 800 088e F2420F10 		movsd	(%rcx,%r9), %xmm5
+ 800      2C09
+ 801 0894 F20F59C8 		mulsd	%xmm0, %xmm1
+ 802 0898 F20F59EA 		mulsd	%xmm2, %xmm5
+ 803              		.loc 1 119 0
+ 804 089c F2420F59 		mulsd	(%rcx,%r8), %xmm0
+ 804      0401
+ 805 08a2 F20F5914 		mulsd	(%rcx,%rbp), %xmm2
+ 805      29
+ 118:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 806              		.loc 1 118 0
+ 807 08a7 F20F58CD 		addsd	%xmm5, %xmm1
+ 808              		.loc 1 119 0
+ 809 08ab F20F58C2 		addsd	%xmm2, %xmm0
+ 118:matmultbintrinsics.c **** 			sum1 += ct[l][t2+1]*x0 + ct[l][t2+3]*x1;
+ 810              		.loc 1 118 0
+ 811 08af F20F58E1 		addsd	%xmm1, %xmm4
+ 812              	.LVL88:
+ 813              		.loc 1 119 0
+ 814 08b3 F20F58D8 		addsd	%xmm0, %xmm3
+ 815              	.LVL89:
+ 115:matmultbintrinsics.c **** 		{
+ 816              		.loc 1 115 0
+ 817 08b7 75B7     		jne	.L34
+ 818              	.LVL90:
+ 819              	.L33:
+ 119:matmultbintrinsics.c **** 		}
+ 120:matmultbintrinsics.c **** 		y[k*dof] = sum0; y[k*dof+1] = sum1;
+ 820              		.loc 1 121 0
+ 821 08b9 F20F1124 		movsd	%xmm4, (%rdx,%rdi)
+ 821      3A
+ 112:matmultbintrinsics.c **** 	for(/*k = (lda1 - 1)*/; k < (lda1); k++)
+ 822              		.loc 1 112 0
+ 823 08be 4183C601 		addl	$1, %r14d
+ 824              	.LVL91:
+ 825 08c2 4C01FF   		addq	%r15, %rdi
+ 826              		.loc 1 121 0
+ 827 08c5 F20F111C 		movsd	%xmm3, (%rdx,%rsi)
+ 827      32
+ 112:matmultbintrinsics.c **** 	for(/*k = (lda1 - 1)*/; k < (lda1); k++)
+ 828              		.loc 1 112 0
+ 829 08ca 48035C24 		addq	-72(%rsp), %rbx
+ 829      B8
+ 830 08cf 4C01FE   		addq	%r15, %rsi
+GAS LISTING /tmp/ccHOhm8S.s 			page 23
+
+
+ 831 08d2 44397424 		cmpl	%r14d, -60(%rsp)
+ 831      C4
+ 832 08d7 0F8F6BFF 		jg	.L35
+ 832      FFFF
+ 833              	.LVL92:
+ 834              	.L31:
+ 121:matmultbintrinsics.c **** 	}
+ 122:matmultbintrinsics.c **** 	PetscFunctionReturn(0);
+ 123:matmultbintrinsics.c **** }
+ 835              		.loc 1 124 0
+ 836 08dd 4883C460 		addq	$96, %rsp
+ 837              		.cfi_remember_state
+ 838              		.cfi_def_cfa_offset 56
+ 839 08e1 31C0     		xorl	%eax, %eax
+ 840 08e3 5B       		popq	%rbx
+ 841              		.cfi_def_cfa_offset 48
+ 842 08e4 5D       		popq	%rbp
+ 843              		.cfi_def_cfa_offset 40
+ 844 08e5 415C     		popq	%r12
+ 845              		.cfi_def_cfa_offset 32
+ 846 08e7 415D     		popq	%r13
+ 847              		.cfi_def_cfa_offset 24
+ 848 08e9 415E     		popq	%r14
+ 849              		.cfi_def_cfa_offset 16
+ 850              	.LVL93:
+ 851 08eb 415F     		popq	%r15
+ 852              		.cfi_def_cfa_offset 8
+ 853 08ed C3       		ret
+ 854              	.LVL94:
+ 855              	.L51:
+ 856              		.cfi_restore_state
+  43:matmultbintrinsics.c **** 		for(l=mnos;l<nos;l++)
+ 857              		.loc 1 43 0
+ 858 08ee 660F57C0 		xorpd	%xmm0, %xmm0
+ 859 08f2 F20F1144 		movsd	%xmm0, -48(%rsp)
+ 859      24D0
+ 860 08f8 660F28D8 		movapd	%xmm0, %xmm3
+ 861 08fc 660F28E0 		movapd	%xmm0, %xmm4
+ 862 0900 E91CF9FF 		jmp	.L3
+ 862      FF
+ 863              		.cfi_endproc
+ 864              	.LFE588:
+ 866 0905 66662E0F 		.p2align 4,,15
+ 866      1F840000 
+ 866      000000
+ 867              	.globl BSG_MatMult_2
+ 869              	BSG_MatMult_2:
+ 870              	.LFB589:
+ 124:matmultbintrinsics.c **** 
+ 125:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 126:matmultbintrinsics.c **** {
+ 871              		.loc 1 127 0
+ 872              		.cfi_startproc
+ 873              	.LVL95:
+ 874 0910 4157     		pushq	%r15
+ 875              		.cfi_def_cfa_offset 16
+ 876              		.cfi_offset 15, -16
+GAS LISTING /tmp/ccHOhm8S.s 			page 24
+
+
+ 877 0912 4156     		pushq	%r14
+ 878              		.cfi_def_cfa_offset 24
+ 879              		.cfi_offset 14, -24
+ 880 0914 4155     		pushq	%r13
+ 881              		.cfi_def_cfa_offset 32
+ 882              		.cfi_offset 13, -32
+ 883 0916 4154     		pushq	%r12
+ 884              		.cfi_def_cfa_offset 40
+ 885              		.cfi_offset 12, -40
+ 886 0918 55       		pushq	%rbp
+ 887              		.cfi_def_cfa_offset 48
+ 888              		.cfi_offset 6, -48
+ 889 0919 53       		pushq	%rbx
+ 890              		.cfi_def_cfa_offset 56
+ 891              		.cfi_offset 3, -56
+ 892              	.LVL96:
+ 127:matmultbintrinsics.c **** 	PetscInt k,l, t1, t2;
+ 128:matmultbintrinsics.c **** 	const PetscInt lda3 = m;
+ 129:matmultbintrinsics.c **** 	const PetscInt lda2 = lda3 * n;
+ 893              		.loc 1 130 0
+ 894 091a 448B6C24 		movl	56(%rsp), %r13d
+ 894      38
+ 895 091f 440FAF6C 		imull	64(%rsp), %r13d
+ 895      2440
+ 896              	.LVL97:
+ 130:matmultbintrinsics.c **** 	const PetscInt lda1 = lda2 * p;
+ 897              		.loc 1 131 0
+ 898 0925 48897424 		movq	%rsi, -112(%rsp)
+ 898      90
+ 899 092a 8B442448 		movl	72(%rsp), %eax
+ 900 092e F30F7E44 		movq	-112(%rsp), %xmm0
+ 900      2490
+ 127:matmultbintrinsics.c **** 	PetscInt k,l, t1, t2;
+ 901              		.loc 1 127 0
+ 902 0934 448B5C24 		movl	88(%rsp), %r11d
+ 902      58
+ 131:matmultbintrinsics.c **** 	const PetscInt mnos = dim;
+ 132:matmultbintrinsics.c **** 	const PetscScalar *xt[7];
+ 133:matmultbintrinsics.c **** 	__m128d mx0, msum0, msum1,msum3, mc0, mc1;
+ 134:matmultbintrinsics.c **** 	for(l=0;l<7;l++)
+ 135:matmultbintrinsics.c **** 		xt[l] = x + (idx[l] + idy[l]*lda3 + idz[l]*lda2)*dof;
+ 903              		.loc 1 136 0
+ 904 0939 F3410F6F 		movdqu	(%r9), %xmm1
+ 904      09
+ 131:matmultbintrinsics.c **** 	const PetscInt mnos = dim;
+ 905              		.loc 1 131 0
+ 906 093e 660F6CC0 		punpcklqdq	%xmm0, %xmm0
+ 127:matmultbintrinsics.c **** {
+ 907              		.loc 1 127 0
+ 908 0942 448B5424 		movl	96(%rsp), %r10d
+ 908      60
+ 909              		.loc 1 136 0
+ 910 0947 660F6E5C 		movd	56(%rsp), %xmm3
+ 910      2438
+ 911 094d 44896C24 		movl	%r13d, -116(%rsp)
+ 911      8C
+ 131:matmultbintrinsics.c **** 	const PetscInt mnos = dim;
+GAS LISTING /tmp/ccHOhm8S.s 			page 25
+
+
+ 912              		.loc 1 131 0
+ 913 0952 660F6FF8 		movdqa	%xmm0, %xmm7
+ 914              		.loc 1 136 0
+ 915 0956 660F6E54 		movd	-116(%rsp), %xmm2
+ 915      248C
+ 916 095c 418B5910 		movl	16(%r9), %ebx
+ 131:matmultbintrinsics.c **** 	const PetscInt mnos = dim;
+ 917              		.loc 1 131 0
+ 918 0960 410FAFC5 		imull	%r13d, %eax
+ 919              		.loc 1 136 0
+ 920 0964 660F70C2 		pshufd	$0, %xmm2, %xmm0
+ 920      00
+ 921 0969 660F6FD1 		movdqa	%xmm1, %xmm2
+ 922 096d 660F73D9 		psrldq	$4, %xmm1
+ 922      04
+ 131:matmultbintrinsics.c **** 	const PetscInt mnos = dim;
+ 923              		.loc 1 131 0
+ 924 0972 894424A4 		movl	%eax, -92(%rsp)
+ 925              	.LVL98:
+ 926              		.loc 1 136 0
+ 927 0976 8B442438 		movl	56(%rsp), %eax
+ 928              	.LVL99:
+ 929 097a 660FF4D0 		pmuludq	%xmm0, %xmm2
+ 930 097e 410FAF40 		imull	16(%r8), %eax
+ 930      10
+ 931 0983 660F73D8 		psrldq	$4, %xmm0
+ 931      04
+ 932 0988 660FF4C8 		pmuludq	%xmm0, %xmm1
+ 933 098c 660F70C2 		pshufd	$8, %xmm2, %xmm0
+ 933      08
+ 934 0991 660F70C9 		pshufd	$8, %xmm1, %xmm1
+ 934      08
+ 935 0996 F3410F6F 		movdqu	(%r8), %xmm2
+ 935      10
+ 936 099b 034110   		addl	16(%rcx), %eax
+ 937 099e 410FAFDD 		imull	%r13d, %ebx
+ 938 09a2 660F62C1 		punpckldq	%xmm1, %xmm0
+ 939 09a6 660F70CB 		pshufd	$0, %xmm3, %xmm1
+ 939      00
+ 940 09ab 660F6FDA 		movdqa	%xmm2, %xmm3
+ 941 09af 660F73DA 		psrldq	$4, %xmm2
+ 941      04
+ 942 09b4 01D8     		addl	%ebx, %eax
+ 943 09b6 418B5914 		movl	20(%r9), %ebx
+ 944 09ba 0FAF4424 		imull	80(%rsp), %eax
+ 944      50
+ 945 09bf 660FF4D9 		pmuludq	%xmm1, %xmm3
+ 946 09c3 660F73D9 		psrldq	$4, %xmm1
+ 946      04
+ 947 09c8 660FF4D1 		pmuludq	%xmm1, %xmm2
+ 948 09cc 660F70CB 		pshufd	$8, %xmm3, %xmm1
+ 948      08
+ 949 09d1 660F70D2 		pshufd	$8, %xmm2, %xmm2
+ 949      08
+ 950 09d6 410FAFDD 		imull	%r13d, %ebx
+ 951 09da 660F62CA 		punpckldq	%xmm2, %xmm1
+ 952 09de 660F6E54 		movd	80(%rsp), %xmm2
+GAS LISTING /tmp/ccHOhm8S.s 			page 26
+
+
+ 952      2450
+ 953 09e4 4898     		cltq
+ 954 09e6 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 955 09ea 660FFEC1 		paddd	%xmm1, %xmm0
+ 956 09ee F30F6F09 		movdqu	(%rcx), %xmm1
+ 957 09f2 48894424 		movq	%rax, -40(%rsp)
+ 957      D8
+ 958 09f7 8B442438 		movl	56(%rsp), %eax
+ 959 09fb 660FFEC1 		paddd	%xmm1, %xmm0
+ 960 09ff 660F70CA 		pshufd	$0, %xmm2, %xmm1
+ 960      00
+ 961 0a04 660F6FD0 		movdqa	%xmm0, %xmm2
+ 962 0a08 410FAF40 		imull	20(%r8), %eax
+ 962      14
+ 963 0a0d 660F73D8 		psrldq	$4, %xmm0
+ 963      04
+ 964 0a12 660FF4D1 		pmuludq	%xmm1, %xmm2
+ 965 0a16 660F73D9 		psrldq	$4, %xmm1
+ 965      04
+ 966 0a1b 660F70D2 		pshufd	$8, %xmm2, %xmm2
+ 966      08
+ 967 0a20 660FF4C1 		pmuludq	%xmm1, %xmm0
+ 968 0a24 660F70C0 		pshufd	$8, %xmm0, %xmm0
+ 968      08
+ 969 0a29 034114   		addl	20(%rcx), %eax
+ 970 0a2c 660FEFC9 		pxor	%xmm1, %xmm1
+ 971 0a30 660F62D0 		punpckldq	%xmm0, %xmm2
+ 972 0a34 01D8     		addl	%ebx, %eax
+ 973 0a36 660F6F05 		movdqa	.LC1(%rip), %xmm0
+ 973      00000000 
+ 974 0a3e 0FAF4424 		imull	80(%rsp), %eax
+ 974      50
+ 975 0a43 660F66CA 		pcmpgtd	%xmm2, %xmm1
+ 976 0a47 660F6FF2 		movdqa	%xmm2, %xmm6
+ 977 0a4b 660F6FE8 		movdqa	%xmm0, %xmm5
+ 978 0a4f 660F62F1 		punpckldq	%xmm1, %xmm6
+ 979 0a53 660F6AD1 		punpckhdq	%xmm1, %xmm2
+ 980 0a57 660F73D5 		psrlq	$32, %xmm5
+ 980      20
+ 981 0a5c 660F6FC8 		movdqa	%xmm0, %xmm1
+ 982 0a60 660F6FDE 		movdqa	%xmm6, %xmm3
+ 983 0a64 4898     		cltq
+ 984 0a66 660FF4EE 		pmuludq	%xmm6, %xmm5
+ 985 0a6a 660F6FE6 		movdqa	%xmm6, %xmm4
+ 986 0a6e 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 987 0a72 660F73F5 		psllq	$32, %xmm5
+ 987      20
+ 988 0a77 660FF4D8 		pmuludq	%xmm0, %xmm3
+ 989 0a7b 660FD4DD 		paddq	%xmm5, %xmm3
+ 990 0a7f 660F73D1 		psrlq	$32, %xmm1
+ 990      20
+ 991 0a84 660F73D4 		psrlq	$32, %xmm4
+ 991      20
+ 992 0a89 660FF4E0 		pmuludq	%xmm0, %xmm4
+ 993 0a8d 660F73F4 		psllq	$32, %xmm4
+ 993      20
+ 994 0a92 660FD4DC 		paddq	%xmm4, %xmm3
+GAS LISTING /tmp/ccHOhm8S.s 			page 27
+
+
+ 995 0a96 660F6FE2 		movdqa	%xmm2, %xmm4
+ 996 0a9a 660FD4DF 		paddq	%xmm7, %xmm3
+ 997 0a9e 660F7F5C 		movdqa	%xmm3, -72(%rsp)
+ 997      24B8
+ 998 0aa4 660FF4CA 		pmuludq	%xmm2, %xmm1
+ 999 0aa8 660F73F1 		psllq	$32, %xmm1
+ 999      20
+ 1000 0aad 660F6FDA 		movdqa	%xmm2, %xmm3
+ 1001 0ab1 660F73D4 		psrlq	$32, %xmm4
+ 1001      20
+ 1002 0ab6 660FF4D8 		pmuludq	%xmm0, %xmm3
+ 1003 0aba 660FF4C4 		pmuludq	%xmm4, %xmm0
+ 1004 0abe 660FD4CB 		paddq	%xmm3, %xmm1
+ 1005 0ac2 660F73F0 		psllq	$32, %xmm0
+ 1005      20
+ 1006 0ac7 660FD4C1 		paddq	%xmm1, %xmm0
+ 1007 0acb 660FD4C7 		paddq	%xmm7, %xmm0
+ 1008 0acf 660F7F44 		movdqa	%xmm0, -56(%rsp)
+ 1008      24C8
+ 1009              	.LVL100:
+ 1010 0ad5 48894424 		movq	%rax, -32(%rsp)
+ 1010      E0
+ 1011              	.LVL101:
+ 1012 0ada 8B442438 		movl	56(%rsp), %eax
+ 1013              	.LBB156:
+ 1014              	.LBB157:
+ 1015              		.file 2 "/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h"
+   0:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   1:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    Free Software Foundation, Inc.
+   2:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+   3:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    This file is part of GCC.
+   4:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+   5:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    GCC is free software; you can redistribute it and/or modify
+   6:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    it under the terms of the GNU General Public License as published by
+   7:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    the Free Software Foundation; either version 3, or (at your option)
+   8:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    any later version.
+   9:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  10:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    GCC is distributed in the hope that it will be useful,
+  11:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  12:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  13:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    GNU General Public License for more details.
+  14:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  15:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    Under Section 7 of GPL version 3, you are granted additional
+  16:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    permissions described in the GCC Runtime Library Exception, version
+  17:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    3.1, as published by the Free Software Foundation.
+  18:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  19:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    You should have received a copy of the GNU General Public License and
+  20:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    a copy of the GCC Runtime Library Exception along with this program;
+  21:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+  22:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    <http://www.gnu.org/licenses/>.  */
+  23:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  24:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Implemented from the specification included in the Intel C++ Compiler
+  25:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    User Guide and Reference, version 9.0.  */
+  26:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  27:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #ifndef _EMMINTRIN_H_INCLUDED
+  28:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #define _EMMINTRIN_H_INCLUDED
+  29:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+GAS LISTING /tmp/ccHOhm8S.s 			page 28
+
+
+  30:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #ifndef __SSE2__
+  31:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** # error "SSE2 instruction set not enabled"
+  32:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #else
+  33:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  34:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* We need definitions from the SSE header files*/
+  35:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #include <xmmintrin.h>
+  36:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  37:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* SSE2 */
+  38:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef double __v2df __attribute__ ((__vector_size__ (16)));
+  39:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef long long __v2di __attribute__ ((__vector_size__ (16)));
+  40:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef int __v4si __attribute__ ((__vector_size__ (16)));
+  41:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef short __v8hi __attribute__ ((__vector_size__ (16)));
+  42:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef char __v16qi __attribute__ ((__vector_size__ (16)));
+  43:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  44:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* The Intel API is flexible enough that we must allow aliasing with other
+  45:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    vector types, and their scalar components.  */
+  46:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef long long __m128i __attribute__ ((__vector_size__ (16), __may_alias__));
+  47:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** typedef double __m128d __attribute__ ((__vector_size__ (16), __may_alias__));
+  48:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  49:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a selector for use with the SHUFPD instruction.  */
+  50:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #define _MM_SHUFFLE2(fp1,fp0) \
+  51:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****  (((fp1) << 1) | (fp0))
+  52:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  53:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector with element 0 as F and the rest zero.  */
+  54:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  55:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_set_sd (double __F)
+  56:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  57:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __F, 0.0 };
+  58:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+  59:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  60:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector with both elements equal to F.  */
+  61:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  62:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_set1_pd (double __F)
+  63:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  64:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __F, __F };
+  65:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+  66:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  67:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  68:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_set_pd1 (double __F)
+  69:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  70:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return _mm_set1_pd (__F);
+  71:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+  72:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  73:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector with the lower value X and upper value W.  */
+  74:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  75:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_set_pd (double __W, double __X)
+  76:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  77:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1016              		.loc 2 78 0
+ 1017 0ade 660F57DB 		xorpd	%xmm3, %xmm3
+ 1018              	.LBE157:
+ 1019              	.LBE156:
+ 1020              		.loc 1 136 0
+ 1021 0ae2 410FAF40 		imull	24(%r8), %eax
+ 1021      18
+ 1022              	.LBB158:
+ 1023              	.LBB159:
+GAS LISTING /tmp/ccHOhm8S.s 			page 29
+
+
+ 1024              		.loc 2 78 0
+ 1025 0ae7 660F28E3 		movapd	%xmm3, %xmm4
+ 1026              	.LBE159:
+ 1027              	.LBE158:
+ 1028              		.loc 1 136 0
+ 1029 0aeb 034118   		addl	24(%rcx), %eax
+ 1030 0aee 418B4918 		movl	24(%r9), %ecx
+ 1031              	.LVL102:
+ 1032 0af2 410FAFCD 		imull	%r13d, %ecx
+ 1033 0af6 01C8     		addl	%ecx, %eax
+ 1034 0af8 0FAF4424 		imull	80(%rsp), %eax
+ 1034      50
+ 136:matmultbintrinsics.c **** 	
+ 137:matmultbintrinsics.c **** 	for(k = 0; k < 1; k++)
+ 138:matmultbintrinsics.c **** 	{
+ 139:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 140:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 141:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 142:matmultbintrinsics.c ****                 for(l=mnos;l<nos;l++)
+ 1035              		.loc 1 143 0
+ 1036 0afd 4539DA   		cmpl	%r11d, %r10d
+ 136:matmultbintrinsics.c **** 	
+ 1037              		.loc 1 136 0
+ 1038 0b00 4898     		cltq
+ 1039 0b02 488D04C6 		leaq	(%rsi,%rax,8), %rax
+ 1040 0b06 48894424 		movq	%rax, -24(%rsp)
+ 1040      E8
+ 1041              	.LVL103:
+ 1042              		.loc 1 143 0
+ 1043 0b0b 7D47     		jge	.L53
+ 1044 0b0d 4963C2   		movslq	%r10d, %rax
+ 1045 0b10 488D0CC7 		leaq	(%rdi,%rax,8), %rcx
+ 1046 0b14 4489D0   		movl	%r10d, %eax
+ 1047              	.LVL104:
+ 1048 0b17 660F1F84 		.p2align 4,,10
+ 1048      00000000 
+ 1048      00
+ 1049              		.p2align 3
+ 1050              	.L54:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+  79:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  80:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector with the lower value W and upper value X.  */
+  81:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  82:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_setr_pd (double __W, double __X)
+  83:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  84:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __W, __X };
+  85:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+  86:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  87:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector of zeros.  */
+  88:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  89:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_setzero_pd (void)
+  90:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  91:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ 0.0, 0.0 };
+  92:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+  93:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+  94:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Sets the low DPFP value of A from the low value of B.  */
+  95:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+GAS LISTING /tmp/ccHOhm8S.s 			page 30
+
+
+  96:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_move_sd (__m128d __A, __m128d __B)
+  97:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+  98:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d) __builtin_ia32_movsd ((__v2df)__A, (__v2df)__B);
+  99:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 100:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 101:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Load two DPFP values from P.  The address must be 16-byte aligned.  */
+ 102:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 103:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_load_pd (double const *__P)
+ 104:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 105:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return *(__m128d *)__P;
+ 106:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 107:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 108:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Load two DPFP values from P.  The address need not be 16-byte aligned.  */
+ 109:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 110:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_loadu_pd (double const *__P)
+ 111:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 112:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1051              		.loc 2 113 0
+ 1052 0b20 4863D8   		movslq	%eax, %rbx
+ 1053              		.loc 1 143 0
+ 1054 0b23 83C001   		addl	$1, %eax
+ 1055              	.LVL105:
+ 1056              	.LBB160:
+ 1057              	.LBB161:
+ 1058              		.loc 2 113 0
+ 1059 0b26 488B5CDC 		movq	-72(%rsp,%rbx,8), %rbx
+ 1059      B8
+ 1060              	.LVL106:
+ 1061 0b2b 660F1013 		movupd	(%rbx), %xmm2
+ 1062              	.LVL107:
+ 1063              	.LBE161:
+ 1064              	.LBE160:
+ 1065              	.LBB162:
+ 1066              	.LBB163:
+ 1067 0b2f 488B19   		movq	(%rcx), %rbx
+ 1068              	.LBE163:
+ 1069              	.LBE162:
+ 1070              		.loc 1 143 0
+ 1071 0b32 4883C108 		addq	$8, %rcx
+ 1072              	.LVL108:
+ 1073 0b36 4139C3   		cmpl	%eax, %r11d
+ 1074              	.LBB165:
+ 1075              	.LBB164:
+ 1076              		.loc 2 113 0
+ 1077 0b39 660F100B 		movupd	(%rbx), %xmm1
+ 1078              	.LVL109:
+ 1079              	.LBE164:
+ 1080              	.LBE165:
+ 1081              	.LBB166:
+ 1082              	.LBB167:
+ 1083 0b3d 660F1043 		movupd	16(%rbx), %xmm0
+ 1083      10
+ 1084              	.LVL110:
+ 1085              	.LBE167:
+ 1086              	.LBE166:
+ 1087              	.LBB168:
+ 1088              	.LBB169:
+GAS LISTING /tmp/ccHOhm8S.s 			page 31
+
+
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 114:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 115:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector with all two elements equal to *P.  */
+ 116:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 117:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_load1_pd (double const *__P)
+ 118:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 119:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return _mm_set1_pd (*__P);
+ 120:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 121:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 122:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Create a vector with element 0 as *P and the rest zero.  */
+ 123:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 124:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_load_sd (double const *__P)
+ 125:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 126:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return _mm_set_sd (*__P);
+ 127:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 128:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 129:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 130:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_load_pd1 (double const *__P)
+ 131:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 132:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return _mm_load1_pd (__P);
+ 133:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 134:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 135:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Load two DPFP values in reverse order.  The address must be aligned.  */
+ 136:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 137:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_loadr_pd (double const *__P)
+ 138:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 139:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __m128d __tmp = _mm_load_pd (__P);
+ 140:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_shufpd (__tmp, __tmp, _MM_SHUFFLE2 (0,1));
+ 141:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 142:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 143:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Store two DPFP values.  The address must be 16-byte aligned.  */
+ 144:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 145:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_store_pd (double *__P, __m128d __A)
+ 146:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 147:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   *(__m128d *)__P = __A;
+ 148:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 149:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 150:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Store two DPFP values.  The address need not be 16-byte aligned.  */
+ 151:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 152:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_storeu_pd (double *__P, __m128d __A)
+ 153:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 154:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 156:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 157:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Stores the lower DPFP value.  */
+ 158:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 159:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_store_sd (double *__P, __m128d __A)
+ 160:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 161:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   *__P = __builtin_ia32_vec_ext_v2df (__A, 0);
+ 162:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 163:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 164:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline double __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 165:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_cvtsd_f64 (__m128d __A)
+ 166:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 167:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_vec_ext_v2df (__A, 0);
+ 168:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 169:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+GAS LISTING /tmp/ccHOhm8S.s 			page 32
+
+
+ 170:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 171:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_storel_pd (double *__P, __m128d __A)
+ 172:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 173:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   _mm_store_sd (__P, __A);
+ 174:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 175:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 176:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Stores the upper DPFP value.  */
+ 177:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 178:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_storeh_pd (double *__P, __m128d __A)
+ 179:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 180:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   *__P = __builtin_ia32_vec_ext_v2df (__A, 1);
+ 181:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 182:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 183:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Store the lower DPFP value across two words.
+ 184:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****    The address must be 16-byte aligned.  */
+ 185:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 186:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_store1_pd (double *__P, __m128d __A)
+ 187:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 188:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   _mm_store_pd (__P, __builtin_ia32_shufpd (__A, __A, _MM_SHUFFLE2 (0,0)));
+ 189:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 190:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 191:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 192:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_store_pd1 (double *__P, __m128d __A)
+ 193:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 194:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   _mm_store1_pd (__P, __A);
+ 195:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 196:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 197:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Store two DPFP values in reverse order.  The address must be aligned.  */
+ 198:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 199:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_storer_pd (double *__P, __m128d __A)
+ 200:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 201:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   _mm_store_pd (__P, __builtin_ia32_shufpd (__A, __A, _MM_SHUFFLE2 (0,1)));
+ 202:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 203:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 204:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 205:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_cvtsi128_si32 (__m128i __A)
+ 206:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 207:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_vec_ext_v4si ((__v4si)__A, 0);
+ 208:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 209:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 210:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #ifdef __x86_64__
+ 211:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Intel intrinsic.  */
+ 212:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline long long __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 213:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_cvtsi128_si64 (__m128i __A)
+ 214:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 215:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_vec_ext_v2di ((__v2di)__A, 0);
+ 216:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 217:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 218:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** /* Microsoft intrinsic.  */
+ 219:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline long long __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 220:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_cvtsi128_si64x (__m128i __A)
+ 221:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 222:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_vec_ext_v2di ((__v2di)__A, 0);
+ 223:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 224:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** #endif
+ 225:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 226:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+GAS LISTING /tmp/ccHOhm8S.s 			page 33
+
+
+ 227:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_add_pd (__m128d __A, __m128d __B)
+ 228:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 229:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 231:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 232:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 233:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_add_sd (__m128d __A, __m128d __B)
+ 234:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 235:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addsd ((__v2df)__A, (__v2df)__B);
+ 236:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 237:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 238:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 239:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_sub_pd (__m128d __A, __m128d __B)
+ 240:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 241:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_subpd ((__v2df)__A, (__v2df)__B);
+ 242:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 243:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 244:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 245:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_sub_sd (__m128d __A, __m128d __B)
+ 246:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 247:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_subsd ((__v2df)__A, (__v2df)__B);
+ 248:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** }
+ 249:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** 
+ 250:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 251:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** _mm_mul_pd (__m128d __A, __m128d __B)
+ 252:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h **** {
+ 253:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_mulpd ((__v2df)__A, (__v2df)__B);
+ 1089              		.loc 2 254 0
+ 1090 0b42 660F59CA 		mulpd	%xmm2, %xmm1
+ 1091              	.LVL111:
+ 1092              	.LBE169:
+ 1093              	.LBE168:
+ 1094              	.LBB170:
+ 1095              	.LBB171:
+ 1096 0b46 660F59C2 		mulpd	%xmm2, %xmm0
+ 1097              	.LVL112:
+ 1098              	.LBE171:
+ 1099              	.LBE170:
+ 1100              	.LBB172:
+ 1101              	.LBB173:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1102              		.loc 2 230 0
+ 1103 0b4a 660F58D9 		addpd	%xmm1, %xmm3
+ 1104              	.LVL113:
+ 1105              	.LBE173:
+ 1106              	.LBE172:
+ 1107              	.LBB174:
+ 1108              	.LBB175:
+ 1109 0b4e 660F58E0 		addpd	%xmm0, %xmm4
+ 1110              	.LVL114:
+ 1111              	.LBE175:
+ 1112              	.LBE174:
+ 1113              		.loc 1 143 0
+ 1114 0b52 7FCC     		jg	.L54
+ 1115              	.LVL115:
+ 1116              	.L53:
+ 1117              	.LBB176:
+GAS LISTING /tmp/ccHOhm8S.s 			page 34
+
+
+ 1118              	.LBB177:
+ 1119              		.file 3 "/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h"
+   0:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** /* Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   1:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    Free Software Foundation, Inc.
+   2:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+   3:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    This file is part of GCC.
+   4:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+   5:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    GCC is free software; you can redistribute it and/or modify
+   6:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    it under the terms of the GNU General Public License as published by
+   7:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    the Free Software Foundation; either version 3, or (at your option)
+   8:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    any later version.
+   9:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  10:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    GCC is distributed in the hope that it will be useful,
+  11:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  12:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  13:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    GNU General Public License for more details.
+  14:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  15:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    Under Section 7 of GPL version 3, you are granted additional
+  16:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    permissions described in the GCC Runtime Library Exception, version
+  17:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    3.1, as published by the Free Software Foundation.
+  18:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  19:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    You should have received a copy of the GNU General Public License and
+  20:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    a copy of the GCC Runtime Library Exception along with this program;
+  21:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+  22:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    <http://www.gnu.org/licenses/>.  */
+  23:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  24:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** /* Implemented from the specification included in the Intel C++ Compiler
+  25:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****    User Guide and Reference, version 9.0.  */
+  26:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  27:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #ifndef _PMMINTRIN_H_INCLUDED
+  28:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #define _PMMINTRIN_H_INCLUDED
+  29:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  30:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #ifndef __SSE3__
+  31:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** # error "SSE3 instruction set not enabled"
+  32:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #else
+  33:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  34:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** /* We need definitions from the SSE2 and SSE header files*/
+  35:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #include <emmintrin.h>
+  36:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  37:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** /* Additional bits in the MXCSR.  */
+  38:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #define _MM_DENORMALS_ZERO_MASK		0x0040
+  39:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #define _MM_DENORMALS_ZERO_ON		0x0040
+  40:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #define _MM_DENORMALS_ZERO_OFF		0x0000
+  41:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  42:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #define _MM_SET_DENORMALS_ZERO_MODE(mode) \
+  43:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   _mm_setcsr ((_mm_getcsr () & ~_MM_DENORMALS_ZERO_MASK) | (mode))
+  44:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** #define _MM_GET_DENORMALS_ZERO_MODE() \
+  45:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   (_mm_getcsr() & _MM_DENORMALS_ZERO_MASK)
+  46:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  47:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  48:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_addsub_ps (__m128 __X, __m128 __Y)
+  49:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  50:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128) __builtin_ia32_addsubps ((__v4sf)__X, (__v4sf)__Y);
+  51:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** }
+  52:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  53:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  54:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_hadd_ps (__m128 __X, __m128 __Y)
+GAS LISTING /tmp/ccHOhm8S.s 			page 35
+
+
+  55:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  56:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128) __builtin_ia32_haddps ((__v4sf)__X, (__v4sf)__Y);
+  57:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** }
+  58:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  59:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  60:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_hsub_ps (__m128 __X, __m128 __Y)
+  61:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  62:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128) __builtin_ia32_hsubps ((__v4sf)__X, (__v4sf)__Y);
+  63:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** }
+  64:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  65:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  66:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_movehdup_ps (__m128 __X)
+  67:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  68:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128) __builtin_ia32_movshdup ((__v4sf)__X);
+  69:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** }
+  70:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  71:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  72:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_moveldup_ps (__m128 __X)
+  73:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  74:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128) __builtin_ia32_movsldup ((__v4sf)__X);
+  75:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** }
+  76:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  77:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_addsub_pd (__m128d __X, __m128d __Y)
+  79:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  80:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128d) __builtin_ia32_addsubpd ((__v2df)__X, (__v2df)__Y);
+  81:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** }
+  82:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** 
+  83:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+  84:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** _mm_hadd_pd (__m128d __X, __m128d __Y)
+  85:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h **** {
+  86:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/pmmintrin.h ****   return (__m128d) __builtin_ia32_haddpd ((__v2df)__X, (__v2df)__Y);
+ 1120              		.loc 3 87 0
+ 1121 0b54 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1122              	.LVL116:
+ 1123              	.LBE177:
+ 1124              	.LBE176:
+ 143:matmultbintrinsics.c ****                 {
+ 144:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 145:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 146:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 147:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 148:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 149:matmultbintrinsics.c ****                 }
+ 150:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 151:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 152:matmultbintrinsics.c **** 	}
+ 153:matmultbintrinsics.c **** 
+ 154:matmultbintrinsics.c **** 	for(/*k = 1*/; k < lda3; k++)
+ 1125              		.loc 1 155 0
+ 1126 0b58 837C2438 		cmpl	$1, 56(%rsp)
+ 1126      01
+ 1127 0b5d 41BC0100 		movl	$1, %r12d
+ 1127      0000
+ 1128              	.LBB178:
+ 1129              	.LBB179:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+GAS LISTING /tmp/ccHOhm8S.s 			page 36
+
+
+ 1130              		.loc 2 155 0
+ 1131 0b63 660F111A 		movupd	%xmm3, (%rdx)
+ 1132              	.LVL117:
+ 1133              	.LBE179:
+ 1134              	.LBE178:
+ 1135              		.loc 1 155 0
+ 1136 0b67 0F8ECA00 		jle	.L56
+ 1136      0000
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1137              		.loc 1 126 0
+ 1138 0b6d 448B7C24 		movl	80(%rsp), %r15d
+ 1138      50
+ 1139              		.loc 1 155 0
+ 1140 0b72 458D62FF 		leal	-1(%r10), %r12d
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1141              		.loc 1 126 0
+ 1142 0b76 4C637424 		movslq	80(%rsp), %r14
+ 1142      50
+ 155:matmultbintrinsics.c **** 	{
+ 156:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 157:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 158:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 159:matmultbintrinsics.c **** 		for(l=mnos-1;l<nos;l++)
+ 1143              		.loc 1 160 0
+ 1144 0b7b 448B4424 		movl	56(%rsp), %r8d
+ 1144      38
+ 1145              	.LVL118:
+ 1146 0b80 44896C24 		movl	%r13d, -88(%rsp)
+ 1146      A8
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1147              		.loc 1 126 0
+ 1148 0b85 41B90100 		movl	$1, %r9d
+ 1148      0000
+ 1149              	.LVL119:
+ 1150              		.loc 1 160 0
+ 1151 0b8b 4963C4   		movslq	%r12d, %rax
+ 1152 0b8e 48897C24 		movq	%rdi, -80(%rsp)
+ 1152      B0
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1153              		.loc 1 126 0
+ 1154 0b93 450FAFFF 		imull	%r15d, %r15d
+ 1155              		.loc 1 160 0
+ 1156 0b97 488D04C7 		leaq	(%rdi,%rax,8), %rax
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1157              		.loc 1 126 0
+ 1158 0b9b 49C1E603 		salq	$3, %r14
+ 1159 0b9f 4C89F6   		movq	%r14, %rsi
+ 1160              	.LVL120:
+ 1161              		.loc 1 160 0
+ 1162 0ba2 4989C5   		movq	%rax, %r13
+ 1163              	.LVL121:
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1164              		.loc 1 126 0
+ 1165 0ba5 4D63FF   		movslq	%r15d, %r15
+ 1166 0ba8 49C1E703 		salq	$3, %r15
+ 1167 0bac 4C89FD   		movq	%r15, %rbp
+ 1168              	.LVL122:
+GAS LISTING /tmp/ccHOhm8S.s 			page 37
+
+
+ 1169 0baf 90       		.p2align 4,,10
+ 1170              		.p2align 3
+ 1171              	.L59:
+ 1172              	.LBB180:
+ 1173              	.LBB181:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1174              		.loc 2 78 0
+ 1175 0bb0 660F57DB 		xorpd	%xmm3, %xmm3
+ 1176              	.LVL123:
+ 1177              	.LBE181:
+ 1178              	.LBE180:
+ 1179              		.loc 1 160 0
+ 1180 0bb4 4539E3   		cmpl	%r12d, %r11d
+ 1181              	.LBB182:
+ 1182              	.LBB183:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1183              		.loc 2 78 0
+ 1184 0bb7 660F28E3 		movapd	%xmm3, %xmm4
+ 1185              	.LVL124:
+ 1186              	.LBE183:
+ 1187              	.LBE182:
+ 1188              		.loc 1 160 0
+ 1189 0bbb 7E53     		jle	.L57
+ 1190 0bbd 488D7D10 		leaq	16(%rbp), %rdi
+ 1191 0bc1 4C89E9   		movq	%r13, %rcx
+ 1192 0bc4 4489E0   		movl	%r12d, %eax
+ 1193              	.LVL125:
+ 1194 0bc7 660F1F84 		.p2align 4,,10
+ 1194      00000000 
+ 1194      00
+ 1195              		.p2align 3
+ 1196              	.L58:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1197              		.loc 2 113 0
+ 1198 0bd0 4863D8   		movslq	%eax, %rbx
+ 1199              		.loc 1 160 0
+ 1200 0bd3 83C001   		addl	$1, %eax
+ 1201              	.LVL126:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1202              		.loc 2 113 0
+ 1203 0bd6 488B5CDC 		movq	-72(%rsp,%rbx,8), %rbx
+ 1203      B8
+ 1204              	.LVL127:
+ 1205 0bdb 488D1C1E 		leaq	(%rsi,%rbx), %rbx
+ 1206              	.LBB184:
+ 1207              	.LBB185:
+ 1208 0bdf 660F1013 		movupd	(%rbx), %xmm2
+ 1209              	.LVL128:
+ 1210              	.LBE185:
+ 1211              	.LBE184:
+ 1212 0be3 4889EB   		movq	%rbp, %rbx
+ 1213 0be6 480319   		addq	(%rcx), %rbx
+ 1214              	.LBB186:
+ 1215              	.LBB187:
+ 1216 0be9 660F100B 		movupd	(%rbx), %xmm1
+ 1217              	.LVL129:
+ 1218              	.LBE187:
+GAS LISTING /tmp/ccHOhm8S.s 			page 38
+
+
+ 1219              	.LBE186:
+ 1220 0bed 4889FB   		movq	%rdi, %rbx
+ 1221 0bf0 480319   		addq	(%rcx), %rbx
+ 1222              		.loc 1 160 0
+ 1223 0bf3 4883C108 		addq	$8, %rcx
+ 1224              	.LVL130:
+ 1225 0bf7 4139C3   		cmpl	%eax, %r11d
+ 1226              	.LBB188:
+ 1227              	.LBB189:
+ 1228              		.loc 2 254 0
+ 1229 0bfa 660F59CA 		mulpd	%xmm2, %xmm1
+ 1230              	.LVL131:
+ 1231              	.LBE189:
+ 1232              	.LBE188:
+ 1233              	.LBB190:
+ 1234              	.LBB191:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1235              		.loc 2 113 0
+ 1236 0bfe 660F1003 		movupd	(%rbx), %xmm0
+ 1237              	.LVL132:
+ 1238              	.LBE191:
+ 1239              	.LBE190:
+ 1240              	.LBB192:
+ 1241              	.LBB193:
+ 1242              		.loc 2 254 0
+ 1243 0c02 660F59C2 		mulpd	%xmm2, %xmm0
+ 1244              	.LVL133:
+ 1245              	.LBE193:
+ 1246              	.LBE192:
+ 1247              	.LBB194:
+ 1248              	.LBB195:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1249              		.loc 2 230 0
+ 1250 0c06 660F58D9 		addpd	%xmm1, %xmm3
+ 1251              	.LVL134:
+ 1252              	.LBE195:
+ 1253              	.LBE194:
+ 1254              	.LBB196:
+ 1255              	.LBB197:
+ 1256 0c0a 660F58E0 		addpd	%xmm0, %xmm4
+ 1257              	.LVL135:
+ 1258              	.LBE197:
+ 1259              	.LBE196:
+ 1260              		.loc 1 160 0
+ 1261 0c0e 7FC0     		jg	.L58
+ 1262              	.LVL136:
+ 1263              	.L57:
+ 1264              	.LBB198:
+ 1265              	.LBB199:
+ 1266              		.loc 3 87 0
+ 1267 0c10 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1268              	.LVL137:
+ 1269              	.LBE199:
+ 1270              	.LBE198:
+ 155:matmultbintrinsics.c **** 	for(/*k = 1*/; k < lda3; k++)
+ 1271              		.loc 1 155 0
+ 1272 0c14 4183C101 		addl	$1, %r9d
+GAS LISTING /tmp/ccHOhm8S.s 			page 39
+
+
+ 1273              	.LVL138:
+ 1274 0c18 4C01FD   		addq	%r15, %rbp
+ 1275              	.LBB200:
+ 1276              	.LBB201:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 1277              		.loc 2 155 0
+ 1278 0c1b 660F111C 		movupd	%xmm3, (%rdx,%rsi)
+ 1278      32
+ 1279              	.LBE201:
+ 1280              	.LBE200:
+ 155:matmultbintrinsics.c **** 	for(/*k = 1*/; k < lda3; k++)
+ 1281              		.loc 1 155 0
+ 1282 0c20 4C01F6   		addq	%r14, %rsi
+ 1283              	.LVL139:
+ 1284 0c23 4539C8   		cmpl	%r9d, %r8d
+ 1285 0c26 7F88     		jg	.L59
+ 1286 0c28 448B6C24 		movl	-88(%rsp), %r13d
+ 1286      A8
+ 1287 0c2d 488B7C24 		movq	-80(%rsp), %rdi
+ 1287      B0
+ 1288 0c32 448B6424 		movl	56(%rsp), %r12d
+ 1288      38
+ 1289              	.LVL140:
+ 1290              	.L56:
+ 160:matmultbintrinsics.c **** 		{
+ 161:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 162:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 163:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 164:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 165:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 166:matmultbintrinsics.c **** 		}
+ 167:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 168:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 169:matmultbintrinsics.c **** 	}
+ 170:matmultbintrinsics.c **** 
+ 171:matmultbintrinsics.c **** 	for(/*k = lda3*/; k < lda2; k++)
+ 1291              		.loc 1 172 0
+ 1292 0c37 4539E5   		cmpl	%r12d, %r13d
+ 1293 0c3a 0F8EC000 		jle	.L60
+ 1293      0000
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1294              		.loc 1 126 0
+ 1295 0c40 8B442450 		movl	80(%rsp), %eax
+ 1296 0c44 8B742450 		movl	80(%rsp), %esi
+ 1297              		.loc 1 172 0
+ 1298 0c48 458D4AFE 		leal	-2(%r10), %r9d
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1299              		.loc 1 126 0
+ 1300 0c4c 4C637C24 		movslq	80(%rsp), %r15
+ 1300      50
+ 172:matmultbintrinsics.c **** 	{
+ 173:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 174:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 175:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 176:matmultbintrinsics.c **** 		for(l=mnos-2;l<nos;l++)
+ 1301              		.loc 1 177 0
+ 1302 0c51 48897C24 		movq	%rdi, -88(%rsp)
+GAS LISTING /tmp/ccHOhm8S.s 			page 40
+
+
+ 1302      A8
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1303              		.loc 1 126 0
+ 1304 0c56 0FAFC0   		imull	%eax, %eax
+ 1305 0c59 410FAFF4 		imull	%r12d, %esi
+ 1306 0c5d 49C1E703 		salq	$3, %r15
+ 1307 0c61 4C63F0   		movslq	%eax, %r14
+ 1308 0c64 410FAFC4 		imull	%r12d, %eax
+ 1309 0c68 4863F6   		movslq	%esi, %rsi
+ 1310 0c6b 49C1E603 		salq	$3, %r14
+ 1311 0c6f 48C1E603 		salq	$3, %rsi
+ 1312 0c73 4863E8   		movslq	%eax, %rbp
+ 1313              		.loc 1 177 0
+ 1314 0c76 4963C1   		movslq	%r9d, %rax
+ 1315 0c79 4C8D04C7 		leaq	(%rdi,%rax,8), %r8
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1316              		.loc 1 126 0
+ 1317 0c7d 48C1E503 		salq	$3, %rbp
+ 1318              		.p2align 4,,10
+ 1319 0c81 0F1F8000 		.p2align 3
+ 1319      000000
+ 1320              	.L63:
+ 1321              	.LVL141:
+ 1322              	.LBB202:
+ 1323              	.LBB203:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1324              		.loc 2 78 0
+ 1325 0c88 660F57DB 		xorpd	%xmm3, %xmm3
+ 1326              	.LVL142:
+ 1327              	.LBE203:
+ 1328              	.LBE202:
+ 1329              		.loc 1 177 0
+ 1330 0c8c 4539CB   		cmpl	%r9d, %r11d
+ 1331              	.LBB204:
+ 1332              	.LBB205:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1333              		.loc 2 78 0
+ 1334 0c8f 660F28E3 		movapd	%xmm3, %xmm4
+ 1335              	.LVL143:
+ 1336              	.LBE205:
+ 1337              	.LBE204:
+ 1338              		.loc 1 177 0
+ 1339 0c93 7E4B     		jle	.L61
+ 1340 0c95 488D7D10 		leaq	16(%rbp), %rdi
+ 1341 0c99 4C89C1   		movq	%r8, %rcx
+ 1342 0c9c 4489C8   		movl	%r9d, %eax
+ 1343              	.LVL144:
+ 1344 0c9f 90       		.p2align 4,,10
+ 1345              		.p2align 3
+ 1346              	.L62:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1347              		.loc 2 113 0
+ 1348 0ca0 4863D8   		movslq	%eax, %rbx
+ 1349              		.loc 1 177 0
+ 1350 0ca3 83C001   		addl	$1, %eax
+ 1351              	.LVL145:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+GAS LISTING /tmp/ccHOhm8S.s 			page 41
+
+
+ 1352              		.loc 2 113 0
+ 1353 0ca6 488B5CDC 		movq	-72(%rsp,%rbx,8), %rbx
+ 1353      B8
+ 1354              	.LVL146:
+ 1355 0cab 488D1C1E 		leaq	(%rsi,%rbx), %rbx
+ 1356              	.LBB206:
+ 1357              	.LBB207:
+ 1358 0caf 660F1013 		movupd	(%rbx), %xmm2
+ 1359              	.LVL147:
+ 1360              	.LBE207:
+ 1361              	.LBE206:
+ 1362 0cb3 4889EB   		movq	%rbp, %rbx
+ 1363 0cb6 480319   		addq	(%rcx), %rbx
+ 1364              	.LBB208:
+ 1365              	.LBB209:
+ 1366 0cb9 660F100B 		movupd	(%rbx), %xmm1
+ 1367              	.LVL148:
+ 1368              	.LBE209:
+ 1369              	.LBE208:
+ 1370 0cbd 4889FB   		movq	%rdi, %rbx
+ 1371 0cc0 480319   		addq	(%rcx), %rbx
+ 1372              		.loc 1 177 0
+ 1373 0cc3 4883C108 		addq	$8, %rcx
+ 1374              	.LVL149:
+ 1375 0cc7 4139C3   		cmpl	%eax, %r11d
+ 1376              	.LBB210:
+ 1377              	.LBB211:
+ 1378              		.loc 2 254 0
+ 1379 0cca 660F59CA 		mulpd	%xmm2, %xmm1
+ 1380              	.LVL150:
+ 1381              	.LBE211:
+ 1382              	.LBE210:
+ 1383              	.LBB212:
+ 1384              	.LBB213:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1385              		.loc 2 113 0
+ 1386 0cce 660F1003 		movupd	(%rbx), %xmm0
+ 1387              	.LVL151:
+ 1388              	.LBE213:
+ 1389              	.LBE212:
+ 1390              	.LBB214:
+ 1391              	.LBB215:
+ 1392              		.loc 2 254 0
+ 1393 0cd2 660F59C2 		mulpd	%xmm2, %xmm0
+ 1394              	.LVL152:
+ 1395              	.LBE215:
+ 1396              	.LBE214:
+ 1397              	.LBB216:
+ 1398              	.LBB217:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1399              		.loc 2 230 0
+ 1400 0cd6 660F58D9 		addpd	%xmm1, %xmm3
+ 1401              	.LVL153:
+ 1402              	.LBE217:
+ 1403              	.LBE216:
+ 1404              	.LBB218:
+ 1405              	.LBB219:
+GAS LISTING /tmp/ccHOhm8S.s 			page 42
+
+
+ 1406 0cda 660F58E0 		addpd	%xmm0, %xmm4
+ 1407              	.LVL154:
+ 1408              	.LBE219:
+ 1409              	.LBE218:
+ 1410              		.loc 1 177 0
+ 1411 0cde 7FC0     		jg	.L62
+ 1412              	.LVL155:
+ 1413              	.L61:
+ 1414              	.LBB220:
+ 1415              	.LBB221:
+ 1416              		.loc 3 87 0
+ 1417 0ce0 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1418              	.LVL156:
+ 1419              	.LBE221:
+ 1420              	.LBE220:
+ 172:matmultbintrinsics.c **** 	for(/*k = lda3*/; k < lda2; k++)
+ 1421              		.loc 1 172 0
+ 1422 0ce4 4183C401 		addl	$1, %r12d
+ 1423              	.LVL157:
+ 1424 0ce8 4C01F5   		addq	%r14, %rbp
+ 1425              	.LBB222:
+ 1426              	.LBB223:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 1427              		.loc 2 155 0
+ 1428 0ceb 660F111C 		movupd	%xmm3, (%rdx,%rsi)
+ 1428      32
+ 1429              	.LBE223:
+ 1430              	.LBE222:
+ 172:matmultbintrinsics.c **** 	for(/*k = lda3*/; k < lda2; k++)
+ 1431              		.loc 1 172 0
+ 1432 0cf0 4C01FE   		addq	%r15, %rsi
+ 1433              	.LVL158:
+ 1434 0cf3 4539E5   		cmpl	%r12d, %r13d
+ 1435 0cf6 7F90     		jg	.L63
+ 1436 0cf8 488B7C24 		movq	-88(%rsp), %rdi
+ 1436      A8
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1437              		.loc 1 126 0
+ 1438 0cfd 4589EC   		movl	%r13d, %r12d
+ 1439              	.LVL159:
+ 1440              	.L60:
+ 177:matmultbintrinsics.c **** 		{
+ 178:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 179:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 180:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 181:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 182:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 183:matmultbintrinsics.c **** 		}
+ 184:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 185:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 186:matmultbintrinsics.c **** 	}
+ 187:matmultbintrinsics.c **** 
+ 188:matmultbintrinsics.c **** 	for(/*k = lda2*/; k < (lda1- lda2); k++)
+ 1441              		.loc 1 189 0
+ 1442 0d00 8B4424A4 		movl	-92(%rsp), %eax
+ 1443 0d04 4429E8   		subl	%r13d, %eax
+ 1444 0d07 4139C4   		cmpl	%eax, %r12d
+GAS LISTING /tmp/ccHOhm8S.s 			page 43
+
+
+ 1445 0d0a 4189C5   		movl	%eax, %r13d
+ 1446 0d0d 0F8DAD00 		jge	.L64
+ 1446      0000
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1447              		.loc 1 126 0
+ 1448 0d13 8B442450 		movl	80(%rsp), %eax
+ 1449 0d17 8B742450 		movl	80(%rsp), %esi
+ 1450 0d1b 4C8D4C24 		leaq	-72(%rsp), %r9
+ 1450      B8
+ 1451 0d20 4C637C24 		movslq	80(%rsp), %r15
+ 1451      50
+ 1452 0d25 0FAFC0   		imull	%eax, %eax
+ 1453 0d28 410FAFF4 		imull	%r12d, %esi
+ 1454 0d2c 49C1E703 		salq	$3, %r15
+ 1455 0d30 4C63F0   		movslq	%eax, %r14
+ 1456 0d33 410FAFC4 		imull	%r12d, %eax
+ 1457 0d37 4863F6   		movslq	%esi, %rsi
+ 1458 0d3a 49C1E603 		salq	$3, %r14
+ 1459 0d3e 48C1E603 		salq	$3, %rsi
+ 1460 0d42 4863E8   		movslq	%eax, %rbp
+ 1461 0d45 48C1E503 		salq	$3, %rbp
+ 1462 0d49 0F1F8000 		.p2align 4,,10
+ 1462      000000
+ 1463              		.p2align 3
+ 1464              	.L67:
+ 1465              	.LVL160:
+ 1466              	.LBB224:
+ 1467              	.LBB225:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1468              		.loc 2 78 0
+ 1469 0d50 660F57DB 		xorpd	%xmm3, %xmm3
+ 1470              	.LVL161:
+ 1471              	.LBE225:
+ 1472              	.LBE224:
+ 189:matmultbintrinsics.c **** 	{
+ 190:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 191:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 192:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 193:matmultbintrinsics.c **** 		for(l=0;l<nos;l++)
+ 1473              		.loc 1 194 0
+ 1474 0d54 4585DB   		testl	%r11d, %r11d
+ 1475              	.LBB226:
+ 1476              	.LBB227:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1477              		.loc 2 78 0
+ 1478 0d57 660F28E3 		movapd	%xmm3, %xmm4
+ 1479              	.LVL162:
+ 1480              	.LBE227:
+ 1481              	.LBE226:
+ 1482              		.loc 1 194 0
+ 1483 0d5b 7E48     		jle	.L65
+ 1484              	.LVL163:
+ 1485 0d5d 4C8D4510 		leaq	16(%rbp), %r8
+ 1486 0d61 31C0     		xorl	%eax, %eax
+ 1487 0d63 31C9     		xorl	%ecx, %ecx
+ 1488              	.LVL164:
+ 1489              		.p2align 4,,10
+GAS LISTING /tmp/ccHOhm8S.s 			page 44
+
+
+ 1490 0d65 0F1F00   		.p2align 3
+ 1491              	.L66:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1492              		.loc 2 113 0
+ 1493 0d68 498B1C01 		movq	(%r9,%rax), %rbx
+ 1494              		.loc 1 194 0
+ 1495 0d6c 83C101   		addl	$1, %ecx
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1496              		.loc 2 113 0
+ 1497 0d6f 4801F3   		addq	%rsi, %rbx
+ 1498              	.LBB228:
+ 1499              	.LBB229:
+ 1500 0d72 660F1013 		movupd	(%rbx), %xmm2
+ 1501              	.LVL165:
+ 1502              	.LBE229:
+ 1503              	.LBE228:
+ 1504 0d76 4889EB   		movq	%rbp, %rbx
+ 1505 0d79 48031C07 		addq	(%rdi,%rax), %rbx
+ 1506              	.LBB230:
+ 1507              	.LBB231:
+ 1508 0d7d 660F100B 		movupd	(%rbx), %xmm1
+ 1509              	.LVL166:
+ 1510              	.LBE231:
+ 1511              	.LBE230:
+ 1512 0d81 4C89C3   		movq	%r8, %rbx
+ 1513 0d84 48031C07 		addq	(%rdi,%rax), %rbx
+ 1514              		.loc 1 194 0
+ 1515 0d88 4883C008 		addq	$8, %rax
+ 1516              	.LVL167:
+ 1517 0d8c 4139CB   		cmpl	%ecx, %r11d
+ 1518              	.LBB232:
+ 1519              	.LBB233:
+ 1520              		.loc 2 254 0
+ 1521 0d8f 660F59CA 		mulpd	%xmm2, %xmm1
+ 1522              	.LVL168:
+ 1523              	.LBE233:
+ 1524              	.LBE232:
+ 1525              	.LBB234:
+ 1526              	.LBB235:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1527              		.loc 2 113 0
+ 1528 0d93 660F1003 		movupd	(%rbx), %xmm0
+ 1529              	.LVL169:
+ 1530              	.LBE235:
+ 1531              	.LBE234:
+ 1532              	.LBB236:
+ 1533              	.LBB237:
+ 1534              		.loc 2 254 0
+ 1535 0d97 660F59C2 		mulpd	%xmm2, %xmm0
+ 1536              	.LVL170:
+ 1537              	.LBE237:
+ 1538              	.LBE236:
+ 1539              	.LBB238:
+ 1540              	.LBB239:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1541              		.loc 2 230 0
+ 1542 0d9b 660F58D9 		addpd	%xmm1, %xmm3
+GAS LISTING /tmp/ccHOhm8S.s 			page 45
+
+
+ 1543              	.LVL171:
+ 1544              	.LBE239:
+ 1545              	.LBE238:
+ 1546              	.LBB240:
+ 1547              	.LBB241:
+ 1548 0d9f 660F58E0 		addpd	%xmm0, %xmm4
+ 1549              	.LVL172:
+ 1550              	.LBE241:
+ 1551              	.LBE240:
+ 1552              		.loc 1 194 0
+ 1553 0da3 7FC3     		jg	.L66
+ 1554              	.LVL173:
+ 1555              	.L65:
+ 1556              	.LBB242:
+ 1557              	.LBB243:
+ 1558              		.loc 3 87 0
+ 1559 0da5 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1560              	.LVL174:
+ 1561              	.LBE243:
+ 1562              	.LBE242:
+ 189:matmultbintrinsics.c **** 	{
+ 1563              		.loc 1 189 0
+ 1564 0da9 4183C401 		addl	$1, %r12d
+ 1565              	.LVL175:
+ 1566 0dad 4C01F5   		addq	%r14, %rbp
+ 1567              	.LBB244:
+ 1568              	.LBB245:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 1569              		.loc 2 155 0
+ 1570 0db0 660F111C 		movupd	%xmm3, (%rdx,%rsi)
+ 1570      32
+ 1571              	.LBE245:
+ 1572              	.LBE244:
+ 189:matmultbintrinsics.c **** 	for(/*k = lda2*/; k < (lda1- lda2); k++)
+ 1573              		.loc 1 189 0
+ 1574 0db5 4C01FE   		addq	%r15, %rsi
+ 1575              	.LVL176:
+ 1576 0db8 4539EC   		cmpl	%r13d, %r12d
+ 1577 0dbb 7C93     		jl	.L67
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1578              		.loc 1 126 0
+ 1579 0dbd 4589EC   		movl	%r13d, %r12d
+ 1580              	.LVL177:
+ 1581              	.L64:
+ 194:matmultbintrinsics.c **** 		{
+ 195:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 196:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 197:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 198:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 199:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 200:matmultbintrinsics.c **** 		}
+ 201:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 202:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 203:matmultbintrinsics.c **** 	}
+ 204:matmultbintrinsics.c **** 
+ 205:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda2)*/; k < (lda1 - lda3); k++)
+ 1582              		.loc 1 206 0
+GAS LISTING /tmp/ccHOhm8S.s 			page 46
+
+
+ 1583 0dc0 448B7424 		movl	-92(%rsp), %r14d
+ 1583      A4
+ 1584 0dc5 442B7424 		subl	56(%rsp), %r14d
+ 1584      38
+ 1585 0dca 4539F4   		cmpl	%r14d, %r12d
+ 1586 0dcd 0F8DBB00 		jge	.L68
+ 1586      0000
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1587              		.loc 1 126 0
+ 1588 0dd3 8B442450 		movl	80(%rsp), %eax
+ 1589 0dd7 8B742450 		movl	80(%rsp), %esi
+ 1590 0ddb 4C8D6C24 		leaq	-72(%rsp), %r13
+ 1590      B8
+ 1591 0de0 4C637C24 		movslq	80(%rsp), %r15
+ 1591      50
+ 1592              		.loc 1 206 0
+ 1593 0de5 458D43FF 		leal	-1(%r11), %r8d
+ 1594 0de9 44895C24 		movl	%r11d, -96(%rsp)
+ 1594      A0
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1595              		.loc 1 126 0
+ 1596 0dee 0FAFC0   		imull	%eax, %eax
+ 1597 0df1 410FAFF4 		imull	%r12d, %esi
+ 1598 0df5 49C1E703 		salq	$3, %r15
+ 1599 0df9 4863C8   		movslq	%eax, %rcx
+ 1600 0dfc 410FAFC4 		imull	%r12d, %eax
+ 1601 0e00 4863F6   		movslq	%esi, %rsi
+ 1602 0e03 48C1E103 		salq	$3, %rcx
+ 1603 0e07 48C1E603 		salq	$3, %rsi
+ 1604 0e0b 4989CB   		movq	%rcx, %r11
+ 1605 0e0e 4863E8   		movslq	%eax, %rbp
+ 1606 0e11 48C1E503 		salq	$3, %rbp
+ 1607              		.p2align 4,,10
+ 1608 0e15 0F1F00   		.p2align 3
+ 1609              	.L71:
+ 1610              	.LVL178:
+ 1611              	.LBB246:
+ 1612              	.LBB247:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1613              		.loc 2 78 0
+ 1614 0e18 660F57DB 		xorpd	%xmm3, %xmm3
+ 1615              	.LVL179:
+ 1616              	.LBE247:
+ 1617              	.LBE246:
+ 206:matmultbintrinsics.c **** 	{
+ 207:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 208:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 209:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 210:matmultbintrinsics.c **** 		for(l=0;l<nos-1;l++)
+ 1618              		.loc 1 211 0
+ 1619 0e1c 4585C0   		testl	%r8d, %r8d
+ 1620              	.LBB248:
+ 1621              	.LBB249:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1622              		.loc 2 78 0
+ 1623 0e1f 660F28E3 		movapd	%xmm3, %xmm4
+ 1624              	.LVL180:
+GAS LISTING /tmp/ccHOhm8S.s 			page 47
+
+
+ 1625              	.LBE249:
+ 1626              	.LBE248:
+ 1627              		.loc 1 211 0
+ 1628 0e23 7E49     		jle	.L69
+ 1629 0e25 4C8D4D10 		leaq	16(%rbp), %r9
+ 1630 0e29 31C0     		xorl	%eax, %eax
+ 1631 0e2b 31C9     		xorl	%ecx, %ecx
+ 1632              	.LVL181:
+ 1633 0e2d 0F1F00   		.p2align 4,,10
+ 1634              		.p2align 3
+ 1635              	.L70:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1636              		.loc 2 113 0
+ 1637 0e30 498B5C05 		movq	0(%r13,%rax), %rbx
+ 1637      00
+ 1638              		.loc 1 211 0
+ 1639 0e35 83C101   		addl	$1, %ecx
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1640              		.loc 2 113 0
+ 1641 0e38 4801F3   		addq	%rsi, %rbx
+ 1642              	.LBB250:
+ 1643              	.LBB251:
+ 1644 0e3b 660F1013 		movupd	(%rbx), %xmm2
+ 1645              	.LVL182:
+ 1646              	.LBE251:
+ 1647              	.LBE250:
+ 1648 0e3f 4889EB   		movq	%rbp, %rbx
+ 1649 0e42 48031C07 		addq	(%rdi,%rax), %rbx
+ 1650              	.LBB252:
+ 1651              	.LBB253:
+ 1652 0e46 660F100B 		movupd	(%rbx), %xmm1
+ 1653              	.LVL183:
+ 1654              	.LBE253:
+ 1655              	.LBE252:
+ 1656 0e4a 4C89CB   		movq	%r9, %rbx
+ 1657 0e4d 48031C07 		addq	(%rdi,%rax), %rbx
+ 1658              		.loc 1 211 0
+ 1659 0e51 4883C008 		addq	$8, %rax
+ 1660              	.LVL184:
+ 1661 0e55 4139C8   		cmpl	%ecx, %r8d
+ 1662              	.LBB254:
+ 1663              	.LBB255:
+ 1664              		.loc 2 254 0
+ 1665 0e58 660F59CA 		mulpd	%xmm2, %xmm1
+ 1666              	.LVL185:
+ 1667              	.LBE255:
+ 1668              	.LBE254:
+ 1669              	.LBB256:
+ 1670              	.LBB257:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1671              		.loc 2 113 0
+ 1672 0e5c 660F1003 		movupd	(%rbx), %xmm0
+ 1673              	.LVL186:
+ 1674              	.LBE257:
+ 1675              	.LBE256:
+ 1676              	.LBB258:
+ 1677              	.LBB259:
+GAS LISTING /tmp/ccHOhm8S.s 			page 48
+
+
+ 1678              		.loc 2 254 0
+ 1679 0e60 660F59C2 		mulpd	%xmm2, %xmm0
+ 1680              	.LVL187:
+ 1681              	.LBE259:
+ 1682              	.LBE258:
+ 1683              	.LBB260:
+ 1684              	.LBB261:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1685              		.loc 2 230 0
+ 1686 0e64 660F58D9 		addpd	%xmm1, %xmm3
+ 1687              	.LVL188:
+ 1688              	.LBE261:
+ 1689              	.LBE260:
+ 1690              	.LBB262:
+ 1691              	.LBB263:
+ 1692 0e68 660F58E0 		addpd	%xmm0, %xmm4
+ 1693              	.LVL189:
+ 1694              	.LBE263:
+ 1695              	.LBE262:
+ 1696              		.loc 1 211 0
+ 1697 0e6c 7FC2     		jg	.L70
+ 1698              	.LVL190:
+ 1699              	.L69:
+ 1700              	.LBB264:
+ 1701              	.LBB265:
+ 1702              		.loc 3 87 0
+ 1703 0e6e 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1704              	.LVL191:
+ 1705              	.LBE265:
+ 1706              	.LBE264:
+ 206:matmultbintrinsics.c **** 	{
+ 1707              		.loc 1 206 0
+ 1708 0e72 4183C401 		addl	$1, %r12d
+ 1709              	.LVL192:
+ 1710 0e76 4C01DD   		addq	%r11, %rbp
+ 1711              	.LBB266:
+ 1712              	.LBB267:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 1713              		.loc 2 155 0
+ 1714 0e79 660F111C 		movupd	%xmm3, (%rdx,%rsi)
+ 1714      32
+ 1715              	.LBE267:
+ 1716              	.LBE266:
+ 206:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda2)*/; k < (lda1 - lda3); k++)
+ 1717              		.loc 1 206 0
+ 1718 0e7e 4C01FE   		addq	%r15, %rsi
+ 1719              	.LVL193:
+ 1720 0e81 4539F4   		cmpl	%r14d, %r12d
+ 1721 0e84 7C92     		jl	.L71
+ 1722 0e86 448B5C24 		movl	-96(%rsp), %r11d
+ 1722      A0
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1723              		.loc 1 126 0
+ 1724 0e8b 4589F4   		movl	%r14d, %r12d
+ 1725              	.LVL194:
+ 1726              	.L68:
+ 211:matmultbintrinsics.c **** 		{
+GAS LISTING /tmp/ccHOhm8S.s 			page 49
+
+
+ 212:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 213:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 214:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 215:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 216:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 217:matmultbintrinsics.c **** 		}
+ 218:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 219:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 220:matmultbintrinsics.c **** 	}
+ 221:matmultbintrinsics.c **** 
+ 222:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda3)*/; k < (lda1 - 1); k++)
+ 1727              		.loc 1 223 0
+ 1728 0e8e 448B7424 		movl	-92(%rsp), %r14d
+ 1728      A4
+ 1729 0e93 4183EE01 		subl	$1, %r14d
+ 1730 0e97 4539F4   		cmpl	%r14d, %r12d
+ 1731 0e9a 0F8DD600 		jge	.L72
+ 1731      0000
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1732              		.loc 1 126 0
+ 1733 0ea0 8B442450 		movl	80(%rsp), %eax
+ 1734 0ea4 448B4424 		movl	80(%rsp), %r8d
+ 1734      50
+ 1735 0ea9 488D6C24 		leaq	-72(%rsp), %rbp
+ 1735      B8
+ 1736 0eae 4C637C24 		movslq	80(%rsp), %r15
+ 1736      50
+ 1737 0eb3 4589E5   		movl	%r12d, %r13d
+ 1738 0eb6 44896424 		movl	%r12d, -96(%rsp)
+ 1738      A0
+ 1739              		.loc 1 223 0
+ 1740 0ebb 4183EB02 		subl	$2, %r11d
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1741              		.loc 1 126 0
+ 1742 0ebf 0FAFC0   		imull	%eax, %eax
+ 1743 0ec2 450FAFC4 		imull	%r12d, %r8d
+ 1744 0ec6 49C1E703 		salq	$3, %r15
+ 1745 0eca 4863C8   		movslq	%eax, %rcx
+ 1746 0ecd 410FAFC4 		imull	%r12d, %eax
+ 1747 0ed1 4D63C0   		movslq	%r8d, %r8
+ 1748 0ed4 48C1E103 		salq	$3, %rcx
+ 1749 0ed8 49C1E003 		salq	$3, %r8
+ 1750 0edc 4989CC   		movq	%rcx, %r12
+ 1751              	.LVL195:
+ 1752 0edf 4C63C8   		movslq	%eax, %r9
+ 1753 0ee2 49C1E103 		salq	$3, %r9
+ 1754 0ee6 662E0F1F 		.p2align 4,,10
+ 1754      84000000 
+ 1754      0000
+ 1755              		.p2align 3
+ 1756              	.L75:
+ 1757              	.LVL196:
+ 1758              	.LBB268:
+ 1759              	.LBB269:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1760              		.loc 2 78 0
+ 1761 0ef0 660F57DB 		xorpd	%xmm3, %xmm3
+GAS LISTING /tmp/ccHOhm8S.s 			page 50
+
+
+ 1762              	.LVL197:
+ 1763              	.LBE269:
+ 1764              	.LBE268:
+ 223:matmultbintrinsics.c **** 	{
+ 224:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 225:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 226:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 227:matmultbintrinsics.c **** 		for(l=0;l<nos-2;l++)
+ 1765              		.loc 1 228 0
+ 1766 0ef4 4585DB   		testl	%r11d, %r11d
+ 1767              	.LBB270:
+ 1768              	.LBB271:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1769              		.loc 2 78 0
+ 1770 0ef7 660F28E3 		movapd	%xmm3, %xmm4
+ 1771              	.LVL198:
+ 1772              	.LBE271:
+ 1773              	.LBE270:
+ 1774              		.loc 1 228 0
+ 1775 0efb 7E49     		jle	.L73
+ 1776              	.LVL199:
+ 1777 0efd 498D7110 		leaq	16(%r9), %rsi
+ 1778 0f01 31C0     		xorl	%eax, %eax
+ 1779 0f03 31C9     		xorl	%ecx, %ecx
+ 1780              	.LVL200:
+ 1781              		.p2align 4,,10
+ 1782 0f05 0F1F00   		.p2align 3
+ 1783              	.L74:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1784              		.loc 2 113 0
+ 1785 0f08 488B5C05 		movq	0(%rbp,%rax), %rbx
+ 1785      00
+ 1786              		.loc 1 228 0
+ 1787 0f0d 83C101   		addl	$1, %ecx
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1788              		.loc 2 113 0
+ 1789 0f10 4C01C3   		addq	%r8, %rbx
+ 1790              	.LBB272:
+ 1791              	.LBB273:
+ 1792 0f13 660F1013 		movupd	(%rbx), %xmm2
+ 1793              	.LVL201:
+ 1794              	.LBE273:
+ 1795              	.LBE272:
+ 1796 0f17 4C89CB   		movq	%r9, %rbx
+ 1797 0f1a 48031C07 		addq	(%rdi,%rax), %rbx
+ 1798              	.LBB274:
+ 1799              	.LBB275:
+ 1800 0f1e 660F100B 		movupd	(%rbx), %xmm1
+ 1801              	.LVL202:
+ 1802              	.LBE275:
+ 1803              	.LBE274:
+ 1804 0f22 4889F3   		movq	%rsi, %rbx
+ 1805 0f25 48031C07 		addq	(%rdi,%rax), %rbx
+ 1806              		.loc 1 228 0
+ 1807 0f29 4883C008 		addq	$8, %rax
+ 1808              	.LVL203:
+ 1809 0f2d 4139CB   		cmpl	%ecx, %r11d
+GAS LISTING /tmp/ccHOhm8S.s 			page 51
+
+
+ 1810              	.LBB276:
+ 1811              	.LBB277:
+ 1812              		.loc 2 254 0
+ 1813 0f30 660F59CA 		mulpd	%xmm2, %xmm1
+ 1814              	.LVL204:
+ 1815              	.LBE277:
+ 1816              	.LBE276:
+ 1817              	.LBB278:
+ 1818              	.LBB279:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1819              		.loc 2 113 0
+ 1820 0f34 660F1003 		movupd	(%rbx), %xmm0
+ 1821              	.LVL205:
+ 1822              	.LBE279:
+ 1823              	.LBE278:
+ 1824              	.LBB280:
+ 1825              	.LBB281:
+ 1826              		.loc 2 254 0
+ 1827 0f38 660F59C2 		mulpd	%xmm2, %xmm0
+ 1828              	.LVL206:
+ 1829              	.LBE281:
+ 1830              	.LBE280:
+ 1831              	.LBB282:
+ 1832              	.LBB283:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1833              		.loc 2 230 0
+ 1834 0f3c 660F58D9 		addpd	%xmm1, %xmm3
+ 1835              	.LVL207:
+ 1836              	.LBE283:
+ 1837              	.LBE282:
+ 1838              	.LBB284:
+ 1839              	.LBB285:
+ 1840 0f40 660F58E0 		addpd	%xmm0, %xmm4
+ 1841              	.LVL208:
+ 1842              	.LBE285:
+ 1843              	.LBE284:
+ 1844              		.loc 1 228 0
+ 1845 0f44 7FC2     		jg	.L74
+ 1846              	.LVL209:
+ 1847              	.L73:
+ 1848              	.LBB286:
+ 1849              	.LBB287:
+ 1850              		.loc 3 87 0
+ 1851 0f46 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1852              	.LVL210:
+ 1853              	.LBE287:
+ 1854              	.LBE286:
+ 223:matmultbintrinsics.c **** 	{
+ 1855              		.loc 1 223 0
+ 1856 0f4a 4183C501 		addl	$1, %r13d
+ 1857              	.LVL211:
+ 1858 0f4e 4D01E1   		addq	%r12, %r9
+ 1859              	.LBB288:
+ 1860              	.LBB289:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 1861              		.loc 2 155 0
+ 1862 0f51 66420F11 		movupd	%xmm3, (%rdx,%r8)
+GAS LISTING /tmp/ccHOhm8S.s 			page 52
+
+
+ 1862      1C02
+ 1863              	.LBE289:
+ 1864              	.LBE288:
+ 223:matmultbintrinsics.c **** 	for(/*k = (lda1 - lda3)*/; k < (lda1 - 1); k++)
+ 1865              		.loc 1 223 0
+ 1866 0f57 4D01F8   		addq	%r15, %r8
+ 1867              	.LVL212:
+ 1868 0f5a 4539F5   		cmpl	%r14d, %r13d
+ 1869 0f5d 7C91     		jl	.L75
+ 1870 0f5f 448B6424 		movl	-96(%rsp), %r12d
+ 1870      A0
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1871              		.loc 1 126 0
+ 1872 0f64 8B4C24A4 		movl	-92(%rsp), %ecx
+ 1873 0f68 4489E0   		movl	%r12d, %eax
+ 1874 0f6b F7D0     		notl	%eax
+ 1875 0f6d 8D4401FF 		leal	-1(%rcx,%rax), %eax
+ 1876 0f71 468D6420 		leal	1(%rax,%r12), %r12d
+ 1876      01
+ 1877              	.LVL213:
+ 1878              	.L72:
+ 228:matmultbintrinsics.c **** 		{
+ 229:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 230:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 231:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 232:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 233:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 234:matmultbintrinsics.c **** 		}
+ 235:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 236:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 237:matmultbintrinsics.c **** 	}
+ 238:matmultbintrinsics.c **** 
+ 239:matmultbintrinsics.c **** 	for(/*k = (lda1 - 1)*/; k < (lda1); k++)
+ 1879              		.loc 1 240 0
+ 1880 0f76 44396424 		cmpl	%r12d, -92(%rsp)
+ 1880      A4
+ 1881 0f7b 0F8EAC00 		jle	.L76
+ 1881      0000
+ 126:matmultbintrinsics.c **** PetscInt BSG_MatMult_2(PetscScalar ** ct, PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscIn
+ 1882              		.loc 1 126 0
+ 1883 0f81 8B442450 		movl	80(%rsp), %eax
+ 1884 0f85 8B742450 		movl	80(%rsp), %esi
+ 1885 0f89 4C8D4C24 		leaq	-72(%rsp), %r9
+ 1885      B8
+ 1886 0f8e 4C635C24 		movslq	80(%rsp), %r11
+ 1886      50
+ 1887 0f93 448B7424 		movl	-92(%rsp), %r14d
+ 1887      A4
+ 1888 0f98 0FAFC0   		imull	%eax, %eax
+ 1889 0f9b 410FAFF4 		imull	%r12d, %esi
+ 1890 0f9f 49C1E303 		salq	$3, %r11
+ 1891 0fa3 4C63E8   		movslq	%eax, %r13
+ 1892 0fa6 410FAFC4 		imull	%r12d, %eax
+ 1893 0faa 4863F6   		movslq	%esi, %rsi
+ 1894 0fad 49C1E503 		salq	$3, %r13
+ 1895 0fb1 48C1E603 		salq	$3, %rsi
+ 1896 0fb5 4863E8   		movslq	%eax, %rbp
+GAS LISTING /tmp/ccHOhm8S.s 			page 53
+
+
+ 1897 0fb8 48C1E503 		salq	$3, %rbp
+ 1898 0fbc 0F1F4000 		.p2align 4,,10
+ 1899              		.p2align 3
+ 1900              	.L79:
+ 1901              	.LVL214:
+ 1902              	.LBB290:
+ 1903              	.LBB291:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1904              		.loc 2 78 0
+ 1905 0fc0 660F57DB 		xorpd	%xmm3, %xmm3
+ 1906              	.LVL215:
+ 1907              	.LBE291:
+ 1908              	.LBE290:
+ 240:matmultbintrinsics.c **** 	{
+ 241:matmultbintrinsics.c ****                 t1= k*dof; t2 = t1*dof;
+ 242:matmultbintrinsics.c **** 		msum0 =_mm_set_pd(0,0);
+ 243:matmultbintrinsics.c **** 		msum1 =_mm_set_pd(0,0);
+ 244:matmultbintrinsics.c **** 		for(l=0;l<=mnos;l++)
+ 1909              		.loc 1 245 0
+ 1910 0fc4 4585D2   		testl	%r10d, %r10d
+ 1911              	.LBB292:
+ 1912              	.LBB293:
+  78:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __extension__ (__m128d){ __X, __W };
+ 1913              		.loc 2 78 0
+ 1914 0fc7 660F28E3 		movapd	%xmm3, %xmm4
+ 1915              	.LVL216:
+ 1916              	.LBE293:
+ 1917              	.LBE292:
+ 1918              		.loc 1 245 0
+ 1919 0fcb 7848     		js	.L77
+ 1920 0fcd 4C8D4510 		leaq	16(%rbp), %r8
+ 1921 0fd1 31C0     		xorl	%eax, %eax
+ 1922 0fd3 31C9     		xorl	%ecx, %ecx
+ 1923              	.LVL217:
+ 1924              		.p2align 4,,10
+ 1925 0fd5 0F1F00   		.p2align 3
+ 1926              	.L78:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1927              		.loc 2 113 0
+ 1928 0fd8 498B1C01 		movq	(%r9,%rax), %rbx
+ 1929              		.loc 1 245 0
+ 1930 0fdc 83C101   		addl	$1, %ecx
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1931              		.loc 2 113 0
+ 1932 0fdf 4801F3   		addq	%rsi, %rbx
+ 1933              	.LBB294:
+ 1934              	.LBB295:
+ 1935 0fe2 660F1013 		movupd	(%rbx), %xmm2
+ 1936              	.LVL218:
+ 1937              	.LBE295:
+ 1938              	.LBE294:
+ 1939 0fe6 4889EB   		movq	%rbp, %rbx
+ 1940 0fe9 48031C07 		addq	(%rdi,%rax), %rbx
+ 1941              	.LBB296:
+ 1942              	.LBB297:
+ 1943 0fed 660F100B 		movupd	(%rbx), %xmm1
+ 1944              	.LVL219:
+GAS LISTING /tmp/ccHOhm8S.s 			page 54
+
+
+ 1945              	.LBE297:
+ 1946              	.LBE296:
+ 1947 0ff1 4C89C3   		movq	%r8, %rbx
+ 1948 0ff4 48031C07 		addq	(%rdi,%rax), %rbx
+ 1949              		.loc 1 245 0
+ 1950 0ff8 4883C008 		addq	$8, %rax
+ 1951              	.LVL220:
+ 1952 0ffc 4139CA   		cmpl	%ecx, %r10d
+ 1953              	.LBB298:
+ 1954              	.LBB299:
+ 1955              		.loc 2 254 0
+ 1956 0fff 660F59CA 		mulpd	%xmm2, %xmm1
+ 1957              	.LVL221:
+ 1958              	.LBE299:
+ 1959              	.LBE298:
+ 1960              	.LBB300:
+ 1961              	.LBB301:
+ 113:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return __builtin_ia32_loadupd (__P);
+ 1962              		.loc 2 113 0
+ 1963 1003 660F1003 		movupd	(%rbx), %xmm0
+ 1964              	.LVL222:
+ 1965              	.LBE301:
+ 1966              	.LBE300:
+ 1967              	.LBB302:
+ 1968              	.LBB303:
+ 1969              		.loc 2 254 0
+ 1970 1007 660F59C2 		mulpd	%xmm2, %xmm0
+ 1971              	.LVL223:
+ 1972              	.LBE303:
+ 1973              	.LBE302:
+ 1974              	.LBB304:
+ 1975              	.LBB305:
+ 230:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   return (__m128d)__builtin_ia32_addpd ((__v2df)__A, (__v2df)__B);
+ 1976              		.loc 2 230 0
+ 1977 100b 660F58D9 		addpd	%xmm1, %xmm3
+ 1978              	.LVL224:
+ 1979              	.LBE305:
+ 1980              	.LBE304:
+ 1981              	.LBB306:
+ 1982              	.LBB307:
+ 1983 100f 660F58E0 		addpd	%xmm0, %xmm4
+ 1984              	.LVL225:
+ 1985              	.LBE307:
+ 1986              	.LBE306:
+ 1987              		.loc 1 245 0
+ 1988 1013 7DC3     		jge	.L78
+ 1989              	.LVL226:
+ 1990              	.L77:
+ 1991              	.LBB308:
+ 1992              	.LBB309:
+ 1993              		.loc 3 87 0
+ 1994 1015 660F7CDC 		haddpd	%xmm4, %xmm3
+ 1995              	.LVL227:
+ 1996              	.LBE309:
+ 1997              	.LBE308:
+ 240:matmultbintrinsics.c **** 	{
+ 1998              		.loc 1 240 0
+GAS LISTING /tmp/ccHOhm8S.s 			page 55
+
+
+ 1999 1019 4183C401 		addl	$1, %r12d
+ 2000              	.LVL228:
+ 2001 101d 4C01ED   		addq	%r13, %rbp
+ 2002              	.LBB310:
+ 2003              	.LBB311:
+ 155:/usr/lib/gcc/x86_64-redhat-linux/4.4.6/include/emmintrin.h ****   __builtin_ia32_storeupd (__P, __A);
+ 2004              		.loc 2 155 0
+ 2005 1020 660F111C 		movupd	%xmm3, (%rdx,%rsi)
+ 2005      32
+ 2006              	.LBE311:
+ 2007              	.LBE310:
+ 240:matmultbintrinsics.c **** 	for(/*k = (lda1 - 1)*/; k < (lda1); k++)
+ 2008              		.loc 1 240 0
+ 2009 1025 4C01DE   		addq	%r11, %rsi
+ 2010              	.LVL229:
+ 2011 1028 4539E6   		cmpl	%r12d, %r14d
+ 2012 102b 7F93     		jg	.L79
+ 2013              	.LVL230:
+ 2014              	.L76:
+ 245:matmultbintrinsics.c **** 		{
+ 246:matmultbintrinsics.c **** 			mx0 = _mm_loadu_pd(xt[l]+t1);
+ 247:matmultbintrinsics.c **** 			mc0 = _mm_loadu_pd(ct[l]+t2);
+ 248:matmultbintrinsics.c **** 			mc1 = _mm_loadu_pd(ct[l]+t2+2);
+ 249:matmultbintrinsics.c **** 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+ 250:matmultbintrinsics.c **** 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+ 251:matmultbintrinsics.c **** 		}
+ 252:matmultbintrinsics.c **** 		msum3 = _mm_hadd_pd(msum0,msum1);
+ 253:matmultbintrinsics.c **** 		_mm_storeu_pd(y+t1, msum3);
+ 254:matmultbintrinsics.c **** 	}
+ 255:matmultbintrinsics.c **** 	PetscFunctionReturn(0);
+ 256:matmultbintrinsics.c **** }
+ 2015              		.loc 1 257 0
+ 2016 102d 5B       		popq	%rbx
+ 2017              		.cfi_def_cfa_offset 48
+ 2018 102e 5D       		popq	%rbp
+ 2019              		.cfi_def_cfa_offset 40
+ 2020 102f 415C     		popq	%r12
+ 2021              		.cfi_def_cfa_offset 32
+ 2022              	.LVL231:
+ 2023 1031 415D     		popq	%r13
+ 2024              		.cfi_def_cfa_offset 24
+ 2025 1033 415E     		popq	%r14
+ 2026              		.cfi_def_cfa_offset 16
+ 2027 1035 31C0     		xorl	%eax, %eax
+ 2028 1037 415F     		popq	%r15
+ 2029              		.cfi_def_cfa_offset 8
+ 2030 1039 C3       		ret
+ 2031              		.cfi_endproc
+ 2032              	.LFE589:
+ 2034              		.section	.rodata.cst16,"aM",@progbits,16
+ 2035              		.align 16
+ 2036              	.LC1:
+ 2037 0000 08000000 		.quad	8
+ 2037      00000000 
+ 2038 0008 08000000 		.quad	8
+ 2038      00000000 
+ 2039              		.text
+GAS LISTING /tmp/ccHOhm8S.s 			page 56
+
+
+ 2040              	.Letext0:
+/usr/bin/ar cr /home/dpnkarthik/petsc-rnet/PETSC_RNET/lib/libpetsc.a matmultbintrinsics.o
+if test -n ""; then /usr/bin/ar cr  matmultbintrinsics.lo; fi
+/bin/rm -f matmultbintrinsics.o matmultbintrinsics.lo
