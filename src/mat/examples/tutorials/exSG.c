@@ -216,7 +216,7 @@ int e;
 				{
 					for(k=0;k<dof;k++)	
 					{
-						vals[k] = 0.5;//simple_rand();
+						vals[k] = simple_rand();
 						cols[k] = j*dof+k; 
 					}
 					rowval = i*dof+l;
