@@ -167,9 +167,7 @@ extern PetscErrorCode  PetscHeaderDestroy_Private(PetscObject);
 
 #elif !defined(PETSC_HAVE_UNALIGNED_POINTERS)
 /* 
-    Macros to test if a PETSc object is valid and if pointers are
-valid
-
+    Macros to test if a PETSc object is valid and if pointers are valid
 */
 #define PetscValidHeaderSpecific(h,ck,arg)                              \
   do {                                                                  \

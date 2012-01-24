@@ -1,5 +1,7 @@
 
 #include <../src/snes/impls/ls/lsimpl.h>
+#include <petscconf.h>
+
 
 const char *const SNESLineSearchTypes[] = {"BASIC","BASICNONORMS","QUADRATIC","CUBIC","SNESLineSearchType","SNES_LS_",0};
 
@@ -158,6 +160,7 @@ PetscErrorCode SNESSolve_LS(SNES snes)
   G		= snes->work[1];
   W		= snes->work[2];
 
+
   ierr = PetscObjectTakeAccess(snes);CHKERRQ(ierr);
   snes->iter = 0;
   snes->norm = 0.0;
@@ -178,24 +181,57 @@ PetscErrorCode SNESSolve_LS(SNES snes)
   SNESLogConvHistory(snes,fnorm,0);
   ierr = SNESMonitor(snes,0,fnorm);CHKERRQ(ierr);
 
+
+
+
+
   /* set parameter for default relative tolerance convergence test */
   snes->ttol = fnorm*snes->rtol;
   /* test convergence */
   ierr = (*snes->ops->converged)(snes,0,0.0,0.0,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
   if (snes->reason) PetscFunctionReturn(0);
 
-  for (i=0; i<maxits; i++) {
 
+
+
+  /*
+  printf("Printing Y from SNESSolve_LS, (1)\n");
+  ierr = VecCheck_SeqGPU(Y);CHKERRQ(ierr);
+
+  printf("Printing F from SNESSolve_LS, (1)\n");
+  ierr = VecCheck_SeqGPU(F);CHKERRQ(ierr);
+
+  printf("Printing G from SNESSolve_LS, (1)\n");
+  ierr = VecCheck_SeqGPU(G);CHKERRQ(ierr);
+   */
+
+
+
+  for (i=0; i<maxits; i++) {
+ 
     /* Call general purpose update function */
     if (snes->ops->update) {
       ierr = (*snes->ops->update)(snes, snes->iter);CHKERRQ(ierr);
     }
 
+
+
     /* Solve J Y = F, where J is Jacobian matrix */
     ierr = SNESComputeJacobian(snes,X,&snes->jacobian,&snes->jacobian_pre,&flg);CHKERRQ(ierr);
     ierr = KSPSetOperators(snes->ksp,snes->jacobian,snes->jacobian_pre,flg);CHKERRQ(ierr);
+
+
+
+
     ierr = SNES_KSPSolve(snes,snes->ksp,F,Y);CHKERRQ(ierr);
+
+
+
+
     ierr = KSPGetConvergedReason(snes->ksp,&kspreason);CHKERRQ(ierr);
+
+
+
     if (kspreason < 0) {
       if (++snes->numLinearSolveFailures >= snes->maxLinearSolveFailures) {
         ierr = PetscInfo2(snes,"iter=%D, number linear solve failures %D greater than current SNES allowed, stopping solve\n",snes->iter,snes->numLinearSolveFailures);CHKERRQ(ierr);
@@ -203,6 +239,11 @@ PetscErrorCode SNESSolve_LS(SNES snes)
         break;
       }
     }
+
+
+
+
+
     ierr = KSPGetIterationNumber(snes->ksp,&lits);CHKERRQ(ierr);
     snes->linear_its += lits;
     ierr = PetscInfo2(snes,"iter=%D, linear solve iterations=%D\n",snes->iter,lits);CHKERRQ(ierr);
@@ -221,8 +262,26 @@ PetscErrorCode SNESSolve_LS(SNES snes)
        and evaluate G = function(Y) (depends on the line search). 
     */
     ierr = VecCopy(Y,snes->vec_sol_update);CHKERRQ(ierr);
+
     ynorm = 1; gnorm = fnorm;
+    /*
+    printf("\nPrinting Y from SNESSolve_LS, (2)\n");
+    ierr = VecCheck_SeqGPU(Y);CHKERRQ(ierr);
+    printf("Printing F from SNESSolve_LS, (2)\n");
+    ierr = VecCheck_SeqGPU(F);CHKERRQ(ierr);
+    printf("Printing G from SNESSolve_LS, (2)\n");
+    ierr = VecCheck_SeqGPU(G);CHKERRQ(ierr);
+     */
     ierr = (*neP->LineSearch)(snes,neP->lsP,X,F,Y,fnorm,xnorm,G,W,&ynorm,&gnorm,&lssucceed);CHKERRQ(ierr);
+    /*
+    printf("\nPrinting Y from SNESSolve_LS, (3)\n");
+    ierr = VecCheck_SeqGPU(Y);CHKERRQ(ierr);
+    printf("Printing F from SNESSolve_LS, (3)\n");
+    ierr = VecCheck_SeqGPU(F);CHKERRQ(ierr);
+    printf("Printing G from SNESSolve_LS, (3)\n");
+    ierr = VecCheck_SeqGPU(G);CHKERRQ(ierr);
+     */
+
     ierr = PetscInfo4(snes,"fnorm=%18.16e, gnorm=%18.16e, ynorm=%18.16e, lssucceed=%d\n",(double)fnorm,(double)gnorm,(double)ynorm,(int)lssucceed);CHKERRQ(ierr);
     if (snes->reason == SNES_DIVERGED_FUNCTION_COUNT) break;
     if (snes->domainerror) {
@@ -550,6 +609,19 @@ PetscErrorCode  SNESLineSearchCubic(SNES snes,void *lsctx,Vec x,Vec f,Vec y,Pets
     *flag  = PETSC_FALSE;
     goto theend1;
   }
+  /*
+  printf("Printing Y from SNESSolve_LS, (2.1)\n");
+  ierr = VecCheck_SeqGPU(y);CHKERRQ(ierr);
+
+  printf("Printing F from SNESSolve_LS, (2.1)\n");
+  ierr = VecCheck_SeqGPU(f);CHKERRQ(ierr);
+
+  printf("Printing G from SNESSolve_LS, (2.1)\n");
+  ierr = VecCheck_SeqGPU(g);CHKERRQ(ierr);
+   */
+
+
+
   if (*ynorm > neP->maxstep) {	/* Step too big, so scale back */
     if (neP->monitor) {
       ierr = PetscViewerASCIIAddTab(neP->monitor,((PetscObject)snes)->tablevel);CHKERRQ(ierr);
@@ -578,7 +650,32 @@ PetscErrorCode  SNESLineSearchCubic(SNES snes,void *lsctx,Vec x,Vec f,Vec y,Pets
     snes->reason = SNES_DIVERGED_FUNCTION_COUNT;
     goto theend1;
   }
+  /*
+  printf("Printing Y from SNESSolve_LS, (2.2)\n");
+  ierr = VecCheck_SeqGPU(y);CHKERRQ(ierr);
+
+  printf("Printing F from SNESSolve_LS, (2.2)\n");
+  ierr = VecCheck_SeqGPU(f);CHKERRQ(ierr);
+
+  printf("Printing G from SNESSolve_LS, (2.2)\n");
+  ierr = VecCheck_SeqGPU(g);CHKERRQ(ierr);
+   */
+
+
   ierr = SNESComputeFunction(snes,w,g);CHKERRQ(ierr);
+
+  /*
+  printf("Printing Y from SNESSolve_LS, (2.3)\n");
+  ierr = VecCheck_SeqGPU(y);CHKERRQ(ierr);
+
+  printf("Printing F from SNESSolve_LS, (2.3)\n");
+  ierr = VecCheck_SeqGPU(f);CHKERRQ(ierr);
+
+  printf("Printing G from SNESSolve_LS, (2.3)\n");
+  ierr = VecCheck_SeqGPU(g);CHKERRQ(ierr);
+   */
+
+
   if (snes->domainerror) {
     ierr = PetscLogEventEnd(SNES_LineSearch,snes,x,f,g);CHKERRQ(ierr);
     PetscFunctionReturn(0);
@@ -594,6 +691,17 @@ PetscErrorCode  SNESLineSearchCubic(SNES snes,void *lsctx,Vec x,Vec f,Vec y,Pets
     }
     goto theend1;
   }
+
+  /*
+  printf("Printing Y from SNESSolve_LS, (2.4)\n");
+  ierr = VecCheck_SeqGPU(y);CHKERRQ(ierr);
+
+  printf("Printing F from SNESSolve_LS, (2.4)\n");
+  ierr = VecCheck_SeqGPU(f);CHKERRQ(ierr);
+
+  printf("Printing G from SNESSolve_LS, (2.4)\n");
+  ierr = VecCheck_SeqGPU(g);CHKERRQ(ierr);
+   */
 
   /* Fit points with quadratic */
   lambda     = 1.0;

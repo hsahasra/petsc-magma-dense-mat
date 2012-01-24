@@ -12,6 +12,7 @@
 extern PetscErrorCode VecView_MPI_HDF5(Vec,PetscViewer);
 #endif
 
+
 #undef __FUNCT__  
 #define __FUNCT__ "VecPointwiseMax_Seq"
 PetscErrorCode VecPointwiseMax_Seq(Vec win,Vec xin,Vec yin)

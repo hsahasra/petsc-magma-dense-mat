@@ -214,6 +214,7 @@ int e;
 				//printf("i=%d,j=%d\n",i,j);
 				for(l=0;l<dof;l++)
 				{
+
 					for(k=0;k<dof;k++)	
 					{
 						vals[k] = simple_rand();
@@ -222,6 +223,7 @@ int e;
 					rowval = i*dof+l;
    					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
    					ierr = MatSetValues(matsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+
 #ifdef GPU
 					ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
    					ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);

@@ -1,15 +1,16 @@
 
 ALL: lib
 
-CFLAGS   =
+CFLAGS   = -L/soft/cuda-4.0/cuda/lib64 -lcusparse
 FFLAGS   =
+SOURCECU = aijcuda.cu
 SOURCEC  = aij.c aijfact.c ij.c fdaij.c \
 	   matmatmult.c symtranspose.c matptap.c matpapt.c inode.c inode2.c
-SOURCEF  = 
+SOURCEF  =
 SOURCEH  = aij.h
-OBJSC    = aij.o aijfact.o ij.o fdaij.o \
+OBJSC    = aij.o aijcuda.o aijfact.o ij.o fdaij.o \
 	   matmatmult.o symtranspose.o matptap.o matpapt.o inode.o inode2.o
-OBJSF    = 
+OBJSF    =
 LIBBASE  = libpetscmat
 DIRS     = spooles superlu umfpack essl lusol matlab csrperm crl bas ftn-kernels seqcusp \
            cholmod

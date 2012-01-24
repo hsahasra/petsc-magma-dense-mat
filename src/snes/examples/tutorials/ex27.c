@@ -80,8 +80,8 @@ T*/
 #include <petscdmda.h>
 #include <petscdmmg.h>
 
-#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
-#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
+//#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/matstructgrid.h"
+//#include "/homes/dlowell/rnet/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
 
 
 /* 

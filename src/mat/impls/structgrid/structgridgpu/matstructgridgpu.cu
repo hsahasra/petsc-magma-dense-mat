@@ -24,9 +24,11 @@
 
 #define _DBGFLAG 1
 
+
 //block size is 1x256. 
 #define BLOCKWIDTH_X 256		
 #define BLOCKWIDTH_Y 1   
+
 
 // ----------------------------------------------------------
 // hardcodiing the shared memory size this should be set
@@ -739,7 +741,6 @@ for (l=0;l<nos;l++)
 //------------------------------------------------------------------------------------
 //   These functions are used to bind and unbind the Vector x to the texture Memory.	   
 //------------------------------------------------------------------------------------ 
-
 texture<int2, 1> tex_x_double;
 
 void unbind_x( double * x)
@@ -747,12 +748,13 @@ void unbind_x( double * x)
  cudaUnbindTexture(tex_x_double); 
  }
 
+
 static __inline__ __device__ double fetch_double(texture<int2, 1> tex_x_double, int i)
 {
     int2 v = tex1Dfetch(tex_x_double,i);
     return __hiloint2double(v.y, v.x);
 }
- 
+
 //------------------------------------------------------------------------------------
 // Dynamically allocating Shared Memory size	   
 //------------------------------------------------------------------------------------ 
@@ -764,7 +766,6 @@ extern __shared__ PetscScalar idx_sm[];
 //	through the Shared Memory, Y is accessed per thread from registers. Coeff accesses are from the global Memory 
 //	but they are coalesced.  	   
 //------------------------------------------------------------------------------------ 
- 
 
 __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos,PetscInt DOF)
 	{
@@ -808,6 +809,7 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 							
 				
 				ptr_y[reg2]= y_reg;
+
 	}
 
 	
@@ -868,6 +870,7 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 							
 				
 				ptr_y[reg2]= y_reg;
+
 	}
 	
 
@@ -889,6 +892,7 @@ static double temp=0;
 PetscScalar* d_x;
 PetscScalar* d_y;
 PetscInt *d_idx, *d_idy, *d_idz;
+
 int BLOCK_SIZE;
 int cons=m*DOF;
 int cons1=m*n*DOF;
@@ -949,6 +953,8 @@ if (nos==7)
 		}
 #endif
 	//------------------------------------------------------------------------------------------	
+
+
       if(_DBGFLAG) tbegin1=getclock();
 	  
 	  if ((*fp == PETSC_CUSP_UNALLOCATED) ||
@@ -1018,6 +1024,7 @@ if(_DBGFLAG)
 		tsetup=tend1-tbegin1;
 		tbegin2=getclock();
 	}
+
 
 // Kernel Setup and Configurations
 	
@@ -1108,10 +1115,14 @@ if(_DBGFLAG)
 		}
 	}
 kcalls++;
+
+
 #ifdef PRINT
 	for(int i=0;i<m*n;i++)
 	printf("Y[%d]: %lf\n",i,y[i]);
 #endif
+
+
 //Free Device Memory
 //cudaFree(d_coeff);
 cudaFree(d_x);
