@@ -28,7 +28,7 @@
 #define BLOCKWIDTH_Y 1   
 
 //block size is 1x256. 
-#define BLOCKWIDTH_X 4		
+#define BLOCKWIDTH_X 256		
 #define BLOCKWIDTH_Y 1   
 
 // ----------------------------------------------------------
@@ -740,6 +740,7 @@ for (l=0;l<nos;l++)
 //------------------------------------------------------------------------------------
 //   These functions are used to bind and unbind the Vector x to the texture Memory.	   
 //------------------------------------------------------------------------------------ 
+
 texture<int2, 1> tex_x_double;
 
 void unbind_x( double * x)
@@ -753,20 +754,23 @@ static __inline__ __device__ double fetch_double(texture<int2, 1> tex_x_double, 
     return __hiloint2double(v.y, v.x);
 }
  
+//------------------------------------------------------------------------------------
+// Dynamically allocating Shared Memory size	   
+//------------------------------------------------------------------------------------ 
  
- 
+extern __shared__ PetscScalar idx_sm[]; 
  
 //------------------------------------------------------------------------------------
 //  Below functions are SPMV kernel functions where x through the Texture Memory, offsets are accesed
 //	through the Shared Memory, Y is accessed per thread from registers. Coeff accesses are from the global Memory 
 //	but they are coalesced.  	   
 //------------------------------------------------------------------------------------ 
-#define stpoints 5 // I have to fix this 
+ 
 
 __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos,PetscInt DOF)
 	{
 		
-		__shared__ float idx_sm[stpoints];
+		//__shared__ float idx_sm[stpoints];
 		
 		int tx= blockDim.x * blockIdx.x + threadIdx.x;
 		int l,offset;
@@ -774,14 +778,19 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 		PetscInt Index;
 		PetscScalar y_reg=0;
 		
-		if (threadIdx.x < stpoints)
+		if (threadIdx.x < nos)
 			{
 			idx_sm[threadIdx.x]=idx[threadIdx.x];
 			}
+			
+		/* if (threadIdx.x < nos && blockIdx.x==0 && blockIdx.y==0 )
+			{
+			cuPrintf("idx_sm =%f idx=%d\n",idx_sm[threadIdx.x],idx[threadIdx.x]);
+			} */
 		int reg2=blockIdx.y*lda2+tx;
 		
 		//Iterating through the Diagonals
-		for (l=0;l<stpoints;l++)
+		for (l=0;l<nos;l++)
 			{
 			Index =reg2 + idx_sm[l];
 				
@@ -794,7 +803,7 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
                                 /*	  if (threadIdx.y==0){
                                 				cuPrintf("l= %d ptr_coeff= %f X= %f Index =%d y_sm=%f \n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),Index, y_reg);
                                                                 } */ 
-					
+			 */		
 				}
 			}
 							
@@ -806,7 +815,7 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr_y, PetscInt *idx, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos,PetscInt DOF)
 	{
 		
-		__shared__ float idx_sm[stpoints];
+		//__shared__ float idx_sm[stpoints];
 		
 		int tx= blockDim.x * blockIdx.x + threadIdx.x;
 		int l,i,offset;
@@ -815,7 +824,7 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 		double y_reg=0;
 		int BAND_SIZE=(DOF-1)*2+1;
 		
-		if (threadIdx.x < stpoints)
+		if (threadIdx.x < nos)
 			{
 			idx_sm[threadIdx.x]=idx[threadIdx.x];
 			}
@@ -824,7 +833,7 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 		int reg2=blockIdx.y*lda2+tx;
 		
 		//Iterating through the Diagonals
-		for (l=0;l<stpoints;l++)
+		for (l=0;l<nos;l++)
 			{
 			X_Index =reg2 + idx_sm[l];
 				
@@ -901,18 +910,6 @@ int BLOCK_SIZE;
 int cons=m*DOF;
 int cons1=m*n*DOF;
 
- //Reducing to a Single offset instead of using three offsets int the x,y and z direction.  
-  idx[1]=DOF;
-  idx[2]=-DOF;
-  idx[3]=cons;
-  idx[4]=-cons;
-  if(nos==7)
-    {
-     idx[5]=cons1;
-     idx[6]=-cons1;       
-    }
-  
-  idx[0]=0;
   idx[1]=DOF;
   idx[2]=-DOF;
   idx[3]=cons;
@@ -923,7 +920,58 @@ int cons1=m*n*DOF;
      idx[6]=-cons1;       
     }
 
+//----Single offset instead of using three offsets int the x,y and z direction.  
+if (nos==5)
+	{  
+	  idx[0]=0;
+	  idx[1]=DOF;
+	  idx[2]=cons;
+	  idx[3]=-DOF;
+	  idx[4]=-cons;
+	}
+if (nos==7)
+	{  
+	  idx[0]=0;
+	  idx[1]=DOF;
+	  idx[2]=cons;
+	  idx[3]=cons1;
+	  idx[4]=-DOF;
+	  idx[5]=-cons;
+	  idx[6]=-cons1;
+	}
 	
+//------------Printing Matrices for Debugging---------------------------------
+#ifdef PRINT
+	printf("offset vector\n");
+	for (int i=0;i<nos;i++)
+		{
+		printf("%d  ", idx[i]);
+		}
+	printf("\n");
+
+	printf("Matrix X\n");
+	for(int i=0;i<n;i++)
+		{
+		for(int j=0;j<m*DOF;j++) 
+			{
+			printf("%0.2f   ",x[i*cons+j]);
+			}
+		//printf("\n");
+		}
+	printf("\n");
+	printf("Matrix A\n");
+	for(int s=0;s<DOF*nos;s++)
+		{
+		printf("\n");	
+		for(int i=0;i<n;i++)
+			{
+			for(int j=0;j<m*DOF;j++) 
+				{
+				printf("%0.2f   ",coeff[s*cons1+i*cons+j]);
+				}
+			printf("\n");
+			}
+		
       #if(_DBGFLAG) 
             tbegin1=getclock();
       #endif
@@ -1009,10 +1057,10 @@ cudaBindTexture(0, tex_x_double, d_x, size_xy);
 				
 	if (DOF==1)
 		{
-		MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
+		MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock,nos>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
 		}
 	else{
-		MatMul_Kernel_tex<<<dimGrid,dimBlock>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos, DOF);
+		MatMul_Kernel_tex<<<dimGrid,dimBlock,nos>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos, DOF);
 		}
    
 // check if kernel execution generated and error
@@ -1105,9 +1153,10 @@ if(_DBGFLAG)
 		}
 	}
 kcalls++;
-
+#ifdef PRINT
 //for(int i=0;i<m*n;i++)
 //printf("Y[%d]: %lf\n",i,y[i]);
+#endif
 //Free Device Memory
 //cudaFree(d_coeff);
 cudaFree(d_x);
