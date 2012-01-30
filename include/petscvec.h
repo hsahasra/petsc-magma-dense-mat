@@ -547,6 +547,11 @@ typedef struct _n_Vecs* Vecs;
 #define VecsCreateSeqWithArray(comm,p,m,a,x) (PetscNew(struct _n_Vecs,x) || VecCreateSeqWithArray(comm,p*m,a,&(*(x))->v) || (-1 == ((*(x))->n = (m))))
 #define VecsDuplicate(x,y)        (PetscNew(struct _n_Vecs,y) || VecDuplicate(x->v,&(*(y))->v) || (-1 == ((*(y))->n = (x)->n)))
 
+#if defined(PETSC_HAVE_CUDA)
+typedef enum {PETSC_CUSP_UNALLOCATED,PETSC_CUSP_GPU,PETSC_CUSP_CPU,PETSC_CUSP_BOTH} PetscCUSPFlag;
+#endif
+
+
 #if defined(PETSC_HAVE_CUSP)
 typedef struct _p_PetscCUSPIndices* PetscCUSPIndices;
 extern PetscErrorCode PetscCUSPIndicesCreate(PetscInt,const PetscInt*,PetscCUSPIndices*);

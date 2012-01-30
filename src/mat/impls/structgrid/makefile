@@ -1,12 +1,12 @@
 
 ALL: lib
 
-CFLAGS   = -fopenmp
+CFLAGS   =
 FFLAGS   =
-SOURCEC  = matstructgrid.c matmultintrinsics.c matmulopenmp.c
+SOURCEC  = matstructgrid.c matmultintrinsics.c
 SOURCEF  = 
 SOURCEH  = matstructgrid.h
-OBJSC    = matstructgrid.o matmultintrinsics.o matmulopenmp.o
+OBJSC    = matstructgrid.o matmultintrinsics.o
 OBJSF    = 
 LIBBASE  = libpetscmat
 DIRS     = 

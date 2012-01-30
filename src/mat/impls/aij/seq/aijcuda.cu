@@ -1,8 +1,8 @@
 
-
-
 #include <../src/mat/impls/aij/seq/aij.h>          /*I "petscmat.h" I*/
 PETSC_CUDA_EXTERN_C_BEGIN
+#include <stdio.h>
+#include <stdlib.h>
 #undef __FUNCT__
 #define __FUNCT__ "MatMult_SeqAIJ"
 PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
@@ -100,7 +100,7 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
   //printf("Error code %d returned from cusparseDcsrmv call: ",csrs);
   cudaDeviceSynchronize();
   if(csrs!=CUSPARSE_STATUS_SUCCESS) {
-    printf("SpMV cuspare lib failed.\n");
+    printf("SpMV cusparse lib failed in file AIJCUDA.CU\n");
     PetscFunctionReturn(PETSC_ERR_LIB);
   }
   yd->syncState = VEC_GPU;
@@ -108,15 +108,26 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy){
   if(dev_csrRowOffsets)cudaFree(dev_csrRowOffsets);
   if(dev_csrIndices)cudaFree(dev_csrIndices);
   if(dev_dataA)cudaFree(dev_dataA);
-  //cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 
-  //cs=cudaMemcpy(yd->cpuptr,yd->devptr,yy->map->n*sizeof(double),cudaMemcpyDeviceToHost);
-  //if(cs!=cudaSuccess)printf("Error11: %s\n",cudaGetErrorString(cs));
-
-  //for(i=0;i<yy->map->n;i++){
-  //   if(yd->cpuptr[i]!=0.)printf("postMM Y[%d]: %e\n",i,yd->cpuptr[i]);
-  //}
-
+  cs=cudaMemcpy(yd->cpuptr,yd->devptr,yy->map->n*sizeof(double),cudaMemcpyDeviceToHost);
+  if(cs!=cudaSuccess)printf("Error11: %s\n",cudaGetErrorString(cs));
+  /*
+  char *fn = "/homes/dlowell/cudaexprs/dcheck/outfile1.txt";
+  FILE *fp;
+  fp=fopen(fn,"a");
+  if(!fp){
+    printf("file pointer error.\n");
+    PetscFunctionReturn(PETSC_ERR_LIB);
+  }else{
+    //printf("yy->map->n: %d\n",yy->map->n);
+    for(i=0;i<yy->map->n;i++){
+      //printf("printed to file: %d\n",i);
+      if(yd->cpuptr[i]!=0.)fprintf(fp,"%f ",yd->cpuptr[i]);
+    }
+    fclose(fp);
+  }
+  */
   PetscFunctionReturn(0);
 }
 PETSC_CUDA_EXTERN_C_END

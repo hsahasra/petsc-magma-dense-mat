@@ -1,4 +1,5 @@
 
+
 /*
     Defines the basic matrix operations for the AIJ (compressed row)
   matrix storage format.
@@ -1086,7 +1087,7 @@ PetscErrorCode MatMultTranspose_SeqAIJ(Mat A,Vec xx,Vec yy)
   PetscFunctionReturn(0);
 }
 
-/*
+
 #include <../src/mat/impls/aij/seq/ftn-kernels/fmult.h>
 #undef __FUNCT__  
 #define __FUNCT__ "MatMult_SeqAIJ"
@@ -1147,7 +1148,7 @@ PetscErrorCode MatMult_SeqAIJ(Mat A,Vec xx,Vec yy)
   ierr = VecRestoreArray(yy,&y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
- */
+
 
 
 
@@ -3776,7 +3777,6 @@ PetscErrorCode  MatCreate_SeqAIJ(Mat B){
   Mat_SeqAIJ     *b;
   PetscErrorCode ierr;
   PetscMPIInt    size;
-  printf("MatCreate_SeqAIJ\n");
   PetscFunctionBegin;
   ierr = MPI_Comm_size(((PetscObject)B)->comm,&size);CHKERRQ(ierr);
   if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Comm must be of size 1");

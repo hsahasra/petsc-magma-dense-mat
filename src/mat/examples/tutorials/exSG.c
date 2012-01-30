@@ -2,6 +2,10 @@
 */
 static char help[] = "Simple program which does matrix vector multiplication using the default format aij and other formats namely, structgrid(avx, avx+openmp), aijcusp and structgridgpu. The resulting vectors are compared for consistency (when REP=1)and also tested for performance. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info]. All of these flags are required except for info. Note: It is preferable to use exSG2 while checking performance (especially for big inputs) as it has less memory footprint.\n\n";
 
+#include <petscconf.h>
+#include <petscdmda.h>
+#include <petscsnes.h>
+#include "../../impls/aij/seq/aij.h"
 #include<sys/time.h>
 #include "../../impls/structgrid/matstructgrid.h"
 #include <petscksp.h> // this includes all the below headers

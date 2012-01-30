@@ -10,7 +10,10 @@
 
 EXTERN_C_BEGIN
 #include <cuda.h>
+
+#undef  DEBUGVEC
 #define DEBUGVEC        0
+#undef  VERBOSE
 #define VERBOSE         0
 #define MPLIER          4.0
 #define CHUNKWIDTH      MPLIER*65536.0
@@ -18,10 +21,13 @@ EXTERN_C_BEGIN
 #define MAXTHREADS      1024
 #define MAXBLOCKS       65536
 #define THRDOTCNT       128
+#define THRDOTCNT2      32
 #define AXPYTCOUNT      128
 #define AXPBYPCZTCOUNT  128
 #define THRNRMCNT       128
+#define THRNRMCNT2      32
 #define PDIVTCOUNT      128
+#define PDIVTCOUNT2     32
 #define PMULTCOUNT      128
 #define CPYTCOUNT       128
 #define NNN		624
@@ -40,6 +46,7 @@ EXTERN_C_BEGIN
 __shared__ int	mtNexts;			/* Start of next block of seeds */
 __shared__ uint	mtNexti;	/* Indirect on above to save one global read time/call */
 __device__ uint	s_seeds[NNN];
+
 
 
 
@@ -108,19 +115,19 @@ extern __global__ void kernCompare(double*, double*,int*, int*, int*);
 extern __global__ void kernSet(double*, int*);
 extern __global__ void kernScale(double*, int*);
 extern __global__ void kernCopy(double*, double*, int*, int*);
-extern __global__ void kernDot(double*,double*,int*,int*,int*,double*,double*);
-extern __global__ void kernRedDot(double*,int*,double*);
+extern __global__ void kernDot(double*,double*,int*,int*,int*,double*);
+extern __global__ void kernRedDot(int*,double*,double*);
 extern __global__ void kernAXPY(double*, double*, int*,double*);
 extern __global__ void kernWAXPY(double*, double*, int*, double*);
 extern __global__ void kernWXPY(double*, double*, int*, double*);
 extern __global__ void kernWXMY(double*, double*, int*, double*);
 extern __global__ void kernXPY(double*, double*, int*);
-extern __global__ void kernNorm2(double*,int*,int*,int*,double*,double*);
-extern __global__ void kernRedNorm(double*,int*,double*);
+extern __global__ void kernNorm2(double*,int*,int*,int*,double*);
+extern __global__ void kernRedNorm(int*,double*,double*);
 extern __global__ void kernPDIV(double*,double*,int*,double* );
 extern __global__ void kernPMULT(double*,double*,int*,double* );
-extern __global__ void kernMAXPDIV(double*,double*,int*,int*,int*,double*,double*);
-extern __global__ void kernMAX(double*,int*,double*);
+extern __global__ void kernMAXPDIV(double*,double*,int*,int*,int*,double*);
+extern __global__ void kernMAX(int*,double*,double*);
 extern __global__ void kernRand(double*, int*);
 extern __global__ void kernRandS(uint *);
 

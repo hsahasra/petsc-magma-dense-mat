@@ -1,14 +1,14 @@
 
 ALL: lib
 
-CFLAGS   = -L/soft/cuda-4.0/cuda/lib64 -lcusparse
+#CFLAGS   = -L/soft/cuda-4.0/cuda/lib64 -lcusparse
 FFLAGS   =
-SOURCECU = aijcuda.cu
+#SOURCECU = aijcuda.cu
 SOURCEC  = aij.c aijfact.c ij.c fdaij.c \
 	   matmatmult.c symtranspose.c matptap.c matpapt.c inode.c inode2.c
 SOURCEF  =
 SOURCEH  = aij.h
-OBJSC    = aij.o aijcuda.o aijfact.o ij.o fdaij.o \
+OBJSC    = aij.o aijfact.o ij.o fdaij.o \
 	   matmatmult.o symtranspose.o matptap.o matpapt.o inode.o inode2.o
 OBJSF    =
 LIBBASE  = libpetscmat
