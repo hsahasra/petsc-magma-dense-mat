@@ -42,7 +42,6 @@ J*/
 #define   KSPDGMRES     "dgmres"
 #define KSPTCQMR      "tcqmr"
 #define KSPBCGS       "bcgs"
-#define KSPBCGSGPU    "bcgsgpu"
 #define KSPIBCGS        "ibcgs"
 #define KSPBCGSL        "bcgsl"
 #define KSPCGS        "cgs"
