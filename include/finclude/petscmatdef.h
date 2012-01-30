@@ -133,6 +133,7 @@
 
 #define MATSOLVERBSTRM        'bstrm'
 #define MATSOLVERSBSTRM       'sbstrm'
+#define MATBLOCKSTRUCTGRID	'blockstructgrid'
 
 
 /* Two new datatypes are being added namely, structgrid and 
@@ -145,4 +146,5 @@
 
 #define MATSTRUCTGRID          'structgrid'
 #define MATSTRUCTGRIDGPU       'structgridgpu' 
+
 #endif

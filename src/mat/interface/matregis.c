@@ -53,7 +53,7 @@ extern PetscErrorCode  MatCreate_MPIAIJCUSP(Mat);
 extern PetscErrorCode  MatCreate_FFTW(Mat);
 #endif
 
-//extern PetscErrorCode MatCreate_SeqBSG(Mat);
+extern PetscErrorCode MatCreate_SeqBSG(Mat);
 
 /*The following two functions are declared to enable dynamic registration
   of new datatypes structgrid and structgridgpu. 
@@ -157,7 +157,7 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterDynamic(MATFFTW,           path,"MatCreate_FFTW",        MatCreate_FFTW);CHKERRQ(ierr);
 #endif
 
-  // ierr = MatRegisterDynamic(MATBLOCKSTRUCTGRID,     path,"MatCreate_SeqBSG",MatCreate_SeqBSG);CHKERRQ(ierr);
+ ierr = MatRegisterDynamic(MATBLOCKSTRUCTGRID,     path,"MatCreate_SeqBSG",MatCreate_SeqBSG);CHKERRQ(ierr);
  
  ierr = MatRegisterDynamic(MATSTRUCTGRID,     path,"MatCreate_SeqSG",MatCreate_SeqSG);CHKERRQ(ierr);
  
