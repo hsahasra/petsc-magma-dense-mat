@@ -20,9 +20,8 @@
 
 #include "private/matimpl.h"
 #include "matstructgridgpu.h"
-#include "cuPrintf.cu"
 
-#define _DBGFLAG 1
+#define _DBGFLAG 0
 
 //block size is 1x256. 
 #define BLOCKWIDTH_X 4		
@@ -117,7 +116,7 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "MatDestroy_SeqSGGPU"
 PetscErrorCode  MatDestroy_SeqSGGPU(Mat B)
 {
-  printf("Call to MatDestroy_SeqSGGPU(Mat B)\n");
+  //printf("Call to MatDestroy_SeqSGGPU(Mat B)\n");
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
@@ -151,7 +150,7 @@ EXTERN_C_BEGIN
 PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 {
 
-  printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
+  //printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
 
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -359,14 +358,11 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
         int vecsize_y = P.vecsize_y*sizeof(double);
 
 
-        if(_DBGFLAG){//create CUDA events for timer
+        #if(_DBGFLAG)/* create CUDA events for timer */
            cudaEventCreate(&start);
            cudaEventCreate(&stop);
-        }
-
-
-	if(_DBGFLAG) cs=getclock();
-
+           cs=getclock();
+        #endif
         //Allocate and Memcpy Structured Matrix A
 	//The matrix remains the same throughout one iteration
         //of the linear solver. The following uses a flag
@@ -553,12 +549,12 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 
 
         //toggle timer and debug settings
-        if(_DBGFLAG){
-                ce=getclock();//end setup timer
-	        temp=ce-cs;
-                cudaPrintfInit();//start cuda printf environ.
-	        cudaEventRecord(start,0);//begin recording kernel
-        }
+        #if(_DBGFLAG)
+           ce=getclock();//end setup timer
+	   temp=ce-cs;
+           cudaPrintfInit();//start cuda printf environ.
+	   cudaEventRecord(start,0);//begin recording kernel
+        #endif
 
         //Launch the kernel..........................................
 	MatMul_Kernel_v2<<<dimGrid,dimBlock>>>(devA,devX,devY);
@@ -566,7 +562,7 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
         //...........................................................
 
         //toggle timer and debug settings
-        if(_DBGFLAG){
+        #if(_DBGFLAG)
                 cudaPrintfDisplay(stdout, true);//choose output
                 cudaPrintfEnd();//kill cuda printf environ
 	        cudaEventRecord(stop,0);
@@ -574,10 +570,11 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 	        cudaEventElapsedTime(&elapsedtime,start,stop);
                 cudaEventDestroy(start);
 	        cudaEventDestroy(stop);
-        }
+                cs=getclock()
+        #endif
 
         // Copy back Vector Y from Kernel
-	cs=getclock();
+;
 	cudastatus7=cudaMemcpy(Y,devY,vecsize_y,cudaMemcpyDeviceToHost);
 	if(cudastatus7!=cudaSuccess){
           printf("Error on copy back Y, kernel status: %s\nExiting...\n\n",cudaGetErrorString(cudastatus7));
@@ -590,7 +587,7 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
 	//for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 
 
-        if(_DBGFLAG){
+        #if(_DBGFLAG)
           for(i=0;i<P.lda1;i++)printf("Y[%d]: %lf\n",i,Y[i]);//for verification
 	  ce=getclock();
 	  temp+=ce-cs;
@@ -603,7 +600,7 @@ PetscScalar* Y, struct Stencilparams P, PetscCUSPFlag* fp){
           printf("Cum. kernel time: %lf sec.\n", cumktime);
           printf("Cum. call time (with setup): %lf sec.\n", cumtime);
           printf(".........................................\n\n");
-        }//end _DBGFLAG-if
+        #endif /* end _DBGFLAG-if */
 
         PetscFunctionReturn(0);
 }
@@ -790,9 +787,9 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 				y_reg+= ptr_coeff[offset + reg2] * fetch_double(tex_x_double,Index);
 				
 			
-				  if (threadIdx.y==0){
-							cuPrintf("l= %d ptr_coeff= %f X= %f Index =%d y_sm=%f \n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),Index, y_reg);
-						}  
+                                /*	  if (threadIdx.y==0){
+                                				cuPrintf("l= %d ptr_coeff= %f X= %f Index =%d y_sm=%f \n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),Index, y_reg);
+                                                                } */ 
 					
 				}
 			}
@@ -867,7 +864,7 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 //   data to and from the device, and calls the MatMult kernel. 
 //------------------------------------------------------------------------------------ 
  
- int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
+int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
 PetscInt* idz, PetscInt m, PetscInt n,PetscInt p, PetscInt nos, PetscCUSPFlag* fp,PetscInt DOF)
 {
 
@@ -898,7 +895,9 @@ int cons1=m*n*DOF;
     }
 
 	
-      if(_DBGFLAG) tbegin1=getclock();
+      #if(_DBGFLAG) 
+            tbegin1=getclock();
+      #endif
 	  
 	  if ((*fp == PETSC_CUSP_UNALLOCATED) ||
 	  (*fp == PETSC_CUSP_CPU) )
@@ -957,16 +956,12 @@ cudaMemcpy(d_idz, idz, size_id, cudaMemcpyHostToDevice);
 //Binding X to the texture Memory
 cudaBindTexture(0, tex_x_double, d_x, size_xy);
 
-if (_DBGFLAG){
-cudaPrintfInit();
-}
-
-if(_DBGFLAG) 
-	{
-		tend1=getclock();
-		tsetup=tend1-tbegin1;
-		tbegin2=getclock();
-	}
+#if(_DBGFLAG)
+ cudaPrintfInit();
+ tend1=getclock();
+ tsetup=tend1-tbegin1;
+ tbegin2=getclock();
+#endif
 
 // Kernel Setup and Configurations
 	
@@ -1023,22 +1018,34 @@ if(_DBGFLAG)
 		 */
  
 
-	if(_DBGFLAG) 
-	{
-		cudaThreadSynchronize();
-		tend2=getclock();
-		tkernel=tend2-tbegin2;
-	}
-
-	if (_DBGFLAG){
-	cudaPrintfDisplay(stdout, true);
-	cudaPrintfEnd();
-	}
+	#if(_DBGFLAG) 
+             cudaDeviceSynchronize();
+	     tend2=getclock();
+	     tkernel=tend2-tbegin2;
+	     cudaPrintfDisplay(stdout, true);
+	     cudaPrintfEnd();
+	#endif
 	
 //Read y from the Device Memory
-
+/*
 cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost); 
- 
+ int i;
+ char *fn = "/homes/dlowell/cudaexprs/dcheck/outfile_SG1.txt";
+  FILE *fptr;
+  fptr=fopen(fn,"a");
+  if(!fptr){
+    printf("file pointer error.\n");
+    PetscFunctionReturn(PETSC_ERR_LIB);
+  }else{
+    //printf("yy->map->n: %d\n",yy->map->n);
+    for(i=0;i<m*n*p*DOF;i++){
+      //printf("printed to file: %d\n",i);
+      if(y[i]!=0.)fprintf(fptr,"%f ",y[i]);
+    }
+    fclose(fptr);
+  }
+*/
+
 if(_DBGFLAG)
 	{
 	temp+=tkernel;
@@ -1058,8 +1065,8 @@ if(_DBGFLAG)
 	}
 kcalls++;
 
-for(int i=0;i<m*n;i++)
-printf("Y[%d]: %lf\n",i,y[i]);
+//for(int i=0;i<m*n;i++)
+//printf("Y[%d]: %lf\n",i,y[i]);
 //Free Device Memory
 //cudaFree(d_coeff);
 cudaFree(d_x);

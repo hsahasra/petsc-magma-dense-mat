@@ -1,4 +1,5 @@
 
+
 /*
     Defines the basic matrix operations for the AIJ (compressed row)
   matrix storage format.
@@ -1148,7 +1149,7 @@ PetscErrorCode MatMultTranspose_SeqAIJ(Mat A,Vec xx,Vec yy)
   PetscFunctionReturn(0);
 }
 
-/*
+
 #include <../src/mat/impls/aij/seq/ftn-kernels/fmult.h>
 #if defined(PETSC_THREADCOMM_ACTIVE)
 PetscErrorCode MatMult_SeqAIJ_Kernel(PetscInt thread_id,Mat A,Vec xx,Vec yy)

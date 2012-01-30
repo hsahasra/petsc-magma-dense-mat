@@ -43,7 +43,6 @@ T*/
 #include <petscdmda.h>
 #include <petscsnes.h>
 
-
 /*
    User-defined application context - contains data needed by the
    application-provided call-back routines, FormJacobian() and
@@ -243,6 +242,7 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X){
         } else {
           x[k][j][i] = temp1*PetscSqrtReal(PetscMin((PetscReal)(PetscMin(i,Mx-i-1))*hx,tempj));
         }
+        //if(x[k][j][i]!=0)printf("FIG :: x[%d][%d][%d]: %e\n",k,j,i,x[k][j][i]);
       }
     }
   }
@@ -330,7 +330,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
           f[k][j][i] = x[k][j][i];
         } else {
           u          = x[k][j][i];
-          //printf("u_: %e\n",u);
+          //printf("FF :: x[%d][%d][%d]: %e\n",k,j,i,u);
           u_east     = x[k][j][i+1];
           u_west     = x[k][j][i-1];
           u_north    = x[k][j+1][i];
@@ -340,7 +340,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
           u_xx       = (-u_east + two*u - u_west)*hyhzdhx;
           u_yy       = (-u_north + two*u - u_south)*hxhzdhy;
           u_zz       = (-u_up + two*u - u_down)*hxhydhz;
-          //printf("u_xx: %e, u_yy: %e, u_zz: %e\n",u_xx,u_yy,u_zz);
+          //          printf("u_xx: %e, u_yy: %e, u_zz: %e\n",u_xx,u_yy,u_zz);
           f[k][j][i] = u_xx + u_yy + u_zz - sc*PetscExpScalar(u);
         }
         //if(f[k][j][i]!=0.0)printf("FormFunction>>>> POST:: f[%d][%d][%d] %e\n",k,j,i,f[k][j][i]);

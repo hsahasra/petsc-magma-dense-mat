@@ -16,7 +16,7 @@ exSG: exSG.o  chkopts
 	${RM} exSG.o
 
 exSG2: exSG2.o  chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/  -o exSG2 exSG2.o ${PETSC_MAT_LIB} 
+	-${CLINKER} -L/soft/papi-4.1.3/lib  -o exSG2 exSG2.o ${PETSC_MAT_LIB} 
 	${RM} exSG2.o
 
 exbSG: exbSG.o chkopts
@@ -24,7 +24,7 @@ exbSG: exbSG.o chkopts
 	${RM} exbSG.o
 
 exbSG2: exbSG2.o chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
+	-${CLINKER} -L/soft/papi-4.1.3/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
 	${RM} exbSG2.o
 
 ex1: ex1.o  chkopts

@@ -1,9 +1,9 @@
 
 ALL: lib
 
-CFLAGS   = -L/soft/cuda-4.0/cuda/lib64 -lcusparse
+#CFLAGS   = -L/soft/cuda-4.0/cuda/lib64 -lcusparse
 FFLAGS   =
-SOURCECU = aijcuda.cu
+#SOURCECU = aijcuda.cu
 SOURCEC  = aij.c aijfact.c ij.c fdaij.c \
 	   matmatmult.c symtranspose.c matptap.c matrart.c inode.c inode2.c matmatmatmult.c \
            mattransposematmult.c
