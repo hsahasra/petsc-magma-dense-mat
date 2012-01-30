@@ -803,7 +803,7 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
                                 /*	  if (threadIdx.y==0){
                                 				cuPrintf("l= %d ptr_coeff= %f X= %f Index =%d y_sm=%f \n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),Index, y_reg);
                                                                 } */ 
-			 */		
+		      
 				}
 			}
 							
