@@ -3,7 +3,7 @@
 # nonlinear equations.  
 
 #CPPFLAGS	 = -I/PETSc3/geodynamics/PetscSimulationsViewers/src
-CFLAGS           =
+CFLAGS           = -fopenmp
 FFLAGS		 =
 CPPFLAGS         =
 FPPFLAGS         =

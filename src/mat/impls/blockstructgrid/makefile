@@ -1,7 +1,7 @@
 
 ALL: lib
 
-CFLAGS   = -mavx -ggdb #-g -Wa,-alhd 
+CFLAGS   = -mavx -save-temps
 FFLAGS   =
 SOURCEC  = matblockstructgrid.c matmultbintrinsics.c
 SOURCEF  = 
