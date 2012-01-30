@@ -142,7 +142,7 @@ PetscErrorCode MatMult_SeqBSG(Mat mat, Vec x, Vec y)
 	ierr = VecSet(y,0.0); CHKERRQ(ierr);
 	ierr = VecGetArrayRead(x, &xx); CHKERRQ(ierr);
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
-	ierr = a->multfunc(v, xx, yy, a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs);
+	ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0]);
 	CHKERRQ(ierr);
 
 	ierr = VecRestoreArrayRead(x,&xx); CHKERRQ(ierr);
@@ -233,61 +233,76 @@ PetscErrorCode MatSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[], P
 Added by Deepan */
 PetscErrorCode SetValues_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
 {
-	PetscInt i,j,k,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
-	PetscInt lda1 = mx*ny*bs, lda2 = mx*bs;
-	if(dof % 2 == 0)
+	PetscInt i,j,k,k1,c,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt lda1 = mx*ny, lda2 = mx;
+	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
+	PetscInt start[8], count, endpoint, finalpos;
+	start[0] = 0; 
+	start[1] = 1; 
+	start[2] = mat->m; 
+	start[3] = mat->m*mat->n; 
+	start[4] = mat->nz - (mat->m*mat->n); 
+	start[5] = mat->nz - mat->m; 
+	start[6] = mat->nz - 1; 
+	start[7] = mat->nz; 
+	l3threshold = WORKINGSETSIZE/mat->bs;
+
+	for(i=0;i<n;i++)
 	{
-		if(is == ADD_VALUES)
+		pos = (lda1*idz[i]+lda2*idy[i]+idx[i]);
+		count = 0;
+		for(k=0;k<7;k++)
 		{
-			for(i=0;i<n;i++)
+			for(c = start[k]; c < start[k+1]; c+= l3threshold,count += mat->stpoints )
 			{
-				for(j=0;j<dof;j++)
-					for(k=0;k<dof;k++)
-						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*dof+k] += data[i*bs+j*dof+k];
-			}
-		}
-		else
-		{
-			for(i=0;i<n;i++)
-			{
-				for(j=0;j<dof;j++)
-					for(k=0;k<dof;k++)
-						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*dof+k] = data[i*bs+j*dof+k];
-			}
-		}
-	}
-	else
-	{
-		if(is == ADD_VALUES)
-		{
-			for(i=0;i<n;i++)
-			{
-				for(j=0;j<dof;j++)
+				endpoint = (c+l3threshold) < start[k+1] ? (c+l3threshold) : start[k+1]; 
+				if(c <= pos && pos < endpoint)
 				{
-					for(k=0;k<dof-1;k++)
-						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*(dof-1)+k] += data[i*bs+j*dof+k];
+					finalpos = pos - c;
+					if(dof % 2 == 0)
+					{
+						if(is == ADD_VALUES)
+						{
+							for(j=0;j<dof;j++)
+								for(k1=0;k1<dof;k1++)
+									mat->coeff[ioffsets[i]+count][(finalpos)*bs+j*dof+k1] += data[i*bs+j*dof+k1];
+						}
+						else
+						{
+							for(j=0;j<dof;j++)
+								for(k1=0;k1<dof;k1++)
+									mat->coeff[ioffsets[i]+count][(finalpos)*bs+j*dof+k1] = data[i*bs+j*dof+k1];
+						}
+					}
+					else
+					{
+						if(is == ADD_VALUES)
+						{
+							for(j=0;j<dof;j++)
+							{
+								for(k1=0;k1<dof-1;k1++)
+									mat->coeff[ioffsets[i]+count][(finalpos)*bs+j*(dof-1)+k1] += data[i*bs+j*dof+k1];
 			
-					mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+dof*(dof-1)+j] += data[i*bs+(j+1)*dof-1];
+									mat->coeff[ioffsets[i]+count][(finalpos)*bs+dof*(dof-1)+j] += data[i*bs+(j+1)*dof-1];
+							}
+						}
+						else
+						{
+							for(j=0;j<dof;j++)
+							{
+								for(k1=0;k1<dof-1;k1++)
+									mat->coeff[ioffsets[i]+count][(finalpos)*bs+j*(dof-1)+k1] = data[i*bs+j*dof+k1];
+			
+									mat->coeff[ioffsets[i]+count][(finalpos)*bs+dof*(dof-1)+j] = data[i*bs+(j+1)*dof-1];
+							}
+						}
+					}
+	 
 				}
+				
 			}
 		}
-		else
-		{
-			for(i=0;i<n;i++)
-			{
-				for(j=0;j<dof;j++)
-				{
-					for(k=0;k<dof-1;k++)
-						mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+j*(dof-1)+k] = data[i*bs+j*dof+k];
-
-					mat->coeff[ioffsets[i]][(lda1*idz[i]+lda2*idy[i]+bs*idx[i])+dof*(dof-1)+j] = data[i*bs+(j+1)*dof-1];
-				}
-			}
-		}
-
 	}
-
-
 	PetscFunctionReturn(0);
 }
 
@@ -378,15 +393,50 @@ Added by Deepan */
 PetscErrorCode MatSetUpPreallocation_SeqBSG(Mat mat)
 {
 	PetscErrorCode ierr;
-	PetscInt i;
+	PetscInt i,c,j, l3threshold, endpoint;
+	PetscInt start[8], count = 0;
 	PetscFunctionBegin;
 	Mat_SeqBSG * a = (Mat_SeqBSG *)mat->data;
 	PetscFunctionBegin;
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
-	ierr = PetscMalloc(sizeof(PetscScalar*)*a->stpoints,&(a->coeff));CHKERRQ(ierr);
-	for(i=0;i<a->stpoints;i++)
-		a->coeff[i] = a->a+(i*a->nz*a->bs);
+	
+	start[0] = 0; 
+	start[1] = 1; 
+	start[2] = a->m; 
+	start[3] = a->m*a->n; 
+	start[4] = a->nz - (a->m*a->n); 
+	start[5] = a->nz - a->m; 
+	start[6] = a->nz - 1; 
+	start[7] = a->nz; 
+	l3threshold = WORKINGSETSIZE/a->bs;
+
+	for(i=0;i<7;i++)
+	{
+		for(c = start[i]; c < start[i+1]; c+= l3threshold)
+		{
+			count += a->stpoints;
+		}
+	}
+	ierr = PetscMalloc(sizeof(PetscScalar*)*(count+1),&(a->coeff));CHKERRQ(ierr);
+
+	a->coeff[0] = a->a;
+	count = 0;
+	for(i=0;i<7;i++)
+	{
+		a->stpoffset[i] = count;
+		for(c = start[i]; c < start[i+1]; c+= l3threshold)
+		{
+			endpoint = (c+l3threshold) < start[i+1] ? (c+l3threshold) : start[i+1]; 
+			for(j=1;j<=a->stpoints;j++)
+			{
+				a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c));
+			}
+			count += a->stpoints;
+		}
+	}
+	a->stpoffset[7] = count;
+
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }
@@ -416,55 +466,37 @@ PetscErrorCode MatView_SeqBSG(Mat A,PetscViewer viewer)
 	PetscInt nz = a->nz,  stpoints = a->stpoints, bs= a->bs;
 	PetscInt stcount, icount, jcount;
 	PetscScalar ** data = a->coeff;
+	PetscInt start[8], count, endpoint, finalpos;
 	PetscFunctionBegin;
 
 	ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
 	ierr = PetscObjectPrintClassNamePrefixType((PetscObject)A,viewer);CHKERRQ(ierr);
-
-/*	for(stcount = 0; stcount < stpoints-1; stcount++)
-	{
-		ierr = PetscViewerASCIIPrintf(viewer,"\n\ndiagonal %D:\n",stcount);CHKERRQ(ierr);
-		for(icount = coeffOffset[stcount]*bs; icount < coeffOffset[stcount+1]*bs; icount+=bs)
-		{
-			ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-			for(jcount = 0; jcount < bs; jcount +=dof)
-			{
-				ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-				for (kcount = 0 ; kcount < dof; kcount++)
-				{
-					ierr = PetscViewerASCIIPrintf(viewer," (%G) ",data[icount+jcount+kcount]);CHKERRQ(ierr);
-				}
-			}
-		}
-	}
-
-	ierr = PetscViewerASCIIPrintf(viewer,"\n\ndiagonal %D:\n",stpoints-1);CHKERRQ(ierr);
-	for(icount = coeffOffset[stpoints-1]*bs; icount < tnz*bs; icount+=bs)
-	{
-		ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-		for(jcount = 0; jcount < bs; jcount +=dof)
-		{
-			ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-			for (kcount = 0 ; kcount < dof; kcount++)
-			{
-				ierr = PetscViewerASCIIPrintf(viewer," (%G) ",data[icount+jcount+kcount]);CHKERRQ(ierr);
-			}
-		}
-	}
-*/
+	
+	start[0] = 0; 
+	start[1] = 1; 
+	start[2] = a->m; 
+	start[3] = a->m*a->n; 
+	start[4] = a->nz - (a->m*a->n); 
+	start[5] = a->nz - a->m; 
+	start[6] = a->nz - 1; 
+	start[7] = a->nz; 
 	for(stcount = 0; stcount < stpoints ; stcount++)
 	{
 		ierr = PetscViewerASCIIPrintf(viewer,"\n\nStpoints %D\n ",stcount , data[stcount]);CHKERRQ(ierr);
-		for(icount = 0; icount < nz ; icount++)
+		for(count = 0; count < 7; count ++)
 		{
-			ierr = PetscViewerASCIIPrintf(viewer,"%D : [ ",icount);CHKERRQ(ierr);
-			for(jcount = 0; jcount < bs ; jcount++)
+			for(icount = start[count]; icount < start[count+1] ; icount++)
 			{
-				ierr = PetscViewerASCIIPrintf(viewer,"(%G)  ",data[stcount][icount*bs+jcount]);CHKERRQ(ierr);
+				ierr = PetscViewerASCIIPrintf(viewer,"%D : [ ",icount);CHKERRQ(ierr);
+				for(jcount = 0; jcount < bs ; jcount++)
+				{
+					ierr = PetscViewerASCIIPrintf(viewer,"(%G)  ",data[count*stpoints+stcount][jcount]);CHKERRQ(ierr);
+				}
+				ierr = PetscViewerASCIIPrintf(viewer," ]\n");CHKERRQ(ierr);
 			}
-			ierr = PetscViewerASCIIPrintf(viewer," ]\n");CHKERRQ(ierr);
 		}
 	}
+
 	ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 	ierr = PetscViewerASCIIUseTabs(viewer,PETSC_TRUE);CHKERRQ(ierr);
 	

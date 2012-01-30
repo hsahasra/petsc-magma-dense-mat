@@ -15,7 +15,7 @@ long REP=1;
  double simple_rand() {
          int seed;
          seed = (1103515245*seed+12345)%4294967296;
-         return (1000.0*seed)/4294967296;
+         return 1.0;//(1000.0*seed)/4294967296;
  }
 
 double rtclock() {
