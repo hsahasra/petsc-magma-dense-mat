@@ -5,7 +5,8 @@ CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/mat/examples/tutorials/
 
-EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c ex14.c ex15.c exSG.c exSG2.c exbSG.c
+
+EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c ex14.c ex15.c exSG.c exSG2.c exbSG.c exbSG2.c exbSG3.c
 
 EXAMPLESF       =
 MANSEC          = Mat
@@ -21,6 +22,7 @@ exSG2: exSG2.o  chkopts
 	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exSG2 exSG2.o ${PETSC_MAT_LIB} 
 	${RM} exSG2.o
 
+
 exbSG: exbSG.o chkopts
 	-${CLINKER} -o exbSG exbSG.o ${PETSC_MAT_LIB}
 	${RM} exbSG.o
@@ -28,6 +30,10 @@ exbSG: exbSG.o chkopts
 exbSG2: exbSG2.o chkopts
 	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
 	${RM} exbSG2.o
+
+exbSG3: exbSG3.o chkopts
+	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG3 exbSG3.o ${PETSC_MAT_LIB}
+	${RM} exbSG3.o
 
 ex1: ex1.o  chkopts
 	-${CLINKER} -o ex1 ex1.o ${PETSC_MAT_LIB} 
