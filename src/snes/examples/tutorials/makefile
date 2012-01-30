@@ -3,7 +3,7 @@
 # nonlinear equations.  
 
 #CPPFLAGS	 = -I/PETSc3/geodynamics/PetscSimulationsViewers/src
-CFLAGS           = -L/soft/cuda-4.0/cuda/lib64 -lcusparse 
+CFLAGS           = -fopenmp
 FFLAGS		 =
 CPPFLAGS         =
 FPPFLAGS         =
