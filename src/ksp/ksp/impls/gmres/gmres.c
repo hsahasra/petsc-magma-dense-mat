@@ -1,4 +1,31 @@
 
+
+
+
+/* timer */
+#define GMRESTIME   0
+
+#if(GMRESTIME)
+   #include <sys/time.h>
+   #include <math.h>
+   #undef __FUNCT__
+   #define __FUNCT__ "gmres_timer"
+   double gmres_timer(){
+     struct timezone tzp;
+     struct timeval tp;
+     gettimeofday (&tp, &tzp);
+     return (tp.tv_sec + tp.tv_usec*1.0e-6);
+   }
+#endif
+
+
+
+
+
+
+
+
+
 /*
     This file implements GMRES (a Generalized Minimal Residual) method.  
     Reference:  Saad and Schultz, 1986.
@@ -125,6 +152,13 @@ PetscErrorCode GMREScycle(PetscInt *itcount,KSP ksp)
   PetscBool      hapend = PETSC_FALSE;
 
   PetscFunctionBegin;
+  #if(GMRESTIME)
+     static double cumilative_time = 0.;
+     static int cumilative_calls = 0;
+     double elapsed=0.;
+     double end=0.;
+     double start=0.;
+  #endif
   ierr    = VecNormalize(VEC_VV(0),&res_norm);CHKERRQ(ierr);
   res     = res_norm;
   *GRS(0) = res_norm;
@@ -140,11 +174,17 @@ PetscErrorCode GMREScycle(PetscInt *itcount,KSP ksp)
     if (itcount) *itcount = 0;
     ksp->reason = KSP_CONVERGED_ATOL;
     ierr = PetscInfo(ksp,"Converged due to zero residual norm on entry\n");CHKERRQ(ierr);
+    printf("GMRES converged due to zero residual norm on entry\n");
     PetscFunctionReturn(0);
   }
-
   ierr = (*ksp->converged)(ksp,ksp->its,res,&ksp->reason,ksp->cnvP);CHKERRQ(ierr);
+  
   while (!ksp->reason && it < max_k && ksp->its < ksp->max_it) {
+
+    #if(GMRESTIME)
+       start = gmres_timer();
+    #endif
+
     if (it) {
       KSPLogResidualHistory(ksp,res);
       ierr = KSPMonitor(ksp,ksp->its,res);CHKERRQ(ierr);
@@ -177,6 +217,16 @@ PetscErrorCode GMREScycle(PetscInt *itcount,KSP ksp)
     gmres->it  = (it-1);  /* For converged */
     ksp->its++;
     ksp->rnorm = res;
+
+
+    #if(GMRESTIME)
+       end = gmres_timer();
+       elapsed = end - start;
+       cumilative_time+=elapsed;
+       cumilative_calls++;
+       printf("GMRES :: NCalls: %d, CumTime: %e, Elapsed(current): %e, Average: %e\n",cumilative_calls,cumilative_time,elapsed,cumilative_time/cumilative_calls);
+    #endif
+
     if (ksp->reason) break;
 
     ierr = (*ksp->converged)(ksp,ksp->its,res,&ksp->reason,ksp->cnvP);CHKERRQ(ierr);
@@ -186,6 +236,8 @@ PetscErrorCode GMREScycle(PetscInt *itcount,KSP ksp)
       if (!ksp->reason) SETERRQ1(((PetscObject)ksp)->comm,PETSC_ERR_PLIB,"You reached the happy break down, but convergence was not indicated. Residual norm = %G",res);
       break;
     }
+
+    
   }
 
   /* Monitor if we know that we will not return for a restart */

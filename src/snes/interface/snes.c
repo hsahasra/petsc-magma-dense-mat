@@ -4,6 +4,23 @@
 PetscBool  SNESRegisterAllCalled = PETSC_FALSE;
 PetscFList SNESList              = PETSC_NULL;
 
+/* timer */
+#define SNESTIME   1
+
+#if(SNESTIME)
+   #include <sys/time.h>
+   #include <math.h>
+   #undef __FUNCT__
+   #define __FUNCT__ "snes_timer"
+   double snes_timer(){
+     struct timezone tzp;
+     struct timeval tp;
+     gettimeofday (&tp, &tzp);
+     return (tp.tv_sec + tp.tv_usec*1.0e-6);
+   }
+#endif
+
+
 /* Logging support */
 PetscClassId  SNES_CLASSID;
 PetscLogEvent  SNES_Solve, SNES_LineSearch, SNES_FunctionEval, SNES_JacobianEval;
@@ -142,7 +159,7 @@ PetscErrorCode  SNESSetFunctionDomainError(SNES snes)
 .seealso: PetscViewerASCIIOpen()
 @*/
 PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
-{
+{ 
   SNESKSPEW           *kctx;
   PetscErrorCode      ierr;
   KSP                 ksp;
@@ -2655,8 +2672,17 @@ PetscErrorCode SNESScaleStep_Private(SNES snes,Vec y,PetscReal *fnorm,PetscReal 
 
 .seealso: SNESCreate(), SNESDestroy(), SNESSetFunction(), SNESSetJacobian()
 @*/
-PetscErrorCode  SNESSolve(SNES snes,Vec b,Vec x)
-{
+PetscErrorCode  SNESSolve(SNES snes,Vec b,Vec x){
+
+
+  #if(SNESTIME)
+     static PetscBool first=1;
+     static double cumilative_time = 0.;
+     static int cumilative_calls = 0;
+     double elapsed=0.;
+     double start=0.;
+  #endif
+
   PetscErrorCode ierr;
   PetscBool      flg;
   char           filename[PETSC_MAX_PATH_LEN];
@@ -2690,9 +2716,26 @@ PetscErrorCode  SNESSolve(SNES snes,Vec b,Vec x)
 
     if (snes->conv_hist_reset) snes->conv_hist_len = 0;
     snes->nfuncs = 0; snes->linear_its = 0; snes->numFailures = 0;
-
+    
     ierr = PetscLogEventBegin(SNES_Solve,snes,0,0,0);CHKERRQ(ierr);
+    #if(SNESTIME)
+       if(!first){
+         start = snes_timer();
+       }
+    #endif
     ierr = (*snes->ops->solve)(snes);CHKERRQ(ierr);
+    #if(SNESTIME)
+       if(!first){
+         elapsed = snes_timer() - start;
+         cumilative_time+=elapsed;
+         cumilative_calls++;
+         printf("SNES :: Calls: %d, CumilativeTime: %e, Elapsed: %e, RunAverage: %e\n",cumilative_calls,cumilative_time,elapsed,cumilative_time/cumilative_calls);
+       }else{
+         printf("SNES first call.\n");
+         first = PETSC_FALSE;
+       }
+    #endif
+
     ierr = PetscLogEventEnd(SNES_Solve,snes,0,0,0);CHKERRQ(ierr);
     if (snes->domainerror){
       snes->reason      = SNES_DIVERGED_FUNCTION_DOMAIN;

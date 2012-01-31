@@ -11,7 +11,7 @@ OBJSF    =
 LIBBASE  = libpetscvec
 MANSEC   = Vec
 LOCDIR   = src/vec/vec/impls/seq/
-DIRS     = ftn-kernels seqcusp seqpthread
+DIRS     = ftn-kernels seqcusp seqgpu seqpthread
 
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules

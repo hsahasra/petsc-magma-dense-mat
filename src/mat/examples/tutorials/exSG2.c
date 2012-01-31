@@ -32,10 +32,10 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
-#define CSR
-#define SG
+//#define CSR
+//#define SG
 //#define OMP
-//#define GPU
+#define GPU
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -170,8 +170,13 @@ OPENMP=0;
    					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 				}
 			}
+					}
+   					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+				}
+			}
 		}
         }
+
 
   
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -289,14 +294,15 @@ for(e=0;e<NUM_EVENTS;e++)
 	Mat 	matgpu, matsggpu;           
 	ierr = VecDuplicate(x,&ysggpu);CHKERRQ(ierr);
 	ierr = VecDuplicate(x,&ygpu);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
+//  	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
+// 	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
   	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
   	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
-	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
+//	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
 	MatSetType(matgpu,MATSEQAIJCUSP);
-	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
-	MatSetUpPreallocation_SeqSG(matsggpu);
+//	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
+//	MatSetUpPreallocation_SeqSG(matsggpu);
+	for(i=0;i<m*n*p;i++)
 	for(i=0;i<m*n*p;i++)
 	{
 		for(st=0;st<nost;st++)
@@ -322,23 +328,23 @@ for(e=0;e<NUM_EVENTS;e++)
   
   	ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 	//CSR GPU
 	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*(dim*2+1)*nz)/((end-start)*1024*1024*1024)); 
 
 	//SG (GPU)
-	start = rtclock();	
-	for(i=0;i<REP;i++)
-  		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
-	end = rtclock();
-	printf("\nSG - GPU:\n");
-	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+//	start = rtclock();	
+//	for(i=0;i<REP;i++)
+//  		ierr = MatMult(matsggpu,x,ysggpu);CHKERRQ(ierr);
+//	end = rtclock();
+//	printf("\nSG - GPU:\n");
+//	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
 
 	ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
 	ierr = VecDestroy(&ysggpu);CHKERRQ(ierr);

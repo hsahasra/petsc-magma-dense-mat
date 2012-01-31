@@ -83,7 +83,9 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
-	
+		ct5 = ctl[5];
+		ct6 = ctl[6];
+			
 	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
 	{
 		setupct(0,it);
@@ -101,7 +103,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_2(xt4,ct4);
 		setup_2(1);
 		inline_2_3(2,3,4);
 		inline_2_2(5,6);
@@ -114,7 +116,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_2(xt3,ct3);
 		setup_2(lda3);
 		inline_2_3(1,2,3);
 		inline_2_3(4,5,6);
@@ -127,7 +129,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_2(xt2,ct2);
 		setup_2(lda2);
 		inline_2_3(0,1,2);
 		inline_2_3(3,4,5);
@@ -141,7 +143,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_2(xt2,ct2);
 		setup_2(lda1-lda2);
 		inline_2_3(0,1,2);
 		inline_2_3(3,4,5);
@@ -154,7 +156,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_2(xt2,ct2);
 		setup_2(lda1-lda3);
 		inline_2_3(0,1,2);
 		inline_2_2(3,4);
@@ -167,7 +169,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_2(xt2,ct2);
 			setup_2(lda1-1);
 			inline_2_2(0,1);
 			inline_2_2(2,3);
@@ -228,6 +230,13 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
 	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
+		ct1 = ctl[1];
+		ct2 = ctl[2];
+		ct3 = ctl[3];
+		ct4 = ctl[4];
+		ct5 = ctl[5];
+		ct6 = ctl[6];
+
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
@@ -246,7 +255,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+		inline_4(xt4,ct4);
 		setup_4(1);
 		inline_4(2,3);
 		inline_4(3,4);
@@ -262,7 +271,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+		inline_4(xt3,ct3);
 		setup_4(lda3);
 		inline_4(1,2);
 		inline_4(2,3);
@@ -279,7 +288,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+		inline_4(xt2,ct2);
 		setup_4(lda2);
 		inline_4(0,1);
 		inline_4(1,2);
@@ -297,7 +306,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+		inline_4(xt2,ct2);
 		setup_4(lda1-lda2);
 		inline_4(0,1);
 		inline_4(1,2);
@@ -314,7 +323,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+		inline_4(xt2,ct2);
 		setup_4(lda1-lda3);
 		inline_4(0,1);
 		inline_4(1,2);
@@ -330,7 +339,7 @@ PetscInt BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+		inline_4(xt2,ct2);
 		setup_4(lda1-1);
 		inline_4(0,1);
 		inline_4(1,2);
@@ -419,6 +428,12 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
 	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
+		ct1 = ctl[1];
+		ct2 = ctl[2];
+		ct3 = ctl[3];
+		ct4 = ctl[4];
+		ct5 = ctl[5];
+		ct6 = ctl[6];
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
@@ -431,13 +446,14 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_6(6,7);
 		save_6();
 		}
+			inline_6(xt6,ct6);
 	}
 		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
 		{
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_6(xt3,ct3);
 		setup_6(1);
 			inline_6(2,3);
 			inline_6(3,4);
@@ -446,6 +462,9 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_6(6,7);
 		save_6();
 		}
+			inline_6(xt4,ct4);
+			inline_6(xt5,ct5);
+			inline_6(xt6,ct6);
 		}
 
 		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
@@ -453,7 +472,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_6(xt2,ct2);
 		setup_6(lda3);
 			inline_6(1,2);
 			inline_6(2,3);
@@ -463,6 +482,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_6(6,7);
 		save_6();
 		}
+			inline_6(xt4,ct4);
 		}
 
 		for(k1 = lda2, it =0; k1 < lda1-lda2; k1+=l3threshold, it++)
@@ -470,7 +490,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_6(xt2,ct2);
 		setup_6(lda2);
 			inline_6(0,1);
 			inline_6(1,2);
@@ -488,7 +508,6 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
 		setup_6(lda1-lda2);
 			inline_6(0,1);
 			inline_6(1,2);
@@ -498,14 +517,11 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_6(5,6);
 		save_6();
 		}
-		}
-
 		for(k1 = lda1-lda3, it =0; k1 < lda1-1; k1+=l3threshold, it++)
 		{
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
 		setup_6(lda1-lda3);
 			inline_6(0,1);
 			inline_6(1,2);
@@ -514,14 +530,11 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_6(4,5);
 		save_6();
 		}
-		}
-
 		for(k1 = lda1-1, it =0; k1 < lda1; k1+=l3threshold, it++)
 		{
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
 		setup_6(lda1-1);
 			inline_6(0,1);
 			inline_6(1,2);
@@ -529,9 +542,6 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_6(3,4);
 		save_6();
 		}
-		}
-	PetscFunctionReturn(0);
-}
 
 
 #define setup_Neven()	for(i=0;i<dofby2;i++){\
@@ -642,24 +652,297 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 		ct5 = ctl[5];
 		ct6 = ctl[6];
 	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
+				{
+					inline_stage1_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct3);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct3);
+				}
+			}
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct5);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct6);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct6);
+				}
 		{
 		setup_Neven();
 			inline_Neven(3,4,0);
 			inline_Neven(4,5,0);
 			inline_Neven(5,6,0);
 			inline_Neven(6,7,0);
+				{
+					inline_stage1_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct2);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct2);
+				}
+			}
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct4);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct5);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct6);
+				}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct6);
 		save_Neven();
 		}
+				{
+					inline_stage1_Neven(ct1);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct1);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt1);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct1);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct1);
+				}
+			}
 	}
 		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
 		{
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct3);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct3);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct4);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct5);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct6);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct6);
 		{
 		setup_Neven();
 			inline_Neven(2,3,1);
@@ -667,8 +950,166 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 			inline_Neven(4,5,1);
 			inline_Neven(5,6,1);
 			inline_Neven(6,7,1);
+					inline_stage1_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct0);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt0);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct0);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct2);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct3);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct4);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct5);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct6);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt6);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct6);
+				}
 		save_Neven();
 		}
+				{
+					inline_stage1_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct0);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt0);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct0);
+				}
+			}
 		}
 
 		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
@@ -684,6 +1125,95 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 			inline_Neven(4,5,lda3);
 			inline_Neven(5,6,lda3);
 			inline_Neven(6,7,lda3);
+				{
+					inline_stage1_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct2);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct3);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct4);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct5);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct5);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt5);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct5);
 		save_Neven();
 		}
 		}
@@ -693,6 +1223,26 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
+				{
+					inline_stage1_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct0);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt0);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct0);
+				}
+			}
 		{
 		setup_Neven();
 			inline_Neven(0,1,lda2);
@@ -719,6 +1269,71 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 			inline_Neven(3,4,lda1-lda2);
 			inline_Neven(4,5,lda1-lda2);
 			inline_Neven(5,6,lda1-lda2);
+				{
+					inline_stage1_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct2);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct3);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct4);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct4);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt4);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct4);
 		save_Neven();
 		}
 		}
@@ -728,6 +1343,26 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
+				{
+					inline_stage1_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct0);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt0);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct0);
+				}
+			}
 		{
 		setup_Neven();
 			inline_Neven(0,1,lda1-lda3);
@@ -750,6 +1385,51 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 			inline_Neven(1,2,lda1-1);
 			inline_Neven(2,3,lda1-1);
 			inline_Neven(3,4,lda1-1);
+				setup12_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct2);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt2);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-2; l2 += 4)
+			{
+				setup12_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage1_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage2_Neven(ct3);
+				}
+			}
+			for(; l2 < dof; l2 += 2)
+			{
+				setup34_Neven(xt3);
+				for(l1=0; l1<dofby2-1; l1+= 2)
+				{
+					inline_stage3_Neven(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage4_Neven(ct3);
+				}
 		save_Neven();
 		}
 		}
@@ -783,6 +1463,12 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
+		ct2 = ctl[2];
+		ct3 = ctl[3];
+		ct4 = ctl[4];
+		ct5 = ctl[5];
+		ct6 = ctl[6];
+	
 	
 	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
 	{
@@ -801,7 +1487,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_1(xt4,ct4);
 		setup_1(1);
 			inline_1_2(2,3);
 			inline_1_3(4,5,6);
@@ -814,7 +1500,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_1(xt3,ct3);
 		setup_1(lda3);
 			inline_1_3(1,2,3);
 			inline_1_3(4,5,6);
@@ -827,7 +1513,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_1(xt2,ct2);
 		setup_1(lda2);
 			inline_1_2(0,1);
 			inline_1_2(2,3);
@@ -841,7 +1527,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_1(xt2,ct2);
 		setup_1(lda1-lda2);
 			inline_1_3(0,1,2);
 			inline_1_3(3,4,5);
@@ -854,7 +1540,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_1(xt2,ct2);
 		setup_1(lda1-lda3);
 			inline_1_2(0,1);
 			inline_1_3(2,3,4);
@@ -867,7 +1553,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_1(xt2,ct2);
 		setup_1(lda1-1);
 			inline_1_2(0,1);
 			inline_1_2(2,3);
@@ -897,12 +1583,12 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		msum3 =_mm_set_pd(0,0);\
 		msum4 =_mm_set_pd(0,0)
 
-#define save_3() msum0 = _mm_hadd_pd(msum0,msum1);\
-		msum0 = _mm_add_pd(msum0,msum3);\
-		msum2 = _mm_hadd_pd(msum2,msum2);\
-		msum2 = _mm_add_pd(msum2,msum4);\
-		_mm_storeu_pd(y+t1, msum0);\
-		_mm_maskstore_pd(y+t1+2,xtemp,msum2)
+#define save_3() msum0 = _mm_hadd_pd(msum0,msum1);      \
+  msum0 = _mm_add_pd(msum0,msum3);                      \
+  msum2 = _mm_hadd_pd(msum2,msum2);                     \
+  msum2 = _mm_add_pd(msum2,msum4);                      \
+  _mm_storeu_pd(y+t1, msum0);                           \
+  _mm_maskstore_pd(y+t1+2,(__m128d)xtemp,msum2)
 
 PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
 {
@@ -924,6 +1610,10 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
+		ct3 = ctl[3];
+		ct4 = ctl[4];
+		ct5 = ctl[5];
+		ct6 = ctl[6];
 	
 		for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
 	{
@@ -944,7 +1634,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_3(xt4,ct4);
 		setup_3(1);
 			inline_3(2);
 			inline_3(3);
@@ -960,7 +1650,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_3(xt3,ct3);
 		setup_3(lda3);
 			inline_3(1);
 			inline_3(2);
@@ -977,7 +1667,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_3(xt2,ct2);
 		setup_3(lda2);
 			inline_3(0);
 			inline_3(1);
@@ -995,7 +1685,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_3(xt2,ct2);
 		setup_3(lda1-lda2);
 			inline_3(0);
 			inline_3(1);
@@ -1012,7 +1702,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_3(xt2,ct2);
 		setup_3(lda1-lda3);
 			inline_3(0);
 			inline_3(1);
@@ -1028,7 +1718,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
-		{
+			inline_3(xt2,ct2);
 		setup_3(lda1-1);
 			inline_3(0);
 			inline_3(1);
@@ -1095,7 +1785,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		msum2 = _mm_hadd_pd(msum2,msum2);\
 		msum2 = _mm_add_pd(msum2,msum4);\
 		_mm_storeu_pd(y+t1+2, msum0);\
-		_mm_maskstore_pd(y+t1+4,xtemp,msum2)
+		_mm_maskstore_pd(y+t1+4,(__m128d)xtemp,msum2)
 
 PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
 {
@@ -1117,6 +1807,11 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
+		ct3 = ctl[3];
+		ct4 = ctl[4];
+		ct5 = ctl[5];
+		ct6 = ctl[6];
+	
 		
 		for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
 	{
@@ -1135,10 +1830,14 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_stage2_5(4);
 			inline_stage2_5(5);
 			inline_stage2_5(6);
+			inline_stage2_5(ct6);
 		save_stage2_5();
 		}
 	}
 		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
+			inline_stage1_5(xt6,ct6);
+			inline_stage2_5(ct5);
+			inline_stage2_5(ct6);
 		{
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
@@ -1157,8 +1856,14 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			inline_stage2_5(4);
 			inline_stage2_5(5);
 			inline_stage2_5(6);
+			inline_stage2_5(ct5);
+			inline_stage2_5(ct6);
 		save_stage2_5();
 		}
+			inline_stage1_5(xt4,ct4);
+			inline_stage1_5(xt5,ct5);
+			inline_stage2_5(ct4);
+			inline_stage2_5(ct5);
 		}
 
 		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
@@ -1212,9 +1917,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		save_stage2_5();
 		}
 		}
-
 		for(k1 = lda1-lda2, it =0; k1 < lda1-lda3; k1+=l3threshold, it++)
-		{
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
@@ -1237,9 +1940,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		save_stage2_5();
 		}
 		}
-
 		for(k1 = lda1-lda3, it =0; k1 < lda1-1; k1+=l3threshold, it++)
-		{
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
@@ -1260,9 +1961,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		save_stage2_5();
 		}
 		}
-
 		for(k1 = lda1-1, it =0; k1 < lda1; k1+=l3threshold, it++)
-		{
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
@@ -1281,9 +1980,6 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		save_stage2_5();
 		}
 		}
-	PetscFunctionReturn(0);
-}
-
 
 #define setup_Nodd()   for(i=0;i<dofby2;i++){\
                                  msum[i] = _mm_set_pd(0,0);\
@@ -1292,7 +1988,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 #define save_Nodd() for(i=0;i<dofby2-1;i++){\
                                 _mm_storeu_pd(y+k*dof+2*i,msum[i]);\
                          }\
-			_mm_maskstore_pd(y+(k+1)*dof-1,xtemp,msum[dofby2-1])
+  _mm_maskstore_pd(y+(k+1)*dof-1,(__m128d)xtemp,msum[dofby2-1])
 
 #define setup123_Nodd(xt) t1= k*dof+l2;\
                         mx0 = _mm_loadu_pd(xt+t1);\
@@ -1434,20 +2130,394 @@ PetscInt BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar 
 		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
+		ct3 = ctl[3];
+		ct4 = ctl[4];
+		ct5 = ctl[5];
+		ct6 = ctl[6];
 		
 		for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
 		for(k = k1; k < endval; k++)
+				{
+					inline_stage1_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct3);
+				}
+			}
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct6);
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct6);
+				}
 		{
 		setup_Nodd();
 			inline_Nodd(3,4,0);
 			inline_Nodd(4,5,0);
 			inline_Nodd(5,6,0);
 			inline_Nodd(6,7,0);
+				{
+					inline_stage1_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct2);
+				}
+			}
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct6);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct6);
 		save_Nodd();
 		}
+				{
+					inline_stage1_Nodd(ct1);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct1);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct1);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt1);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct1);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct1);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct1);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt1);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct1);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct1);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct1);
+				}
+			}
 	}
 		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
 		{
@@ -1455,14 +2525,722 @@ PetscInt BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar 
 		endval = min(lda3,k1+l3threshold);
 		for(k = k1; k < endval; k++)
 		{
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct4);
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct6);
+				}
 		setup_Nodd();
 			inline_Nodd(2,3,1);
 			inline_Nodd(3,4,1);
 			inline_Nodd(4,5,1);
 			inline_Nodd(5,6,1);
 			inline_Nodd(6,7,1);
+					inline_stage1_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct0);
+				}
+			}
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct5);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct6);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct6);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt6);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct6);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct6);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct6);
 		save_Nodd();
 		}
+				{
+					inline_stage1_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct0);
+				}
+			}
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct4);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct5);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct5);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt5);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct5);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct5);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct5);
 		}
 
 		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
@@ -1470,6 +3248,50 @@ PetscInt BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar 
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
 		for(k = k1; k < endval; k++)
+				{
+					inline_stage1_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct0);
+				}
+			}
 		{
 		setup_Nodd();
 			inline_Nodd(1,2,lda3);
@@ -1496,8 +3318,188 @@ PetscInt BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar 
 			inline_Nodd(4,5,lda2);
 			inline_Nodd(5,6,lda2);
 			inline_Nodd(6,7,lda2);
+					inline_stage1_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct3);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct4);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct4);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt4);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct4);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct4);
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct4);
 		save_Nodd();
 		}
+				{
+					inline_stage1_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct0);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt0);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct0);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct0);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct0);
+				}
+			}
 		}
 
 		for(k1 = lda1-lda2, it =0; k1 < lda1-lda3; k1+=l3threshold, it++)
@@ -1544,6 +3546,97 @@ PetscInt BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar 
 			inline_Nodd(1,2, lda1-1);
 			inline_Nodd(2,3, lda1-1);
 			inline_Nodd(3,4, lda1-1);
+				setup123_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct2);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct2);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt2);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct2);
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct2);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct2);
+				}
+			}
+			for(l2 = 0; l2 < dof-3; l2 += 4)
+			{
+				setup123_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage1_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage2_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage3_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof-1; l2 += 2)
+			{
+				setup456_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage4_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage5_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage6_Nodd(ct3);
+				}
+			}
+			for(; l2 < dof; l2 ++)
+			{
+				setup789_Nodd(xt3);
+				for(l1=0; l1<dofby2-2; l1+= 2)
+				{
+					inline_stage7_Nodd(ct3);
+				}
+				for(;l1<dofby2-1;l1++)
+				{
+					inline_stage8_Nodd(ct3);
+				}
+				for(;l1<dofby2;l1++)
+				{
+					inline_stage9_Nodd(ct3);
 		save_Nodd();
 		}
 		}

@@ -2,7 +2,14 @@
 #if !defined(__AIJ_H)
 #define __AIJ_H
 
+#include <petscconf.h>
+#include <cuda.h>
+#include <cusparse.h>
 #include <private/matimpl.h>
+EXTERN_C_BEGIN
+#include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
+EXTERN_C_END
+
 
 /*  
     Struct header shared by SeqAIJ, SeqBAIJ and SeqSBAIJ matrix formats
@@ -69,19 +76,33 @@ extern PetscErrorCode MatDuplicateNoCreate_SeqAIJ(Mat,Mat,MatDuplicateOption,Pet
 extern PetscErrorCode MatLUFactorNumeric_SeqAIJ_Inode_inplace(Mat,Mat,const MatFactorInfo*);
 extern PetscErrorCode MatLUFactorNumeric_SeqAIJ_Inode(Mat,Mat,const MatFactorInfo*);
 
+
+typedef struct{
+  cusparseHandle_t   handle;
+  cusparseMatDescr_t descrip;
+  PetscInt           *dev_csrRowOffsets;
+  PetscInt           *dev_csrIndices;
+  PetscScalar        *dev_dataA;
+}CudaSparseVars;
+
+
+
 typedef struct {
   SEQAIJHEADER(MatScalar);
   Mat_SeqAIJ_Inode inode;
   MatScalar        *saved_values;             /* location for stashing nonzero values of matrix */
-
   PetscScalar      *idiag,*mdiag,*ssor_work;  /* inverse of diagonal entries, diagonal values and workspace for Eisenstat trick */
-  PetscBool        idiagvalid;                     /* current idiag[] and mdiag[] are valid */
+  PetscBool        idiagvalid;                /* current idiag[] and mdiag[] are valid */
   PetscScalar      *ibdiag;                   /* inverses of block diagonals */
   PetscBool        ibdiagvalid;               /* inverses of block diagonals are valid. */
-  PetscScalar      fshift,omega;                   /* last used omega and fshift */
-
+  PetscScalar      fshift,omega;              /* last used omega and fshift */
   ISColoring       coloring;                  /* set with MatADSetColoring() used by MatADSetValues() */
+  CudaSparseVars   cudav;                     /* Essential CUDASparse variables */
 } Mat_SeqAIJ;
+
+
+
+
 
 /*
   Frees the a, i, and j arrays from the XAIJ (AIJ, BAIJ, and SBAIJ) matrix types
@@ -142,6 +163,11 @@ PETSC_STATIC_INLINE PetscErrorCode MatSeqXAIJFreeAIJ(Mat AA,MatScalar **a,PetscI
 EXTERN_C_BEGIN
 extern PetscErrorCode MatSeqAIJSetPreallocation_SeqAIJ(Mat,PetscInt,const PetscInt*);
 EXTERN_C_END
+
+EXTERN_C_BEGIN
+extern PetscErrorCode MatMult_SeqAIJ(Mat A,Vec,Vec);
+EXTERN_C_END
+
 extern PetscErrorCode MatILUFactorSymbolic_SeqAIJ_inplace(Mat,Mat,IS,IS,const MatFactorInfo*);
 extern PetscErrorCode MatILUFactorSymbolic_SeqAIJ(Mat,Mat,IS,IS,const MatFactorInfo*);
 extern PetscErrorCode MatILUFactorSymbolic_SeqAIJ_ilu0(Mat,Mat,IS,IS,const MatFactorInfo*);
@@ -157,7 +183,7 @@ extern PetscErrorCode MatCopy_SeqAIJ(Mat,Mat,MatStructure);
 extern PetscErrorCode MatMissingDiagonal_SeqAIJ(Mat,PetscBool *,PetscInt*);
 extern PetscErrorCode MatMarkDiagonal_SeqAIJ(Mat);
 
-extern PetscErrorCode MatMult_SeqAIJ(Mat A,Vec,Vec);
+
 extern PetscErrorCode MatMultAdd_SeqAIJ(Mat A,Vec,Vec,Vec);
 extern PetscErrorCode MatMultTranspose_SeqAIJ(Mat A,Vec,Vec);
 extern PetscErrorCode MatMultTransposeAdd_SeqAIJ(Mat A,Vec,Vec,Vec);

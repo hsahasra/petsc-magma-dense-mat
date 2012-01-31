@@ -381,7 +381,8 @@ extern PetscErrorCode   PetscSetFPTrap(PetscFPTrap);
 /*
       Allows the code to build a stack frame as it runs
 */
-#if defined(PETSC_USE_DEBUG) && !defined(PETSC_USE_PTHREAD)
+/*#if !defined(PETSC_USE_DEBUG) && !defined(PETSC_USE_PTHREAD)*/
+
 
 #define PETSCSTACKSIZE 64
 
@@ -441,6 +442,24 @@ M*/
       (*PetscErrorPrintf)("%s%s:%d: __FUNCT__=\"%s\" does not agree with %s=\"%s\"\n",__SDIR__,__FILE__,__LINE__,__FUNCT__,PetscStringize(PETSC_FUNCTION_NAME),PETSC_FUNCTION_NAME); \
     }                                                                   \
   } while (0)
+
+
+
+#define PetscStackCheckByName(i,str,flg)                               \
+  do{                                                                  \
+     if(petscstack &&                                                  \
+        (petscstack->currentsize < PETSCSTACKSIZE) &&                  \
+        (petscstack->currentsize >= i)){                               \
+       flg=0;                                                          \
+       int ss = petscstack->currentsize;                               \
+       if(strcmp(petscstack->function[ss-i],str) == 0){                \
+         flg = 1;                            \
+       }                                     \
+     }                                       \
+  }while(0)
+
+
+
 
 #define PetscStackPush(n) \
   do {if (petscstack && (petscstack->currentsize < PETSCSTACKSIZE)) {    \
@@ -506,7 +525,7 @@ M*/
     petscstack->line[petscstack->currentsize]      = 0; \
   }\
   return;} while (0)
-
+/*
 #else
 
 #define PetscFunctionBegin 
@@ -517,7 +536,7 @@ M*/
 #define PetscStackActive        0
 
 #endif
-
+ */
 /*
     PetscStackCall - Calls an external library routine or user function after pushing the name of the routine on the stack.
 

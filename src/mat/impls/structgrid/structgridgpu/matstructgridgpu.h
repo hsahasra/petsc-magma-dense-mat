@@ -8,9 +8,6 @@
 #include "private/matimpl.h"
 
 
-
-
-
 EXTERN_C_BEGIN
 extern PetscErrorCode MatMult_SeqSGGPU(Mat, Vec, Vec);
 extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
@@ -20,7 +17,7 @@ extern PetscErrorCode MatDestroy_SeqSGGPU(Mat);
 EXTERN_C_END
 extern PetscErrorCode SGCUDA_MatMult( PetscScalar* coeff, PetscScalar* x, PetscScalar* y, 
 PetscInt* idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,
-PetscInt p, PetscInt nos, PetscCUSPFlag* fp);
+PetscInt p, PetscInt nos, PetscCUSPFlag* fp,PetscInt DOF);
 
 
 extern PetscErrorCode SGCUDA_MatMult_v2(PetscScalar* A, PetscScalar* B, 

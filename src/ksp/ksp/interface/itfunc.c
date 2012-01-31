@@ -5,6 +5,30 @@
 
 #include <private/kspimpl.h>   /*I "petscksp.h" I*/
 
+/* timer */
+#define KSPTIME   1
+
+#if(KSPTIME)
+   #include <sys/time.h>
+   #include <math.h>
+   #undef __FUNCT__
+   #define __FUNCT__ "ksp_timer"
+   double ksp_timer(){
+     struct timezone tzp;
+     struct timeval tp;
+     gettimeofday (&tp, &tzp);
+     return (tp.tv_sec + tp.tv_usec*1.0e-6);
+   }
+#endif
+
+
+
+
+
+
+
+
+
 #undef __FUNCT__  
 #define __FUNCT__ "KSPComputeExtremeSingularValues"
 /*@
@@ -326,9 +350,20 @@ PetscErrorCode  KSPSolve(KSP ksp,Vec b,Vec x)
   char           view[10];
   char           filename[PETSC_MAX_PATH_LEN];
   PetscViewer    viewer;
-  
+  #if(KSPTIME)
+     static PetscBool first=1;
+     static double cumilative_time = 0.;
+     static int cumilative_calls = 0;
+     double elapsed=0.;
+     double start=0.;
+  #endif
 
   PetscFunctionBegin;
+  #if(KSPTIME)
+       if(!first){
+         start = ksp_timer();
+       }
+  #endif
   PetscValidHeaderSpecific(ksp,KSP_CLASSID,1);
   if (b) PetscValidHeaderSpecific(b,VEC_CLASSID,2);
   if (x) PetscValidHeaderSpecific(x,VEC_CLASSID,3);
@@ -617,6 +652,21 @@ PetscErrorCode  KSPSolve(KSP ksp,Vec b,Vec x)
     ierr = VecDestroy(&x);CHKERRQ(ierr);
   }
   if (ksp->errorifnotconverged && ksp->reason < 0) SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_NOT_CONVERGED,"KSPSolve has not converged");
+
+
+
+    #if(KSPTIME)
+       if(!first){
+         elapsed = ksp_timer() - start;
+         cumilative_time+=elapsed;
+         cumilative_calls++;
+         printf("KSP :: Calls: %d, CumilativeTime: %e, Elapsed: %e, RunAverage: %e\n",cumilative_calls,cumilative_time,elapsed,cumilative_time/cumilative_calls);
+       }else{
+         printf("KSP first call.\n");
+         first = PETSC_FALSE;
+       }
+    #endif
+
   PetscFunctionReturn(0);
 }
 

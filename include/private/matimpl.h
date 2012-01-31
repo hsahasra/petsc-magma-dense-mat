@@ -300,7 +300,7 @@ struct _p_Mat {
   PetscBool              symmetric_set,hermitian_set,structurally_symmetric_set,spd_set; /* if true, then corresponding flag is correct*/
   PetscBool              symmetric_eternal;
   PetscBool              nooffprocentries,nooffproczerorows;
-#if defined(PETSC_HAVE_CUSP)
+#if defined(PETSC_HAVE_CUDA)
   PetscCUSPFlag          valid_GPU_matrix; /* flag pointing to the matrix on the gpu*/
 #endif
   void                   *spptr;          /* pointer for special library like SuperLU */
