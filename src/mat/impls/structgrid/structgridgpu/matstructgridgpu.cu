@@ -1116,8 +1116,9 @@ cudaBindTexture(0, tex_x_double, d_x, size_xy);
 	#endif
 	
 //Read y from the Device Memory
-/*
+
 cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost); 
+/*
  int i;
  char *fn = "/homes/dlowell/cudaexprs/dcheck/outfile_SG1.txt";
   FILE *fptr;
