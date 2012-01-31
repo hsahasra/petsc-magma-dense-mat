@@ -897,12 +897,12 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		msum3 =_mm_set_pd(0,0);\
 		msum4 =_mm_set_pd(0,0)
 
-#define save_3() msum0 = _mm_hadd_pd(msum0,msum1);\
-		msum0 = _mm_add_pd(msum0,msum3);\
-		msum2 = _mm_hadd_pd(msum2,msum2);\
-		msum2 = _mm_add_pd(msum2,msum4);\
-		_mm_storeu_pd(y+t1, msum0);\
-		_mm_maskstore_pd(y+t1+2,xtemp,msum2)
+#define save_3() msum0 = _mm_hadd_pd(msum0,msum1);      \
+  msum0 = _mm_add_pd(msum0,msum3);                      \
+  msum2 = _mm_hadd_pd(msum2,msum2);                     \
+  msum2 = _mm_add_pd(msum2,msum4);                      \
+  _mm_storeu_pd(y+t1, msum0);                           \
+  _mm_maskstore_pd(y+t1+2,(__m128d)xtemp,msum2)
 
 PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
 {
@@ -1095,7 +1095,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		msum2 = _mm_hadd_pd(msum2,msum2);\
 		msum2 = _mm_add_pd(msum2,msum4);\
 		_mm_storeu_pd(y+t1+2, msum0);\
-		_mm_maskstore_pd(y+t1+4,xtemp,msum2)
+		_mm_maskstore_pd(y+t1+4,(__m128d)xtemp,msum2)
 
 PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
 {
@@ -1292,7 +1292,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 #define save_Nodd() for(i=0;i<dofby2-1;i++){\
                                 _mm_storeu_pd(y+k*dof+2*i,msum[i]);\
                          }\
-			_mm_maskstore_pd(y+(k+1)*dof-1,xtemp,msum[dofby2-1])
+  _mm_maskstore_pd(y+(k+1)*dof-1,(__m128d)xtemp,msum[dofby2-1])
 
 #define setup123_Nodd(xt) t1= k*dof+l2;\
                         mx0 = _mm_loadu_pd(xt+t1);\

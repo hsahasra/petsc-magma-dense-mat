@@ -1,5 +1,5 @@
 
-CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include
+CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -g -ggdb
 FFLAGS	        = 
 CPPFLAGS        = 
 FPPFLAGS        =
