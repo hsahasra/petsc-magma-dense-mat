@@ -6,6 +6,7 @@
      Author: Chekuri S. Choudary, RNET
 */
 
+
 #define PETSCMAT_DLL
 #include "../src/mat/impls/structgrid/structgridgpu/matstructgridgpu.h"
 
@@ -22,7 +23,6 @@
 #include "matstructgridgpu.h"
 
 #define _DBGFLAG 0
-
 
 //block size is 1x256. 
 #define BLOCKWIDTH_X 256		
@@ -70,7 +70,6 @@ struct Stencilparams{
 };//836 bytes
 
 __constant__ Stencilparams devparams;//device memory
-
 
 
 static double* devA;
