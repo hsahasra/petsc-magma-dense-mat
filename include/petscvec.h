@@ -467,9 +467,6 @@ PETSC_EXTERN PetscErrorCode VecsCreateSeq(MPI_Comm,PetscInt,PetscInt,Vecs*);
 PETSC_EXTERN PetscErrorCode VecsCreateSeqWithArray(MPI_Comm,PetscInt,PetscInt,PetscScalar*,Vecs*);
 PETSC_EXTERN PetscErrorCode VecsDuplicate(Vecs,Vecs*);
 
-#if defined(PETSC_HAVE_CUDA)
-typedef enum {PETSC_CUSP_UNALLOCATED,PETSC_CUSP_GPU,PETSC_CUSP_CPU,PETSC_CUSP_BOTH} PetscCUSPFlag;
-#endif
 
 
 #if defined(PETSC_HAVE_CUSP)
