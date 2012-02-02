@@ -353,11 +353,15 @@ __global__ void kernCompare(double* devX, double* devY, int* lx, int* ly, int* d
     chunkY[threadIdx.x]=devY[index];
     value = fabs(chunkX[threadIdx.x]-chunkY[threadIdx.x]);
     if(value>1e-16){
+      #if(DEBUGVEC && VERBOSE)
       printf("In kernCompare found an element mismatch: %e\n",value);
+      #endif
       blockflag=1;
     }
     if(*lx!=*ly){
+      #if(DEBUGVEC && VERBOSE)
       printf("In kernCompare found length mismatch: lx: %d vs ly: %d\n",*lx,*ly);
+      #endif
       blockflag=1;
     }
   }
@@ -442,7 +446,9 @@ PetscErrorCode VecCheck_SeqGPU(Vec x){
 __global__ void kernCheck(double* x, int* n){
   int tid = threadIdx.x + blockDim.x*blockIdx.x;
   if(tid<*n){
+    #if(DEBUGVEC && VERBOSE)
     printf("kernCheck: x[%d]: %e, length: %d\n",tid,x[tid],*n);
+    #endif
   }
 }
 
