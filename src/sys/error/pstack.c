@@ -3,6 +3,7 @@
 
 #if defined(PETSC_USE_DEBUG)
 
+
 #if defined(PETSC_HAVE_PTHREADCLASSES)
 #if defined(PETSC_PTHREAD_LOCAL)
 PETSC_PTHREAD_LOCAL PetscStack *petscstack = 0;
