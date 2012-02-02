@@ -4,7 +4,6 @@
 EXTERN_C_BEGIN
 extern PetscErrorCode  PCCreate_Jacobi(PC);
 extern PetscErrorCode  PCCreate_BJacobi(PC);
-extern PetscErrorCode  PCCreate_BJGPU(PC);
 extern PetscErrorCode  PCCreate_PBJacobi(PC);
 extern PetscErrorCode  PCCreate_ILU(PC);
 extern PetscErrorCode  PCCreate_None(PC);
@@ -94,7 +93,6 @@ PetscErrorCode  PCRegisterAll(const char path[])
   ierr = PCRegisterDynamic(PCJACOBI       ,path,"PCCreate_Jacobi",PCCreate_Jacobi);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCPBJACOBI     ,path,"PCCreate_PBJacobi",PCCreate_PBJacobi);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCBJACOBI      ,path,"PCCreate_BJacobi",PCCreate_BJacobi);CHKERRQ(ierr);
-  ierr = PCRegisterDynamic(PCBJGPU        ,path,"PCCreate_BJGPU",PCCreate_BJGPU);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCSOR          ,path,"PCCreate_SOR",PCCreate_SOR);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCLU           ,path,"PCCreate_LU",PCCreate_LU);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCSHELL        ,path,"PCCreate_Shell",PCCreate_Shell);CHKERRQ(ierr);
