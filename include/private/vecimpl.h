@@ -241,11 +241,6 @@ typedef struct {
   PetscInt      *bowners;
 } VecStash;
 
-#if defined(PETSC_HAVE_CUSP)
-/* Defines the flag structure that the CUSP arch uses. */
-typedef enum {PETSC_CUSP_UNALLOCATED,PETSC_CUSP_GPU,PETSC_CUSP_CPU,PETSC_CUSP_BOTH} PetscCUSPFlag;
-#endif
-
 struct _p_Vec {
   PETSCHEADER(struct _VecOps);
   PetscLayout            map;
