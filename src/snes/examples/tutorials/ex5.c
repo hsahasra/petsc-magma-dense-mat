@@ -120,7 +120,7 @@ int main(int argc,char **argv)
      vectors that are the same types
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&x);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
+//  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set local function evaluation routine
@@ -229,7 +229,7 @@ PetscErrorCode FormInitialGuess(DM da,AppCtx *user,Vec X)
         x[j][i] = 0.0;
       } else {
         x[j][i] = temp1*sqrt(PetscMin((PetscReal)(PetscMin(i,Mx-i-1))*hx,temp));
-        printf("Initial guess x[%d][%d]: %e\n",j,i,x[j][i]);
+        //printf("Initial guess x[%d][%d]: %e\n",j,i,x[j][i]);
       }
     }
   }
@@ -284,7 +284,7 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,PetscScalar
         uxx     = (2.0*u - uw - ue)*hydhx;
         uyy     = (2.0*u - un - us)*hxdhy;
         f[j][i] = uxx + uyy - sc*PetscExpScalar(u);
-        printf("formfunction[%d][%d]: %e, address: %X\n",j,i,f[j][i],&f[j][i]);
+        //printf("formfunction[%d][%d]: %e, address: %X\n",j,i,f[j][i],&f[j][i]);
       }
     }
   }
