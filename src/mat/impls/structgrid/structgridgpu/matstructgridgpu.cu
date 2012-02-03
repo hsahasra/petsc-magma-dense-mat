@@ -25,7 +25,7 @@
 #define _DBGFLAG 0
 
 //block size is 1x256. 
-#define BLOCKWIDTH_X 4		
+#define BLOCKWIDTH_X 8		
 #define BLOCKWIDTH_Y 1   
 //block size is 1x256. 
 #define BLOCKWIDTH_X 256		
@@ -353,6 +353,7 @@ extern __shared__ PetscScalar idx_sm[];
 //	but they are coalesced.  	   
 //------------------------------------------------------------------------------------ 
  
+#define stpoints 7 //Not a best way of doing this, I have to change this.
 
 __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos,PetscInt DOF)
 	{
@@ -374,6 +375,7 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 			{
 			cuPrintf("idx_sm =%f idx=%d\n",idx_sm[threadIdx.x],idx[threadIdx.x]);
 			} */
+		
 		int reg2=blockIdx.y*lda2+tx;
 		
 		//Iterating through the Diagonals
@@ -483,7 +485,6 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
 PetscInt* idz, PetscInt m, PetscInt n,PetscInt p, PetscInt nos, PetscCUSPFlag* fp,PetscInt DOF)
 {
-
 double tbegin1, tbegin2, tend1, tend2;
 static PetscInt size_coeff; 
 double tsetup,tkernel;
@@ -497,16 +498,23 @@ int BLOCK_SIZE;
 int cons=m*DOF;
 int cons1=m*n*DOF;
 
-  idx[1]=DOF;
-  idx[2]=-DOF;
-  idx[3]=cons;
-  idx[4]=-cons;
-  if(nos==7)
-    {
-     idx[5]=cons1;
-     idx[6]=-cons1;       
-    }
-
+	{  
+	  idx[1]=DOF;
+	  idx[2]=cons;
+	  idx[3]=-DOF;
+	  idx[4]=-cons;
+	}
+if (nos==7)
+	{  
+	  idx[0]=0;
+	  idx[1]=DOF;
+	  idx[2]=cons;
+	  idx[3]=cons1;
+	  idx[4]=-DOF;
+	  idx[5]=-cons;
+	  idx[6]=-cons1;
+	}
+	
 //----Single offset instead of using three offsets int the x,y and z direction.  
 if (nos==5)
 	{  
@@ -526,6 +534,20 @@ if (nos==7)
 	  idx[5]=-cons;
 	  idx[6]=-cons1;
 	}
+for(int s=0;s<DOF*nos;s++)
+	{
+	printf("\n");	
+	for(int i=0;i<n;i++)
+		{
+		for(int j=0;j<m*DOF;j++) 
+			{
+			printf("%0.2f   ",coeff[s*cons1+i*cons+j]);
+			}
+		printf("\n");
+		}
+	
+	}
+//--------------------------------------------------------------------------------
 	
 //------------Printing Matrices for Debugging---------------------------------
 #ifdef PRINT
