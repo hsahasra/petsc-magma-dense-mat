@@ -279,7 +279,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   Vec            localX;
 
   PetscFunctionBeginUser;
-  ierr = DMSetVecType(user->da,VECSEQGPU);CHKERRQ(ierr); ///added by dlowell
+  //ierr = DMSetVecType(user->da,VECSEQGPU);CHKERRQ(ierr); ///added by dlowell
   ierr = DMGetLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = DMDAGetInfo(user->da,PETSC_IGNORE,&Mx,&My,&Mz,PETSC_IGNORE,PETSC_IGNORE,
                      PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);
