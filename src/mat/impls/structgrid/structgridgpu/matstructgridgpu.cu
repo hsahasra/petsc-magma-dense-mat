@@ -25,7 +25,7 @@
 #define _DBGFLAG 1
 
 //block size is 1x256. 
-#define BLOCKWIDTH_X 4		
+#define BLOCKWIDTH_X 8		
 #define BLOCKWIDTH_Y 1   
 
 // ----------------------------------------------------------
@@ -760,7 +760,8 @@ static __inline__ __device__ double fetch_double(texture<int2, 1> tex_x_double, 
 //	through the Shared Memory, Y is accessed per thread from registers. Coeff accesses are from the global Memory 
 //	but they are coalesced.  	   
 //------------------------------------------------------------------------------------ 
-#define stpoints 5 // I have to fix this 
+
+#define stpoints 7 //Not a best way of doing this, I have to change this.
 
 __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos,PetscInt DOF)
 	{
@@ -773,14 +774,20 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 		PetscInt Index;
 		PetscScalar y_reg=0;
 		
-		if (threadIdx.x < stpoints)
+		if (threadIdx.x < nos )
 			{
 			idx_sm[threadIdx.x]=idx[threadIdx.x];
 			}
+		//__syncthreads();
+		if (threadIdx.x < nos && blockIdx.x==0 && blockIdx.y==0 )
+		{
+		cuPrintf("idx_sm =%f idx=%d\n",idx_sm[threadIdx.x],idx[threadIdx.x]);
+		}
+		
 		int reg2=blockIdx.y*lda2+tx;
 		
 		//Iterating through the Diagonals
-		for (l=0;l<stpoints;l++)
+		for (l=0;l<nos;l++)
 			{
 			Index =reg2 + idx_sm[l];
 				
@@ -790,10 +797,10 @@ __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff, PetscScalar* pt
 				y_reg+= ptr_coeff[offset + reg2] * fetch_double(tex_x_double,Index);
 				
 			
-				  if (threadIdx.y==0){
-							cuPrintf("l= %d ptr_coeff= %f X= %f Index =%d y_sm=%f \n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),Index, y_reg);
+				  /* if (tx==0 && blockIdx.y==1){
+							cuPrintf("l= %d ptr_coeff= %f X= %f Ceff_IndeX=%d X_Index =%d y_sm=%f reg2=%d idx_sm=%f\n",l,ptr_coeff[offset + reg2],tex1Dfetch(tex_x_double,Index),(offset + reg2),Index, y_reg, reg2,idx_sm[l]);
 						}  
-					
+					 */
 				}
 			}
 							
@@ -814,7 +821,7 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 		double y_reg=0;
 		int BAND_SIZE=(DOF-1)*2+1;
 		
-		if (threadIdx.x < stpoints)
+		if (threadIdx.x < nos)
 			{
 			idx_sm[threadIdx.x]=idx[threadIdx.x];
 			}
@@ -823,7 +830,7 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
 		int reg2=blockIdx.y*lda2+tx;
 		
 		//Iterating through the Diagonals
-		for (l=0;l<stpoints;l++)
+		for (l=0;l<nos;l++)
 			{
 			X_Index =reg2 + idx_sm[l];
 				
@@ -870,7 +877,6 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x, double* ptr
  int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y, PetscInt *idx, PetscInt* idy, 
 PetscInt* idz, PetscInt m, PetscInt n,PetscInt p, PetscInt nos, PetscCUSPFlag* fp,PetscInt DOF)
 {
-
 double tbegin1, tbegin2, tend1, tend2;
 static PetscInt size_coeff; 
 double tsetup,tkernel;
@@ -884,19 +890,59 @@ int BLOCK_SIZE;
 int cons=m*DOF;
 int cons1=m*n*DOF;
 
- //Reducing to a Single offset instead of using three offsets int the x,y and z direction.  
-  
-  idx[0]=0;
-  idx[1]=DOF;
-  idx[2]=-DOF;
-  idx[3]=cons;
-  idx[4]=-cons;
-  if(nos==7)
-    {
-     idx[5]=cons1;
-     idx[6]=-cons1;       
-    }
+//----Single offset instead of using three offsets int the x,y and z direction.  
+if (nos==5)
+	{  
+	  idx[0]=0;
+	  idx[1]=DOF;
+	  idx[2]=cons;
+	  idx[3]=-DOF;
+	  idx[4]=-cons;
+	}
+if (nos==7)
+	{  
+	  idx[0]=0;
+	  idx[1]=DOF;
+	  idx[2]=cons;
+	  idx[3]=cons1;
+	  idx[4]=-DOF;
+	  idx[5]=-cons;
+	  idx[6]=-cons1;
+	}
+	
+//------------Printing Matrices for Debugging---------------------------------
+printf("offset vector\n");
+for (int i=0;i<nos;i++)
+	{
+	printf("%d  ", idx[i]);
+	}
+printf("\n");
 
+printf("Matrix X\n");
+for(int i=0;i<n;i++)
+	{
+	for(int j=0;j<m*DOF;j++) 
+		{
+		printf("%0.2f   ",x[i*cons+j]);
+		}
+	//printf("\n");
+	}
+printf("\n");
+printf("Matrix A\n");
+for(int s=0;s<DOF*nos;s++)
+	{
+	printf("\n");	
+	for(int i=0;i<n;i++)
+		{
+		for(int j=0;j<m*DOF;j++) 
+			{
+			printf("%0.2f   ",coeff[s*cons1+i*cons+j]);
+			}
+		printf("\n");
+		}
+	
+	}
+//--------------------------------------------------------------------------------
 	
       if(_DBGFLAG) tbegin1=getclock();
 	  
