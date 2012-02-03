@@ -117,7 +117,7 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,DMDA_STENCIL_STAR,-4,-4,PETSC_DECIDE,PETSC_DECIDE,10,1,PETSC_NULL,PETSC_NULL,&da);CHKERRQ(ierr);
+  ierr = DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,DMDA_STENCIL_STAR,-4,-4,PETSC_DECIDE,PETSC_DECIDE,1,1,PETSC_NULL,PETSC_NULL,&da);CHKERRQ(ierr);
   ierr = DMDASetUniformCoordinates(da, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(da,&user);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,da);CHKERRQ(ierr);
@@ -129,7 +129,7 @@ int main(int argc,char **argv)
      vectors that are the same types
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&x);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
+//  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set local function evaluation routine
@@ -238,7 +238,7 @@ PetscErrorCode FormInitialGuess(DM da,AppCtx *user,Vec X)
         x[j][i] = 0.0; 
       } else {
         x[j][i] = temp1*sqrt(PetscMin((PetscReal)(PetscMin(i,Mx-i-1))*hx,temp)); 
-        printf("Initial guess x[%d][%d]: %e\n",j,i,x[j][i]);
+        //printf("Initial guess x[%d][%d]: %e\n",j,i,x[j][i]);
       }
     }
   }
@@ -285,7 +285,7 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,PetscScalar
         uxx     = (2.0*u - x[j][i-1] - x[j][i+1])*hydhx;
         uyy     = (2.0*u - x[j-1][i] - x[j+1][i])*hxdhy;
         f[j][i] = uxx + uyy - sc*PetscExpScalar(u);
-        printf("formfunction[%d][%d]: %e, address: %X\n",j,i,f[j][i],&f[j][i]);
+        //printf("formfunction[%d][%d]: %e, address: %X\n",j,i,f[j][i],&f[j][i]);
       }
     }
   }
