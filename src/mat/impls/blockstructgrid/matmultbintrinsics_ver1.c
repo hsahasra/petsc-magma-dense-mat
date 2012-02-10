@@ -50,7 +50,7 @@ int OPENMPB = 0;
 			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));\
 			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1))
 
-#define setup_2(offset) t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_2(offset) t1= k*dof; t2 = (k-(k1))*bs;\
 		msum0 =_mm_set_pd(0,0);\
 		msum1 =_mm_set_pd(0,0)
 
@@ -208,7 +208,7 @@ PetscInt BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx0,mc6));\
 			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx1,mc7))
 
-#define setup_4(offset) t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_4(offset) t1= k*dof; t2 = (k-(k1))*bs;\
 		msum0 =_mm_set_pd(0,0);\
 		msum1 =_mm_set_pd(0,0);\
 		msum2 =_mm_set_pd(0,0);\
@@ -619,7 +619,7 @@ PetscInt BSG_MatMult_4_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
 			msum5 = _mm_add_pd(msum5, _mm_mul_pd(mx1,mc16));\
 			msum5 = _mm_add_pd(msum5, _mm_mul_pd(mx2,mc17))
 
-#define setup_6(offset)  t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_6(offset)  t1= k*dof; t2 = (k-(k1))*bs;\
 		msum0 =_mm_set_pd(0,0);\
 		msum1 =_mm_set_pd(0,0);\
 		msum2 =_mm_set_pd(0,0);\
@@ -790,7 +790,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 #define setup34_Neven(xt)	t1= k*dof+l2;\
 			mx0 = _mm_loadu_pd(xt+t1)
 
-#define inline_stage1_Neven(ct,offset)	t2 = (k-(offset))*bs+2*l1*dof+l2;\
+#define inline_stage1_Neven(ct,offset)	t2 = (k-(k1))*bs+2*l1*dof+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof);\
@@ -807,7 +807,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6))
 
 
-#define inline_stage3_Neven(ct, offset)	t2 = (k-(offset))*bs+2*l1*dof+l2;\
+#define inline_stage3_Neven(ct, offset)	t2 = (k-(k1))*bs+2*l1*dof+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof);\
                         mc4 = _mm_loadu_pd(ct+t2+2*dof);\
@@ -819,7 +819,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));\
 			msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6))
 
-#define inline_stage2_Neven(ct, offset)	t2 = (k-(offset))*bs+2*l1*dof+l2;\
+#define inline_stage2_Neven(ct, offset)	t2 = (k-(k1))*bs+2*l1*dof+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof);\
@@ -828,7 +828,7 @@ PetscInt BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
                         mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));\
 			msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2))
 
-#define inline_stage4_Neven(ct, offset)	t2 = (k-(offset))*bs+2*l1*dof+l2;\
+#define inline_stage4_Neven(ct, offset)	t2 = (k-(k1))*bs+2*l1*dof+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof);\
                         mc0 = _mm_mul_pd(mx0,mc0);\
@@ -1002,7 +1002,7 @@ PetscInt BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar
 #define inline_1_2(l1,l2) msum0 += xt##l1[t1] * ct##l1[t2] + xt##l2[t1] * ct##l2[t2]
 #define inline_1_3(l1,l2,l3) msum0 += xt##l1[t1] * ct##l1[t2] + xt##l2[t1] * ct##l2[t2] + xt##l3[t1] * ct##l3[t2] 
 
-#define setup_1(offset) t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_1(offset) t1= k*dof; t2 = (k-(k1))*bs;\
 		msum0 = 0.0
 
 #define save_1() y[t1] = msum0
@@ -1132,7 +1132,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx1,mc3));\
 			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx1,mc4))
 
-#define setup_3(offset) t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_3(offset) t1= k*dof; t2 = (k-(k1))*bs;\
 		msum0 =_mm_set_pd(0,0);\
 		msum1 =_mm_set_pd(0,0);\
 		msum2 =_mm_set_pd(0,0);\
@@ -1305,7 +1305,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
                         msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx1,mc3));\
                         msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx2,mc4))
 
-#define setup_stage1_5(offset) t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_stage1_5(offset) t1= k*dof; t2 = (k-(k1))*bs;\
                 msum0 =_mm_set_pd(0,0);\
                 msum1 =_mm_set_pd(0,0);\
                 msum2 =_mm_set_pd(0,0)
@@ -1332,7 +1332,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx2,mc6));\
 			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx2,mc7))
 
-#define setup_stage2_5(offset) t1= k*dof; t2 = (k-(offset))*bs;\
+#define setup_stage2_5(offset) t1= k*dof; t2 = (k-(k1))*bs;\
 		msum0 =_mm_set_pd(0,0);\
 		msum1 =_mm_set_pd(0,0);\
 		msum2 =_mm_set_pd(0,0);\
@@ -1560,7 +1560,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 #define setup789_Nodd(xt) t1= k*dof+l2;\
                         mx0 = _mm_load1_pd(xt+t1)
 
-#define inline_stage1_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
+#define inline_stage1_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof-1);\
@@ -1577,7 +1577,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
                         msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6))
 
 
-#define inline_stage4_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
+#define inline_stage4_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof-1);\
                         mc4 = _mm_loadu_pd(ct+t2+2*dof-2);\
@@ -1589,13 +1589,13 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
                         msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));\
                         msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6))
 
-#define inline_stage7_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
+#define inline_stage7_Nodd(ct, offset) t2 = (k-(k1))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
                         msum[l1] = _mm_add_pd(msum[l1], mc0);\
                         msum[l1+1] = _mm_add_pd(msum[l1+1], mc1)
 
-#define inline_stage2_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
+#define inline_stage2_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof-1);\
@@ -1604,29 +1604,29 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
                         mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));\
                         msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2))
 
-#define inline_stage5_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
+#define inline_stage5_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc2 = _mm_loadu_pd(ct+t2+dof-1);\
                         mc0 = _mm_mul_pd(mx0,mc0);\
                         mc2 = _mm_mul_pd(mx0,mc2);\
                         msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2))
 
-#define inline_stage8_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
+#define inline_stage8_Nodd(ct, offset) t2 = (k-(k1))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         msum[l1] = _mm_add_pd(msum[l1], mc0)
 
-#define inline_stage3_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
+#define inline_stage3_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
                         mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));\
                         msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc0))
 
-#define inline_stage6_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
+#define inline_stage6_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc0 = _mm_mul_pd(mx0,mc0);\
                         msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc0))
 
-#define inline_stage9_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
+#define inline_stage9_Nodd(ct, offset) t2 = (k-(k1))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         msum[l1] = _mm_add_pd(msum[l1], mc0);\
 
