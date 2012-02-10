@@ -33,9 +33,9 @@ double rtclock() {
 }
 
 //#define CSR
-//#define SG
-//#define OMP
-#define GPU
+#define SG
+#define OMP
+//#define GPU
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -283,7 +283,8 @@ for(e=0;e<NUM_EVENTS;e++)
   		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nSG - AVX + OPENMP :\n");
-	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*sg->stpoints*sg->nz)/((end-start)*1024*1024*1024)); 
+	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
+
 	}
   	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
 #endif

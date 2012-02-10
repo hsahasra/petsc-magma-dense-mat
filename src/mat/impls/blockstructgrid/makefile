@@ -1,12 +1,12 @@
 
 ALL: lib
 
-CFLAGS   = -mavx -save-temps
+CFLAGS   = -mavx -fopenmp
 FFLAGS   =
-SOURCEC  = matblockstructgrid.c matmultbintrinsics.c
+SOURCEC  = matblockstructgrid.c matmultbintrinsics_ver1.c matmultbintrinsics.c
 SOURCEF  = 
 SOURCEH  = matblockstructgrid.h
-OBJSC    = matblockstructgrid.o matmultbintrinsics.o
+OBJSC    = matblockstructgrid.o matmultbintrinsics_ver1.o matmultbintrinsics.o
 OBJSF    = 
 LIBBASE  = libpetscmat
 DIRS     = 

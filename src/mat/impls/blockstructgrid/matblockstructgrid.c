@@ -378,7 +378,31 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 		mat->multfunc = &BSG_MatMult_5;
 	else if (mat->dof == 6)
 		mat->multfunc = &BSG_MatMult_6;
-	else if (mat->dof%2 == 0)
+/*	else if (mat->dof == 8)
+		mat->multfunc = &BSG_MatMult_8;
+	else if (mat->dof == 10)
+		mat->multfunc = &BSG_MatMult_10;
+	else if (mat->dof == 12)
+		mat->multfunc = &BSG_MatMult_12;
+	else if (mat->dof == 14)
+		mat->multfunc = &BSG_MatMult_14;
+	else if (mat->dof == 16)
+		mat->multfunc = &BSG_MatMult_16;
+	else if (mat->dof == 18)
+		mat->multfunc = &BSG_MatMult_18;
+	else if (mat->dof == 20)
+		mat->multfunc = &BSG_MatMult_20;
+	else if (mat->dof == 22)
+		mat->multfunc = &BSG_MatMult_22;
+	else if (mat->dof == 24)
+		mat->multfunc = &BSG_MatMult_24;
+	else if (mat->dof == 26)
+		mat->multfunc = &BSG_MatMult_26;
+	else if (mat->dof == 28)
+		mat->multfunc = &BSG_MatMult_28;
+	else if (mat->dof == 30)
+		mat->multfunc = &BSG_MatMult_30;
+*/	else if (mat->dof%2 == 0)
 		mat->multfunc = &BSG_MatMult_Neven;
 	else
 		mat->multfunc = &BSG_MatMult_Nodd;

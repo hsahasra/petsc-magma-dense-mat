@@ -25,6 +25,13 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
+#define OMP
+
+#ifdef OMP
+#include<omp.h>
+extern int OPENMPB; 
+#endif
+
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **args)
@@ -189,7 +196,7 @@ int main(int argc,char **args)
 	if(info){
   	printf("\nInputs:\n");
   	ierr = MatView(mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   	ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -238,16 +245,46 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("\nBlock SG -AVX:\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
 
+#ifdef OMP
+	Vec ysgomp;
+	ierr = VecDuplicate(x,&ysgomp);CHKERRQ(ierr);
+	//SG (AVX+OPENMP)
+	OPENMPB=1;
+	for(k=4;k<5;k++){
+	omp_set_num_threads(k);
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("Sg start error\n");
+#endif
+	start = rtclock();	
+	for(i=0;i<REP;i++)
+  		ierr = MatMult(matbsg,x,ysgomp);CHKERRQ(ierr);
+	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("sg stop error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);
+#endif
+	
+	printf("\nSG - AVX + OPENMP :\n");
+	printf("Threads= %d, Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
+	
+	}
+#endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	if(info){
 	printf("\nOutput:\n");
 	printf("Y - CSR:\n");
-  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 	printf("Y - Block Structgrid AVX:\n");
-  	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//  	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	
+	printf("Y - Block Structgrid AVX + OMP:\n");
+  	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
 
 
@@ -268,6 +305,13 @@ for(e=0;e<NUM_EVENTS;e++)
 		else 
 			printf("BSG AVX Test Passed\n");
   	
+		ierr = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
+	 	ierr = VecNorm(ysgomp,NORM_2,&normbsg);CHKERRQ(ierr);
+		printf("BSG(AVX) + OMP Norm        = %.6f\n",normbsg);
+		if(normbsg > normdiff)
+			printf("BSG AVX + OMP Test Failed\n");
+		else 
+			printf("BSG AVX + OMP  Test Passed\n");
 //		ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
   
@@ -277,6 +321,9 @@ for(e=0;e<NUM_EVENTS;e++)
   	ierr = VecDestroy(&x);CHKERRQ(ierr); 
 	ierr = VecDestroy(&y);CHKERRQ(ierr);
   	ierr = VecDestroy(&ybsg);CHKERRQ(ierr);
+#ifdef OMP
+  	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
+#endif
  	free(dims);
   	free(starts);
 	free(cols);
