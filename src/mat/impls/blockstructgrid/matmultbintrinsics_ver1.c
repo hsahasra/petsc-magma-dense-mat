@@ -4,7 +4,7 @@
 //#define SPREFETCH
 #define min(a,b) (a)<(b) ? (a) : (b)
 
-//#define _mm_maskstore_pd(a,b,c) _mm_storeu_pd(a,c)
+#define _mm_maskstore_pd(a,b,c) _mm_storeu_pd(a,c)
 
 #include <omp.h>
 int OPENMPB = 0;
@@ -1030,6 +1030,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(0);
@@ -1042,6 +1043,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		{
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(1);
@@ -1055,6 +1057,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		{
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(lda3);
@@ -1068,6 +1071,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		{
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(lda2);
@@ -1082,6 +1086,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		{
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(lda1-lda2);
@@ -1095,6 +1100,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		{
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(lda1-lda3);
@@ -1108,6 +1114,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		{
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
+#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2, msum0)
 		for(k = k1; k < endval; k++)
 		{
 		setup_1(lda1-1);

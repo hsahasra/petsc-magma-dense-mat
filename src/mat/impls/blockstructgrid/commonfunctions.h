@@ -1,7 +1,7 @@
 #ifndef __SEQBSGCOMMON
 #define __SEQBSGCOMMON
 
-#define WORKINGSETSIZE 100
+#define WORKINGSETSIZE 10000
 
 extern PetscInt BSG_MatMult_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
 extern PetscInt BSG_MatMult_2(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
