@@ -13,13 +13,13 @@ static char help[] = "Simple program to test the performance of matmult for vari
 
 #ifdef PAPI
 #include"papi.h"
-#define NUM_EVENTS 4
+#define NUM_EVENTS 1 
 #endif
 
 PetscReal normdiff = 1.0e-6;
 
-unsigned int seed = 1;
  double simple_rand() {
+         int seed;
          seed = (1103515245*seed+12345)%4294967296;
          return (1000.0*seed)/4294967296;
  }
@@ -35,11 +35,6 @@ double rtclock() {
 #define SG
 //#define OMP
 //#define GPU
-//
-
-#ifdef OMP
-extern int OPENMPB; 
-#endif
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -47,8 +42,7 @@ int main(int argc,char **args)
 {
 
 #ifdef PAPI
-unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS,PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
-//unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
+unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
 //unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCR,PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L2_ICM,PAPI_L3_DCR,PAPI_L3_TCM};
 long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
 int e;
@@ -78,16 +72,16 @@ int e;
 	int rep=1;
 	ierr = PetscOptionsGetInt(PETSC_NULL,"-REP",&rep,PETSC_NULL);CHKERRQ(ierr);
   	REP = (long)rep;
-	printf("Reps = %ld, m=%d,n=%d,p=%d, dim=%d, dof=%d\n",REP,m,n,p,dim, dof);
+	printf("Reps = %d, m=%d,n=%d,p=%d, dim=%d, dof=%d\n",REP,m,n,p,dim, dof);
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         Set dims[], nz and nos.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 	PetscScalar    *vals;
-	PetscInt       i, nz, *dims, *starts,  *cols;
+	PetscInt       i, nz, *dims, *starts, *rows, *cols;
  	dims = malloc(sizeof(PetscInt)*dim);
   	starts = malloc(sizeof(PetscInt)*dim);
-	nos = (dim*2+1)*(dof*2-1);
+	nos = (dim*2+1)*(2*dof-1);
 	dims[0]=m;dims[1]=n;dims[2]=p;
 	nz=m*n*p*dof;
 
@@ -98,8 +92,6 @@ int e;
   	ierr = VecSetFromOptions(x);CHKERRQ(ierr);
 	ierr = VecSetRandom(x,PETSC_NULL);
 
-	cols = malloc(sizeof(PetscInt)*dof);
-	vals = malloc(sizeof(PetscScalar)*dof);
 	
 	PetscInt j,k,l,st;
         PetscInt lda2 = m*n;
@@ -114,22 +106,19 @@ int e;
 	PetscInt *idz = malloc(sizeof(PetscInt)*nost);
 
 	PetscInt cnt=0;
+	if(dim>2)
+		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = -1;
+	if(dim>1)
+		idx[cnt] = 0; idy[cnt] = -1; idz[cnt++] = 0;
+	if(dim>0)
+		idx[cnt] = -1; idy[cnt] = 0; idz[cnt++] = 0;
 	idx[cnt] = 0; idy[cnt]=0; idz[cnt++]= 0;
 	if(dim>0)
-	{	
-		idx[cnt] = -1; idy[cnt] = 0; idz[cnt++] = 0;
 		idx[cnt] = 1; idy[cnt] = 0; idz[cnt++] = 0;
-	}
 	if(dim>1)
-	{
-		idx[cnt] = 0; idy[cnt] = -1; idz[cnt++] = 0;
 		idx[cnt] = 0; idy[cnt] = 1; idz[cnt++] = 0;
-	}
 	if(dim>2)
-	{
-		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = -1;
 		idx[cnt] = 0; idy[cnt] = 0; idz[cnt++] = 1;
-	}
 	for(st=0;st<nost;st++)
         {
                 xval[st] = idx[st] + idy[st]*lda3 + idz[st]*lda2;
@@ -150,12 +139,19 @@ int e;
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	ierr = MatCreate(PETSC_COMM_WORLD,&mat);CHKERRQ(ierr);
   	ierr = MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,nz,nz);CHKERRQ(ierr);
-  	MatSetType(mat,MATSEQAIJ);
-	MatSeqAIJSetPreallocation(mat,nos,PETSC_NULL);
+  	MatSetType(mat,MATSEQBAIJ);
+	MatSeqBAIJSetPreallocation(mat,dof,nost,PETSC_NULL);
+	//PetscInt mx,ny;
+	//MatGetLocalSize(mat,&mx,&ny);
+
+	//printf("\nsize:%d %d\n",mx,ny);
+	//fflush(stdout);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	//ierr = VecSet(x,one);CHKERRQ(ierr);//this can be modified such that x holds random values
+	vals = malloc(sizeof(PetscScalar)*dof);
+	cols = malloc(sizeof(PetscScalar)*dof);
 	for(i=0;i<m*n*p;i++)
 	{
 		for(st=0;st<nost;st++)
@@ -167,22 +163,25 @@ int e;
 				{
 					for(k=0;k<dof;k++)	
 					{
-						vals[k] = simple_rand();
-						cols[k] = j*dof+k; 
+						vals[0] = 1.0;//simple_rand();
+						//cols[k] = j*dof+k;
+						rowval = i*dof+l;
+						cols[0] = j*dof+k;//
+   						ierr = MatSetValues(mat,1,&rowval,1,&cols[0],vals,INSERT_VALUES);CHKERRQ(ierr);
 					}
-					rowval = i*dof+l;
-   					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+					//rowval = i*dof+l;
+   					//ierr = MatSetValues(mat,1,&rowval,dof,&cols[0],vals,INSERT_VALUES);CHKERRQ(ierr);
 				}
 			}
 		}
         }
 
-  
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      AssemblyBegin/End as values can still remain in Cache
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+//	ierr= MatView(mat,	PETSC_VIEWER_STDOUT_WORLD ); CHKERRQ(ierr);
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Compute solution vectors and Performance test.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -193,7 +192,7 @@ if (PAPI_start_counters((int *)Events, NUM_EVENTS) != PAPI_OK)
 #endif
 	start = rtclock();	
 	for(i=0;i<REP;i++)
- 		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
+  		ierr = MatMult(mat,x,y);CHKERRQ(ierr);
 	end = rtclock();
 #ifdef PAPI
 if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
@@ -206,6 +205,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	PetscInt nz1 = ((nost*m*n*p) - (2*(1+m+m*n))) *dof*dof;
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nz1)/((end-start)*1024*1024*1024)); 
 	fflush(stdout);	
+//  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Cleaning
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -250,7 +250,6 @@ for(e=0;e<NUM_EVENTS;e++)
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	//ierr = MatView(matsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 #ifdef PAPI
 if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
@@ -272,34 +271,6 @@ for(e=0;e<NUM_EVENTS;e++)
 	
 	ierr = VecDestroy(&ysg);CHKERRQ(ierr);
 
-#ifdef OMP
-	Vec ysgomp;
-	ierr = VecDuplicate(x,&ysgomp);CHKERRQ(ierr);
-	//SG (AVX+OPENMP)
-	OPENMPB=1;
-	for(k=2;k<3;k++){
-#ifdef PAPI
-if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
-	printf("Sg start error\n");
-#endif
-	start = rtclock();	
-	for(i=0;i<REP;i++)
-  		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
-	end = rtclock();
-#ifdef PAPI
-if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
-	printf("sg stop error\n");
-for(e=0;e<NUM_EVENTS;e++)
-	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);
-#endif
-	
-	printf("\nSG - AVX + OPENMP :\n");
-	printf("Threads= %d , Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*nop)/((end-start)*1024*1024*1024)); 
-	
-	}
-  	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
-#endif
-
 	ierr = MatDestroy(&matsg);CHKERRQ(ierr);
 	free(bvals);
 #endif
@@ -310,8 +281,8 @@ for(e=0;e<NUM_EVENTS;e++)
  	free(dims);
   	free(starts);
 	free(xval);
-	free(cols);
 	free(vals);
+	free(cols);
   	
 	ierr = PetscFinalize();
 	return 0;

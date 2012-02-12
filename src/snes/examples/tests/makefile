@@ -1,5 +1,5 @@
 
-CFLAGS	        =
+CFLAGS	        = -fopenmp
 FFLAGS	        =
 CPPFLAGS        =
 FPPFLAGS        =
