@@ -33,7 +33,7 @@ double rtclock() {
 
 #define CSR
 #define SG
-//#define OMP
+#define OMP
 //#define GPU
 //
 
@@ -48,8 +48,6 @@ int main(int argc,char **args)
 
 #ifdef PAPI
 unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS,PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
-//unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
-//unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCR,PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L2_ICM,PAPI_L3_DCR,PAPI_L3_TCM};
 long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
 int e;
 #endif
@@ -250,7 +248,6 @@ for(e=0;e<NUM_EVENTS;e++)
         }
   	ierr = MatAssemblyBegin(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsg,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	//ierr = MatView(matsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 #ifdef PAPI
 if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)

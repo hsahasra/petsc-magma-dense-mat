@@ -13,7 +13,7 @@ static char help[] = "Simple program to test the performance of matmult for vari
 
 #ifdef PAPI
 #include"papi.h"
-#define NUM_EVENTS 1 
+#define NUM_EVENTS 4 
 #endif
 
 PetscReal normdiff = 1.0e-6;
@@ -33,8 +33,12 @@ double rtclock() {
 
 #define CSR
 #define SG
-//#define OMP
+#define OMP
 //#define GPU
+
+#ifdef OMP
+extern int OPENMPB; 
+#endif
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -42,8 +46,7 @@ int main(int argc,char **args)
 {
 
 #ifdef PAPI
-unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS};//,PAPI_SR_INS,PAPI_L1_DCM,PAPI_L3_TCM};
-//unsigned int Events[NUM_EVENTS] = {PAPI_L1_DCR,PAPI_L1_DCM,PAPI_L2_DCR,PAPI_L2_TCM,PAPI_L2_ICM,PAPI_L3_DCR,PAPI_L3_TCM};
+unsigned int Events[NUM_EVENTS] = {PAPI_LD_INS,PAPI_L1_DCM,PAPI_L2_TCM,PAPI_L3_TCM};
 long_long values[NUM_EVENTS], sgvalues[NUM_EVENTS];
 int e;
 #endif
@@ -270,6 +273,34 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nop)/((end-start)*1024*1024*1024)); 
 	
 	ierr = VecDestroy(&ysg);CHKERRQ(ierr);
+
+#ifdef OMP
+	Vec ysgomp;
+	ierr = VecDuplicate(x,&ysgomp);CHKERRQ(ierr);
+	//SG (AVX+OPENMP)
+	OPENMPB=1;
+	for(k=2;k<3;k++){
+#ifdef PAPI
+if (PAPI_read_counters(values, NUM_EVENTS) != PAPI_OK)
+	printf("Sg start error\n");
+#endif
+	start = rtclock();	
+	for(i=0;i<REP;i++)
+  		ierr = MatMult(matsg,x,ysgomp);CHKERRQ(ierr);
+	end = rtclock();
+#ifdef PAPI
+if (PAPI_read_counters(sgvalues, NUM_EVENTS) != PAPI_OK)
+	printf("sg stop error\n");
+for(e=0;e<NUM_EVENTS;e++)
+	printf("SG Events[%d]= %lld\n",e,sgvalues[e]);
+#endif
+	
+	printf("\nSG - AVX + OPENMP :\n");
+	printf("Threads= %d , Time =%.3f\n GFLOPS= %.3f\n",k,end-start,((long)REP*2*nop)/((end-start)*1024*1024*1024)); 
+	
+	}
+  	ierr = VecDestroy(&ysgomp);CHKERRQ(ierr);
+#endif
 
 	ierr = MatDestroy(&matsg);CHKERRQ(ierr);
 	free(bvals);
