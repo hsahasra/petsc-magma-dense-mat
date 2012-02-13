@@ -1548,7 +1548,6 @@ PetscErrorCode BSG_MatMult_16(PetscScalar ** ctl,const PetscScalar * x, PetscSca
 PetscFunctionReturn(0);
 }
 
-<<<<<<< local
 #define inline_18(l) \
                      mx0 = _mm_loadu_pd(xt##l + t1 + 0);\
                      mx1 = _mm_loadu_pd(xt##l + t1 + 2);\
@@ -1883,22 +1882,7 @@ PetscFunctionReturn(0);
                      msum17 = _mm_add_pd(msum17 , _mm_mul_pd(mx6, mc159));\
                      msum17 = _mm_add_pd(msum17 , _mm_mul_pd(mx7, mc160));\
                      msum17 = _mm_add_pd(msum17 , _mm_mul_pd(mx8, mc161))
-=======
-#define inline_3(l) 	mx0 = _mm_loadu_pd(xt##l+t1);\
-			mx1 = _mm_load1_pd(xt##l+t1+2);\
-			mc0 = _mm_loadu_pd(ct##l+t2);\
-			mc1 = _mm_loadu_pd(ct##l+t2+2);\
-			mc2 = _mm_loadu_pd(ct##l+t2+4);\
-			mc3 = _mm_loadu_pd(ct##l+t2+6);\
-			mc4 = _mm_loadu_pd(ct##l+t2+8);\
-			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));\
-			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));\
-			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx0,mc2));\
-			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx1,mc3));\
-			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx1,mc4))
->>>>>>> other
 
-<<<<<<< local
 #define setup_18(offset) \
                          t1 = k*dof; t2 = (k-(offset))*bs;\
                          msum0 = _mm_set_pd(0,0);\
@@ -1919,16 +1903,7 @@ PetscFunctionReturn(0);
                          msum15 = _mm_set_pd(0,0);\
                          msum16 = _mm_set_pd(0,0);\
                          msum17 = _mm_set_pd(0,0)
-=======
-#define setup_3(offset) t1= k*dof; t2 = (k-(offset))*bs;\
-		msum0 =_mm_set_pd(0,0);\
-		msum1 =_mm_set_pd(0,0);\
-		msum2 =_mm_set_pd(0,0);\
-		msum3 =_mm_set_pd(0,0);\
-		msum4 =_mm_set_pd(0,0)
->>>>>>> other
 
-<<<<<<< local
 #define save_18() \
                   msum0 = _mm_hadd_pd(msum0, msum1);\
                   msum2 = _mm_hadd_pd(msum2, msum3);\
@@ -1948,16 +1923,7 @@ PetscFunctionReturn(0);
                   _mm_storeu_pd(y + t1 + 12,msum12);\
                   _mm_storeu_pd(y + t1 + 14,msum14);\
                   _mm_storeu_pd(y + t1 + 16,msum16)
-=======
-#define save_3() msum0 = _mm_hadd_pd(msum0,msum1);      \
-  msum0 = _mm_add_pd(msum0,msum3);                      \
-  msum2 = _mm_hadd_pd(msum2,msum2);                     \
-  msum2 = _mm_add_pd(msum2,msum4);                      \
-  _mm_storeu_pd(y+t1, msum0);                           \
-  _mm_maskstore_pd(y+t1+2,xtemp,msum2)
->>>>>>> other
 
-<<<<<<< local
 PetscErrorCode BSG_MatMult_18(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset){
     PetscInt k, k1, it, l, t1, t2;
     const PetscInt lda3 = m ;
@@ -1966,81 +1932,9 @@ PetscErrorCode BSG_MatMult_18(PetscScalar ** ctl,const PetscScalar * x, PetscSca
     const PetscInt mnos = dim;
     const PetscInt l3threshold = WORKINGSETSIZE / bs;
     PetscInt count, endval;
-=======
-PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
-{
-	PetscInt k,k1,l,it, t1, t2;
-	const PetscInt lda3 = m;
-	const PetscInt lda2 = lda3 * n;
-	const PetscInt lda1 = lda2 * p;
-	const PetscInt mnos = 3;
-	__m128d mx0, mx1, msum0, msum1, msum2,msum3, msum4, mc0, mc1, mc2, mc3, mc4;
-	__m128i xtemp = _mm_set_epi32(0,0,-1,-1);
-	PetscInt count = 0;
-	PetscInt l3threshold = WORKINGSETSIZE / bs;
-	PetscInt endval;
-	const PetscScalar *xt0,*xt1,*xt2,*xt3,*xt4,*xt5,*xt6,*ct0,*ct1,*ct2,*ct3,*ct4,*ct5,*ct6,*xt7,*ct7;
-		xt0 = x + (idx[0] + idy[0]*lda3 + idz[0]*lda2)*dof;
-		xt1 = x + (idx[1] + idy[1]*lda3 + idz[1]*lda2)*dof;
-		xt2 = x + (idx[2] + idy[2]*lda3 + idz[2]*lda2)*dof;
-		xt3 = x + (idx[3] + idy[3]*lda3 + idz[3]*lda2)*dof;
-		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
-		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
-		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
-	
-		for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
-	{
-		setupct(0,it);
-		endval = min(1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(0);
-			inline_3(3);
-			inline_3(4);
-			inline_3(5);
-			inline_3(6);
-		save_3();
-		}
-	}
-		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
-		{
-		setupct(1,it);
-		endval = min(lda3,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(1);
-			inline_3(2);
-			inline_3(3);
-			inline_3(4);
-			inline_3(5);
-			inline_3(6);
-		save_3();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
      __m128d mx0, mx1, mx2, mx3, mx4, mx5, mx6, mx7, mx8, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, mc8, mc9, mc10, mc11, mc12, mc13, mc14, mc15, mc16, mc17, mc18, mc19, mc20, mc21, mc22, mc23, mc24, mc25, mc26, mc27, mc28, mc29, mc30, mc31, mc32, mc33, mc34, mc35, mc36, mc37, mc38, mc39, mc40, mc41, mc42, mc43, mc44, mc45, mc46, mc47, mc48, mc49, mc50, mc51, mc52, mc53, mc54, mc55, mc56, mc57, mc58, mc59, mc60, mc61, mc62, mc63, mc64, mc65, mc66, mc67, mc68, mc69, mc70, mc71, mc72, mc73, mc74, mc75, mc76, mc77, mc78, mc79, mc80, mc81, mc82, mc83, mc84, mc85, mc86, mc87, mc88, mc89, mc90, mc91, mc92, mc93, mc94, mc95, mc96, mc97, mc98, mc99, mc100, mc101, mc102, mc103, mc104, mc105, mc106, mc107, mc108, mc109, mc110, mc111, mc112, mc113, mc114, mc115, mc116, mc117, mc118, mc119, mc120, mc121, mc122, mc123, mc124, mc125, mc126, mc127, mc128, mc129, mc130, mc131, mc132, mc133, mc134, mc135, mc136, mc137, mc138, mc139, mc140, mc141, mc142, mc143, mc144, mc145, mc146, mc147, mc148, mc149, mc150, mc151, mc152, mc153, mc154, mc155, mc156, mc157, mc158, mc159, mc160, mc161, msum0, msum1, msum2, msum3, msum4, msum5, msum6, msum7, msum8, msum9, msum10, msum11, msum12, msum13, msum14, msum15, msum16, msum17;
-=======
-		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
-		{
-		setupct(2,it);
-		endval = min(lda2,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(lda3);
-			inline_3(1);
-			inline_3(2);
-			inline_3(3);
-			inline_3(4);
-			inline_3(5);
-			inline_3(6);
-		save_3();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     const PetscScalar *xt0, *ct0, *xt1, *ct1, *xt2, *ct2, *xt3, *ct3, *xt4, *ct4, *xt5, *ct5, *xt6, *ct6;
     xt0 = x + (idx[0] + idy[0]*lda3 + idz[0]*lda2) * dof;
     xt1 = x + (idx[1] + idy[1]*lda3 + idz[1]*lda2) * dof;
@@ -2049,27 +1943,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
     xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2) * dof;
     xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2) * dof;
     xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2) * dof;
-=======
-		for(k1 = lda2, it =0; k1 < lda1-lda2; k1+=l3threshold, it++)
-		{
-		setupct(3,it);
-		endval = min(lda1-lda2,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(lda2);
-			inline_3(0);
-			inline_3(1);
-			inline_3(2);
-			inline_3(3);
-			inline_3(4);
-			inline_3(5);
-			inline_3(6);
-		save_3();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (0) , it = 0; k1 < (1); k1+= l3threshold, it++){
         setupct(0, it);
         endval = min(1,k1+l3threshold);
@@ -2082,26 +1956,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
             save_18();
         }
     }
-=======
-		for(k1 = lda1-lda2, it =0; k1 < lda1-lda3; k1+=l3threshold, it++)
-		{
-		setupct(4,it);
-		endval = min(lda1-lda3,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(lda1-lda2);
-			inline_3(0);
-			inline_3(1);
-			inline_3(2);
-			inline_3(3);
-			inline_3(4);
-			inline_3(5);
-		save_3();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (1) , it = 0; k1 < (lda3); k1+= l3threshold, it++){
         setupct(1, it);
         endval = min(lda3,k1+l3threshold);
@@ -2115,25 +1970,7 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
             save_18();
         }
     }
-=======
-		for(k1 = lda1-lda3, it =0; k1 < lda1-1; k1+=l3threshold, it++)
-		{
-		setupct(5,it);
-		endval = min(lda1-1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(lda1-lda3);
-			inline_3(0);
-			inline_3(1);
-			inline_3(2);
-			inline_3(3);
-			inline_3(4);
-		save_3();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda3) , it = 0; k1 < (lda2); k1+= l3threshold, it++){
         setupct(2, it);
         endval = min(lda2,k1+l3threshold);
@@ -2208,26 +2045,8 @@ PetscInt BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
     }
 
 PetscFunctionReturn(0);
-=======
-		for(k1 = lda1-1, it =0; k1 < lda1; k1+=l3threshold, it++)
-		{
-		setupct(6,it);
-		endval = min(lda1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_3(lda1-1);
-			inline_3(0);
-			inline_3(1);
-			inline_3(2);
-			inline_3(3);
-		save_3();
-		}
-		}
-	PetscFunctionReturn(0);
->>>>>>> other
 }
 
-<<<<<<< local
 #define inline_20(l) \
                      mx0 = _mm_loadu_pd(xt##l + t1 + 0);\
                      mx1 = _mm_loadu_pd(xt##l + t1 + 2);\
@@ -2639,25 +2458,7 @@ PetscFunctionReturn(0);
                      msum19 = _mm_add_pd(msum19 , _mm_mul_pd(mx7, mc197));\
                      msum19 = _mm_add_pd(msum19 , _mm_mul_pd(mx8, mc198));\
                      msum19 = _mm_add_pd(msum19 , _mm_mul_pd(mx9, mc199))
-=======
-#define inline_stage1_5(l,m)	mx0 = _mm_loadu_pd(xt##l+t1);\
-				mx1 = _mm_loadu_pd(xt##l+t1+2);\
-				mx2 = _mm_load1_pd(xt##l+t1+4);\
-			PetscPrefetchBlock(xt##m+t1,5,0,PETSC_PREFETCH_HINT_NTA);\
-			PetscPrefetchBlock(ct##m+t2,25,0,PETSC_PREFETCH_HINT_NTA);\
-			mc0 = _mm_loadu_pd(ct##l+t2);\
-                        mc1 = _mm_loadu_pd(ct##l+t2+2);\
-			mc2 = _mm_loadu_pd(ct##l+t2+4);\
-			mc3 = _mm_loadu_pd(ct##l+t2+6);\
-			mc4 = _mm_loadu_pd(ct##l+t2+20);\
-                        msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));\
-                        msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx1,mc1));\
-                        msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc2));\
-                        msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx1,mc3));\
-                        msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx2,mc4))
->>>>>>> other
 
-<<<<<<< local
 #define setup_20(offset) \
                          t1 = k*dof; t2 = (k-(offset))*bs;\
                          msum0 = _mm_set_pd(0,0);\
@@ -2680,14 +2481,7 @@ PetscFunctionReturn(0);
                          msum17 = _mm_set_pd(0,0);\
                          msum18 = _mm_set_pd(0,0);\
                          msum19 = _mm_set_pd(0,0)
-=======
-#define setup_stage1_5(offset) t1= k*dof; t2 = (k-(offset))*bs;\
-                msum0 =_mm_set_pd(0,0);\
-                msum1 =_mm_set_pd(0,0);\
-                msum2 =_mm_set_pd(0,0)
->>>>>>> other
 
-<<<<<<< local
 #define save_20() \
                   msum0 = _mm_hadd_pd(msum0, msum1);\
                   msum2 = _mm_hadd_pd(msum2, msum3);\
@@ -2709,10 +2503,7 @@ PetscFunctionReturn(0);
                   _mm_storeu_pd(y + t1 + 14,msum14);\
                   _mm_storeu_pd(y + t1 + 16,msum16);\
                   _mm_storeu_pd(y + t1 + 18,msum18)
-=======
->>>>>>> other
 
-<<<<<<< local
 PetscErrorCode BSG_MatMult_20(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset){
     PetscInt k, k1, it, l, t1, t2;
     const PetscInt lda3 = m ;
@@ -2721,34 +2512,9 @@ PetscErrorCode BSG_MatMult_20(PetscScalar ** ctl,const PetscScalar * x, PetscSca
     const PetscInt mnos = dim;
     const PetscInt l3threshold = WORKINGSETSIZE / bs;
     PetscInt count, endval;
-=======
-#define save_stage1_5() msum0 = _mm_hadd_pd(msum0,msum1);\
-		msum0 = _mm_add_pd(msum0,msum2);\
-                _mm_storeu_pd(y+t1, msum0)
->>>>>>> other
 
-<<<<<<< local
      __m128d mx0, mx1, mx2, mx3, mx4, mx5, mx6, mx7, mx8, mx9, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, mc8, mc9, mc10, mc11, mc12, mc13, mc14, mc15, mc16, mc17, mc18, mc19, mc20, mc21, mc22, mc23, mc24, mc25, mc26, mc27, mc28, mc29, mc30, mc31, mc32, mc33, mc34, mc35, mc36, mc37, mc38, mc39, mc40, mc41, mc42, mc43, mc44, mc45, mc46, mc47, mc48, mc49, mc50, mc51, mc52, mc53, mc54, mc55, mc56, mc57, mc58, mc59, mc60, mc61, mc62, mc63, mc64, mc65, mc66, mc67, mc68, mc69, mc70, mc71, mc72, mc73, mc74, mc75, mc76, mc77, mc78, mc79, mc80, mc81, mc82, mc83, mc84, mc85, mc86, mc87, mc88, mc89, mc90, mc91, mc92, mc93, mc94, mc95, mc96, mc97, mc98, mc99, mc100, mc101, mc102, mc103, mc104, mc105, mc106, mc107, mc108, mc109, mc110, mc111, mc112, mc113, mc114, mc115, mc116, mc117, mc118, mc119, mc120, mc121, mc122, mc123, mc124, mc125, mc126, mc127, mc128, mc129, mc130, mc131, mc132, mc133, mc134, mc135, mc136, mc137, mc138, mc139, mc140, mc141, mc142, mc143, mc144, mc145, mc146, mc147, mc148, mc149, mc150, mc151, mc152, mc153, mc154, mc155, mc156, mc157, mc158, mc159, mc160, mc161, mc162, mc163, mc164, mc165, mc166, mc167, mc168, mc169, mc170, mc171, mc172, mc173, mc174, mc175, mc176, mc177, mc178, mc179, mc180, mc181, mc182, mc183, mc184, mc185, mc186, mc187, mc188, mc189, mc190, mc191, mc192, mc193, mc194, mc195, mc196, mc197, mc198, mc199, msum0, msum1, msum2, msum3, msum4, msum5, msum6, msum7, msum8, msum9, msum10, msum11, msum12, msum13, msum14, msum15, msum16, msum17, msum18, msum19;
-=======
-#define inline_stage2_5(l) 	mc0 = _mm_loadu_pd(ct##l+t2+8);\
-			mc1 = _mm_loadu_pd(ct##l+t2+10);\
-			mc2 = _mm_loadu_pd(ct##l+t2+12);\
-			mc3 = _mm_loadu_pd(ct##l+t2+14);\
-			mc4 = _mm_loadu_pd(ct##l+t2+16);\
-			mc5 = _mm_loadu_pd(ct##l+t2+18);\
-			mc6 = _mm_loadu_pd(ct##l+t2+22);\
-			mc7 = _mm_loadu_pd(ct##l+t2+24);\
-			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));\
-			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx1,mc1));\
-			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc2));\
-			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx1,mc3));\
-			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx0,mc4));\
-			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx1,mc5));\
-			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx2,mc6));\
-			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx2,mc7))
->>>>>>> other
 
-<<<<<<< local
     const PetscScalar *xt0, *ct0, *xt1, *ct1, *xt2, *ct2, *xt3, *ct3, *xt4, *ct4, *xt5, *ct5, *xt6, *ct6;
     xt0 = x + (idx[0] + idy[0]*lda3 + idz[0]*lda2) * dof;
     xt1 = x + (idx[1] + idy[1]*lda3 + idz[1]*lda2) * dof;
@@ -2757,16 +2523,7 @@ PetscErrorCode BSG_MatMult_20(PetscScalar ** ctl,const PetscScalar * x, PetscSca
     xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2) * dof;
     xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2) * dof;
     xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2) * dof;
-=======
-#define setup_stage2_5(offset) t1= k*dof; t2 = (k-(offset))*bs;\
-		msum0 =_mm_set_pd(0,0);\
-		msum1 =_mm_set_pd(0,0);\
-		msum2 =_mm_set_pd(0,0);\
-		msum3 =_mm_set_pd(0,0);\
-		msum4 =_mm_set_pd(0,0)
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (0) , it = 0; k1 < (1); k1+= l3threshold, it++){
         setupct(0, it);
         endval = min(1,k1+l3threshold);
@@ -2779,16 +2536,7 @@ PetscErrorCode BSG_MatMult_20(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_20();
         }
     }
-=======
-#define save_stage2_5() msum0 = _mm_hadd_pd(msum0,msum1);\
-		msum0 = _mm_add_pd(msum0,msum3);\
-		msum2 = _mm_hadd_pd(msum2,msum2);\
-		msum2 = _mm_add_pd(msum2,msum4);\
-		_mm_storeu_pd(y+t1+2, msum0);\
-		_mm_maskstore_pd(y+t1+4,xtemp,msum2)
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (1) , it = 0; k1 < (lda3); k1+= l3threshold, it++){
         setupct(1, it);
         endval = min(lda3,k1+l3threshold);
@@ -2802,73 +2550,7 @@ PetscErrorCode BSG_MatMult_20(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_20();
         }
     }
-=======
-PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
-{
-	PetscInt k,l,k1,it, t1, t2;
-	const PetscInt lda3 = m;
-	const PetscInt lda2 = lda3 * n;
-	const PetscInt lda1 = lda2 * p;
-	const PetscInt mnos = 3;
-	__m128d mx0, mx1,mx2, msum0, msum1, msum2,msum3, msum4, mc0, mc1, mc2, mc3, mc4,mc5, mc6, mc7;
-	__m128i xtemp = _mm_set_epi32(0,0,-1,-1);
-	PetscInt count = 0;
-	PetscInt l3threshold = WORKINGSETSIZE / bs;
-	PetscInt endval;
-	const PetscScalar *xt0,*xt1,*xt2,*xt3,*xt4,*xt5,*xt6,*ct0,*ct1,*ct2,*ct3,*ct4,*ct5,*ct6,*xt7,*ct7;
-		xt0 = x + (idx[0] + idy[0]*lda3 + idz[0]*lda2)*dof;
-		xt1 = x + (idx[1] + idy[1]*lda3 + idz[1]*lda2)*dof;
-		xt2 = x + (idx[2] + idy[2]*lda3 + idz[2]*lda2)*dof;
-		xt3 = x + (idx[3] + idy[3]*lda3 + idz[3]*lda2)*dof;
-		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
-		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
-		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
-		
-		for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
-	{
-		setupct(0,it);
-		endval = min(1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(0);
-			inline_stage1_5(3,4);
-			inline_stage1_5(4,5);
-			inline_stage1_5(5,6);
-			inline_stage1_5(6,7);
-		save_stage1_5();
-		setup_stage2_5(0);
-			inline_stage2_5(3);
-			inline_stage2_5(4);
-			inline_stage2_5(5);
-			inline_stage2_5(6);
-		save_stage2_5();
-		}
-	}
-		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
-		{
-		setupct(1,it);
-		endval = min(lda3,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(1);
-			inline_stage1_5(2,3);
-			inline_stage1_5(3,4);
-			inline_stage1_5(4,5);
-			inline_stage1_5(5,6);
-			inline_stage1_5(6,7);
-		save_stage1_5();
-		setup_stage2_5(1);
-			inline_stage2_5(2);
-			inline_stage2_5(3);
-			inline_stage2_5(4);
-			inline_stage2_5(5);
-			inline_stage2_5(6);
-		save_stage2_5();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda3) , it = 0; k1 < (lda2); k1+= l3threshold, it++){
         setupct(2, it);
         endval = min(lda2,k1+l3threshold);
@@ -2883,34 +2565,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
             save_20();
         }
     }
-=======
-		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
-		{
-		setupct(2,it);
-		endval = min(lda2,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(lda3);
-			inline_stage1_5(1,2);
-			inline_stage1_5(2,3);
-			inline_stage1_5(3,4);
-			inline_stage1_5(4,5);
-			inline_stage1_5(5,6);
-			inline_stage1_5(6,7);
-		save_stage1_5();
-		setup_stage2_5(lda3);
-			inline_stage2_5(1);
-			inline_stage2_5(2);
-			inline_stage2_5(3);
-			inline_stage2_5(4);
-			inline_stage2_5(5);
-			inline_stage2_5(6);
-		save_stage2_5();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda2) , it = 0; k1 < (lda1 - lda2); k1+= l3threshold, it++){
         setupct(3, it);
         endval = min(lda1 - lda2,k1+l3threshold);
@@ -2926,36 +2581,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
             save_20();
         }
     }
-=======
-		for(k1 = lda2, it =0; k1 < lda1-lda2; k1+=l3threshold, it++)
-		{
-		setupct(3,it);
-		endval = min(lda1-lda2,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(lda2);
-			inline_stage1_5(0,1);
-			inline_stage1_5(1,2);
-			inline_stage1_5(2,3);
-			inline_stage1_5(3,4);
-			inline_stage1_5(4,5);
-			inline_stage1_5(5,6);
-			inline_stage1_5(6,7);
-		save_stage1_5();
-		setup_stage2_5(lda2);
-			inline_stage2_5(0);
-			inline_stage2_5(1);
-			inline_stage2_5(2);
-			inline_stage2_5(3);
-			inline_stage2_5(4);
-			inline_stage2_5(5);
-			inline_stage2_5(6);
-		save_stage2_5();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda1 - lda2) , it = 0; k1 < (lda1 - lda3); k1+= l3threshold, it++){
         setupct(4, it);
         endval = min(lda1 - lda3,k1+l3threshold);
@@ -2970,34 +2596,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
             save_20();
         }
     }
-=======
-		for(k1 = lda1-lda2, it =0; k1 < lda1-lda3; k1+=l3threshold, it++)
-		{
-		setupct(4,it);
-		endval = min(lda1-lda3,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(lda1-lda2);
-			inline_stage1_5(0,1);
-			inline_stage1_5(1,2);
-			inline_stage1_5(2,3);
-			inline_stage1_5(3,4);
-			inline_stage1_5(4,5);
-			inline_stage1_5(5,6);
-		save_stage1_5();
-		setup_stage2_5(lda1-lda2);
-			inline_stage2_5(0);
-			inline_stage2_5(1);
-			inline_stage2_5(2);
-			inline_stage2_5(3);
-			inline_stage2_5(4);
-			inline_stage2_5(5);
-		save_stage2_5();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda1 - lda3) , it = 0; k1 < (lda1 - 1); k1+= l3threshold, it++){
         setupct(5, it);
         endval = min(lda1 - 1,k1+l3threshold);
@@ -3011,32 +2610,7 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
             save_20();
         }
     }
-=======
-		for(k1 = lda1-lda3, it =0; k1 < lda1-1; k1+=l3threshold, it++)
-		{
-		setupct(5,it);
-		endval = min(lda1-1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(lda1-lda3);
-			inline_stage1_5(0,1);
-			inline_stage1_5(1,2);
-			inline_stage1_5(2,3);
-			inline_stage1_5(3,4);
-			inline_stage1_5(4,5);
-		save_stage1_5();
-		setup_stage2_5(lda1-lda3);
-			inline_stage2_5(0);
-			inline_stage2_5(1);
-			inline_stage2_5(2);
-			inline_stage2_5(3);
-			inline_stage2_5(4);
-		save_stage2_5();
-		}
-		}
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda1 - 1) , it = 0; k1 < (lda1); k1+= l3threshold, it++){
         setupct(6, it);
         endval = min(lda1,k1+l3threshold);
@@ -3051,32 +2625,8 @@ PetscInt BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
     }
 
 PetscFunctionReturn(0);
-=======
-		for(k1 = lda1-1, it =0; k1 < lda1; k1+=l3threshold, it++)
-		{
-		setupct(6,it);
-		endval = min(lda1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_stage1_5(lda1-1);
-			inline_stage1_5(0,1);
-			inline_stage1_5(1,2);
-			inline_stage1_5(2,3);
-			inline_stage1_5(3,4);
-		save_stage1_5();
-		setup_stage2_5(lda1-1);
-			inline_stage2_5(0);
-			inline_stage2_5(1);
-			inline_stage2_5(2);
-			inline_stage2_5(3);
-		save_stage2_5();
-		}
-		}
-	PetscFunctionReturn(0);
->>>>>>> other
 }
 
-<<<<<<< local
 #define inline_22(l) \
                      mx0 = _mm_loadu_pd(xt##l + t1 + 0);\
                      mx1 = _mm_loadu_pd(xt##l + t1 + 2);\
@@ -3573,10 +3123,7 @@ PetscFunctionReturn(0);
                      msum21 = _mm_add_pd(msum21 , _mm_mul_pd(mx8, mc239));\
                      msum21 = _mm_add_pd(msum21 , _mm_mul_pd(mx9, mc240));\
                      msum21 = _mm_add_pd(msum21 , _mm_mul_pd(mx10, mc241))
-=======
->>>>>>> other
 
-<<<<<<< local
 #define setup_22(offset) \
                          t1 = k*dof; t2 = (k-(offset))*bs;\
                          msum0 = _mm_set_pd(0,0);\
@@ -3601,13 +3148,7 @@ PetscFunctionReturn(0);
                          msum19 = _mm_set_pd(0,0);\
                          msum20 = _mm_set_pd(0,0);\
                          msum21 = _mm_set_pd(0,0)
-=======
-#define setup_Nodd()   for(i=0;i<dofby2;i++){\
-                                 msum[i] = _mm_set_pd(0,0);\
-                         }\
->>>>>>> other
 
-<<<<<<< local
 #define save_22() \
                   msum0 = _mm_hadd_pd(msum0, msum1);\
                   msum2 = _mm_hadd_pd(msum2, msum3);\
@@ -3631,14 +3172,7 @@ PetscFunctionReturn(0);
                   _mm_storeu_pd(y + t1 + 16,msum16);\
                   _mm_storeu_pd(y + t1 + 18,msum18);\
                   _mm_storeu_pd(y + t1 + 20,msum20)
-=======
-#define save_Nodd() for(i=0;i<dofby2-1;i++){\
-                                _mm_storeu_pd(y+k*dof+2*i,msum[i]);\
-                         }\
-  _mm_maskstore_pd(y+(k+1)*dof-1,xtemp,msum[dofby2-1])
->>>>>>> other
 
-<<<<<<< local
 PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset){
     PetscInt k, k1, it, l, t1, t2;
     const PetscInt lda3 = m ;
@@ -3647,20 +3181,9 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
     const PetscInt mnos = dim;
     const PetscInt l3threshold = WORKINGSETSIZE / bs;
     PetscInt count, endval;
-=======
-#define setup123_Nodd(xt) t1= k*dof+l2;\
-                        mx0 = _mm_loadu_pd(xt+t1);\
-                        mx1 = _mm_loadu_pd(xt+t1+2)
->>>>>>> other
 
-<<<<<<< local
      __m128d mx0, mx1, mx2, mx3, mx4, mx5, mx6, mx7, mx8, mx9, mx10, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, mc8, mc9, mc10, mc11, mc12, mc13, mc14, mc15, mc16, mc17, mc18, mc19, mc20, mc21, mc22, mc23, mc24, mc25, mc26, mc27, mc28, mc29, mc30, mc31, mc32, mc33, mc34, mc35, mc36, mc37, mc38, mc39, mc40, mc41, mc42, mc43, mc44, mc45, mc46, mc47, mc48, mc49, mc50, mc51, mc52, mc53, mc54, mc55, mc56, mc57, mc58, mc59, mc60, mc61, mc62, mc63, mc64, mc65, mc66, mc67, mc68, mc69, mc70, mc71, mc72, mc73, mc74, mc75, mc76, mc77, mc78, mc79, mc80, mc81, mc82, mc83, mc84, mc85, mc86, mc87, mc88, mc89, mc90, mc91, mc92, mc93, mc94, mc95, mc96, mc97, mc98, mc99, mc100, mc101, mc102, mc103, mc104, mc105, mc106, mc107, mc108, mc109, mc110, mc111, mc112, mc113, mc114, mc115, mc116, mc117, mc118, mc119, mc120, mc121, mc122, mc123, mc124, mc125, mc126, mc127, mc128, mc129, mc130, mc131, mc132, mc133, mc134, mc135, mc136, mc137, mc138, mc139, mc140, mc141, mc142, mc143, mc144, mc145, mc146, mc147, mc148, mc149, mc150, mc151, mc152, mc153, mc154, mc155, mc156, mc157, mc158, mc159, mc160, mc161, mc162, mc163, mc164, mc165, mc166, mc167, mc168, mc169, mc170, mc171, mc172, mc173, mc174, mc175, mc176, mc177, mc178, mc179, mc180, mc181, mc182, mc183, mc184, mc185, mc186, mc187, mc188, mc189, mc190, mc191, mc192, mc193, mc194, mc195, mc196, mc197, mc198, mc199, mc200, mc201, mc202, mc203, mc204, mc205, mc206, mc207, mc208, mc209, mc210, mc211, mc212, mc213, mc214, mc215, mc216, mc217, mc218, mc219, mc220, mc221, mc222, mc223, mc224, mc225, mc226, mc227, mc228, mc229, mc230, mc231, mc232, mc233, mc234, mc235, mc236, mc237, mc238, mc239, mc240, mc241, msum0, msum1, msum2, msum3, msum4, msum5, msum6, msum7, msum8, msum9, msum10, msum11, msum12, msum13, msum14, msum15, msum16, msum17, msum18, msum19, msum20, msum21;
-=======
-#define setup456_Nodd(xt) t1= k*dof+l2;\
-                        mx0 = _mm_loadu_pd(xt+t1)
->>>>>>> other
 
-<<<<<<< local
     const PetscScalar *xt0, *ct0, *xt1, *ct1, *xt2, *ct2, *xt3, *ct3, *xt4, *ct4, *xt5, *ct5, *xt6, *ct6;
     xt0 = x + (idx[0] + idy[0]*lda3 + idz[0]*lda2) * dof;
     xt1 = x + (idx[1] + idy[1]*lda3 + idz[1]*lda2) * dof;
@@ -3669,12 +3192,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
     xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2) * dof;
     xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2) * dof;
     xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2) * dof;
-=======
-#define setup789_Nodd(xt) t1= k*dof+l2;\
-                        mx0 = _mm_load1_pd(xt+t1)
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (0) , it = 0; k1 < (1); k1+= l3threshold, it++){
         setupct(0, it);
         endval = min(1,k1+l3threshold);
@@ -3687,25 +3205,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
-#define inline_stage1_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc1 = _mm_loadu_pd(ct+t2+2);\
-                        mc2 = _mm_loadu_pd(ct+t2+dof-1);\
-                        mc3 = _mm_loadu_pd(ct+t2+dof+1);\
-                        mc4 = _mm_loadu_pd(ct+t2+2*dof-2);\
-                        mc5 = _mm_loadu_pd(ct+t2+2*dof);\
-                        mc6 = _mm_loadu_pd(ct+t2+3*dof-3);\
-                        mc7 = _mm_loadu_pd(ct+t2+3*dof-1);\
-                        mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));\
-                        mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));\
-                        mc4 = _mm_add_pd(_mm_mul_pd(mx0,mc4),_mm_mul_pd(mx1,mc5));\
-                        mc6 = _mm_add_pd(_mm_mul_pd(mx0,mc6),_mm_mul_pd(mx1,mc7));\
-                        msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));\
-                        msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6))
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (1) , it = 0; k1 < (lda3); k1+= l3threshold, it++){
         setupct(1, it);
         endval = min(lda3,k1+l3threshold);
@@ -3719,10 +3219,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda3) , it = 0; k1 < (lda2); k1+= l3threshold, it++){
         setupct(2, it);
         endval = min(lda2,k1+l3threshold);
@@ -3737,21 +3234,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
-#define inline_stage4_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc2 = _mm_loadu_pd(ct+t2+dof-1);\
-                        mc4 = _mm_loadu_pd(ct+t2+2*dof-2);\
-                        mc6 = _mm_loadu_pd(ct+t2+3*dof-3);\
-                        mc0 = _mm_mul_pd(mx0,mc0);\
-                        mc2 = _mm_mul_pd(mx0,mc2);\
-                        mc4 = _mm_mul_pd(mx0,mc4);\
-                        mc6 = _mm_mul_pd(mx0,mc6);\
-                        msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));\
-                        msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6))
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda2) , it = 0; k1 < (lda1 - lda2); k1+= l3threshold, it++){
         setupct(3, it);
         endval = min(lda1 - lda2,k1+l3threshold);
@@ -3767,15 +3250,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
-#define inline_stage7_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc1 = _mm_loadu_pd(ct+t2+2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0);\
-                        msum[l1+1] = _mm_add_pd(msum[l1+1], mc1)
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda1 - lda2) , it = 0; k1 < (lda1 - lda3); k1+= l3threshold, it++){
         setupct(4, it);
         endval = min(lda1 - lda3,k1+l3threshold);
@@ -3790,18 +3265,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
-#define inline_stage2_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc1 = _mm_loadu_pd(ct+t2+2);\
-                        mc2 = _mm_loadu_pd(ct+t2+dof-1);\
-                        mc3 = _mm_loadu_pd(ct+t2+dof+1);\
-                        mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));\
-                        mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));\
-                        msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2))
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda1 - lda3) , it = 0; k1 < (lda1 - 1); k1+= l3threshold, it++){
         setupct(5, it);
         endval = min(lda1 - 1,k1+l3threshold);
@@ -3815,16 +3279,7 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
-#define inline_stage5_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc2 = _mm_loadu_pd(ct+t2+dof-1);\
-                        mc0 = _mm_mul_pd(mx0,mc0);\
-                        mc2 = _mm_mul_pd(mx0,mc2);\
-                        msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2))
->>>>>>> other
 
-<<<<<<< local
     for(k1 = (lda1 - 1) , it = 0; k1 < (lda1); k1+= l3threshold, it++){
         setupct(6, it);
         endval = min(lda1,k1+l3threshold);
@@ -3837,205 +3292,8 @@ PetscErrorCode BSG_MatMult_22(PetscScalar ** ctl,const PetscScalar * x, PetscSca
             save_22();
         }
     }
-=======
-#define inline_stage8_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0)
->>>>>>> other
 
-<<<<<<< local
 PetscFunctionReturn(0);
-=======
-#define inline_stage3_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc1 = _mm_loadu_pd(ct+t2+2);\
-                        mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));\
-                        msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc0))
-
-#define inline_stage6_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        mc0 = _mm_mul_pd(mx0,mc0);\
-                        msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc0))
-
-#define inline_stage9_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
-                        mc0 = _mm_loadu_pd(ct+t2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0);\
-
-#define inline_Nodd(l,m, offset)	PetscPrefetchBlock(xt##m+t1,dof,0,PETSC_PREFETCH_HINT_NTA);\
-				PetscPrefetchBlock(ct##m+t2,bs,0,PETSC_PREFETCH_HINT_NTA);\
-				for(l2 = 0; l2 < dof-3; l2 += 4){\
-				setup123_Nodd(xt##l);\
-				for(l1=0; l1<dofby2-2; l1+= 2){\
-					inline_stage1_Nodd(ct##l, offset);\
-				}\
-				for(;l1<dofby2-1;l1++){\
-					inline_stage2_Nodd(ct##l, offset);\
-				}\
-				for(;l1<dofby2;l1++){\
-					inline_stage3_Nodd(ct##l, offset);\
-				}\
-			}\
-			for(; l2 < dof-1; l2 += 2){\
-				setup456_Nodd(xt##l);\
-				for(l1=0; l1<dofby2-2; l1+= 2){\
-					inline_stage4_Nodd(ct##l, offset);\
-				}\
-				for(;l1<dofby2-1;l1++){\
-					inline_stage5_Nodd(ct##l, offset);\
-				}\
-				for(;l1<dofby2;l1++){\
-					inline_stage6_Nodd(ct##l, offset);\
-				}\
-			}\
-			for(; l2 < dof; l2 ++){\
-				setup789_Nodd(xt##l);\
-				for(l1=0; l1<dofby2-2; l1+= 2){\
-					inline_stage7_Nodd(ct##l, offset);\
-				}\
-				for(;l1<dofby2-1;l1++){\
-					inline_stage8_Nodd(ct##l, offset);\
-				}\
-				for(;l1<dofby2;l1++){\
-					inline_stage9_Nodd(ct##l, offset);\
-				}\
-			}\
-
-PetscInt BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
-{
-	PetscInt i,k,l,k1, it,t1, t2, l1,l2;
-	const PetscInt lda3 = m;
-	const PetscInt lda2 = lda3 * n;
-	const PetscInt lda1 = lda2 * p;
-	const PetscInt mnos = 3;
-	const PetscInt dofby2 = (dof+1)/2;
-	__m128d mx0, mx1, msum[dofby2], mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
-	__m128i xtemp = _mm_set_epi32(0,0,-1,-1);
-	PetscInt count = 0;
-	PetscInt l3threshold = WORKINGSETSIZE / bs;
-	PetscInt endval;
-	const PetscScalar *xt0,*xt1,*xt2,*xt3,*xt4,*xt5,*xt6,*ct0,*ct1,*ct2,*ct3,*ct4,*ct5,*ct6,*xt7,*ct7;
-		xt0 = x + (idx[0] + idy[0]*lda3 + idz[0]*lda2)*dof;
-		xt1 = x + (idx[1] + idy[1]*lda3 + idz[1]*lda2)*dof;
-		xt2 = x + (idx[2] + idy[2]*lda3 + idz[2]*lda2)*dof;
-		xt3 = x + (idx[3] + idy[3]*lda3 + idz[3]*lda2)*dof;
-		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
-		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
-		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
-		
-		for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
-	{
-		setupct(0,it);
-		endval = min(1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(3,4,0);
-			inline_Nodd(4,5,0);
-			inline_Nodd(5,6,0);
-			inline_Nodd(6,7,0);
-		save_Nodd();
-		}
-	}
-		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
-		{
-		setupct(1,it);
-		endval = min(lda3,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(2,3,1);
-			inline_Nodd(3,4,1);
-			inline_Nodd(4,5,1);
-			inline_Nodd(5,6,1);
-			inline_Nodd(6,7,1);
-		save_Nodd();
-		}
-		}
-
-		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
-		{
-		setupct(2,it);
-		endval = min(lda2,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(1,2,lda3);
-			inline_Nodd(2,3,lda3);
-			inline_Nodd(3,4,lda3);
-			inline_Nodd(4,5,lda3);
-			inline_Nodd(5,6,lda3);
-			inline_Nodd(6,7,lda3);
-		save_Nodd();
-		}
-		}
-
-		for(k1 = lda2, it =0; k1 < lda1-lda2; k1+=l3threshold, it++)
-		{
-		setupct(3,it);
-		endval = min(lda1-lda2,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(0,1,lda2);
-			inline_Nodd(1,2,lda2);
-			inline_Nodd(2,3,lda2);
-			inline_Nodd(3,4,lda2);
-			inline_Nodd(4,5,lda2);
-			inline_Nodd(5,6,lda2);
-			inline_Nodd(6,7,lda2);
-		save_Nodd();
-		}
-		}
-
-		for(k1 = lda1-lda2, it =0; k1 < lda1-lda3; k1+=l3threshold, it++)
-		{
-		setupct(4,it);
-		endval = min(lda1-lda3,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(0,1,lda1-lda2);
-			inline_Nodd(1,2,lda1-lda2);
-			inline_Nodd(2,3,lda1-lda2);
-			inline_Nodd(3,4,lda1-lda2);
-			inline_Nodd(4,5,lda1-lda2);
-			inline_Nodd(5,6,lda1-lda2);
-		save_Nodd();
-		}
-		}
-
-		for(k1 = lda1-lda3, it =0; k1 < lda1-1; k1+=l3threshold, it++)
-		{
-		setupct(5,it);
-		endval = min(lda1-1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(0,1,lda1-lda3);
-			inline_Nodd(1,2,lda1-lda3);
-			inline_Nodd(2,3,lda1-lda3);
-			inline_Nodd(3,4,lda1-lda3);
-			inline_Nodd(4,5,lda1-lda3);
-		save_Nodd();
-		}
-		}
-
-		for(k1 = lda1-1, it =0; k1 < lda1; k1+=l3threshold, it++)
-		{
-		setupct(6,it);
-		endval = min(lda1,k1+l3threshold);
-		for(k = k1; k < endval; k++)
-		{
-		setup_Nodd();
-			inline_Nodd(0,1, lda1-1);
-			inline_Nodd(1,2, lda1-1);
-			inline_Nodd(2,3, lda1-1);
-			inline_Nodd(3,4, lda1-1);
-		save_Nodd();
-		}
-		}
-	PetscFunctionReturn(0);
->>>>>>> other
 }
 
 #define inline_24(l) \
