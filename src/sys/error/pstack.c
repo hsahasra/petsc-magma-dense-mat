@@ -1,7 +1,8 @@
 
 #include <petscsys.h>        /*I  "petscsys.h"   I*/
 
-#if !defined(PETSC_USE_DEBUG)  && !defined(PETSC_USE_PTHREAD)
+/* #if !defined(PETSC_USE_DEBUG)  && */
+#if !defined(PETSC_USE_PTHREAD)
 
 PetscStack  *petscstack = 0;
 
