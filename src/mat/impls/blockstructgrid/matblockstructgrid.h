@@ -26,9 +26,21 @@ PetscInt nz;		//length of grid elements
 // Specific to block 
 PetscInt bs; // block size , usually dof*dof
 PetscScalar ** coeff;
-PetscInt stpoffset[8];
+PetscInt *stpoffset;
 
 PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *,  PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
+
+//Facilitate submatrix
+PetscInt nregion; //  number of regions
+PetscInt * lbeg; // starting l for each region
+PetscInt * lend; // ending l for each region
+PetscInt * rstart; // Region start row number
+PetscInt stencil_rbeg; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_rend; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_cbeg; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_cend; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_stride; // stride of submatrix
+PetscBool sub_matrix;
 
 }Mat_SeqBSG;
 
