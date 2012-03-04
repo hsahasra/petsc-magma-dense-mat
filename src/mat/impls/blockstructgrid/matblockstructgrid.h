@@ -49,6 +49,8 @@ extern PetscErrorCode MatDestroy_SeqBSG(Mat);
 extern PetscErrorCode MatMult_SeqBSG(Mat,Vec,Vec);
 extern PetscErrorCode MatSetValues_SeqBSG(Mat, PetscInt,const PetscInt[] , PetscInt,const PetscInt[],const PetscScalar[], InsertMode); 
 extern PetscErrorCode MatSetValuesBlocked_SeqBSG(Mat, PetscInt,const PetscInt[], PetscInt,const PetscInt[],const PetscScalar[], InsertMode);
+extern PetscErrorCode MatGetSubMatrix_SeqBSG(Mat ,IS ,IS ,MatReuse ,Mat *);
+
 extern PetscErrorCode MatSetStencil_SeqBSG(Mat, PetscInt,const PetscInt[],const PetscInt[], PetscInt );
 extern PetscErrorCode MatSetUpPreallocation_SeqBSG(Mat);
 extern PetscErrorCode MatSetGrid_SeqBSG(Mat,PetscInt, PetscInt, PetscInt);
