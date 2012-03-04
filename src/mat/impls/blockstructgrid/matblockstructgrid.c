@@ -26,7 +26,7 @@ static struct _MatOps MatOps_Values = {
 /*40*/0,0,0,0,0,
 /*45*/0,0,0,0,0,
 /*50*/0,0,0,0,0,
-/*55*/0,0,0,MatSetValuesBlocked_SeqBSG,0,
+/*55*/0,0,0,MatSetValuesBlocked_SeqBSG,MatGetSubMatrix_SeqBSG,
 /*60*/MatDestroy_SeqBSG,MatView_SeqBSG,0,0,0,
 /*65*/0,0,MatSetValues_SeqBSG,0,0,
 /*70*/0,0,0,0,0,
