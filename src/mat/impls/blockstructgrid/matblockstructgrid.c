@@ -299,9 +299,12 @@ PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 		count = 0;
 		for(k=0;k<nregion;k++)
 		{
-			if(start[k] <= pos && pos < start[k+1])
+			for(c = start[k]; c < start[k+1]; c+= l3threshold )
 			{
-				finalpos = pos - start[k];
+				endpoint = (c+l3threshold) < start[k+1] ? (c+l3threshold) : start[k+1]; 
+				if(c <= pos && pos < endpoint)
+				{
+					finalpos = pos - c;
 				ioff = count + ioffsets[i] - lbeg[k];
 				if(dof % 2 == 0)
 				{
@@ -321,7 +324,15 @@ PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 				}
  
 			}
-			count += (lend[k] - lbeg[k]);
+				if(mat->rstart == PETSC_NULL)
+				{
+					count += mat->stpoints;
+				}
+				else
+				{
+					count += (lend[k] - lbeg[k]);
+				}
+			}
 		}
 	}
 	if(mat->rstart == PETSC_NULL)
@@ -372,9 +383,12 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 		count = 0;
 		for(k=0;k<nregion;k++)
 		{
-			if(start[k] <= pos && pos < start[k+1])
+			for(c = start[k]; c < start[k+1]; c+= l3threshold )
 			{
-				finalpos = pos - start[k];
+				endpoint = (c+l3threshold) < start[k+1] ? (c+l3threshold) : start[k+1]; 
+				if(c <= pos && pos < endpoint)
+				{
+					finalpos = pos - c;
 				ioff = count + ioffsets[i] - lbeg[k];
 				if(dof % 2 == 0)
 				{
@@ -415,8 +429,16 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 					}
 				}
  
+				}
+				if(mat->rstart == PETSC_NULL)
+				{
+					count += mat->stpoints;
+				}
+				else
+				{
+					count += (lend[k] - lbeg[k]);
+				}
 			}
-			count += (lend[k] - lbeg[k]);
 		}
 	}
 	if(mat->rstart == PETSC_NULL)
