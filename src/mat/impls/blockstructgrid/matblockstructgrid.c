@@ -264,7 +264,7 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], PetscScalar *data)
 {
 	PetscErrorCode ierr;
-	PetscInt i,j,k,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
 	PetscInt lda1 = mx*ny, lda2 = mx;
 	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
 	PetscInt *start, *lbeg, *lend, count, finalpos, nregion, ioff;
@@ -347,7 +347,7 @@ Added by Deepan */
 PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
 {
 	PetscErrorCode ierr;
-	PetscInt i,j,k,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
 	PetscInt lda1 = mx*ny, lda2 = mx;
 	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
 	PetscInt *start, *lbeg, *lend, count,finalpos, nregion, ioff;
