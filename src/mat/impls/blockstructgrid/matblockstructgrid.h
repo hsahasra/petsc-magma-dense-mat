@@ -23,6 +23,9 @@ PetscInt n;		//y - size
 PetscInt p;		//z size
 PetscInt nz;		//length of grid elements
 
+//Diagonal
+PetscScalar *diag;
+
 // Specific to block 
 PetscInt bs; // block size , usually dof*dof
 PetscScalar ** coeff;

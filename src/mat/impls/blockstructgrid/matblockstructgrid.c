@@ -84,7 +84,8 @@ PetscErrorCode MatCreate_SeqBSG(Mat B)
 	memcpy(B->ops,&MatOps_Values,sizeof(struct _MatOps));
 	B->same_nonzero= PETSC_FALSE;
 	B->spptr = 0;
-	b->a = 0;
+	b->a = PETSC_NULL;
+	b->diag = PETSC_NULL;
 	b->coeff = 0;
 	b->m = 0;
 	b->n = 0;
@@ -125,6 +126,7 @@ PetscErrorCode MatDestroy_SeqBSG(Mat A)
 #endif
 	ierr = PetscFree(a->coeff);CHKERRQ(ierr);
 	ierr = PetscFree(a->a);CHKERRQ(ierr);
+	ierr = PetscFree(a->diag);CHKERRQ(ierr);
 	ierr = PetscFree(a->idx);CHKERRQ(ierr);
 	ierr = PetscFree(a->idy);CHKERRQ(ierr);
 	ierr = PetscFree(a->idz);CHKERRQ(ierr);
@@ -379,6 +381,19 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 	{
 		pos = (lda1*idz[i]+lda2*idy[i]+idx[i]);
 		count = 0;
+		if(ioffsets[i] == 3){
+			//diag
+			if(is == ADD_VALUES)
+			{
+				for(j=0;j<bs;j++){
+					mat->diag[pos*bs+j] += data[i*bs+j];	
+				}
+			} else {
+				for(j=0;j<bs;j++){
+					mat->diag[pos*bs+j] = data[i*bs+j];	
+				}
+			}
+		}
 		for(k=0;k<nregion;k++)
 		{
 			for(c = start[k]; c < start[k+1]; c+= l3threshold )
@@ -657,6 +672,8 @@ PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat mat)
 	a->nz = (a->stencil_rend-a->stencil_rbeg)/a->stencil_stride;
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
+	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs,&(a->diag));CHKERRQ(ierr);
+	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
 	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
@@ -834,6 +851,8 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
 	ierr = PetscMalloc(sizeof(PetscInt)*(8),&(a->stpoffset));CHKERRQ(ierr);
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
+	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs,&(a->diag));CHKERRQ(ierr);
+	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
 	
 	start[0] = 0; 
 	start[1] = 1; 
@@ -1067,6 +1086,7 @@ PetscErrorCode MatZeroEntries_SeqBSG(Mat A)
 	Mat_SeqBSG * a = (Mat_SeqBSG *)A->data;
 	PetscFunctionBegin;
 	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
+	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
 
