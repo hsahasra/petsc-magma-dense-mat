@@ -23,12 +23,27 @@ PetscInt n;		//y - size
 PetscInt p;		//z size
 PetscInt nz;		//length of grid elements
 
+//Diagonal
+PetscScalar *diag;
+
 // Specific to block 
 PetscInt bs; // block size , usually dof*dof
 PetscScalar ** coeff;
-PetscInt stpoffset[8];
+PetscInt *stpoffset;
 
 PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *,  PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
+
+//Facilitate submatrix
+PetscInt nregion; //  number of regions
+PetscInt * lbeg; // starting l for each region
+PetscInt * lend; // ending l for each region
+PetscInt * rstart; // Region start row number
+PetscInt stencil_rbeg; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_rend; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_cbeg; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_cend; // offset from normal matrix assuming stride 1 +ve if 4 is middle
+PetscInt stencil_stride; // stride of submatrix
+PetscBool sub_matrix;
 
 }Mat_SeqBSG;
 
@@ -37,6 +52,8 @@ extern PetscErrorCode MatDestroy_SeqBSG(Mat);
 extern PetscErrorCode MatMult_SeqBSG(Mat,Vec,Vec);
 extern PetscErrorCode MatSetValues_SeqBSG(Mat, PetscInt,const PetscInt[] , PetscInt,const PetscInt[],const PetscScalar[], InsertMode); 
 extern PetscErrorCode MatSetValuesBlocked_SeqBSG(Mat, PetscInt,const PetscInt[], PetscInt,const PetscInt[],const PetscScalar[], InsertMode);
+extern PetscErrorCode MatGetSubMatrix_SeqBSG(Mat ,IS ,IS ,MatReuse ,Mat *);
+
 extern PetscErrorCode MatSetStencil_SeqBSG(Mat, PetscInt,const PetscInt[],const PetscInt[], PetscInt );
 extern PetscErrorCode MatSetUpPreallocation_SeqBSG(Mat);
 extern PetscErrorCode MatSetGrid_SeqBSG(Mat,PetscInt, PetscInt, PetscInt);
