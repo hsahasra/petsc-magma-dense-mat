@@ -25,7 +25,7 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
-//#define OMP
+#define OMP
 
 #ifdef OMP
 #include<omp.h>
@@ -113,8 +113,8 @@ int main(int argc,char **args)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  	//ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
-	ierr = VecSetRandom(x,PETSC_NULL);
+  	ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
+	//ierr = VecSetRandom(x,PETSC_NULL);
 
 	cols = malloc(sizeof(PetscInt)*dof);
 	vals = malloc(sizeof(PetscScalar)*dof);
@@ -279,10 +279,10 @@ for(e=0;e<NUM_EVENTS;e++)
 	printf("\nOutput:\n");
   	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	printf("Y - CSR:\n");
-//  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 	printf("Y - Block Structgrid AVX:\n");
-  //	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	
 #ifdef OMP
 	printf("Y - Block Structgrid AVX + OMP:\n");

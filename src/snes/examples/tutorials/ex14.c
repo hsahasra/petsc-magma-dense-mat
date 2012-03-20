@@ -43,6 +43,7 @@ T*/
 #include <petscdmda.h>
 #include <petscsnes.h>
 
+
 /*
    User-defined application context - contains data needed by the
    application-provided call-back routines, FormJacobian() and
@@ -102,7 +103,6 @@ int main(int argc,char **argv)
      vectors that are the same types
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(user.da,&x);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(x);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&r);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -196,7 +196,8 @@ int main(int argc,char **argv)
    Output Parameter:
    X - vector
  */
-PetscErrorCode FormInitialGuess(AppCtx *user,Vec X){
+PetscErrorCode FormInitialGuess(AppCtx *user,Vec X)
+{
   PetscInt       i,j,k,Mx,My,Mz,xs,ys,zs,xm,ym,zm;
   PetscErrorCode ierr;
   PetscReal      lambda,temp1,hx,hy,hz,tempk,tempj;
@@ -227,7 +228,7 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X){
 
   */
   ierr = DMDAGetCorners(user->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-  ////printf("Mx: %d, My: %d, Mz: %d, xm: %d, ym: %d, zm: %d\n",Mx,My,Mz,xm,ym,zm);
+
   /*
      Compute initial guess over the locally owned part of the grid
   */
@@ -242,7 +243,6 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X){
         } else {
           x[k][j][i] = temp1*PetscSqrtReal(PetscMin((PetscReal)(PetscMin(i,Mx-i-1))*hx,tempj));
         }
-        //if(x[k][j][i]!=0)printf("FIG :: x[%d][%d][%d]: %e\n",k,j,i,x[k][j][i]);
       }
     }
   }
@@ -269,17 +269,14 @@ PetscErrorCode FormInitialGuess(AppCtx *user,Vec X){
  */
 PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
 {
-  //FormFunction(snes,x,r,(void*)&user);
   AppCtx         *user = (AppCtx*)ptr;
   PetscErrorCode ierr;
   PetscInt       i,j,k,Mx,My,Mz,xs,ys,zs,xm,ym,zm;
   PetscReal      two = 2.0,lambda,hx,hy,hz,hxhzdhy,hyhzdhx,hxhydhz,sc;
   PetscScalar    u_north,u_south,u_east,u_west,u_up,u_down,u,u_xx,u_yy,u_zz,***x,***f;
-  PetscScalar    testx, testf;
   Vec            localX;
 
   PetscFunctionBeginUser;
-  //ierr = DMSetVecType(user->da,VECSEQGPU);CHKERRQ(ierr); ///added by dlowell
   ierr = DMGetLocalVector(user->da,&localX);CHKERRQ(ierr);
   ierr = DMDAGetInfo(user->da,PETSC_IGNORE,&Mx,&My,&Mz,PETSC_IGNORE,PETSC_IGNORE,
                      PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);
@@ -292,8 +289,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   hxhzdhy = hx*hz/hy;
   hyhzdhx = hy*hz/hx;
   hxhydhz = hx*hy/hz;
-  ////printf("lambda: %e, hx: %e, hy: %e, hz: %e, sc: %e, hxhzdhy: %e, hyhzdhx: %e, hxhydhz: %e\n",
-  ///      lambda, hx, hy, hz, sc, hxhzdhy, hyhzdhx, hxhydhz);
+
   /*
      Scatter ghost points to local vector,using the 2-step process
         DMGlobalToLocalBegin(),DMGlobalToLocalEnd().
@@ -302,6 +298,7 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
   */
   ierr = DMGlobalToLocalBegin(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(user->da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
+
   /*
      Get pointers to vector data
   */
@@ -312,25 +309,17 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
      Get local grid boundaries
   */
   ierr = DMDAGetCorners(user->da,&xs,&ys,&zs,&xm,&ym,&zm);CHKERRQ(ierr);
-  ////printf("Mx: %d, My: %d, Mz: %d, xm: %d, ym: %d, zm: %d\n",Mx,My,Mz,xm,ym,zm);
 
   /*
      Compute function over the locally owned part of the grid
   */
   for (k=zs; k<zs+zm; k++) {
-    //printf("K: %d\n",k);
     for (j=ys; j<ys+ym; j++) {
-      // printf("J: %d\n",j);
       for (i=xs; i<xs+xm; i++) {
-        // printf("I: %d\n",i);
-        //if(f[k][j][i]!=0.0)printf("FormFunction>>>>  PRE:: f[%d][%d][%d]: %e\n",k,j,i,f[k][j][i]);
         if (i == 0 || j == 0 || k == 0 || i == Mx-1 || j == My-1 || k == Mz-1) {
-          //testx= x[k][j][i];
-
           f[k][j][i] = x[k][j][i];
         } else {
           u          = x[k][j][i];
-          //printf("FF :: x[%d][%d][%d]: %e\n",k,j,i,u);
           u_east     = x[k][j][i+1];
           u_west     = x[k][j][i-1];
           u_north    = x[k][j+1][i];
@@ -340,10 +329,8 @@ PetscErrorCode FormFunction(SNES snes,Vec X,Vec F,void *ptr)
           u_xx       = (-u_east + two*u - u_west)*hyhzdhx;
           u_yy       = (-u_north + two*u - u_south)*hxhzdhy;
           u_zz       = (-u_up + two*u - u_down)*hxhydhz;
-          //          printf("u_xx: %e, u_yy: %e, u_zz: %e\n",u_xx,u_yy,u_zz);
           f[k][j][i] = u_xx + u_yy + u_zz - sc*PetscExpScalar(u);
         }
-        //if(f[k][j][i]!=0.0)printf("FormFunction>>>> POST:: f[%d][%d][%d] %e\n",k,j,i,f[k][j][i]);
       }
     }
   }

@@ -90,6 +90,7 @@ typedef const char* MatType;
 #define MATSTRUCTGRID      "structgrid"
 #define MATSTRUCTGRIDGPU   "structgridgpu"
 #define MATBLOCKSTRUCTGRID "blockstructgrid"
+#define MATMPIBSG 		"mpibsg"
 
 /*J
 
