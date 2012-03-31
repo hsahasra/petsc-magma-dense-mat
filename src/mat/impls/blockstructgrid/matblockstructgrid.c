@@ -675,6 +675,10 @@ PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat mat)
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs,&(a->diag));CHKERRQ(ierr);
 	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
 	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
+  ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
+  ierr = PetscLayoutSetBlockSize(mat->cmap,a->dof);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(mat->rmap);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(mat->cmap);CHKERRQ(ierr);
 	mat->preallocated = PETSC_TRUE;
 	PetscFunctionReturn(0);
 }
@@ -890,6 +894,10 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 	}
 	a->stpoffset[7] = count;
 
+  ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
+  ierr = PetscLayoutSetBlockSize(mat->cmap,a->dof);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(mat->rmap);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(mat->cmap);CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
 
@@ -1075,6 +1083,31 @@ PetscErrorCode MatGetSubMatrix_SeqBSG(Mat A,IS isrow,IS iscol,MatReuse scall,Mat
 	ierr = ISDestroy(&is2);CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
+
+/*** MatGetSubMatrices_SeqBSG : REturns sub matrices
+ * Should be strides
+ * Stride should be same value
+ * Range of row and cols should be same
+ * */
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatGetSubMatrices_SeqBSG"
+PetscErrorCode MatGetSubMatrices_SeqBSG(Mat A,PetscInt n,const IS irow[],const IS icol[],MatReuse scall,Mat *B[])
+{
+	PetscErrorCode ierr;
+	PetscInt       i;
+
+	PetscFunctionBegin;
+	if (scall == MAT_INITIAL_MATRIX) {
+		ierr = PetscMalloc((n+1)*sizeof(Mat),B);CHKERRQ(ierr);
+	}
+
+	for (i=0; i<n; i++) {
+		ierr = MatGetSubMatrix_SeqBSG(A,irow[i],icol[i],scall,&(*B)[i]);CHKERRQ(ierr);
+	}
+	PetscFunctionReturn(0);
+}
+
 
 /** MatZeroEntries_SeqBSG : Sets the values in the matrix to be zero
 Added by Deepan */

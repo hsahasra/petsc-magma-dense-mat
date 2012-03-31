@@ -25,7 +25,7 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
-#define OMP
+//#define OMP
 
 #ifdef OMP
 #include<omp.h>
@@ -281,10 +281,12 @@ for(e=0;e<NUM_EVENTS;e++)
 //  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 	printf("Y - Block Structgrid AVX:\n");
-//  	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	
+#ifdef OMP
 	printf("Y - Block Structgrid AVX + OMP:\n");
   	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+#endif
 	}
 
 
@@ -305,6 +307,7 @@ for(e=0;e<NUM_EVENTS;e++)
 		else 
 			printf("BSG AVX Test Passed\n");
   	
+#ifdef OMP
 		ierr = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysgomp,NORM_2,&normbsg);CHKERRQ(ierr);
 		printf("BSG(AVX) + OMP Norm        = %.6f\n",normbsg);
@@ -313,6 +316,7 @@ for(e=0;e<NUM_EVENTS;e++)
 		else 
 			printf("BSG AVX + OMP  Test Passed\n");
 //		ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+#endif
 	}
   
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
