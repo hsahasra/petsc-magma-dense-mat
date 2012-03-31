@@ -4,7 +4,7 @@
 //#define SPREFETCH
 #define min(a,b) (a)<(b) ? (a) : (b)
 
-#define _mm_maskstore_pd(a,b,c) _mm_storeu_pd(a,c)
+//#define _mm_maskstore_pd(a,b,c) _mm_storeu_pd(a,c)
 
 #include <omp.h>
 int OPENMPB = 0;
