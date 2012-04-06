@@ -1025,7 +1025,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 		xt4 = x + (idx[4] + idy[4]*lda3 + idz[4]*lda2)*dof;
 		xt5 = x + (idx[5] + idy[5]*lda3 + idz[5]*lda2)*dof;
 		xt6 = x + (idx[6] + idy[6]*lda3 + idz[6]*lda2)*dof;
-	
+
 	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
 	{
 		setupct(0,it);

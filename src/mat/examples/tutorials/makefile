@@ -4,7 +4,7 @@ OSKILIBS_DIR = ${OSKI_DIR}/lib/oski
 
 CFLAGS 	        =
 
-CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include
+CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include -ggdb
 FFLAGS	        =
 CPPFLAGS        =
 FPPFLAGS        =

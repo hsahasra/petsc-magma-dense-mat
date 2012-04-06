@@ -113,8 +113,8 @@ int main(int argc,char **args)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  	ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
-	//ierr = VecSetRandom(x,PETSC_NULL);
+  	//ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
+	ierr = VecSetRandom(x,PETSC_NULL);
 
 	cols = malloc(sizeof(PetscInt)*dof);
 	vals = malloc(sizeof(PetscScalar)*dof);
@@ -195,8 +195,8 @@ int main(int argc,char **args)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 	if(info){
   	printf("\nInputs:\n");
-  	ierr = MatView(mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	//ierr = MatView(mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   	ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -277,15 +277,16 @@ for(e=0;e<NUM_EVENTS;e++)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	if(info){
 	printf("\nOutput:\n");
+  	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	printf("Y - CSR:\n");
 //  	ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 	printf("Y - Block Structgrid AVX:\n");
-  	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //	ierr = VecView(ybsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	
 #ifdef OMP
 	printf("Y - Block Structgrid AVX + OMP:\n");
-  	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 	}
 
