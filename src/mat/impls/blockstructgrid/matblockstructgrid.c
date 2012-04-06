@@ -166,7 +166,7 @@ PetscErrorCode MatMult_SeqBSG(Mat mat, Vec x, Vec y)
 
 	ierr = VecRestoreArrayRead(x,&xx); CHKERRQ(ierr);
 	ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
-	ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
+	ierr = PetscLogFlops(2*a->bs*a->nz*a->stpoints); CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
 
@@ -178,7 +178,9 @@ Added by Deepan */
 PetscErrorCode MatSetValuesBlocked_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[], PetscInt ncol,const PetscInt icol[], const PetscScalar y[], InsertMode is)
 {
 	PetscErrorCode ierr;
-	ierr = MatSetValues_SeqBSG(A,nrow,irow,ncol,icol,y,is); CHKERRQ(ierr);
+	PetscFunctionBegin;	
+
+	ierr = 	MatGetSetValues_SeqBSG(A,  nrow, irow, ncol, icol, &y[0], is,PETSC_TRUE); CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }	
 
@@ -217,7 +219,6 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 	rbeg = mat->stencil_rbeg;
 	cbeg = mat->stencil_cbeg;
 	nstr = mat->stencil_stride;
-	
 	for(i=0;i< nrow ; i++)
 	{
 		rshift = irow[i]*nstr + rbeg;
@@ -305,7 +306,7 @@ PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 				if(c <= pos && pos < endpoint)
 				{
 					finalpos = pos - c;
-				ioff = count + ioffsets[i] - lbeg[k];
+				ioff = count + ioffsets[i];// for submatrix - lbeg[k];
 				if(dof % 2 == 0)
 				{
 						for(j=0;j<dof;j++)
@@ -374,7 +375,7 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 		start = mat->rstart;
 		lbeg = mat->lbeg; 
 		lend = mat->lend; 
-		nregion = mat->nregion;	
+		nregion = mat->nregion;
 	}
 
 	for(i=0;i<n;i++)
@@ -396,13 +397,11 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 		}
 		for(k=0;k<nregion;k++)
 		{
-			for(c = start[k]; c < start[k+1]; c+= l3threshold )
+			if(start[k] <= pos && pos < start[k+1])
 			{
-				endpoint = (c+l3threshold) < start[k+1] ? (c+l3threshold) : start[k+1]; 
-				if(c <= pos && pos < endpoint)
-				{
-					finalpos = pos - c;
-				ioff = count + ioffsets[i] - lbeg[k];
+				finalpos = pos - start[k];
+				//ioff = count + ioffsets[i];// for submatrix - lbeg[k];
+				ioff = k*mat->stpoints + ioffsets[i];// for submatrix - lbeg[k];
 				if(dof % 2 == 0)
 				{
 					if(is == ADD_VALUES)
@@ -416,6 +415,7 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 						for(j=0;j<dof;j++)
 							for(k1=0;k1<dof;k1++)
 								mat->coeff[ioff][(finalpos)*bs+j*dof+k1] = data[i*bs+j*dof+k1];
+							
 					}
 				}
 				else
@@ -436,12 +436,10 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 						{
 							for(k1=0;k1<dof-1;k1++)
 								mat->coeff[ioff][(finalpos)*bs+j*(dof-1)+k1] = data[i*bs+j*dof+k1];
-	
+
 								mat->coeff[ioff][(finalpos)*bs+dof*(dof-1)+j] = data[i*bs+(j+1)*dof-1];
 						}
 					}
-				}
- 
 				}
 				if(mat->rstart == PETSC_NULL)
 				{
@@ -449,7 +447,8 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 				}
 				else
 				{
-					count += (lend[k] - lbeg[k]);
+					count += mat->stpoints;
+				//	count += (lend[k] - lbeg[k]);
 				}
 			}
 		}
@@ -698,10 +697,19 @@ PetscErrorCode MatSetUpSubRegion_SeqBSG(Mat A)
 	
 	for(i=0;i<nregion;i++)
 	{
-		for(c = start[i]; c < start[i+1]; c+= l3threshold)
-		{
-			count += (lend[i] - lbeg[i]);
-			rcount ++;
+		if(a->sub_matrix){
+			for(c = start[i]; c < start[i+1]; c+= l3threshold)
+			{
+				count += (lend[i] - lbeg[i]);
+				rcount ++;
+			}
+		}
+		else{
+			for(c = start[i]; c < start[i+1]; c+= l3threshold)
+			{
+				count += a->stpoints;//(lend[i] - lbeg[i]);
+				rcount ++;
+			}
 		}
 	}
 	ierr = PetscMalloc(sizeof(PetscScalar*)*(count+1),&(a->coeff));CHKERRQ(ierr);
@@ -714,23 +722,45 @@ PetscErrorCode MatSetUpSubRegion_SeqBSG(Mat A)
 	rcount = 0;
 	for(i=0;i<nregion;i++)
 	{
-		for(c = start[i]; c < start[i+1]; c+= l3threshold)
-		{
-			endpoint = (c+l3threshold) < start[i+1] ? (c+l3threshold) : start[i+1]; 
-			for(j=1;j<=(lend[i] - lbeg[i]);j++)
+		if(a->sub_matrix){
+			for(c = start[i]; c < start[i+1]; c+= l3threshold)
 			{
-				a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c));
+				endpoint = (c+l3threshold) < start[i+1] ? (c+l3threshold) : start[i+1]; 
+				for(j=1;j<=(lend[i] - lbeg[i]);j++) // counter starting from 1 is very important
+				{
+					a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c)*a->bs);
+				}
+				a->stpoffset[rcount] = count;
+				count += (lend[i] - lbeg[i]);
+				a->rstart[rcount] = c;
+				a->lbeg[rcount] = lbeg[i];
+				a->lend[rcount] = lend[i];
+				rcount++;
 			}
-			a->stpoffset[rcount] = count;
-			count += (lend[i] - lbeg[i]);
-			a->rstart[rcount] = c;
-			a->lbeg[rcount] = lbeg[i];
-			a->lend[rcount] = lend[i];
-			rcount++;
+		}
+		else
+		{
+			for(c = start[i]; c < start[i+1]; c+= l3threshold)
+			{
+				endpoint = (c+l3threshold) < start[i+1] ? (c+l3threshold) : start[i+1]; 
+				//for(j=1;j<=(lend[i] - lbeg[i]);j++)
+				for(j=1;j<= a->stpoints;j++) 
+				{
+					a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c)*a->bs);
+				}
+				a->stpoffset[rcount] = count;
+				//count += (lend[i] - lbeg[i]);
+				count += a->stpoints;//(lend[i] - lbeg[i]);
+				a->rstart[rcount] = c;
+				a->lbeg[rcount] = lbeg[i];
+				a->lend[rcount] = lend[i];
+				rcount++;
+			}
 		}
 	}
 	a->stpoffset[rcount] = count;
 	a->rstart[a->nregion] = start[nregion];
+
 	ierr = PetscFree3(start, lbeg, lend);CHKERRQ(ierr);// Clear old memory values	
 	PetscFunctionReturn(0);
 }
@@ -835,9 +865,13 @@ PetscErrorCode MatSetUpRegion_SeqBSG(Mat A)
 		}
 		a->lbeg[c] = lb;
 		a->lend[c] = le;
-		a->rstart[c] = (1+lstart[c]-irowbeg )/nstride;
+		a->rstart[c] = (lstart[c]-irowbeg );
+		if(irowbeg != 0) a->rstart[c] += 1;
+		a->rstart[c] /= nstride;
 	}
-	a->rstart[a->nregion] = (1+lstart[a->nregion] - irowbeg )/nstride;
+	a->rstart[a->nregion] = (lstart[a->nregion] - irowbeg );
+		if(irowbeg != 0) a->rstart[a->nregion] += 1;
+		a->rstart[a->nregion] /= nstride;
 	
 	ierr = MatSetUpSubRegion_SeqBSG(A); CHKERRQ(ierr);
 	PetscFree(ioffsets);	
@@ -868,6 +902,16 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 	start[7] = a->nz; 
 	l3threshold = WORKINGSETSIZE/a->bs;
 
+	a->stpoffset[7] = count;
+	
+	a->stencil_stride = 1;
+	a->stencil_rbeg = 0;
+	a->stencil_cbeg = 0;
+	a->stencil_rend = a->nz;
+	a->stencil_cend = a->nz;
+	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
+
+	//Can remove following setup after correcting stpoints increase and fixing matmult
 	for(i=0;i<7;i++)
 	{
 		for(c = start[i]; c < start[i+1]; c+= l3threshold)
@@ -887,12 +931,11 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 			endpoint = (c+l3threshold) < start[i+1] ? (c+l3threshold) : start[i+1]; 
 			for(j=1;j<=a->stpoints;j++)
 			{
-				a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c));
+				a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c)*a->bs);
 			}
 			count += a->stpoints;
 		}
 	}
-	a->stpoffset[7] = count;
 
   ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
   ierr = PetscLayoutSetBlockSize(mat->cmap,a->dof);CHKERRQ(ierr);
@@ -1126,6 +1169,108 @@ PetscErrorCode MatZeroEntries_SeqBSG(Mat A)
 	PetscFunctionReturn(0);
 }
 
+/** MatDiagonalScale_SeqBSG : Scales matrix based on left and right vectors
+ * Added by Deepan
+ * */
+#undef __FUNCT__
+#define __FUNCT__ "MatDiagonalScale_SeqBSG"
+
+PetscErrorCode MatDiagonalScale_SeqBSG (Mat A, Vec ll, Vec rr){
+	Mat_SeqBSG *a = (Mat_SeqBSG *) A->data;
+	const PetscScalar *l,*r, *li, *ri[a->stpoints];
+	PetscInt dof = a->dof, bs = a->bs, m = a->nz*dof;
+	PetscInt vm, stp, i, c, j, bc1, bc2, endpoint;
+	PetscInt l3threshold = WORKINGSETSIZE/bs;
+	PetscInt lda3 = a->m;
+	PetscInt lda2 = lda3*a->n;
+	PetscInt lda1 = lda2*a->p;
+
+	PetscErrorCode ierr;
+
+	PetscFunctionBegin;
+	if(ll){
+		ierr = VecGetArrayRead(ll,&l); CHKERRQ(ierr);
+		ierr = VecGetLocalSize(ll,&vm); CHKERRQ(ierr);
+		if (vm != m) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Left scaling vector wrong length");
+		if(dof%2 == 0){
+			for(i=0;i<a->nregion;i++){
+				for(c = a->rstart[i]; c < a->rstart[i+1]; c++)
+				{
+						li = l+c*dof;
+						for(stp = a->lbeg[i]; stp < a->lend[i]; stp++){
+							for(bc1 = 0; bc1 < dof; bc1++){
+								for(bc2 = 0; bc2 < dof; bc2++){
+									a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*dof+bc2] *= li[bc2];	
+								}
+							}			
+						} 
+				}
+			}
+		}
+		else{
+			for(i=0;i<a->nregion;i++){
+				for(c = a->rstart[i]; c < a->rstart[i+1]; c++)
+				{
+						li = l+c*dof;
+						for(stp = a->lbeg[i]; stp < a->lend[i]; stp++){
+							for(bc1 = 0; bc1 < dof; bc1++){
+								for(bc2 = 0; bc2 < dof-1; bc2++){
+									a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*(dof-1)+bc2] *= li[bc2];	
+								}
+							}			
+							for(bc1 = 0; bc1 < dof; bc1++){
+								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+(dof-1)*dof+bc1] *= li[dof-1];	
+							}			
+						} 
+				}
+			}
+		}
+		ierr = VecRestoreArrayRead(ll,&l); CHKERRQ(ierr);
+    		ierr = PetscLogFlops(a->nz*a->stpoints*a->bs);CHKERRQ(ierr);
+		
+	}
+
+	if(rr){
+		ierr = VecGetArrayRead(rr,&l); CHKERRQ(ierr);
+		ierr = VecGetLocalSize(rr,&vm); CHKERRQ(ierr);
+		if (vm != m) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Left scaling vector wrong length");
+		for(i=0;i<a->stpoints;i++){
+			ri[i] = l + dof*(lda2*a->idz[i] + lda3*a->idy[i] + a->idx[i]);
+		}
+		if(dof%2 == 0){
+			for(i=0;i<a->nregion; i++){
+				for(c = a->rstart[i] ; c< a->rstart[i+1] ; c++){
+					for(stp = a->lbeg[i];stp<a->lend[i]; stp++){
+						for(bc1 = 0; bc1 < dof; bc1++){
+							for(bc2 = 0; bc2 < dof; bc2++){
+								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*dof+bc2]*= ri[stp][c*dof+bc1];
+							}
+						}
+					} 
+				}
+			}
+		}
+		else{
+			for(i=0;i<a->nregion; i++){
+				for(c = a->rstart[i] ; c< a->rstart[i+1] ; c++){
+					for(stp = a->lbeg[i];stp<a->lend[i]; stp++){
+						for(bc1 = 0; bc1 < dof; bc1++){
+							for(bc2 = 0; bc2 < dof-1; bc2++){
+								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*(dof-1)+bc2]*= ri[stp][c*dof+bc1];
+							}
+							a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+(dof-1)*dof+bc1]*= ri[stp][c*dof+bc1];
+						}
+					} 
+				}
+			}
+		}	
+		ierr = VecRestoreArrayRead(rr,&l); CHKERRQ(ierr);
+    		ierr = PetscLogFlops(a->nz*a->stpoints*a->bs);CHKERRQ(ierr);
+	}
+
+	PetscFunctionReturn(0);
+}
+
 #undef __FUNCT__
 #define __FUNCT__ "MatView_SeqBSG"
 PetscErrorCode MatView_SeqBSG(Mat A,PetscViewer viewer)
@@ -1141,7 +1286,7 @@ PetscErrorCode MatView_SeqBSG(Mat A,PetscViewer viewer)
 	ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
 	ierr = PetscObjectPrintClassNamePrefixType((PetscObject)A,viewer,"Matrix Object");CHKERRQ(ierr);
 	
-	start[0] = 0; 
+/*	start[0] = 0; 
 	start[1] = 1; 
 	start[2] = a->m; 
 	start[3] = a->m*a->n; 
@@ -1149,22 +1294,26 @@ PetscErrorCode MatView_SeqBSG(Mat A,PetscViewer viewer)
 	start[5] = a->nz - a->m; 
 	start[6] = a->nz - 1; 
 	start[7] = a->nz; 
-	for(stcount = 0; stcount < stpoints ; stcount++)
+*/
+	for(count = 0; count < a->nregion; count ++)
 	{
-		ierr = PetscViewerASCIIPrintf(viewer,"\n\nStpoints %D\n ",stcount , data[stcount]);CHKERRQ(ierr);
-		for(count = 0; count < 7; count ++)
+		for(icount = a->rstart[count]; icount < a->rstart[count+1] ; icount++)
 		{
-			for(icount = start[count]; icount < start[count+1] ; icount++)
-			{
-				ierr = PetscViewerASCIIPrintf(viewer,"%D : [ ",icount);CHKERRQ(ierr);
+			ierr = PetscViewerASCIIPrintf(viewer,"\n%D : [ ",icount);CHKERRQ(ierr);
+			//for(stcount = a->lbeg[count] ; stcount < a->lend[count]; stcount++){
+			for(stcount = 0 ; stcount < a->stpoints; stcount++){
+
+				ierr = PetscViewerASCIIPrintf(viewer,"\t %D,( ",stcount);CHKERRQ(ierr);
 				for(jcount = 0; jcount < bs ; jcount++)
 				{
-					ierr = PetscViewerASCIIPrintf(viewer,"(%G)  ",data[count*stpoints+stcount][jcount]);CHKERRQ(ierr);
+					ierr = PetscViewerASCIIPrintf(viewer,"%G  ",a->coeff[count*a->stpoints + stcount][icount-a->rstart[count]+jcount]);CHKERRQ(ierr);
 				}
-				ierr = PetscViewerASCIIPrintf(viewer," ]\n");CHKERRQ(ierr);
+				ierr = PetscViewerASCIIPrintf(viewer,") \n");CHKERRQ(ierr);
 			}
+			ierr = PetscViewerASCIIPrintf(viewer," ]\n");CHKERRQ(ierr);
 		}
-	}
+	} 
+	
 
 	ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 	ierr = PetscViewerASCIIUseTabs(viewer,PETSC_TRUE);CHKERRQ(ierr);
