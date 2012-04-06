@@ -149,10 +149,10 @@ int e;
 #ifdef GPU 
 	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
   	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
-  	//ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
-  	//ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
+  	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
+  	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
 	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
-	//MatSetType(matgpu,MATSEQAIJCUSP);
+	MatSetType(matgpu,MATSEQAIJCUSP);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set stencils for Structgrid -matsg
@@ -221,7 +221,7 @@ int e;
 
 					for(k=0;k<dof;k++)	
 					{
-						vals[k] = simple_rand();
+					  vals[k] = simple_rand();
 						cols[k] = j*dof+k; 
 					}
 					rowval = i*dof+l;
@@ -230,7 +230,7 @@ int e;
 
 #ifdef GPU
 					ierr = MatSetValues(matsggpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-                                        //ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+                                        ierr = MatSetValues(matgpu,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 #endif
 				}
 			}
@@ -247,8 +247,8 @@ int e;
 #ifdef GPU
   	ierr = MatAssemblyBegin(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   	ierr = MatAssemblyEnd(matsggpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	//ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  	//ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  	ierr = MatAssemblyBegin(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  	ierr = MatAssemblyEnd(matgpu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Print the input vector and matrix
@@ -319,13 +319,13 @@ for(e=0;e<NUM_EVENTS;e++)
 
 #ifdef GPU
 	//CSR GPU
-	/*start = rtclock();	
+	start = rtclock();	
 	for(i=0;i<REP;i++)
   		ierr = MatMult(matgpu,x,ygpu);CHKERRQ(ierr);
 	end = rtclock();
 	printf("\nCSR - GPU:\n");
 	printf("Time =%.3f\n GFLOPS= %.3f\n",end-start,((long)REP*2*nos*nz)/((end-start)*1024*1024*1024)); 
-         */
+         
 
 	//SG (GPU)
 	start = rtclock();	
@@ -351,8 +351,8 @@ for(e=0;e<NUM_EVENTS;e++)
   	ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 #ifdef GPU
-	//printf("Y - CSR CUSP(GPU):\n");
-        //ierr = VecView(ygpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	printf("Y - CSR CUSP(GPU):\n");
+        ierr = VecView(ygpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	printf("Y - Structgrid GPU:\n");
         ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif	
@@ -413,7 +413,7 @@ for(e=0;e<NUM_EVENTS;e++)
 	ierr = MatDestroy(&mat);CHKERRQ(ierr);
 	ierr = MatDestroy(&matsg);CHKERRQ(ierr);
 #ifdef GPU
-        //	ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
+        ierr = VecDestroy(&ygpu);CHKERRQ(ierr);
 	ierr = VecDestroy(&ysggpu);CHKERRQ(ierr);
 	ierr = MatDestroy(&matgpu);CHKERRQ(ierr);
 	ierr = MatDestroy(&matsggpu);CHKERRQ(ierr);
