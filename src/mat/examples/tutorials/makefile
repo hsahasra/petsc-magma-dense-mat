@@ -9,11 +9,12 @@ FFLAGS	        =
 CPPFLAGS        = 
 FPPFLAGS        =
 LOCDIR          = src/mat/examples/tutorials/
+MPIRUN		= /home/dpnkarthik/petsc-rnet/PETSC_RNET/bin/mpiexec.hydra
 CLDFLAGS_STATIC = ${OSKILIBS_STATIC} -ldl -lm
 
 
 
-EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c ex14.c ex15.c exSG.c exSG2.c exbSG.c exbSG2.c exbSG3.c exbSG_oski.c
+EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c ex14.c ex15.c exSG.c exSG2.c exbSG.c exbSG2.c exbSG3.c exbSG_oski.c exbSG_mpi.c
 
 EXAMPLESF       =
 MANSEC          = Mat
@@ -33,6 +34,10 @@ exSG2: exSG2.o  chkopts
 exbSG: exbSG.o chkopts
 	-${CLINKER} -o exbSG exbSG.o ${PETSC_MAT_LIB}
 	${RM} exbSG.o
+
+exbSG_mpi: exbSG_mpi.o chkopts
+	-${CLINKER} -o exbSG_mpi exbSG_mpi.o ${PETSC_MAT_LIB}
+	${RM} exbSG_mpi.o
 
 exbSG2: exbSG2.o chkopts
 	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
@@ -109,6 +114,9 @@ runexSG:
 
 runexSG2: 
 	-@${MPIEXEC}  ./exSG2 
+
+runexbSG_mpi: 
+	-@${MPIEXEC} -np 4  ./exbSG_mpi
 
 runex1: 
 	-@${MPIEXEC} -n 1 ./ex1 -f0 ${DATAFILESPATH}/matrices/medium -viewer_binary_skip_info

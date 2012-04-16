@@ -134,6 +134,7 @@
 #define MATSOLVERBSTRM        'bstrm'
 #define MATSOLVERSBSTRM       'sbstrm'
 #define MATBLOCKSTRUCTGRID	'blockstructgrid'
+#define MATMPIBSG		'mpibsg'
 
 
 /* Two new datatypes are being added namely, structgrid and 

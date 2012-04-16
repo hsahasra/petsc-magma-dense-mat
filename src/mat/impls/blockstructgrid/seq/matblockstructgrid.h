@@ -31,7 +31,7 @@ PetscInt bs; // block size , usually dof*dof
 PetscScalar ** coeff;
 PetscInt *stpoffset;
 
-PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *,  PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
+PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 
 //Facilitate submatrix
 PetscInt nregion; //  number of regions
@@ -50,6 +50,7 @@ PetscBool sub_matrix;
 extern PetscErrorCode MatCreate_SeqBSG(Mat);
 extern PetscErrorCode MatDestroy_SeqBSG(Mat);
 extern PetscErrorCode MatMult_SeqBSG(Mat,Vec,Vec);
+extern PetscErrorCode MatDiagonalScale_SeqBSG(Mat,Vec,Vec);
 extern PetscErrorCode MatSetValues_SeqBSG(Mat, PetscInt,const PetscInt[] , PetscInt,const PetscInt[],const PetscScalar[], InsertMode); 
 extern PetscErrorCode MatSetValuesBlocked_SeqBSG(Mat, PetscInt,const PetscInt[], PetscInt,const PetscInt[],const PetscScalar[], InsertMode);
 extern PetscErrorCode MatGetSubMatrix_SeqBSG(Mat ,IS ,IS ,MatReuse ,Mat *);

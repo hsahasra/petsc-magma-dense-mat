@@ -90,6 +90,8 @@ J*/
 
 #define MATBLOCKSTRUCTGRID "blockstructgrid"
 
+#define MATMPIBSG 		"mpibsg"
+
 
 
 /*J

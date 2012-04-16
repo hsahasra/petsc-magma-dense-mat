@@ -1,8 +1,8 @@
 #define PETSCMAT_DLL
 
 
-#include "../src/mat/impls/blockstructgrid/matblockstructgrid.h"
-#include "../src/mat/impls/blockstructgrid/commonfunctions.h"
+#include "../src/mat/impls/blockstructgrid/seq/matblockstructgrid.h"
+#include "../src/mat/impls/blockstructgrid/seq/commonfunctions.h"
 #include "petscblaslapack.h"
 #include "petscbt.h"
 #include "petscmat.h"
@@ -18,7 +18,7 @@ static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_SeqBSG,0,0,MatMult_SeqBSG,0,
 /*5*/0,0,0,0,0,
 /*10*/0,0,0,0,0,
-/*15*/0,0,0,0,0,
+/*15*/0,0,0,MatDiagonalScale_SeqBSG,0,
 /*20*/0,0,0,MatZeroEntries_SeqBSG,0,
 /*25*/0,0,0,0,MatSetUpPreallocation_SeqBSG,
 /*30*/0,0,0,0,0,
@@ -124,16 +124,19 @@ PetscErrorCode MatDestroy_SeqBSG(Mat A)
 #if defined(PETSC_USE_LOG)
 	PetscLogObjectState((PetscObject)A,"X-size= %D, Y-size=%D, Z-size=%D, NZ=%D",a->m,a->n,a->p,a->nz*a->stpoints);
 #endif
+	ierr = PetscFree(a->stpoffset);CHKERRQ(ierr);
 	ierr = PetscFree(a->coeff);CHKERRQ(ierr);
 	ierr = PetscFree(a->a);CHKERRQ(ierr);
 	ierr = PetscFree(a->diag);CHKERRQ(ierr);
 	ierr = PetscFree(a->idx);CHKERRQ(ierr);
 	ierr = PetscFree(a->idy);CHKERRQ(ierr);
 	ierr = PetscFree(a->idz);CHKERRQ(ierr);
-	ierr = PetscFree(a->stpoffset);CHKERRQ(ierr);
 	if(a->sub_matrix)
 	{
-		ierr = PetscFree3(a->rstart, a->lbeg, a->lend); CHKERRQ(ierr);// Clear old memory values	
+		ierr = PetscFree(a->rstart);CHKERRQ(ierr);
+		ierr = PetscFree(a->lbeg);CHKERRQ(ierr);
+		ierr = PetscFree(a->lend);CHKERRQ(ierr);
+	//	ierr = PetscFree3(a->rstart, a->lbeg, a->lend); CHKERRQ(ierr);// Clear old memory values	
 	}
 	ierr = PetscFree(a);CHKERRQ(ierr);
 
@@ -158,9 +161,10 @@ PetscErrorCode MatMult_SeqBSG(Mat mat, Vec x, Vec y)
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
 	if(a->sub_matrix)
 	{
-		ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0]);
+		ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0], a->nregion, a->lbeg, a->lend, a->rstart);
 	}else{
-		ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0]);
+		//ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0]);
+		ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0], a->nregion, a->lbeg, a->lend, a->rstart);
 	}
 	CHKERRQ(ierr);
 
@@ -714,7 +718,10 @@ PetscErrorCode MatSetUpSubRegion_SeqBSG(Mat A)
 	}
 	ierr = PetscMalloc(sizeof(PetscScalar*)*(count+1),&(a->coeff));CHKERRQ(ierr);
 	ierr = PetscMalloc(sizeof(PetscInt)*(rcount+1),&(a->stpoffset));CHKERRQ(ierr);
-	ierr = PetscMalloc3(rcount+1, PetscInt, &(a->rstart), rcount, PetscInt, &(a->lbeg),rcount, PetscInt, &(a->lend) ); CHKERRQ(ierr); // Free this at destroy
+	ierr = PetscMalloc(sizeof(PetscInt)*(rcount+1),&(a->rstart));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*(rcount),&(a->lbeg));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*(rcount),&(a->lend));CHKERRQ(ierr);
+//	ierr = PetscMalloc3(rcount+1, PetscInt, &(a->rstart), rcount, PetscInt, &(a->lbeg),rcount, PetscInt, &(a->lend) ); CHKERRQ(ierr); // Free this at destroy
 	a->nregion = rcount;
 	
 	a->coeff[0] = a->a;
@@ -761,6 +768,9 @@ PetscErrorCode MatSetUpSubRegion_SeqBSG(Mat A)
 	a->stpoffset[rcount] = count;
 	a->rstart[a->nregion] = start[nregion];
 
+		ierr = PetscFree(start);CHKERRQ(ierr);
+		ierr = PetscFree(lbeg);CHKERRQ(ierr);
+		ierr = PetscFree(lend);CHKERRQ(ierr);
 	ierr = PetscFree3(start, lbeg, lend);CHKERRQ(ierr);// Clear old memory values	
 	PetscFunctionReturn(0);
 }
@@ -821,7 +831,7 @@ PetscErrorCode MatSetUpRegion_SeqBSG(Mat A)
 			if(next_val != irowend)
                        		next_val -= ((next_val-irowbeg)%nstride);
 		}
-		if(region_count !=0 && lstart[region_count-1] == next_val)
+		if((region_count !=0 && lstart[region_count-1] == next_val) || next_val < 0 )
 			continue;
 		lstart[region_count++] = next_val;
 	}	
@@ -830,7 +840,7 @@ PetscErrorCode MatSetUpRegion_SeqBSG(Mat A)
 	{
 		next_val = lbeg[i--];
 		next_val += ((next_val-irowbeg)%nstride);
-		if(region_count !=0 && lstart[region_count-1] == next_val)
+		if((region_count !=0 && lstart[region_count-1] == next_val) || next_val < 0 )
 			continue;
 		lstart[region_count++] = next_val;
 	}
@@ -845,7 +855,10 @@ PetscErrorCode MatSetUpRegion_SeqBSG(Mat A)
 	}
  	a->nregion = region_count-1; //Very important
 
-	ierr = PetscMalloc3(region_count, PetscInt, &(a->rstart), region_count-1, PetscInt, &(a->lbeg),region_count-1, PetscInt, &(a->lend) ); CHKERRQ(ierr); // Free this at destroy
+	ierr = PetscMalloc(sizeof(PetscInt)*(region_count+1),&(a->rstart));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*(region_count),&(a->lbeg));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*(region_count),&(a->lend));CHKERRQ(ierr);
+	//ierr = PetscMalloc3(region_count, PetscInt, &(a->rstart), region_count-1, PetscInt, &(a->lbeg),region_count-1, PetscInt, &(a->lend) ); CHKERRQ(ierr); // Free this at destroy
 
 	for(c=0; c<a->nregion; c++){
 		lb = maxstpoints+1; le = -1;	
@@ -887,12 +900,12 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 	PetscInt start[8], count = 0;
 	Mat_SeqBSG * a = (Mat_SeqBSG *)mat->data;
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
-	ierr = PetscMalloc(sizeof(PetscInt)*(8),&(a->stpoffset));CHKERRQ(ierr);
+	//ierr = PetscMalloc(sizeof(PetscInt)*(8),&(a->stpoffset));CHKERRQ(ierr);
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs,&(a->diag));CHKERRQ(ierr);
 	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
 	
-	start[0] = 0; 
+/*	start[0] = 0; 
 	start[1] = 1; 
 	start[2] = a->m; 
 	start[3] = a->m*a->n; 
@@ -900,9 +913,9 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 	start[5] = a->nz - a->m; 
 	start[6] = a->nz - 1; 
 	start[7] = a->nz; 
-	l3threshold = WORKINGSETSIZE/a->bs;
+*/	l3threshold = WORKINGSETSIZE/a->bs;
 
-	a->stpoffset[7] = count;
+//	a->stpoffset[7] = count;
 	
 	a->stencil_stride = 1;
 	a->stencil_rbeg = 0;
@@ -912,7 +925,7 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
 
 	//Can remove following setup after correcting stpoints increase and fixing matmult
-	for(i=0;i<7;i++)
+/*	for(i=0;i<7;i++)
 	{
 		for(c = start[i]; c < start[i+1]; c+= l3threshold)
 		{
@@ -936,7 +949,7 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 			count += a->stpoints;
 		}
 	}
-
+*/
   ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
   ierr = PetscLayoutSetBlockSize(mat->cmap,a->dof);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(mat->rmap);CHKERRQ(ierr);
@@ -1200,7 +1213,7 @@ PetscErrorCode MatDiagonalScale_SeqBSG (Mat A, Vec ll, Vec rr){
 						for(stp = a->lbeg[i]; stp < a->lend[i]; stp++){
 							for(bc1 = 0; bc1 < dof; bc1++){
 								for(bc2 = 0; bc2 < dof; bc2++){
-									a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*dof+bc2] *= li[bc2];	
+									a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*dof+bc2] *= li[bc1];	
 								}
 							}			
 						} 
@@ -1215,11 +1228,11 @@ PetscErrorCode MatDiagonalScale_SeqBSG (Mat A, Vec ll, Vec rr){
 						for(stp = a->lbeg[i]; stp < a->lend[i]; stp++){
 							for(bc1 = 0; bc1 < dof; bc1++){
 								for(bc2 = 0; bc2 < dof-1; bc2++){
-									a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*(dof-1)+bc2] *= li[bc2];	
+									a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*(dof-1)+bc2] *= li[bc1];	
 								}
 							}			
 							for(bc1 = 0; bc1 < dof; bc1++){
-								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+(dof-1)*dof+bc1] *= li[dof-1];	
+								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+(dof-1)*dof+bc1] *= li[bc1];	
 							}			
 						} 
 				}
@@ -1243,7 +1256,7 @@ PetscErrorCode MatDiagonalScale_SeqBSG (Mat A, Vec ll, Vec rr){
 					for(stp = a->lbeg[i];stp<a->lend[i]; stp++){
 						for(bc1 = 0; bc1 < dof; bc1++){
 							for(bc2 = 0; bc2 < dof; bc2++){
-								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*dof+bc2]*= ri[stp][c*dof+bc1];
+								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*dof+bc2]*= ri[stp][c*dof+bc2];
 							}
 						}
 					} 
@@ -1256,9 +1269,9 @@ PetscErrorCode MatDiagonalScale_SeqBSG (Mat A, Vec ll, Vec rr){
 					for(stp = a->lbeg[i];stp<a->lend[i]; stp++){
 						for(bc1 = 0; bc1 < dof; bc1++){
 							for(bc2 = 0; bc2 < dof-1; bc2++){
-								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*(dof-1)+bc2]*= ri[stp][c*dof+bc1];
+								a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+bc1*(dof-1)+bc2]*= ri[stp][c*dof+bc2];
 							}
-							a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+(dof-1)*dof+bc1]*= ri[stp][c*dof+bc1];
+							a->coeff[i*a->stpoints+stp][(c-a->rstart[i])*bs+(dof-1)*dof+bc1]*= ri[stp][c*dof+dof-1];
 						}
 					} 
 				}
