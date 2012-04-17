@@ -211,7 +211,7 @@ PetscInt BSG_MatMult_2_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
                   msum0 = _mm_hadd_pd(msum0, msum1);\
                   _mm_storeu_pd(y + t1 + 0,msum0)
 
-PetscErrorCode BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
     const PetscInt lda2 = lda3 * n;
@@ -224,7 +224,7 @@ PetscErrorCode BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -447,7 +447,7 @@ PetscInt BSG_MatMult_4_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
                   _mm_storeu_pd(y + t1 + 0,msum0);\
                   _mm_storeu_pd(y + t1 + 2,msum2)
 
-PetscErrorCode BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
     const PetscInt lda2 = lda3 * n;
@@ -460,7 +460,7 @@ PetscErrorCode BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -952,7 +952,7 @@ PetscInt BSG_MatMult_6_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
                   _mm_storeu_pd(y + t1 + 2,msum2);\
                   _mm_storeu_pd(y + t1 + 4,msum4)
 
-PetscErrorCode BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
     const PetscInt lda2 = lda3 * n;
@@ -965,7 +965,7 @@ PetscErrorCode BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -1286,7 +1286,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 			}\
 			}
 
-PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
 	PetscInt i,k,l,k1,it, t1, t2, l1,l2,l3;
 	const PetscInt lda3 = m;
 	const PetscInt lda2 = lda3 * n;
@@ -1298,7 +1298,7 @@ PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, Petsc
 	__m128d mx0, mx1, msum[dofby2], mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -1334,7 +1334,7 @@ PetscFunctionReturn(0);
 
 #define nsave_1() y[t1] = msum0
 
-PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt * lend, const PetscInt * rstart)
+PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt * lend, const PetscInt * rstart)
 {
 	PetscInt k,l,k1, it, t1, t2, l1;
 	const PetscInt lda3 = m;
@@ -1347,11 +1347,10 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 
 	
 	const PetscScalar *xt[nos],*ct[nos];
+    for(k1 = 0; k1< nos; k1++){
+        xt[k1] = x + ioff[k1] * dof;
+    }
 
-	for(k1 = 0; k1< nos; k1++)
-	{
-		xt[k1] = x + ((idx[k1] + idy[k1]*lda3 + idz[k1]*lda2)*dof);
-	}
 	
 	for(k1 = 0; k1 < nregion; k1++){
 		setup_ct(k1);
@@ -1669,7 +1668,7 @@ PetscInt BSG_MatMult_3_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
                   _mm_storeu_pd(y + t1 + 0, msum0);\
                   _mm_maskstore_pd(y + t1 + 2, xtemp, msum1)
 
-PetscErrorCode BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
     const PetscInt lda2 = lda3 * n;
@@ -1684,7 +1683,7 @@ PetscErrorCode BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -2012,7 +2011,7 @@ PetscInt BSG_MatMult_5_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
 		_mm_maskstore_pd(y+t1+4,xtemp,msum2)
 
 
-PetscErrorCode BSG_MatMult_5_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_5_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y,PetscInt * ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
     const PetscInt lda2 = lda3 * n;
@@ -2027,7 +2026,7 @@ PetscErrorCode BSG_MatMult_5_2(PetscScalar ** ctl,const PetscScalar * x, PetscSc
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -2093,7 +2092,7 @@ PetscFunctionReturn(0);
                   _mm_storeu_pd(y + t1 + 2, msum1);\
                   _mm_maskstore_pd(y + t1 + 4, xtemp, msum2)
 
-PetscErrorCode BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
     const PetscInt lda2 = lda3 * n;
@@ -2108,7 +2107,7 @@ PetscErrorCode BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){
@@ -2529,7 +2528,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		}
 
 
-PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     
 	const PetscInt l3threshold = WORKINGSETSIZE / bs;
    	 PetscInt count, endval;
@@ -2545,7 +2544,7 @@ PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscS
 
     const PetscScalar *xt[nos], *ct[nos];
     for(k1 = 0; k1< nos; k1++){
-        xt[k1] = x + (idx[k1] + idy[k1]*lda3 + idz[k1]*lda2) * dof;
+        xt[k1] = x + ioff[k1] * dof;
     }
 
     for(k1 = 0 ; k1 < nregion; k1++){

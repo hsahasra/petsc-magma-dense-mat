@@ -3,7 +3,7 @@
 static char help[] = "Simple program to test the performance of matmult for various matrix implementations. Enable appropriate flags to check an implementation.( CSR,SG,OMP,GPU). Run time options: [-n] [-m] [-p] [-dim] [-REF] [-info 1 for more info] Note: All of these flags are required except for info\n\n";
 
 #include<sys/time.h>
-#include "../../impls/blockstructgrid/matblockstructgrid.h"
+#include "../../impls/blockstructgrid/seq/matblockstructgrid.h"
 #include <petscksp.h> // this includes all the below headers
 //#include<petscsys.h >//      	- base PETSc routines   petscvec.h - vectors
 //#include<petscmat.h>// 	- matrices
