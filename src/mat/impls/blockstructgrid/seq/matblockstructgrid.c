@@ -181,7 +181,7 @@ PetscErrorCode MatSetValuesBlocked_SeqBSG(Mat A, PetscInt nrow,const PetscInt ir
 	PetscErrorCode ierr;
 	PetscFunctionBegin;	
 
-	ierr = 	MatGetSetValues_SeqBSG(A,  nrow, irow, ncol, icol, &y[0], is,PETSC_TRUE); CHKERRQ(ierr);
+	ierr = 	MatGetSetValues_SeqBSG(A,  nrow, irow, ncol, icol, &y[0], is,PETSC_TRUE, PETSC_TRUE); CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }	
 
@@ -195,20 +195,21 @@ PetscErrorCode MatSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[], P
 	PetscErrorCode ierr;
 	PetscFunctionBegin;	
 
-	ierr = 	MatGetSetValues_SeqBSG(A,  nrow, irow, ncol, icol, &y[0], is,PETSC_TRUE); CHKERRQ(ierr);
+	ierr = 	MatGetSetValues_SeqBSG(A,  nrow, irow, ncol, icol, &y[0], is,PETSC_TRUE, PETSC_FALSE); CHKERRQ(ierr);
 	PetscFunctionReturn(0);
 }
 
-PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[], PetscInt ncol ,const PetscInt icol[],PetscScalar *y, InsertMode is, PetscBool SetVal)
+PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[], PetscInt ncol ,const PetscInt icol[],PetscScalar *y, InsertMode is, PetscBool SetVal, PetscBool Blocked)
 {
 	PetscErrorCode ierr;
 	Mat_SeqBSG * mat = (Mat_SeqBSG *) A->data;
-	PetscInt *ipos, *ioffsets;
-	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof,rshift,cshift, rowval, rbeg, cbeg, nstr;
+	PetscInt *ipos, *ioffsets, *icols;
+	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof,rshift,cshift, rowval, rbeg, cbeg, nstr, divRatio;
 
 	
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&ipos);CHKERRQ(ierr);
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&ioffsets);CHKERRQ(ierr);
+	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&icols);CHKERRQ(ierr);
 	
 	m = mat->m;
 	n = mat->n;
@@ -219,12 +220,16 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 	rbeg = mat->stencil_rbeg;
 	cbeg = mat->stencil_cbeg;
 	nstr = mat->stencil_stride;
+	if(Blocked)
+		divRatio = 1;
+	else
+		divRatio = dof;
 	for(i=0;i< nrow ; i++)
 	{
-		rshift = irow[i]*nstr + rbeg;
+		rshift = (irow[i]*nstr)/divRatio + rbeg;
 		for(j=0;j<ncol;j++)
 		{
-			cshift = icol[j]*nstr + cbeg;	
+			cshift = (icol[j]*nstr)/divRatio + cbeg;	
 			cdis = cshift - rshift;
 			for(k=0;k<stp;k++)
 				if(mat->ioff[k] == cdis)	
@@ -235,6 +240,7 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 			if(k<stp)
 			{
 				ipos[count] = irow[i];
+				icols[count] = icol[j];
 				ioffsets[count] = k;
 				count ++;
 			}
@@ -242,7 +248,13 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 	}
 	if(SetVal)
 	{
-			ierr = SetValues_Matrix_SeqBSG(mat,nrow*ncol,ipos,ioffsets,y,is); CHKERRQ(ierr);
+			if(Blocked)
+			{
+				ierr = SetValuesBlocked_Matrix_SeqBSG(mat,nrow*ncol,ipos,ioffsets,y,is); CHKERRQ(ierr);
+			}
+			else{
+				ierr = SetValues_Matrix_SeqBSG(mat,nrow*ncol,ipos,icols,ioffsets,y,is); CHKERRQ(ierr);
+			}
 	}
 	else
 	{
@@ -299,10 +311,84 @@ PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 	}
 	PetscFunctionReturn(0);
 }
+/** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
+Added by Deepan */
+PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[],const PetscInt icols[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
+{
+	PetscErrorCode ierr;
+	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
+	PetscInt rdis, cdis;
+	PetscInt *start, *lbeg, *lend, finalpos, nregion, ioff;
+	//PetscInt count
+	l3threshold = WORKINGSETSIZE/mat->bs;
+		start = mat->rstart;
+		lbeg = mat->lbeg; 
+		lend = mat->lend; 
+		nregion = mat->nregion;
+
+	for(i=0;i<n;i++)
+	{
+		pos = ipos[i]/dof;
+		rdis = ipos[i] %dof;
+		cdis = icols[i] %dof;
+		//count = 0;
+		if(ioffsets[i] == 3){
+			//diag
+			if(is == ADD_VALUES)
+			{
+					mat->diag[pos*bs+rdis*dof+cdis ] += data[i];	
+			} else {
+					mat->diag[pos*bs+rdis*dof+cdis ] = data[i];	
+			}
+		}
+		for(k=0;k<nregion;k++)
+		{
+			if(start[k] <= pos && pos < start[k+1])
+			{
+				finalpos = pos - start[k];
+				//ioff = count + ioffsets[i];// for submatrix - lbeg[k];
+				ioff = k*mat->stpoints + ioffsets[i];// for submatrix - lbeg[k];
+				if(dof % 2 == 0)
+				{
+					if(is == ADD_VALUES)
+					{
+							mat->coeff[ioff][(finalpos)*bs+rdis*dof+cdis] += data[i];
+					}
+					else
+					{
+							mat->coeff[ioff][(finalpos)*bs+rdis*dof+cdis] = data[i];
+							
+					}
+				}
+				else
+				{
+					if(is == ADD_VALUES)
+					{
+						if(cdis != dof-1)
+							mat->coeff[ioff][(finalpos)*bs+rdis*(dof-1)+cdis] += data[i];
+						else
+							mat->coeff[ioff][(finalpos)*bs+dof*(dof-1)+rdis] += data[i];
+					}
+					else
+					{
+						if(cdis != dof-1)
+							mat->coeff[ioff][(finalpos)*bs+rdis*(dof-1)+cdis] = data[i];
+						else
+							mat->coeff[ioff][(finalpos)*bs+dof*(dof-1)+rdis] = data[i];
+					}
+				}
+				//count += mat->stpoints;
+				//	count += (lend[k] - lbeg[k]);
+			}
+		}
+	}
+	PetscFunctionReturn(0);
+}
 
 /** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
 Added by Deepan */
-PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
+PetscErrorCode SetValuesBlocked_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
 {
 	PetscErrorCode ierr;
 	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
@@ -953,7 +1039,7 @@ PetscErrorCode MatGetSubMatrix_SeqBSG_Private(Mat A,IS isrow,IS iscol,MatReuse s
 //				mat_a   += bs2;
 //				(*mat_ilen)++;
 //				GetOriginalMatrixBlock
-				ierr = MatGetSetValues_SeqBSG(A, 1, &row, 1 , &kstart, val, INSERT_VALUES, PETSC_FALSE); CHKERRQ(ierr);
+				ierr = MatGetSetValues_SeqBSG(A, 1, &row, 1 , &kstart, val, INSERT_VALUES, PETSC_FALSE, PETSC_TRUE); CHKERRQ(ierr);
 				xrow = (row-c->stencil_rbeg)/c->stencil_stride;
                                 kstart = (kstart-c->stencil_cbeg)/c->stencil_stride;
 				MatSetValues_SeqBSG(C, 1, &xrow, 1 , &kstart, val,INSERT_VALUES);	

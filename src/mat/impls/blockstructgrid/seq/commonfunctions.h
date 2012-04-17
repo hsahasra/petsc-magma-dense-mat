@@ -33,9 +33,10 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar **, const PetscScalar *, PetscScalar *, 
 
 PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], PetscScalar*);
 
-PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], const  PetscScalar[], InsertMode );
+PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], const PetscInt[], const  PetscScalar[], InsertMode );
+PetscErrorCode SetValuesBlocked_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], const  PetscScalar[], InsertMode );
 
-PetscErrorCode MatGetSetValues_SeqBSG(Mat , PetscInt ,const PetscInt[], PetscInt,const PetscInt[],PetscScalar *, InsertMode , PetscBool );
+PetscErrorCode MatGetSetValues_SeqBSG(Mat , PetscInt ,const PetscInt[], PetscInt,const PetscInt[],PetscScalar *, InsertMode , PetscBool, PetscBool );
 
 PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat);
 

@@ -2176,8 +2176,8 @@ PetscFunctionReturn(0);
 #define inline_stage7_Nodd(ct, offset) t2 = (k-(k1))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0);\
-                        msum[l1+1] = _mm_add_pd(msum[l1+1], mc1)
+                        msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));\
+                        msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_mul_pd(mx0,mc1))
 
 #define inline_stage2_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
@@ -2197,7 +2197,7 @@ PetscFunctionReturn(0);
 
 #define inline_stage8_Nodd(ct, offset) t2 = (k-(k1))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0)
+                        msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0))
 
 #define inline_stage3_Nodd(ct, offset)   t2 = (k-(k1))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
@@ -2212,7 +2212,7 @@ PetscFunctionReturn(0);
 
 #define inline_stage9_Nodd(ct, offset) t2 = (k-(k1))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0);\
+                        msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));\
 
 #define inline_Nodd(l,m, offset)	PetscPrefetchBlock(xt##m+t1,dof,0,PETSC_PREFETCH_HINT_NTA);\
 				PetscPrefetchBlock(ct##m+t2,bs,0,PETSC_PREFETCH_HINT_NTA);\
@@ -2449,8 +2449,8 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 #define ninline_stage7_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
                         mc1 = _mm_loadu_pd(ct+t2+2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0);\
-                        msum[l1+1] = _mm_add_pd(msum[l1+1], mc1)
+                        msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));\
+                        msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_mul_pd(mx0,mc1))
 
 #define ninline_stage2_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
@@ -2470,7 +2470,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 
 #define ninline_stage8_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0)
+                        msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0))
 
 #define ninline_stage3_Nodd(ct, offset)   t2 = (k-(offset))*bs+2*l1*(dof-1)+l2;\
                         mc0 = _mm_loadu_pd(ct+t2);\
@@ -2485,7 +2485,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 
 #define ninline_stage9_Nodd(ct, offset) t2 = (k-(offset))*bs+dof*(dof-1)+2*l1;\
                         mc0 = _mm_loadu_pd(ct+t2);\
-                        msum[l1] = _mm_add_pd(msum[l1], mc0);\
+                        msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));\
 
 #define ninline_Nodd(offset)	\
                     for(l3 = lbeg[k1]; l3 < lend[k1]; l3++){ \
@@ -2547,7 +2547,7 @@ PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscS
         xt[k1] = x + ioff[k1] * dof;
     }
 
-    for(k1 = 0 ; k1 < nregion; k1++){
+    for(k1 = 0 ; k1 <  nregion; k1++){
         setup_ct(k1);
 #pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp) private(t1,t2, i, l1, l2,l3,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
         for(k = rstart[k1]; k < rstart[k1+1]; k++){
