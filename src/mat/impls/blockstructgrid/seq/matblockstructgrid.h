@@ -12,9 +12,7 @@ of generic matrix datatype and makes an implementation inheritance.
 typedef struct 
 {	
 PetscScalar * a; 	//data
-PetscInt * idx;		//x indices
-PetscInt * idy;		//y indices
-PetscInt * idz;		//z indices
+PetscInt *ioff;
 PetscInt stpoints;	//numberof stencil points
 PetscInt dis;		//Stencil Width
 PetscInt dof;		//Degrees of Freedom
@@ -31,7 +29,7 @@ PetscInt bs; // block size , usually dof*dof
 PetscScalar ** coeff;
 PetscInt *stpoffset;
 
-PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
+PetscErrorCode (*multfunc)(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 
 //Facilitate submatrix
 PetscInt nregion; //  number of regions

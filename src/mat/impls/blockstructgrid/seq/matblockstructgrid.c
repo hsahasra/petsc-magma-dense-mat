@@ -92,9 +92,7 @@ PetscErrorCode MatCreate_SeqBSG(Mat B)
 	b->p = 0;
 	b->dof = 0;
 	b->nz = 0;
-	b->idx = PETSC_NULL;
-	b->idy = PETSC_NULL;
-	b->idz = PETSC_NULL;
+	b->ioff = PETSC_NULL;
 	b->stpoffset = PETSC_NULL;
 	b->stencil_stride = 1;
 	b->stencil_rbeg = 0;
@@ -128,9 +126,8 @@ PetscErrorCode MatDestroy_SeqBSG(Mat A)
 	ierr = PetscFree(a->coeff);CHKERRQ(ierr);
 	ierr = PetscFree(a->a);CHKERRQ(ierr);
 	ierr = PetscFree(a->diag);CHKERRQ(ierr);
-	ierr = PetscFree(a->idx);CHKERRQ(ierr);
-	ierr = PetscFree(a->idy);CHKERRQ(ierr);
-	ierr = PetscFree(a->idz);CHKERRQ(ierr);
+	ierr = PetscFree(a->ioff);CHKERRQ(ierr);
+
 	if(a->sub_matrix)
 	{
 		ierr = PetscFree(a->rstart);CHKERRQ(ierr);
@@ -161,10 +158,10 @@ PetscErrorCode MatMult_SeqBSG(Mat mat, Vec x, Vec y)
 	ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
 	if(a->sub_matrix)
 	{
-		ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0], a->nregion, a->lbeg, a->lend, a->rstart);
+		ierr = a->multfunc(v, xx, yy, a->ioff, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0], a->nregion, a->lbeg, a->lend, a->rstart);
 	}else{
 		//ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0]);
-		ierr = a->multfunc(v, xx, yy,a->idx, a->idy, a->idz, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0], a->nregion, a->lbeg, a->lend, a->rstart);
+		ierr = a->multfunc(v, xx, yy, a->ioff, a->m, a->n, a->p, a->dof, a->stpoints, 3, a->bs, &a->stpoffset[0], a->nregion, a->lbeg, a->lend, a->rstart);
 	}
 	CHKERRQ(ierr);
 
@@ -206,12 +203,11 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 {
 	PetscErrorCode ierr;
 	Mat_SeqBSG * mat = (Mat_SeqBSG *) A->data;
-	PetscInt * idx, * idy, * idz, *ioffsets;
+	PetscInt *ipos, *ioffsets;
 	PetscInt i,j,count = 0, m,n,p, offset,dis,xdis,ydis,zdis, cdis, k ,stp,dof,rshift,cshift, rowval, rbeg, cbeg, nstr;
+
 	
-	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idx);CHKERRQ(ierr);
-	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idy);CHKERRQ(ierr);
-	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idz);CHKERRQ(ierr);
+	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&ipos);CHKERRQ(ierr);
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&ioffsets);CHKERRQ(ierr);
 	
 	m = mat->m;
@@ -230,86 +226,54 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 		{
 			cshift = icol[j]*nstr + cbeg;	
 			cdis = cshift - rshift;
-			zdis = (cdis)/(m*n);
-			cdis = (cdis)%(m*n);
-			ydis = (cdis)/(m);
-			cdis = (cdis)%(m);
-			xdis = cdis;
 			for(k=0;k<stp;k++)
-				if(mat->idx[k] == xdis &&  mat->idy[k] == ydis &&  mat->idz[k] == zdis)	
+				if(mat->ioff[k] == cdis)	
 				{
 					offset = k; //corresponding band
 					break;
 				}
 			if(k<stp)
 			{
-				rowval = irow[i];
+				ipos[count] = irow[i];
 				ioffsets[count] = k;
-				idx[count] = rowval % (m);
-				idy[count] = (rowval/(m))%n;
-				idz[count] = ((rowval/(m*n)) %p) ;
 				count ++;
 			}
 		}	
 	}
 	if(SetVal)
 	{
-			ierr = SetValues_Matrix_SeqBSG(mat,nrow*ncol,idx,idy,idz,ioffsets,y,is); CHKERRQ(ierr);
+			ierr = SetValues_Matrix_SeqBSG(mat,nrow*ncol,ipos,ioffsets,y,is); CHKERRQ(ierr);
 	}
 	else
 	{
-			ierr = GetValues_Matrix_SeqBSG(mat,nrow*ncol,idx,idy,idz,ioffsets,y); CHKERRQ(ierr);
+			ierr = GetValues_Matrix_SeqBSG(mat,nrow*ncol,ipos,ioffsets,y); CHKERRQ(ierr);
 	}
 	ierr = PetscFree(ioffsets);CHKERRQ(ierr);
-	ierr = PetscFree(idx);CHKERRQ(ierr);
-	ierr = PetscFree(idy);CHKERRQ(ierr);
-	ierr = PetscFree(idz);CHKERRQ(ierr);
+	ierr = PetscFree(ipos);CHKERRQ(ierr);
 
 	PetscFunctionReturn(0);
 }
 
-PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], PetscScalar *data)
+PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[], const PetscInt ioffsets[], PetscScalar *data)
 {
 	PetscErrorCode ierr;
 	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
-	PetscInt lda1 = mx*ny, lda2 = mx;
 	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
 	PetscInt *start, *lbeg, *lend, count, finalpos, nregion, ioff;
 	l3threshold = WORKINGSETSIZE/mat->bs;
-	if(mat->rstart == PETSC_NULL)
-	{
-		ierr = PetscMalloc(sizeof(PetscInt)*8,&start);CHKERRQ(ierr);
-		ierr = PetscMalloc(sizeof(PetscInt)*8,&lbeg);CHKERRQ(ierr);
-		ierr = PetscMalloc(sizeof(PetscInt)*8,&lend);CHKERRQ(ierr);
-		start[0] = 0;				lbeg[0] = 3; lend[0] = 7; 
-		start[1] = 1; 				lbeg[1] = 2; lend[1] = 7;
-		start[2] = mat->m;			lbeg[2] = 1; lend[2] = 7; 
-		start[3] = mat->m*mat->n;		lbeg[3] = 0; lend[3] = 7; 
-		start[4] = mat->nz - (mat->m*mat->n);	lbeg[4] = 0; lend[4] = 6; 
-		start[5] = mat->nz - mat->m;		lbeg[5] = 0; lend[5] = 5; 
-		start[6] = mat->nz - 1;			lbeg[6] = 0; lend[6] = 4; 
-		start[7] = mat->nz;			lbeg[7] = -1; lend[7] = -1;
-		nregion = 7; 
-	}
-	else
-	{
-		start = mat->rstart;
-		lbeg = mat->lbeg; 
-		lend = mat->lend; 
-		nregion = mat->nregion;	
-	}
+	start = mat->rstart;
+	lbeg = mat->lbeg; 
+	lend = mat->lend; 
+	nregion = mat->nregion;	
 	for(i=0;i<n;i++)
 	{
-		pos = (lda1*idz[i]+lda2*idy[i]+idx[i]);
+		pos = ipos[i];
 		count = 0;
 		for(k=0;k<nregion;k++)
 		{
-			for(c = start[k]; c < start[k+1]; c+= l3threshold )
+			if(start[k] <= pos && pos < start[k+1])
 			{
-				endpoint = (c+l3threshold) < start[k+1] ? (c+l3threshold) : start[k+1]; 
-				if(c <= pos && pos < endpoint)
-				{
-					finalpos = pos - c;
+				finalpos = pos - start[k] ;
 				ioff = count + ioffsets[i];// for submatrix - lbeg[k];
 				if(dof % 2 == 0)
 				{
@@ -322,70 +286,39 @@ PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 						for(j=0;j<dof;j++)
 						{
 							for(k1=0;k1<dof-1;k1++)
-							 	data[i*bs+j*dof+k1] =	mat->coeff[ioff][(finalpos)*bs+j*(dof-1)+k1];
-	
-							 	data[i*bs+(j+1)*dof-1] =	mat->coeff[ioff][(finalpos)*bs+dof*(dof-1)+j];
+								data[i*bs+j*dof+k1] =	mat->coeff[ioff][(finalpos)*bs+j*(dof-1)+k1];
+
+								data[i*bs+(j+1)*dof-1] =	mat->coeff[ioff][(finalpos)*bs+dof*(dof-1)+j];
 						}
 				}
- 
+
 			}
-				if(mat->rstart == PETSC_NULL)
-				{
-					count += mat->stpoints;
-				}
-				else
-				{
-					count += (lend[k] - lbeg[k]);
-				}
-			}
+			count += mat->stpoints;
+			//count += (lend[k] - lbeg[k]);
 		}
-	}
-	if(mat->rstart == PETSC_NULL)
-	{
-		ierr = PetscFree(start);CHKERRQ(ierr);
-		ierr = PetscFree(lbeg);CHKERRQ(ierr);
-		ierr = PetscFree(lend);CHKERRQ(ierr);
 	}
 	PetscFunctionReturn(0);
 }
 
 /** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
 Added by Deepan */
-PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
+PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
 {
 	PetscErrorCode ierr;
 	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
-	PetscInt lda1 = mx*ny, lda2 = mx;
 	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
-	PetscInt *start, *lbeg, *lend, count,finalpos, nregion, ioff;
+	PetscInt *start, *lbeg, *lend, finalpos, nregion, ioff;
+	//PetscInt count
 	l3threshold = WORKINGSETSIZE/mat->bs;
-	if(mat->rstart == PETSC_NULL)
-	{
-		ierr = PetscMalloc(sizeof(PetscInt)*8,&start);CHKERRQ(ierr);
-		ierr = PetscMalloc(sizeof(PetscInt)*8,&lbeg);CHKERRQ(ierr);
-		ierr = PetscMalloc(sizeof(PetscInt)*8,&lend);CHKERRQ(ierr);
-		start[0] = 0;				lbeg[0] = 3; lend[0] = 7; 
-		start[1] = 1; 				lbeg[1] = 2; lend[1] = 7;
-		start[2] = mat->m;			lbeg[2] = 1; lend[2] = 7; 
-		start[3] = mat->m*mat->n;		lbeg[3] = 0; lend[3] = 7; 
-		start[4] = mat->nz - (mat->m*mat->n);	lbeg[4] = 0; lend[4] = 6; 
-		start[5] = mat->nz - mat->m;		lbeg[5] = 0; lend[5] = 5; 
-		start[6] = mat->nz - 1;			lbeg[6] = 0; lend[6] = 4; 
-		start[7] = mat->nz;			lbeg[7] = -1; lend[7] = -1;
-		nregion = 7; 
-	}
-	else
-	{
 		start = mat->rstart;
 		lbeg = mat->lbeg; 
 		lend = mat->lend; 
 		nregion = mat->nregion;
-	}
 
 	for(i=0;i<n;i++)
 	{
-		pos = (lda1*idz[i]+lda2*idy[i]+idx[i]);
-		count = 0;
+		pos = ipos[i];
+		//count = 0;
 		if(ioffsets[i] == 3){
 			//diag
 			if(is == ADD_VALUES)
@@ -445,23 +378,10 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 						}
 					}
 				}
-				if(mat->rstart == PETSC_NULL)
-				{
-					count += mat->stpoints;
-				}
-				else
-				{
-					count += mat->stpoints;
+				//count += mat->stpoints;
 				//	count += (lend[k] - lbeg[k]);
-				}
 			}
 		}
-	}
-	if(mat->rstart == PETSC_NULL)
-	{
-		ierr = PetscFree(start);CHKERRQ(ierr);
-		ierr = PetscFree(lbeg);CHKERRQ(ierr);
-		ierr = PetscFree(lend);CHKERRQ(ierr);
 	}
 	PetscFunctionReturn(0);
 }
@@ -574,34 +494,32 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 	mat->nz =  mat->m * mat->n * mat->p;
 	//printf("m=%d, n=%d,p=%d\n",mat->m,mat->n,mat->p);
 
-	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idx));CHKERRQ(ierr);
-	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idy));CHKERRQ(ierr);
-	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->idz));CHKERRQ(ierr);
+	ierr = PetscMalloc(sizeof(PetscInt)*mat->stpoints,&(mat->ioff));CHKERRQ(ierr);
 /*Do not change the order of the stencil. MatMult depends on the order of these stencils.*/	
 	if(dim>2)
 	{
-		mat->idx[mnos-3] = 0; mat->idy[mnos-3] = 0; mat->idz[mnos-3] = -1; 
+		mat->ioff[mnos-3] = -(mat->m*mat->n); 
 	}	
 	if(dim>1)
 	{
-		mat->idx[mnos-2] = 0; mat->idy[mnos-2] = -1; mat->idz[mnos-2] = 0;
+		mat->ioff[mnos-2] = -(mat->m);
 	}	
 	if(dim>0)
 	{	
-		mat->idx[mnos-1] = -1; mat->idy[mnos-1] = 0; mat->idz[mnos-1] = 0;
+		mat->ioff[mnos-1] = -(1);
 	}	
-	mat->idx[mnos] = 0; mat->idy[mnos]=0; mat->idz[mnos]= 0;
+	mat->ioff[mnos] = 0;
 	if(dim > 0)
 	{
-		mat->idx[mnos+1] = 1; mat->idy[mnos+1] = 0; mat->idz[mnos+1] = 0; 
+		mat->ioff[mnos+1] = 1; 
 	}
 	if(dim > 1)
 	{
-		mat->idx[mnos+2] = 0; mat->idy[mnos+2] = 1; mat->idz[mnos+2] = 0;
+		mat->ioff[mnos+2] = (mat->m);
 	}
 	if(dim > 2)
 	{
-		mat->idx[mnos+3] = 0; mat->idy[mnos+3] = 0; mat->idz[mnos+3] = 1;
+		mat->ioff[mnos+3] = (mat->m*mat->n);
 	}
 	if(mat->dof == 1)
 		mat->multfunc = &BSG_MatMult_1;
@@ -795,7 +713,7 @@ PetscErrorCode MatSetUpRegion_SeqBSG(Mat A)
 	ierr = PetscMalloc (sizeof(PetscInt) * (maxstpoints), &ioffsets);CHKERRQ(ierr);
 	
 	for(i=0;i<maxstpoints;i++){
-		ioffsets[i] =  (a->idx[i] + a->idy[i]*lda3 + a->idz[i]*lda2);
+		ioffsets[i] =  (a->ioff[i]);
 		ts = irowbeg + ioffsets[i];
 		te = irowend + ioffsets[i];
 		if((icolbeg <= ts && ts < icolend)||(icolbeg <= te && te < icolend)){
@@ -1022,17 +940,11 @@ PetscErrorCode MatGetSubMatrix_SeqBSG_Private(Mat A,IS isrow,IS iscol,MatReuse s
 
 	/* copy*/
 	c = (Mat_SeqBSG *)(C->data);
-	ierr = PetscMalloc(c->stpoints*sizeof(PetscInt),&ioff);CHKERRQ(ierr);
 	ierr = PetscMalloc(c->bs*sizeof(PetscScalar),&val);CHKERRQ(ierr);
-        for (i=0;i<c->stpoints;i++)
-        {
-                ioff[i] = c->idx[i] + c->m*c->idy[i] + c->m*c->n*c->idz[i];
-        }
-
 	for (i=0; i<nrows; i++) {
 		row    = irow[i];
 		for (k=0; k<c->stpoints; k++) {
-			kstart = row + ioff[k];
+			kstart = row + a->ioff[k];
                         kend = (kstart-c->stencil_cbeg)%c->stencil_stride;
 			if(kend == 0 && kstart >=0 )
                       	{
@@ -1048,7 +960,6 @@ PetscErrorCode MatGetSubMatrix_SeqBSG_Private(Mat A,IS isrow,IS iscol,MatReuse s
 			}
 		}
 	}
-	ierr = PetscFree(ioff); CHKERRQ(ierr);
 	ierr = PetscFree(val); CHKERRQ(ierr);
 			    
 			  /* Free work space */
@@ -1248,7 +1159,7 @@ PetscErrorCode MatDiagonalScale_SeqBSG (Mat A, Vec ll, Vec rr){
 		ierr = VecGetLocalSize(rr,&vm); CHKERRQ(ierr);
 		if (vm != m) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Left scaling vector wrong length");
 		for(i=0;i<a->stpoints;i++){
-			ri[i] = l + dof*(lda2*a->idz[i] + lda3*a->idy[i] + a->idx[i]);
+			ri[i] = l + dof*( a->ioff[i]);
 		}
 		if(dof%2 == 0){
 			for(i=0;i<a->nregion; i++){
