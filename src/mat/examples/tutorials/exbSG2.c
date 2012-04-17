@@ -242,7 +242,7 @@ for(e=0;e<NUM_EVENTS;e++)
 				}
 				rowval = i;
 				bcols = j;
-   				ierr = MatSetValues(matsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
+   				ierr = MatSetValuesBlocked(matsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
 			}
 		}
         }

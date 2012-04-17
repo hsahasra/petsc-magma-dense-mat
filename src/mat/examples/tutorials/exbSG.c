@@ -15,7 +15,8 @@ long REP=1;
  double simple_rand() {
          int seed;
          seed = (1103515245*seed+12345)%4294967296;
-         return 1.0;//(1000.0*seed)/4294967296;
+         return (1000.0*seed)/4294967296;
+         //return 1.0;
  }
 
 double rtclock() {
@@ -25,7 +26,7 @@ double rtclock() {
   return (1.0*tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
-#define OMP
+//#define OMP
 
 #ifdef OMP
 #include<omp.h>
@@ -113,8 +114,8 @@ int main(int argc,char **args)
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  	ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
-	//ierr = VecSetRandom(x,PETSC_NULL);
+  	//ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
+	ierr = VecSetRandom(x,PETSC_NULL);
 
 	cols = malloc(sizeof(PetscInt)*dof);
 	vals = malloc(sizeof(PetscScalar)*dof);
@@ -175,10 +176,11 @@ int main(int argc,char **args)
 					}
 					rowval = i*dof+l;
    					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   					//ierr = MatSetValues(matbsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 				}
 				bcols = j;
 				rowval = i;
-   				ierr = MatSetValues(matbsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
+   				ierr = MatSetValuesBlocked(matbsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
 			}
 		}
         }
@@ -195,7 +197,7 @@ int main(int argc,char **args)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 	if(info){
   	printf("\nInputs:\n");
-  	//ierr = MatView(mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  	ierr = MatView(mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   	ierr = MatView(matbsg,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   	ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 	}
