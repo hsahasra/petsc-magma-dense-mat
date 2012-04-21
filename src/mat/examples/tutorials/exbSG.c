@@ -11,12 +11,12 @@ PetscInt nos;
 PetscInt info=0;
 PetscReal normdiff = 1.0e-6;
 long REP=1;
-
+int cnt = 0;
  double simple_rand() {
          int seed;
          seed = (1103515245*seed+12345)%4294967296;
          return (1000.0*seed)/4294967296;
-         //return 1.0;
+         //return cnt++;//1.0;
  }
 
 double rtclock() {
@@ -176,11 +176,11 @@ int main(int argc,char **args)
 					}
 					rowval = i*dof+l;
    					ierr = MatSetValues(mat,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
-   					//ierr = MatSetValues(matbsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+   					ierr = MatSetValues(matbsg,1,&rowval,dof,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
 				}
 				bcols = j;
 				rowval = i;
-   				ierr = MatSetValuesBlocked(matbsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
+   				//ierr = MatSetValuesBlocked(matbsg,1,&rowval,1,&bcols,bvals,INSERT_VALUES);CHKERRQ(ierr);
 			}
 		}
         }
