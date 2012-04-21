@@ -103,6 +103,9 @@ PetscErrorCode MatCreate_SeqBSG(Mat B)
 	b->rstart = PETSC_NULL;
 	b->lbeg = PETSC_NULL;
 	b->lend = PETSC_NULL;
+#ifdef _VEC4
+	b->block_arrangement = PETSC_NULL;
+#endif
 
 	b->bs = 0;
 	ierr = PetscObjectChangeTypeName((PetscObject)B, MATBLOCKSTRUCTGRID); CHKERRQ(ierr);
@@ -127,6 +130,9 @@ PetscErrorCode MatDestroy_SeqBSG(Mat A)
 	ierr = PetscFree(a->a);CHKERRQ(ierr);
 	ierr = PetscFree(a->diag);CHKERRQ(ierr);
 	ierr = PetscFree(a->ioff);CHKERRQ(ierr);
+#ifdef _VEC4
+	ierr = PetscFree(a->block_arrangement);CHKERRQ(ierr);
+#endif
 
 	if(a->sub_matrix)
 	{
@@ -311,6 +317,8 @@ PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 	}
 	PetscFunctionReturn(0);
 }
+
+#ifdef _VEC2
 /** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
 Added by Deepan */
 PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[],const PetscInt icols[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
@@ -385,6 +393,7 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 	}
 	PetscFunctionReturn(0);
 }
+
 
 /** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
 Added by Deepan */
@@ -471,7 +480,217 @@ PetscErrorCode SetValuesBlocked_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , co
 	}
 	PetscFunctionReturn(0);
 }
+#endif
 
+#ifdef _VEC4
+/** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
+ * Note: Not preferred for AVX 
+Added by Deepan */
+PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[],const PetscInt icols[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
+{
+	PetscErrorCode ierr;
+	PetscInt i,j,k,c,endpoint,k1,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
+	PetscInt rdis, cdis, rdish, cdish;
+	PetscInt *start, *lbeg, *lend, finalpos, nregion, ioff;
+	PetscInt strtval;
+	//PetscInt count
+	l3threshold = WORKINGSETSIZE/mat->bs;
+		start = mat->rstart;
+		lbeg = mat->lbeg; 
+		lend = mat->lend; 
+		nregion = mat->nregion;
+
+	for(i=0;i<n;i++)
+	{
+		pos = ipos[i]/dof;
+		rdis = ipos[i] %dof;
+		cdis = icols[i] %dof;
+		//count = 0;
+		if(ioffsets[i] == 3){
+			//diag
+			if(is == ADD_VALUES)
+			{
+					mat->diag[pos*bs+rdis*dof+cdis ] += data[i];	
+			} else {
+					mat->diag[pos*bs+rdis*dof+cdis ] = data[i];	
+			}
+		}
+		for(k=0;k<nregion;k++)
+		{
+			if(start[k] <= pos && pos < start[k+1])
+			{
+				finalpos = pos - start[k];
+				//ioff = count + ioffsets[i];// for submatrix - lbeg[k];
+				ioff = k*mat->stpoints + ioffsets[i];// for submatrix - lbeg[k];
+				mat->coeff[ioff][(finalpos)*bs+mat->block_arrangement[rdis*dof+cdis]] += data[i];
+			/*	if(rdis +4 <= dof){
+					if(cdis +4 <= dof){
+						strtval = rdis*4*dof + cdis*4*4; 
+						if(is == ADD_VALUES)
+						{
+							if(cdish < 2){
+								if(rdish == 0){
+									mat->coeff[ioff][(finalpos)*bs+strtval+cdis+cdish] += data[i];
+								}
+								else if(rdish == 1){
+									mat->coeff[ioff][(finalpos)*bs+strtval+8+cdis+cdish] += data[i];
+								}
+								else if(rdish == 2){
+									mat->coeff[ioff][(finalpos)*bs+strtval+4+cdis+cdish+2] += data[i];
+								}
+								else{
+									mat->coeff[ioff][(finalpos)*bs+strtval+12+cdis+cdish+2] += data[i];
+								}
+							}
+							else{
+								if(rdish == 0){
+									mat->coeff[ioff][(finalpos)*bs+strtval+4+cdis+cdish-2] += data[i];
+								}
+								else if(rdish == 1){
+									mat->coeff[ioff][(finalpos)*bs+strtval+12+cdis+cdish-2] += data[i];
+								}
+								else if(rdish == 2){
+									mat->coeff[ioff][(finalpos)*bs+strtval+cdis+cdish] += data[i];
+								}
+								else{
+									mat->coeff[ioff][(finalpos)*bs+strtval+8+cdis+cdish] += data[i];
+								}
+							}	
+						}
+						else
+						{
+							if(cdish < 2){
+								if(rdish == 0){
+									mat->coeff[ioff][(finalpos)*bs+strtval+cdis+cdish] = data[i];
+								}
+								else if(rdish == 1){
+									mat->coeff[ioff][(finalpos)*bs+strtval+8+cdis+cdish] = data[i];
+								}
+								else if(rdish == 2){
+									mat->coeff[ioff][(finalpos)*bs+strtval+4+cdis+cdish+2] = data[i];
+								}
+								else{
+									mat->coeff[ioff][(finalpos)*bs+strtval+12+cdis+cdish+2] = data[i];
+								}
+							}
+							else{
+								if(rdish == 0){
+									mat->coeff[ioff][(finalpos)*bs+strtval+4+cdis+cdish-2] = data[i];
+								}
+								else if(rdish == 1){
+									mat->coeff[ioff][(finalpos)*bs+strtval+12+cdis+cdish-2] = data[i];
+								}
+								else if(rdish == 2){
+									mat->coeff[ioff][(finalpos)*bs+strtval+cdis+cdish] = data[i];
+								}
+								else{
+									mat->coeff[ioff][(finalpos)*bs+strtval+8+cdis+cdish] = data[i];
+								}
+							}	
+						}
+					}
+				}*/
+				//count += mat->stpoints;
+				//	count += (lend[k] - lbeg[k]);
+			}
+		}
+	}
+	PetscFunctionReturn(0);
+}
+
+/** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
+Added by Deepan */
+PetscErrorCode SetValuesBlocked_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt ipos[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
+{
+	PetscErrorCode ierr;
+	PetscInt i,j,k,c,endpoint,k1,k2,mx = mat->m, ny= mat->n, dof = mat->dof, bs = mat->bs;
+	PetscInt pos, l3threshold = WORKINGSETSIZE/bs;
+	PetscInt *start, *lbeg, *lend, finalpos, nregion, ioff, strtval;
+	//PetscInt count
+	l3threshold = WORKINGSETSIZE/mat->bs;
+		start = mat->rstart;
+		lbeg = mat->lbeg; 
+		lend = mat->lend; 
+		nregion = mat->nregion;
+
+	for(i=0;i<n;i++)
+	{
+		pos = ipos[i];
+		//count = 0;
+		if(ioffsets[i] == 3){
+			//diag
+			if(is == ADD_VALUES)
+			{
+				for(j=0;j<bs;j++){
+					mat->diag[pos*bs+j] += data[i*bs+j];	
+				}
+			} else {
+				for(j=0;j<bs;j++){
+					mat->diag[pos*bs+j] = data[i*bs+j];	
+				}
+			}
+		}
+		for(k=0;k<nregion;k++)
+		{
+			if(start[k] <= pos && pos < start[k+1])
+			{
+				finalpos = pos - start[k];
+				//ioff = count + ioffsets[i];// for submatrix - lbeg[k];
+				ioff = k*mat->stpoints + ioffsets[i];// for submatrix - lbeg[k];
+				if(is == ADD_VALUES)
+				{
+					/*for(j=0;(j+4)<=dof;j+=4){
+						for(k1=0;(k1+4)<=dof;k1+=4){
+							strtval = j*4*dof + k1*4*4; 
+							for(k2=0; k2<2; k2++){
+								mat->coeff[ioff][(finalpos)*bs+strtval+k2] += data[i*bs+j*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+4+k2] += data[i*bs+j*dof+k1+k2+2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+8+k2] += data[i*bs+(j+1)*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+12+k2] += data[i*bs+(j+1)*dof+k1+k2+2];
+							}
+							for(k2=2; k2<4; k2++){
+								mat->coeff[ioff][(finalpos)*bs+strtval+k2] += data[i*bs+(j+2)*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+4+k2] += data[i*bs+(j+2)*dof+k1+k2-2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+8+k2] += data[i*bs+(j+3)*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+12+k2] += data[i*bs+(j+3)*dof+k1+k2-2];
+							}
+						}
+					}*/
+					for(j = 0; j< bs ; j++)
+						mat->coeff[ioff][(finalpos)*bs+mat->block_arrangement[j]] += data[i*bs+j];
+						
+				}
+				else
+				{
+					/*for(j=0;(j+4)<=dof;j+=4){
+						for(k1=0;(k1+4)<=dof;k1+=4){
+							strtval = j*4*dof + k1*4*4; 
+							for(k2=0; k2<2; k2++){
+								mat->coeff[ioff][(finalpos)*bs+strtval+k2] = data[i*bs+j*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+4+k2] = data[i*bs+j*dof+k1+k2+2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+8+k2] = data[i*bs+(j+1)*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+12+k2] = data[i*bs+(j+1)*dof+k1+k2+2];
+							}
+							for(k2=2; k2<4; k2++){
+								mat->coeff[ioff][(finalpos)*bs+strtval+k2] = data[i*bs+(j+2)*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+4+k2] = data[i*bs+(j+2)*dof+k1+k2-2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+8+k2] = data[i*bs+(j+3)*dof+k1+k2];
+								mat->coeff[ioff][(finalpos)*bs+strtval+12+k2] = data[i*bs+(j+3)*dof+k1+k2-2];
+							}
+						}
+					}*/
+					for(j = 0; j< bs ; j++)
+						mat->coeff[ioff][(finalpos)*bs+mat->block_arrangement[j]] = data[i*bs+j];
+				}
+				//count += mat->stpoints;
+				//	count += (lend[k] - lbeg[k]);
+			}
+		}
+	}
+	PetscFunctionReturn(0);
+}
+#endif
 /** MatSetValuesBlocked_SeqBSG : Sets the values in the matrix with the 3d indices supplied
 Added by Deepan *//*
 PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const PetscInt idx[], const PetscInt idy[],const PetscInt idz[], const PetscInt ioffsets[], const  PetscScalar data[], InsertMode is)
@@ -681,6 +900,10 @@ PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat mat)
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs,&(a->diag));CHKERRQ(ierr);
 	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
+#ifdef _VEC4
+	ierr = PetscMalloc(sizeof(PetscInt)*a->bs,&(a->block_arrangement));CHKERRQ(ierr);
+	memset(a->block_arrangement, 0,sizeof(PetscInt)*a->bs);
+#endif
 	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
   ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
   ierr = PetscLayoutSetBlockSize(mat->cmap,a->dof);CHKERRQ(ierr);
@@ -900,60 +1123,78 @@ PetscErrorCode MatSetUpRegion_SeqBSG(Mat A)
 PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 {
 	PetscErrorCode ierr;
-	PetscInt i,c,j, l3threshold, endpoint;
+	PetscInt i,c,j,k,strtval, l3threshold, endpoint;
 	PetscInt start[8], count = 0;
 	Mat_SeqBSG * a = (Mat_SeqBSG *)mat->data;
+	PetscInt dof = a->dof;
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
-	//ierr = PetscMalloc(sizeof(PetscInt)*(8),&(a->stpoffset));CHKERRQ(ierr);
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs,&(a->diag));CHKERRQ(ierr);
 	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
+#ifdef _VEC4
+	ierr = PetscMalloc(sizeof(PetscInt)*a->bs,&(a->block_arrangement));CHKERRQ(ierr);
+	memset(a->block_arrangement, 0,sizeof(PetscInt)*a->bs);
+	strtval = 0;
+	for(i = 0; (i+4) <= dof ; i+=4)
+	{
+		for(j=0; (j+4) <= dof; j+=4,strtval += 16)
+		{
+			for(k = 0; k < 2 ; k++ ){
+				a->block_arrangement [i*dof+k+j] = strtval+k;
+				a->block_arrangement [i*dof+k+j+2] = strtval+4+k;
+				a->block_arrangement [(i+1)*dof+k+j] = strtval+8+k;
+				a->block_arrangement [(i+1)*dof+k+j+2] = strtval+12+k;
+			}
+			for(k = 2; k < 4 ; k++ ){
+				a->block_arrangement [(i+2)*dof+k+j] = strtval+k;
+				a->block_arrangement [(i+2)*dof+k+j-2] = strtval+4+k;
+				a->block_arrangement [(i+3)*dof+k+j] = strtval+8+k;
+				a->block_arrangement [(i+3)*dof+k+j-2] = strtval+12+k;
+			}
+		}
+		for(; (j+2) <= dof; j+=2,strtval += 8)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [(i+2)*dof+j] = strtval+2;
+				a->block_arrangement [(i+2)*dof+j+1] = strtval+3;
+				a->block_arrangement [(i+1)*dof+j] = strtval+4;
+				a->block_arrangement [(i+1)*dof+j+1] = strtval+5;
+				a->block_arrangement [(i+3)*dof+j] = strtval+6;
+				a->block_arrangement [(i+3)*dof+j+1] = strtval+7;
+			
+		}
+	}
+	for(; (i+2) <= dof ; i+=2)
+	{
+		for(j=0; (j+4) <= dof; j+=4,strtval += 8)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [i*dof+j+2] = strtval+2;
+				a->block_arrangement [i*dof+j+3] = strtval+3;
+				a->block_arrangement [(i+1)*dof+j] = strtval+4;
+				a->block_arrangement [(i+1)*dof+j+1] = strtval+5;
+				a->block_arrangement [(i+1)*dof+j+2] = strtval+6;
+				a->block_arrangement [(i+1)*dof+j+3] = strtval+7;
+		}
+		for(; (j+2) <= dof; j+=2,strtval += 4)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [(i+1)*dof+j] = strtval+2;
+				a->block_arrangement [(i+1)*dof+j+1] = strtval+3;
+		}
+	}
 	
-/*	start[0] = 0; 
-	start[1] = 1; 
-	start[2] = a->m; 
-	start[3] = a->m*a->n; 
-	start[4] = a->nz - (a->m*a->n); 
-	start[5] = a->nz - a->m; 
-	start[6] = a->nz - 1; 
-	start[7] = a->nz; 
-*/	l3threshold = WORKINGSETSIZE/a->bs;
-
-//	a->stpoffset[7] = count;
-	
+#endif
+	l3threshold = WORKINGSETSIZE/a->bs;
 	a->stencil_stride = 1;
 	a->stencil_rbeg = 0;
 	a->stencil_cbeg = 0;
 	a->stencil_rend = a->nz;
 	a->stencil_cend = a->nz;
 	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
-
-	//Can remove following setup after correcting stpoints increase and fixing matmult
-/*	for(i=0;i<7;i++)
-	{
-		for(c = start[i]; c < start[i+1]; c+= l3threshold)
-		{
-			count += a->stpoints;
-		}
-	}
-	ierr = PetscMalloc(sizeof(PetscScalar*)*(count+1),&(a->coeff));CHKERRQ(ierr);
-
-	a->coeff[0] = a->a;
-	count = 0;
-	for(i=0;i<7;i++)
-	{
-		a->stpoffset[i] = count;
-		for(c = start[i]; c < start[i+1]; c+= l3threshold)
-		{
-			endpoint = (c+l3threshold) < start[i+1] ? (c+l3threshold) : start[i+1]; 
-			for(j=1;j<=a->stpoints;j++)
-			{
-				a->coeff[count+j] = a->coeff[count]+(j*(endpoint-c)*a->bs);
-			}
-			count += a->stpoints;
-		}
-	}
-*/
   ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
   ierr = PetscLayoutSetBlockSize(mat->cmap,a->dof);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(mat->rmap);CHKERRQ(ierr);
