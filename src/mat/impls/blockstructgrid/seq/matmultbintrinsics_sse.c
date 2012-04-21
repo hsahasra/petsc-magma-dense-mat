@@ -2404,6 +2404,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 	PetscFunctionReturn(0);
 }
 
+#ifdef _VEC2
 
 #define nsetup_Nodd()   for(i=0;i<dofby2;i++){\
                                  msum[i] = _mm_set_pd(0,0);\
@@ -2566,5 +2567,5 @@ PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscS
 
 PetscFunctionReturn(0);
 }
-
+ #endif
 
