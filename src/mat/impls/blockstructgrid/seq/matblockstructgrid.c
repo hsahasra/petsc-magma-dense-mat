@@ -895,6 +895,7 @@ PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat mat)
 {
 	PetscErrorCode ierr;
 	Mat_SeqBSG * a = (Mat_SeqBSG *)mat->data;
+	PetscInt i,j,k,strtval, dof = a->dof;
 	a->nz = (a->stencil_rend-a->stencil_rbeg)/a->stencil_stride;
 	ierr = PetscMalloc(sizeof(PetscScalar)*a->nz*a->bs*a->stpoints,&(a->a));CHKERRQ(ierr);
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
@@ -903,6 +904,90 @@ PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat mat)
 #ifdef _VEC4
 	ierr = PetscMalloc(sizeof(PetscInt)*a->bs,&(a->block_arrangement));CHKERRQ(ierr);
 	memset(a->block_arrangement, 0,sizeof(PetscInt)*a->bs);
+	strtval = 0;
+	for(i = 0; (i+4) <= dof ; i+=4)
+	{
+		for(j=0; (j+4) <= dof; j+=4,strtval += 16)
+		{
+			for(k = 0; k < 2 ; k++ ){
+				a->block_arrangement [i*dof+k+j] = strtval+k;
+				a->block_arrangement [i*dof+k+j+2] = strtval+4+k;
+				a->block_arrangement [(i+1)*dof+k+j] = strtval+8+k;
+				a->block_arrangement [(i+1)*dof+k+j+2] = strtval+12+k;
+			}
+			for(k = 2; k < 4 ; k++ ){
+				a->block_arrangement [(i+2)*dof+k+j] = strtval+k;
+				a->block_arrangement [(i+2)*dof+k+j-2] = strtval+4+k;
+				a->block_arrangement [(i+3)*dof+k+j] = strtval+8+k;
+				a->block_arrangement [(i+3)*dof+k+j-2] = strtval+12+k;
+			}
+		}
+		for(; (j+2) <= dof; j+=2,strtval += 8)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [(i+2)*dof+j] = strtval+2;
+				a->block_arrangement [(i+2)*dof+j+1] = strtval+3;
+				a->block_arrangement [(i+1)*dof+j] = strtval+4;
+				a->block_arrangement [(i+1)*dof+j+1] = strtval+5;
+				a->block_arrangement [(i+3)*dof+j] = strtval+6;
+				a->block_arrangement [(i+3)*dof+j+1] = strtval+7;
+			
+		}
+		for(; j < dof; j++, strtval += 4)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [(i+1)*dof+j] = strtval+1;
+				a->block_arrangement [(i+2)*dof+j] = strtval+2;
+				a->block_arrangement [(i+3)*dof+j] = strtval+3;
+		}
+	}
+	for(; (i+2) <= dof ; i+=2)
+	{
+		for(j=0; (j+4) <= dof; j+=4,strtval += 8)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [i*dof+j+2] = strtval+2;
+				a->block_arrangement [i*dof+j+3] = strtval+3;
+				a->block_arrangement [(i+1)*dof+j] = strtval+4;
+				a->block_arrangement [(i+1)*dof+j+1] = strtval+5;
+				a->block_arrangement [(i+1)*dof+j+2] = strtval+6;
+				a->block_arrangement [(i+1)*dof+j+3] = strtval+7;
+		}
+		for(; (j+2) <= dof; j+=2,strtval += 4)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [(i+1)*dof+j] = strtval+2;
+				a->block_arrangement [(i+1)*dof+j+1] = strtval+3;
+		}
+		for(; j < dof; j++, strtval += 2)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [(i+1)*dof+j] = strtval+1;
+		}
+	}
+	for(; i < dof ; i++)
+	{
+		for(j=0; (j+4) <= dof; j+=4,strtval += 4)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [i*dof+j+2] = strtval+2;
+				a->block_arrangement [i*dof+j+3] = strtval+3;
+		}
+		for(; (j+2) <= dof; j+=2,strtval += 2)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+		}
+		for(; j < dof; j++, strtval += 1)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+		}
+	}
+
 #endif
 	ierr = MatSetUpRegion_SeqBSG(mat); CHKERRQ(ierr);
   ierr = PetscLayoutSetBlockSize(mat->rmap,a->dof);CHKERRQ(ierr);
@@ -1164,6 +1249,13 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 				a->block_arrangement [(i+3)*dof+j+1] = strtval+7;
 			
 		}
+		for(; j < dof; j++, strtval += 4)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [(i+1)*dof+j] = strtval+1;
+				a->block_arrangement [(i+2)*dof+j] = strtval+2;
+				a->block_arrangement [(i+3)*dof+j] = strtval+3;
+		}
 	}
 	for(; (i+2) <= dof ; i+=2)
 	{
@@ -1185,8 +1277,32 @@ PetscErrorCode MatSetUpPreallocation_Matrix_SeqBSG(Mat mat)
 				a->block_arrangement [(i+1)*dof+j] = strtval+2;
 				a->block_arrangement [(i+1)*dof+j+1] = strtval+3;
 		}
+		for(; j < dof; j++, strtval += 2)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [(i+1)*dof+j] = strtval+1;
+		}
 	}
-	
+	for(; i < dof ; i++)
+	{
+		for(j=0; (j+4) <= dof; j+=4,strtval += 4)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+				a->block_arrangement [i*dof+j+2] = strtval+2;
+				a->block_arrangement [i*dof+j+3] = strtval+3;
+		}
+		for(; (j+2) <= dof; j+=2,strtval += 2)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+				a->block_arrangement [i*dof+j+1] = strtval+1;
+		}
+		for(; j < dof; j++, strtval += 1)
+		{
+				a->block_arrangement [i*dof+j] = strtval+0;
+		}
+	}
+
 #endif
 	l3threshold = WORKINGSETSIZE/a->bs;
 	a->stencil_stride = 1;

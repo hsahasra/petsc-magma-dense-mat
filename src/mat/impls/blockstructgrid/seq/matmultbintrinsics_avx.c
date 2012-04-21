@@ -248,7 +248,7 @@ PetscFunctionReturn(0);
 					ninline_stage2_Neven(ct[l3], offset);\
 				}\
 			}\
-			for(; l2 < dof; l2 += 2){\
+			for(; (l2+2) <= dof; l2 += 2){\
 				nsetup34_Neven(xt[l3]);\
 				for(l1=0, l4=0; (l1+4) <= dof; l1+=4, l4++){\
 					ninline_stage3_Neven(ct[l3], offset);\
@@ -282,6 +282,176 @@ PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, Petsc
             nsetup_Neven();
             ninline_Neven(rstart[k1]);
             nsave_Neven();
+        }
+    }
+
+PetscFunctionReturn(0);
+}
+
+
+
+#define nsetup_Nodd()   for(i=0;i<dofby4;i++){\
+                                 msum[i] = _mm256_set_pd(0,0,0,0);\
+                         }\
+
+
+#define nsave_Nodd() for(i=0, j =0;(j+4)<=dof;i++, j+=4){\
+                                _mm256_storeu_pd(y+k*dof+j,msum[i]);\
+                         }\
+			for(; (j+2) <=dof; j+=2, i++)\
+				_mm256_maskstore_pd(y + k*dof + j,xtemp1,msum[i]);\
+  			_mm256_maskstore_pd(y+k*dof+j,xtemp2,msum[i])
+
+#define nsetup127_Nodd(xt) t1= k*dof+l2;\
+			mx0 = _mm256_loadu_pd(xt+t1);\
+                    	mx1 = _mm256_permute2f128_pd(mx0, mx0, 0x01)
+
+#define nsetup348_Nodd(xt) t1= k*dof+l2;\
+			mx0 = _mm256_loadu_pd(xt+t1);\
+                    	mx0 = _mm256_permute2f128_pd(mx0, mx0, 0x00)
+
+#define nsetup569_Nodd(xt) t1= k*dof+l2;\
+                        mx0 = _mm256_loadu_pd(xt+t1);\
+			mx1 = _mm256_permute2f128_pd(mx0, mx0, 0x00);\
+			mx0 = _mm256_permute_pd(mx1, 0x0)
+
+#define ninline_stage1_Nodd(ct,offset)	t2 = (k-(offset))*bs+l1*dof+l2*4;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        mc1 = _mm256_loadu_pd(ct+t2+4);\
+                        mc2 = _mm256_loadu_pd(ct+t2+8);\
+                        mc3 = _mm256_loadu_pd(ct+t2+12);\
+                        mc0 = _mm256_mul_pd(mx0,mc0);\
+                        mc1 = _mm256_mul_pd(mx1,mc1);\
+                        mc2 = _mm256_mul_pd(mx0,mc2);\
+                        mc3 = _mm256_mul_pd(mx1,mc3);\
+                  	mc0 = _mm256_hadd_pd(mc0, mc1);\
+                  	mc2 = _mm256_hadd_pd(mc2, mc3);\
+			msum[l4] = _mm256_add_pd(msum[l4], _mm256_hadd_pd(mc0,mc2));\
+
+
+#define ninline_stage3_Nodd(ct, offset)	t2 = (k-(offset))*bs+l1*dof+l2*4;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        mc1 = _mm256_loadu_pd(ct+t2+4);\
+                        mc0 = _mm256_mul_pd(mx0,mc0);\
+                        mc1 = _mm256_mul_pd(mx0,mc1);\
+			msum[l4] = _mm256_add_pd(msum[l4], _mm256_hadd_pd(mc0,mc1));\
+
+#define ninline_stage5_Nodd(ct, offset)   t2 = (k-(offset))*bs+l1*dof+l2*4;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        msum[l4] = _mm256_add_pd(msum[l4], _mm256_mul_pd(mx0,mc0))
+
+#define ninline_stage2_Nodd(ct, offset)	t2 = (k-(offset))*bs+l1*dof+l2*2;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        mc1 = _mm256_loadu_pd(ct+t2+2);\
+                        mc2 = _mm256_loadu_pd(ct+t2+4);\
+                        mc3 = _mm256_loadu_pd(ct+t2+6);\
+                        mc0 = _mm256_mul_pd(mx0,mc0);\
+                        mc1 = _mm256_mul_pd(mx1,mc1);\
+                        mc2 = _mm256_mul_pd(mx0,mc2);\
+                        mc3 = _mm256_mul_pd(mx1,mc3);\
+                  	mc0 = _mm256_hadd_pd(mc0, mc1);\
+                  	mc2 = _mm256_hadd_pd(mc2, mc3);\
+			msum[l4] = _mm256_add_pd(msum[l4], _mm256_hadd_pd(mc0,mc2));\
+
+#define ninline_stage4_Nodd(ct, offset)	t2 = (k-(offset))*bs+l1*dof+l2*2;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        mc1 = _mm256_loadu_pd(ct+t2+2);\
+                        mc0 = _mm256_mul_pd(mx0,mc0);\
+                        mc1 = _mm256_mul_pd(mx0,mc1);\
+			msum[l4] = _mm256_add_pd(msum[l4], _mm256_hadd_pd(mc0,mc1));\
+
+#define ninline_stage6_Nodd(ct, offset)   t2 = (k-(offset))*bs+l1*dof+l2*2;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        msum[l4] = _mm256_add_pd(msum[l4], _mm256_mul_pd(mx0,mc0))
+
+
+#define ninline_stage7_Nodd(ct, offset) t2 = (k-(offset))*bs+l1*dof + l2;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        mc0 = _mm256_mul_pd(mx0,mc0);\
+                    	mc1 = _mm256_permute2f128_pd(mc0, mc0, 0x01);\
+			mc0 = _mm256_hadd_pd(mc0, mc1);\
+                        msum[l4] = _mm256_add_pd(msum[l4], _mm256_hadd_pd(mc0,mc0))
+
+
+
+#define ninline_stage8_Nodd(ct, offset) t2 = (k-(offset))*bs+l1*dof+l2;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+			mc0 = _mm256_mul_pd(mx0, mc0);\
+                        msum[l4] = _mm256_add_pd(msum[l4], _mm256_hadd_pd(mc0,mc0))
+
+
+
+#define ninline_stage9_Nodd(ct, offset) t2 = (k-(offset))*bs+l1*dof + l2;\
+                        mc0 = _mm256_loadu_pd(ct+t2);\
+                        msum[l4] = _mm256_add_pd(msum[l4], _mm256_mul_pd(mx0,mc0));\
+
+#define ninline_Nodd(offset)	\
+                    for(l3 = lbeg[k1]; l3 < lend[k1]; l3++){ \
+			for(l2 = 0; (l2+4) <= dof ; l2 += 4){\
+				nsetup127_Nodd(xt[l3]);\
+				for(l1=0, l4 = 0; (l1+4)<=dof; l1+= 4, l4++){\
+					ninline_stage1_Nodd(ct[l3], offset);\
+				}\
+				for(;(l1+2)<=dof;l1+=2, l4++){\
+					ninline_stage2_Nodd(ct[l3], offset);\
+				}\
+				for(;l1 < dof;l1++, l4++){\
+					ninline_stage7_Nodd(ct[l3], offset);\
+				}\
+			}\
+			for(; (l2+2) <= dof; l2 += 2){\
+				nsetup348_Nodd(xt[l3]);\
+				for(l1=0, l4 = 0; (l1+4)<=dof; l1+= 4, l4++){\
+					ninline_stage3_Nodd(ct[l3], offset);\
+				}\
+				for(;(l1+2)<=dof;l1+=2, l4++){\
+					ninline_stage4_Nodd(ct[l3], offset);\
+				}\
+				for(;l1 < dof;l1++, l4++){\
+					ninline_stage8_Nodd(ct[l3], offset);\
+				}\
+			}\
+			for(; l2 < dof; l2 ++){\
+				nsetup569_Nodd(xt[l3]);\
+				for(l1=0, l4 = 0; (l1+4)<=dof; l1+= 4, l4++){\
+					ninline_stage5_Nodd(ct[l3], offset);\
+				}\
+				for(;(l1+2)<=dof;l1+=2, l4++){\
+					ninline_stage6_Nodd(ct[l3], offset);\
+				}\
+				for(;l1 < dof;l1++, l4++){\
+					ninline_stage9_Nodd(ct[l3], offset);\
+				}\
+			}\
+		}
+
+PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
+    
+	const PetscInt l3threshold = WORKINGSETSIZE / bs;
+   	 PetscInt count, endval;
+
+	PetscInt i,j,k,l,k1, it,t1, t2, l1,l2, l3, l4;
+	const PetscInt lda3 = m;
+	const PetscInt lda2 = lda3 * n;
+	const PetscInt lda1 = lda2 * p;
+	const PetscInt mnos = 3;
+	const PetscInt dofby4 = (dof-2)/4 + 2;
+	__m256d mx0, mx1, msum[dofby4], mc0, mc1, mc2, mc3;
+    __m256i xtemp1 = _mm256_set_epi32(0,0,0,0,-1,-1,-1,-1);
+    __m256i xtemp2 = _mm256_set_epi32(0,0,0,0,0,0,-1,-1);
+
+    const PetscScalar *xt[nos], *ct[nos];
+    for(k1 = 0; k1< nos; k1++){
+        xt[k1] = x + ioff[k1] * dof;
+    }
+
+    for(k1 = 0 ; k1 <  nregion; k1++){
+        setup_ct(k1);
+#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp1, xtemp2) private(t1,t2, i,j,k, l1, l2,l3,mx0, mx1, msum, mc0, mc1, mc2, mc3)
+        for(k = rstart[k1]; k < rstart[k1+1]; k++){
+		nsetup_Nodd();
+		ninline_Nodd(rstart[k1]);
+		nsave_Nodd();
         }
     }
 
