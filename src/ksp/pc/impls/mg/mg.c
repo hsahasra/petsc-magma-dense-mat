@@ -458,8 +458,8 @@ PetscErrorCode PCView_MG(PC pc,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#include <private/dmimpl.h>
-#include <private/kspimpl.h>
+#include <petsc-private/dmimpl.h>
+#include <petsc-private/kspimpl.h>
 
 /*
     Calls setup for the KSP on each level
@@ -472,7 +472,7 @@ PetscErrorCode PCSetUp_MG(PC pc)
   PC_MG_Levels            **mglevels = mg->levels;
   PetscErrorCode          ierr;
   PetscInt                i,n = mglevels[0]->levels;
-  PC                      cpc,mpc;
+  PC                      cpc;
   PetscBool               preonly,lu,redundant,cholesky,svd,dump = PETSC_FALSE,opsset;
   Mat                     dA,dB;
   MatStructure            uflag;
@@ -492,33 +492,43 @@ PetscErrorCode PCSetUp_MG(PC pc)
       mglevels =  mg->levels;
     }
   }
+  ierr = KSPGetPC(mglevels[0]->smoothd,&cpc);CHKERRQ(ierr);
 
 
   /* If user did not provide fine grid operators OR operator was not updated since last global KSPSetOperators() */
   /* so use those from global PC */
   /* Is this what we always want? What if user wants to keep old one? */
   ierr = KSPGetOperatorsSet(mglevels[n-1]->smoothd,PETSC_NULL,&opsset);CHKERRQ(ierr);
-  ierr = KSPGetPC(mglevels[0]->smoothd,&cpc);CHKERRQ(ierr);
-  ierr = KSPGetPC(mglevels[n-1]->smoothd,&mpc);CHKERRQ(ierr);
-  if (!opsset || ((cpc->setupcalled == 1) && (mpc->setupcalled == 2)) || ((mpc == cpc) && (mpc->setupcalled == 2))) {
+  if (opsset) {
+    Mat mmat;
+    ierr = KSPGetOperators(mglevels[n-1]->smoothd,PETSC_NULL,&mmat,PETSC_NULL);CHKERRQ(ierr);
+    if (mmat == pc->pmat) opsset = PETSC_FALSE;
+  }
+  if (!opsset) {
     ierr = PetscInfo(pc,"Using outer operators to define finest grid operator \n  because PCMGGetSmoother(pc,nlevels-1,&ksp);KSPSetOperators(ksp,...); was not called.\n");CHKERRQ(ierr);
     ierr = KSPSetOperators(mglevels[n-1]->smoothd,pc->mat,pc->pmat,pc->flag);CHKERRQ(ierr);
   }
 
-  if (pc->dm && !pc->setupcalled) {
+  /* Skipping this for galerkin==2 (externally managed hierarchy such as ML and GAMG). Cleaner logic here would be great. */
+  if (pc->dm && mg->galerkin != 2 && !pc->setupcalled) {
     /* construct the interpolation from the DMs */
     Mat p;
     Vec rscale;
     ierr = PetscMalloc(n*sizeof(DM),&dms);CHKERRQ(ierr);
     dms[n-1] = pc->dm;
     for (i=n-2; i>-1; i--) {
-      ierr = DMCoarsen(dms[i+1],PETSC_NULL,&dms[i]);CHKERRQ(ierr);
+      KSPDM kdm;
+      ierr = DMCoarsen(dms[i+1],MPI_COMM_NULL,&dms[i]);CHKERRQ(ierr);
       ierr = KSPSetDM(mglevels[i]->smoothd,dms[i]);CHKERRQ(ierr);
       if (mg->galerkin) {ierr = KSPSetDMActive(mglevels[i]->smoothd,PETSC_FALSE);CHKERRQ(ierr);}
+      ierr = DMKSPGetContextWrite(dms[i],&kdm);CHKERRQ(ierr);
+      /* Ugly hack so that the next KSPSetUp() will use the RHS that we set */
+      kdm->computerhs = PETSC_NULL;
+      kdm->rhsctx = PETSC_NULL;
       ierr = DMSetFunction(dms[i],0);
       ierr = DMSetInitialGuess(dms[i],0);
       if (!mglevels[i+1]->interpolate) {
-	ierr = DMGetInterpolation(dms[i],dms[i+1],&p,&rscale);CHKERRQ(ierr);
+	ierr = DMCreateInterpolation(dms[i],dms[i+1],&p,&rscale);CHKERRQ(ierr);
 	ierr = PCMGSetInterpolation(pc,i+1,p);CHKERRQ(ierr);
 	if (rscale) {ierr = PCMGSetRScale(pc,i+1,rscale);CHKERRQ(ierr);}
         ierr = VecDestroy(&rscale);CHKERRQ(ierr);
@@ -530,8 +540,10 @@ PetscErrorCode PCSetUp_MG(PC pc)
       ierr = DMDestroy(&dms[i]);CHKERRQ(ierr);
     }
     ierr = PetscFree(dms);CHKERRQ(ierr);
+  }
 
-    /* finest smoother also gets DM but it is not active */
+  if (pc->dm && !pc->setupcalled) {
+    /* finest smoother also gets DM but it is not active, independent of whether galerkin==2 */
     ierr = KSPSetDM(mglevels[n-1]->smoothd,pc->dm);CHKERRQ(ierr);
     ierr = KSPSetDMActive(mglevels[n-1]->smoothd,PETSC_FALSE);CHKERRQ(ierr);
   }
@@ -556,17 +568,34 @@ PetscErrorCode PCSetUp_MG(PC pc)
         dB   = B;
       }
     }
-  } else if (pc->dm && pc->dm->x) {
+  } else if (!mg->galerkin && pc->dm && pc->dm->x) {
     /* need to restrict Jacobian location to coarser meshes for evaluation */
     for (i=n-2;i>-1; i--) {
+      Mat R;
+      Vec rscale;
       if (!mglevels[i]->smoothd->dm->x) {
         Vec *vecs;
         ierr = KSPGetVecs(mglevels[i]->smoothd,1,&vecs,0,PETSC_NULL);CHKERRQ(ierr);
         mglevels[i]->smoothd->dm->x = vecs[0];
         ierr = PetscFree(vecs);CHKERRQ(ierr);
       }
-      ierr = MatRestrict(mglevels[i+1]->interpolate,mglevels[i+1]->smoothd->dm->x,mglevels[i]->smoothd->dm->x);CHKERRQ(ierr);
-      ierr = VecPointwiseMult(mglevels[i]->smoothd->dm->x,mglevels[i]->smoothd->dm->x,mglevels[i+1]->rscale);CHKERRQ(ierr);
+      ierr = PCMGGetRestriction(pc,i+1,&R);CHKERRQ(ierr);
+      ierr = PCMGGetRScale(pc,i+1,&rscale);CHKERRQ(ierr);
+      ierr = MatRestrict(R,mglevels[i+1]->smoothd->dm->x,mglevels[i]->smoothd->dm->x);CHKERRQ(ierr);
+      ierr = VecPointwiseMult(mglevels[i]->smoothd->dm->x,mglevels[i]->smoothd->dm->x,rscale);CHKERRQ(ierr);
+    }
+  }
+  if (!mg->galerkin && pc->dm) {
+    for (i=n-2;i>=0; i--) {
+      DM dmfine,dmcoarse;
+      Mat Restrict,Inject;
+      Vec rscale;
+      ierr = KSPGetDM(mglevels[i+1]->smoothd,&dmfine);CHKERRQ(ierr);
+      ierr = KSPGetDM(mglevels[i]->smoothd,&dmcoarse);CHKERRQ(ierr);
+      ierr = PCMGGetRestriction(pc,i+1,&Restrict);CHKERRQ(ierr);
+      ierr = PCMGGetRScale(pc,i+1,&rscale);CHKERRQ(ierr);
+      Inject = PETSC_NULL;      /* Callback should create it if it needs Injection */
+      ierr = DMRestrict(dmfine,Restrict,rscale,Inject,dmcoarse);CHKERRQ(ierr);
     }
   }
 
@@ -580,17 +609,8 @@ PetscErrorCode PCSetUp_MG(PC pc)
       }
     }
     for (i=1; i<n; i++) {
-      if (mglevels[i]->restrct && !mglevels[i]->interpolate) {
-        ierr = PCMGSetInterpolation(pc,i,mglevels[i]->restrct);CHKERRQ(ierr);
-      }
-      if (!mglevels[i]->restrct && mglevels[i]->interpolate) {
-        ierr = PCMGSetRestriction(pc,i,mglevels[i]->interpolate);CHKERRQ(ierr);
-      }
-#if defined(PETSC_USE_DEBUG)
-      if (!mglevels[i]->restrct || !mglevels[i]->interpolate) {
-        SETERRQ1(((PetscObject)pc)->comm,PETSC_ERR_ARG_WRONGSTATE,"Need to set restriction or interpolation on level %d",(int)i);
-      }
-#endif
+      ierr = PCMGGetInterpolation(pc,i,&mglevels[i]->interpolate);CHKERRQ(ierr);
+      ierr = PCMGGetRestriction(pc,i,&mglevels[i]->restrct);CHKERRQ(ierr);
     }
     for (i=0; i<n-1; i++) {
       if (!mglevels[i]->b) {
@@ -621,6 +641,12 @@ PetscErrorCode PCSetUp_MG(PC pc)
     }
   }
 
+  if (pc->dm) {
+    /* need to tell all the coarser levels to rebuild the matrix using the DM for that level */
+    for (i=0; i<n-1; i++){
+      if (mglevels[i]->smoothd->setupstage != KSP_SETUP_NEW) mglevels[i]->smoothd->setupstage = KSP_SETUP_NEWMATRIX;
+    }
+  }
 
   for (i=1; i<n; i++) {
     if (mglevels[i]->smoothu == mglevels[i]->smoothd) {
@@ -640,7 +666,6 @@ PetscErrorCode PCSetUp_MG(PC pc)
     if (mglevels[i]->smoothu && mglevels[i]->smoothu != mglevels[i]->smoothd) {
       Mat          downmat,downpmat;
       MatStructure matflag;
-      PetscBool    opsset;
 
       /* check if operators have been set for up, if not use down operators to set them */
       ierr = KSPGetOperatorsSet(mglevels[i]->smoothu,&opsset,PETSC_NULL);CHKERRQ(ierr);
@@ -1028,17 +1053,22 @@ PetscErrorCode  PCMGSetNumberSmoothUp(PC pc,PetscInt n)
 .  -pc_mg_type <additive,multiplicative,full,cascade> - multiplicative is the default
 .  -pc_mg_log - log information about time spent on each level of the solver
 .  -pc_mg_monitor - print information on the multigrid convergence
-.  -pc_mg_galerkin - use Galerkin process to compute coarser operators
--  -pc_mg_dump_matlab - dumps the matrices for each level and the restriction/interpolation matrices
+.  -pc_mg_galerkin - use Galerkin process to compute coarser operators, i.e. Acoarse = R A R'
+.  -pc_mg_multiplicative_cycles - number of cycles to use as the preconditioner (defaults to 1)
+.  -pc_mg_dump_matlab - dumps the matrices for each level and the restriction/interpolation matrices
                         to the Socket viewer for reading from MATLAB.
+-  -pc_mg_dump_binary - dumps the matrices for each level and the restriction/interpolation matrices
+                        to the binary output file called binaryoutput
 
    Notes: By default this uses GMRES on the fine grid smoother so this should be used with KSPFGMRES or the smoother changed to not use GMRES
+
+       When run with a single level the smoother options are used on that level NOT the coarse grid solver options
 
    Level: intermediate
 
    Concepts: multigrid/multilevel
 
-.seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PC, PCMGType, PCEXOTIC
+.seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PC, PCMGType, PCEXOTIC, PCGAMG, PCML, PCHYPRE
            PCMGSetLevels(), PCMGGetLevels(), PCMGSetType(), PCMGSetCycleType(), PCMGSetNumberSmoothDown(),
            PCMGSetNumberSmoothUp(), PCMGGetCoarseSolve(), PCMGSetResidual(), PCMGSetInterpolation(),
            PCMGSetRestriction(), PCMGGetSmoother(), PCMGGetSmootherUp(), PCMGGetSmootherDown(),

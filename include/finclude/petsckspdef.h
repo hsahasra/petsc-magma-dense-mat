@@ -31,6 +31,7 @@
 #define KSPFGMRES 'fgmres'
 #define KSPLGMRES 'lgmres'
 #define KSPDGMRES 'dgmres'
+#define KSPPGMRES 'pgmres'
 #define KSPTCQMR 'tcqmr'
 #define KSPBCGS 'bcgs'
 #define KSPIBCGS 'ibcgs'
@@ -46,6 +47,6 @@
 #define KSPSYMMLQ 'symmlq'
 #define KSPLCD 'lcd'
 #define KSPPYTHON 'python'
-#define KSPBROYDEN 'broyden'
 #define KSPGCR 'gcr'
+#define KSPSPECEST 'specest'
 #endif

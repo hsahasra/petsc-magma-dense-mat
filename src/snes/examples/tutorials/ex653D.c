@@ -9,7 +9,7 @@ Runtime options include:\n\
 -theta_c <theta_c>\n\n";
 
 /*
- ./ex653D -ksp_type fgmres -snes_vi_monitor -snes_atol 1.e-11 -snes_converged_reason -ksp_converged_reason -snes_ls_monitor -pc_type mg -pc_mg_galerkin -log_summary  -da_refine 2
+ ./ex653D -ksp_type fgmres -snes_vi_monitor -snes_atol 1.e-11 -snes_converged_reason -ksp_converged_reason -snes_linesearch_monitor -pc_type mg -pc_mg_galerkin -log_summary  -da_refine 2
 */
 
 // Void grow case only
@@ -108,9 +108,9 @@ int main(int argc, char **argv)
   ierr = VecDuplicate(user.wv,&user.work2);CHKERRQ(ierr);
 
   // Get Jacobian matrix structure from the da for the entire thing, da1 
-  ierr = DMGetMatrix(user.da1,MATAIJ,&user.M);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da1,MATAIJ,&user.M);CHKERRQ(ierr);
   // Get the (usual) mass matrix structure from da2 
-  ierr = DMGetMatrix(user.da2,MATAIJ,&user.M_0);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da2,MATAIJ,&user.M_0);CHKERRQ(ierr);
   // Form the jacobian matrix and M_0 
 	
   ierr = SetInitialGuess(x,&user);CHKERRQ(ierr);	
@@ -128,13 +128,10 @@ int main(int argc, char **argv)
   ierr = SNESSetJacobian(snes,J,J,FormJacobian,(void*)&user);CHKERRQ(ierr);
 
  	
-  ierr = SNESSetType(snes,SNESVI);CHKERRQ(ierr);
+  ierr = SetVariableBounds(user.da1,xl,xu);CHKERRQ(ierr);
+  ierr = SNESVISetVariableBounds(snes,xl,xu);CHKERRQ(ierr);
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
 	
-	
-  ierr = SetVariableBounds(user.da1,xl,xu);CHKERRQ(ierr);
- 	
-  ierr = SNESVISetVariableBounds(snes,xl,xu);CHKERRQ(ierr);
 	
  /*
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"file_out",FILE_MODE_WRITE,&view_out);CHKERRQ(ierr);

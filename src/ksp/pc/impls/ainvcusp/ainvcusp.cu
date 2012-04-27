@@ -6,7 +6,7 @@
      pcimpl.h - private include file intended for use by all preconditioners
 */
 
-#include <private/pcimpl.h>   /*I "petscpc.h" I*/
+#include <petsc-private/pcimpl.h>   /*I "petscpc.h" I*/
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <cusp/monitor.h>
 #undef VecType
@@ -69,7 +69,7 @@ static PetscErrorCode PCSetUp_AINVCUSP(PC pc)
     }
   }
   try {
-    ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRCUSP(ierr);
+    ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRQ(ierr);
     gpustruct = (Mat_SeqAIJCUSP *)(pc->pmat->spptr);
     if (ainv->scaled) {
       ainv->AINVCUSP =  new cuspainvprecondscaled(*(CUSPMATRIX*)gpustruct->mat, ainv->droptolerance,ainv->nonzeros,ainv->uselin,ainv->linparam);
@@ -315,6 +315,17 @@ static PetscErrorCode PCSetFromOptions_AINVCUSP(PC pc)
 
 /* -------------------------------------------------------------------------- */
 
+/*MC
+     PCAINVCUSP  - A sparse approximate inverse precondition that runs on the Nvidia GPU.
+
+
+   http://docs.cusp-library.googlecode.com/hg/classcusp_1_1precond_1_1bridson__ainv.html
+
+   Level: advanced
+
+.seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PC
+
+M*/
 
 EXTERN_C_BEGIN
 #undef __FUNCT__

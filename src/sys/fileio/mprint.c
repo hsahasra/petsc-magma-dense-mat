@@ -21,9 +21,6 @@ FILE *PETSC_STDOUT = 0;
 */
 FILE *PETSC_STDERR = 0;
 /*
-     Used to output to Zope
-*/
-FILE *PETSC_ZOPEFD = 0;
 
 /*
      Return the maximum expected new size of the format
@@ -156,32 +153,6 @@ PetscErrorCode  PetscVSNPrintf(char *str,size_t len,const char *format,size_t *f
 }
 
 #undef __FUNCT__  
-#define __FUNCT__ "PetscZopeLog"
-PetscErrorCode  PetscZopeLog(const char *format,va_list Argp)
-{
-  /* no malloc since may be called by error handler */
-  char        newformat[8*1024];
-  char        log[8*1024];
-  char        logstart[] = " <<<log>>>";
-  size_t      len,formatlen;
-
-  PetscFormatConvert(format,newformat,8*1024);
-  PetscStrlen(logstart, &len);
-  PetscMemcpy(log, logstart, len);
-  PetscStrlen(newformat, &formatlen);
-  PetscMemcpy(&(log[len]), newformat, formatlen);
-  if (PETSC_ZOPEFD){
-#if defined(PETSC_HAVE_VFPRINTF_CHAR)
-    vfprintf(PETSC_ZOPEFD,log,(char *)Argp);
-#else
-    vfprintf(PETSC_ZOPEFD,log,Argp);
-#endif
-    fflush(PETSC_ZOPEFD);
-  }
-  return 0;
-}
-
-#undef __FUNCT__  
 #define __FUNCT__ "PetscVFPrintfDefault"
 /*@C 
      PetscVFPrintf -  All PETSc standard out and error messages are sent through this function; so, in theory, this can
@@ -309,9 +280,9 @@ PetscErrorCode  PetscSNPrintfCount(char *str,size_t len,const char format[],size
 
 /* ----------------------------------------------------------------------- */
 
-PrintfQueue queue       = 0,queuebase = 0;
-int         queuelength = 0;
-FILE        *queuefile  = PETSC_NULL;
+PrintfQueue petsc_printfqueue = 0,petsc_printfqueuebase = 0;
+int         petsc_printfqueuelength = 0;
+FILE        *petsc_printfqueuefile  = PETSC_NULL;
 
 #undef __FUNCT__  
 #define __FUNCT__ "PetscSynchronizedPrintf" 
@@ -362,9 +333,9 @@ PetscErrorCode  PetscSynchronizedPrintf(MPI_Comm comm,const char format[],...)
     size_t      fullLength = 8191;
 
     ierr = PetscNew(struct _PrintfQueue,&next);CHKERRQ(ierr);
-    if (queue) {queue->next = next; queue = next; queue->next = 0;}
-    else       {queuebase   = queue = next;}
-    queuelength++;
+    if (petsc_printfqueue) {petsc_printfqueue->next = next; petsc_printfqueue = next; petsc_printfqueue->next = 0;}
+    else                   {petsc_printfqueuebase   = petsc_printfqueue = next;}
+    petsc_printfqueuelength++;
     next->size = -1;
     while((PetscInt)fullLength >= next->size) {
       next->size = fullLength+1;
@@ -416,7 +387,7 @@ PetscErrorCode  PetscSynchronizedFPrintf(MPI_Comm comm,FILE* fp,const char forma
     va_list Argp;
     va_start(Argp,format);
     ierr = (*PetscVFPrintf)(fp,format,Argp);CHKERRQ(ierr);
-    queuefile = fp;
+    petsc_printfqueuefile = fp;
     if (petsc_history && (fp !=petsc_history)) {
       va_start(Argp,format);
       ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
@@ -427,9 +398,9 @@ PetscErrorCode  PetscSynchronizedFPrintf(MPI_Comm comm,FILE* fp,const char forma
     PrintfQueue next;
     size_t      fullLength = 8191;
     ierr = PetscNew(struct _PrintfQueue,&next);CHKERRQ(ierr);
-    if (queue) {queue->next = next; queue = next; queue->next = 0;}
-    else       {queuebase   = queue = next;}
-    queuelength++;
+    if (petsc_printfqueue) {petsc_printfqueue->next = next; petsc_printfqueue = next; petsc_printfqueue->next = 0;}
+    else                   {petsc_printfqueuebase   = petsc_printfqueue = next;}
+    petsc_printfqueuelength++;
     next->size = -1;
     while((PetscInt)fullLength >= next->size) {
       next->size = fullLength+1;
@@ -478,8 +449,8 @@ PetscErrorCode  PetscSynchronizedFlush(MPI_Comm comm)
 
   /* First processor waits for messages from all other processors */
   if (!rank) {
-    if (queuefile) {
-      fd = queuefile;
+    if (petsc_printfqueuefile) {
+      fd = petsc_printfqueuefile;
     } else {
       fd = PETSC_STDOUT;
     }
@@ -497,13 +468,13 @@ PetscErrorCode  PetscSynchronizedFlush(MPI_Comm comm)
         ierr = PetscFree(message);CHKERRQ(ierr);
       }
     }
-    queuefile = PETSC_NULL;
+    petsc_printfqueuefile = PETSC_NULL;
   } else { /* other processors send queue to processor 0 */
-    PrintfQueue next = queuebase,previous;
+    PrintfQueue next = petsc_printfqueuebase,previous;
 
     ierr = MPI_Recv(&dummy,1,MPI_INT,0,tag,comm,&status);CHKERRQ(ierr);
-    ierr = MPI_Send(&queuelength,1,MPI_INT,0,tag,comm);CHKERRQ(ierr);
-    for (i=0; i<queuelength; i++) {
+    ierr = MPI_Send(&petsc_printfqueuelength,1,MPI_INT,0,tag,comm);CHKERRQ(ierr);
+    for (i=0; i<petsc_printfqueuelength; i++) {
       ierr     = MPI_Send(&next->size,1,MPI_INT,0,tag,comm);CHKERRQ(ierr);
       ierr     = MPI_Send(next->string,next->size,MPI_CHAR,0,tag,comm);CHKERRQ(ierr);
       previous = next; 
@@ -511,8 +482,8 @@ PetscErrorCode  PetscSynchronizedFlush(MPI_Comm comm)
       ierr     = PetscFree(previous->string);CHKERRQ(ierr);
       ierr     = PetscFree(previous);CHKERRQ(ierr);
     }
-    queue       = 0;
-    queuelength = 0;
+    petsc_printfqueue       = 0;
+    petsc_printfqueuelength = 0;
   }
   ierr = PetscCommDestroy(&comm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -743,194 +714,3 @@ PetscErrorCode  PetscFormatStrip(char *format)
   PetscFunctionReturn(0);
 }
 
-static PetscToken OriginalRun = 0;
-
-#undef __FUNCT__  
-#define __FUNCT__ "PetscVFPrintfRegressDestroy"
-static PetscErrorCode PetscVFPrintfRegressDestroy(void)
-{
-  PetscErrorCode ierr;
-  
-  PetscFunctionBegin;
-  ierr = PetscTokenDestroy(&OriginalRun);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "PetscVFPrintfRegressSetUp"
-/*@C 
-     PetscVFPrintfRegressSetUp -  Reads in file of previous results of run to compare with current run using PetscVFPrintfRegress
-
-  Level:  developer
-
-.seealso: PetscVSNPrintf(), PetscErrorPrintf(), PetscVFPrintfRegress()
-
-@*/
-PetscErrorCode  PetscVFPrintfRegressSetUp(MPI_Comm comm,const char *filename)
-{
-  PetscErrorCode ierr;
-  FILE           *fp;
-  char           buffer[1024],*big;
-  size_t         cnt = 0,len;
-  char           *ptr;
-  PetscMPIInt    rank;
-
-  PetscFunctionBegin;
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-  if (!rank) {
-    ierr = PetscFOpen(comm,filename,"r",&fp);CHKERRQ(ierr);
-    
-    ptr = fgets(buffer, 1024, fp);
-    while (ptr) {
-      ierr = PetscStrlen(ptr,&len);CHKERRQ(ierr);
-      cnt  += len;
-      ptr = fgets(buffer, 1024, fp);
-    }
-    if (!feof(fp)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_READ, "Error reading from file: %d", errno);
-    ierr = PetscFClose(comm,fp);CHKERRQ(ierr);
-    ierr = PetscMalloc(cnt*sizeof(char),&big);CHKERRQ(ierr);
-    big[0] = 0;
-    ierr = PetscFOpen(comm,filename,"r",&fp);CHKERRQ(ierr);
-    ptr = fgets(buffer, 1024, fp);
-    while (ptr) {
-      ierr = PetscStrcat(big,ptr);CHKERRQ(ierr);
-      ptr = fgets(buffer, 1024, fp);
-    }
-    if (!feof(fp)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_READ, "Error reading from file: %d", errno);
-    ierr = PetscFClose(comm,fp);CHKERRQ(ierr);
-    ierr = PetscTokenCreate(big,'\n',&OriginalRun);CHKERRQ(ierr);
-    ierr = PetscFree(big);CHKERRQ(ierr);
-    PetscVFPrintf = PetscVFPrintfRegress;
-    ierr = PetscRegisterFinalize(PetscVFPrintfRegressDestroy);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-
-#undef __FUNCT__  
-#define __FUNCT__ "PetscVFPrintfRegress"
-/*@C 
-     PetscVFPrintfRegress -  Special version of PetscVFPrintf() to help make clean PETSc regression tests
-
-  Level:  developer
-
-  Developer Notes: 
-       Since this routine knows exactly the data-types and formats of each of the arguments it could in theory do an appropriate 
-       diff for each argument, rather than using a string diff on the entire result.
-
-       So we should somehow loop over all the parts of the format string check that the string part matches and the arguments match
-       within a reasonable tolerance.
-
-.seealso: PetscVSNPrintf(), PetscErrorPrintf()
-
-@*/
-PetscErrorCode  PetscVFPrintfRegress(FILE *fd,const char *format,va_list Argp)
-{
-  char              *newformat,*nformat,*oresult;
-  char              formatbuf[8*1024],testbuf[8*1024];
-  static char       currentformat[8*1024];
-  size_t            oldLength;
-  PetscErrorCode    ierr;
-  char              *result;
-  PetscBool         same,cr;
-  static PetscBool  current = PETSC_FALSE;
-  size_t            len;
-  int               found;
-  va_list           cArgp;
-
-  PetscFunctionBegin;
-  if (!current) {
-    ierr    = PetscStrcpy(currentformat,format);CHKERRQ(ierr);
-    current = PETSC_TRUE;
-  } else {
-    ierr    = PetscStrcat(currentformat,format);CHKERRQ(ierr);
-  }
-  ierr = PetscStrendswith(format,"\n",&cr);CHKERRQ(ierr);
-  if (!cr) PetscFunctionReturn(0);
-  current = PETSC_FALSE;
-
-  va_copy(cArgp,Argp);
-  ierr = PetscTokenFind(OriginalRun,&result);CHKERRQ(ierr);
-  if (!result) {
-    printf("Fewer lines in original, than in regression test\n");
-    exit(0);
-  }
-
-  ierr = PetscStrlen(currentformat, &oldLength);CHKERRQ(ierr);
-  if (oldLength < 8*1024) {
-    newformat = formatbuf;
-    oldLength = 8*1024-1;
-  } else {
-    oldLength = PETSC_MAX_LENGTH_FORMAT(oldLength);
-    ierr = PetscMalloc(oldLength * sizeof(char), &newformat);CHKERRQ(ierr);
-  }
-  ierr = PetscFormatConvert(currentformat,newformat,oldLength);CHKERRQ(ierr);
-  ierr = PetscVSNPrintf(testbuf,8*1024,newformat,&len,Argp);CHKERRQ(ierr);
-  testbuf[len-1] = 0; /* remove \n at end of line */
-  ierr = PetscStrcmp(result,testbuf,&same);CHKERRQ(ierr);
-  if (!same) {
-    char *sub;
-    same = PETSC_TRUE;
-    ierr = PetscFormatStrip(newformat);CHKERRQ(ierr);
-    nformat = newformat;
-    oresult = result;
-
-    ierr = PetscStrstr(nformat,"%",&sub);CHKERRQ(ierr);
-    while (sub) {
-      sub++;
-      if (*sub == 'g' || *sub == 'f') {
-        float  val;
-        double nval;
-        char   tsub = sub[1];
-        sub++; *sub = 0;
-        found = sscanf(oresult,nformat,&val);
-        if (!found) {
-          printf("Old::%s\nNew::%s\n",result,testbuf);
-          printf("Different because not scan:%s: from :%s:\n",nformat,oresult);
-          same = PETSC_FALSE;
-          break;
-        }
-        nval = va_arg(cArgp,double);
-        if (PetscAbs((nval - val)/(nval + val)) > .1) {
-          printf("Old::%s\nNew::%s\n",result,testbuf);
-          printf("Different because float values %g to far from %g\n",val,nval);
-          same = PETSC_FALSE; 
-          break;
-        }
-        *sub = tsub;
-        while (*nformat == *oresult) {nformat++; oresult++;}
-        while (*oresult == ' ') oresult++;
-        while ((*oresult >= '0' && *oresult <= '9') || *oresult == '.' || *oresult == '-' || *oresult == 'e') oresult++;
-      } else if (*sub == 'd') {
-        int   val,nval;
-        char  tsub = sub[1];
-        sub++; *sub = 0;
-        found = sscanf(oresult,nformat,&val);
-        if (!found) {
-          printf("Old::%s\nNew::%s\n",result,testbuf);
-          printf("Different because not scan:%s: from :%s:\n",nformat,oresult);
-          same = PETSC_FALSE; 
-          break;
-        }
-        nval = va_arg(cArgp,int);
-        if (val != nval) {
-          printf("Old::%s\nNew::%s\n",result,testbuf);
-          printf("Different because integer value %d != %d\n",val,nval);
-          same = PETSC_FALSE; 
-          break; 
-        }
-        *sub = tsub;
-        while (*nformat == *oresult) {nformat++; oresult++;}
-        while (*oresult == ' ') oresult++;
-        while ((*oresult >= '0' && *oresult <= '9') || *oresult == '-') oresult++;
-      }
-      nformat = sub;
-      ierr = PetscStrstr(nformat,"%",&sub);CHKERRQ(ierr);
-    }
-  }
-
-  if (oldLength >= 8*1024) {
-    ierr = PetscFree(newformat);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}

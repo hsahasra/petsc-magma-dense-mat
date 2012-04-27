@@ -33,6 +33,10 @@ ex2: ex2.o   chkopts
 	-${CLINKER} -o ex2 ex2.o  ${PETSC_DM_LIB}
 	${RM} -f ex2.o
 
+ex2f: ex2f.o   chkopts
+	-${CLINKER} -o ex2f ex2f.o  ${PETSC_DM_LIB}
+	${RM} -f ex2.o
+
 ex3: ex3.o   chkopts
 	-${CLINKER} -o ex3 ex3.o  ${PETSC_DM_LIB}
 	${RM} -f ex3.o
@@ -339,10 +343,10 @@ runex10:
 
 TESTEXAMPLES_SIEVE 		  = ex1.PETSc testex1_1 testex1_2 testex1_3 testex1_4 ex1.rm ex2.PETSc testex2_1 testex2_2 testex2_3 ex2.rm ex10.PETSc runex10 ex10.rm
 TESTEXAMPLES_C  		  = 
-TESTEXAMPLES_C_X11  	  = 
+TESTEXAMPLES_C_X  	  = 
 TESTEXAMPLES_FORTRAN	  = 
 TESTEXAMPLES_F90          = 
-TESTEXAMPLES_C_X11_MPIUNI = 
+TESTEXAMPLES_C_X_MPIUNI = 
 TESTEXAMPLES_C_COMPLEX	  = 
 TESTEXAMPLES_C_NOCOMPLEX  = 
 

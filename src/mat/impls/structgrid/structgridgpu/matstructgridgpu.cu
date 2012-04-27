@@ -19,7 +19,7 @@
 #include <omp.h>
 #include "../src/mat/impls/structgrid/matstructgrid.h"
 
-#include "private/matimpl.h"
+#include "petsc-private/matimpl.h"
 #include "matstructgridgpu.h"
 
 #define _DBGFLAG 0
@@ -151,7 +151,7 @@ EXTERN_C_BEGIN
 PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 {
 
-   printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
+  printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
 
   PetscErrorCode ierr;
   PetscFunctionBegin;

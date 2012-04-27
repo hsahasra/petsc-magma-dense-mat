@@ -2,7 +2,7 @@
 #ifndef __SEQSTRUCTGRID_H__
 #define __SEQSTRUCTGRID_H__
 
-#include "private/matimpl.h"
+#include "petsc-private/matimpl.h"
 
 
 /*

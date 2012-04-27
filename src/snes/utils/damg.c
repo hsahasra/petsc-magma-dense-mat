@@ -3,7 +3,7 @@
 #include <petscksp.h>           /*I "petscksp.h"  I*/
 #include <petscpcmg.h>            /*I "petscpcmg.h"   I*/
 #include <petscdmmg.h>          /*I "petscdmmg.h" I*/
-#include <private/pcimpl.h>     /*I "petscpc.h"   I*/
+#include <petsc-private/pcimpl.h>     /*I "petscpc.h"   I*/
 
 /*
    Code for almost fully managing multigrid/multi-level linear solvers for DM grids
@@ -262,7 +262,7 @@ PetscErrorCode  DMMGSetDM(DMMG *dmmg, DM dm)
 
   /* Create interpolation/restriction between levels */
   for (i=1; i<nlevels; i++) {
-    ierr = DMGetInterpolation(dmmg[i-1]->dm,dmmg[i]->dm,&dmmg[i]->R,PETSC_NULL);CHKERRQ(ierr);
+    ierr = DMCreateInterpolation(dmmg[i-1]->dm,dmmg[i]->dm,&dmmg[i]->R,PETSC_NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -483,7 +483,7 @@ PetscErrorCode  DMMGSetKSP(DMMG *dmmg,PetscErrorCode (*rhs)(DMMG,Vec),PetscError
           These are also used if grid sequencing is selected for the linear problem. We should probably turn off grid sequencing
           for the linear problem */
       if (!dmmg[i]->B) {
-	ierr = DMGetMatrix(dmmg[i]->dm,dmmg[nlevels-1]->mtype,&dmmg[i]->B);CHKERRQ(ierr);
+	ierr = DMCreateMatrix(dmmg[i]->dm,dmmg[nlevels-1]->mtype,&dmmg[i]->B);CHKERRQ(ierr);
       } 
       if (!dmmg[i]->J) {
 	dmmg[i]->J = dmmg[i]->B;

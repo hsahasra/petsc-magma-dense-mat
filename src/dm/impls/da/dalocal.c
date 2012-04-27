@@ -3,7 +3,7 @@
   Code for manipulating distributed regular arrays in parallel.
 */
 
-#include <private/daimpl.h>    /*I   "petscdmda.h"   I*/
+#include <petsc-private/daimpl.h>    /*I   "petscdmda.h"   I*/
 
 /*
    This allows the DMDA vectors to properly tell MATLAB their dimensions
@@ -52,13 +52,20 @@ PetscErrorCode  DMCreateLocalVector_DA(DM da,Vec* g)
   PetscErrorCode ierr;
   DM_DA          *dd = (DM_DA*)da->data;
 
-  PetscFunctionBegin; 
+  PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
   PetscValidPointer(g,2);
   ierr = VecCreate(PETSC_COMM_SELF,g);CHKERRQ(ierr);
-  ierr = VecSetSizes(*g,dd->nlocal,PETSC_DETERMINE);CHKERRQ(ierr);
+  if (dd->defaultSection) {
+    PetscInt localSize;
+
+    ierr = PetscSectionGetStorageSize(dd->defaultSection, &localSize);CHKERRQ(ierr);
+    ierr = VecSetSizes(*g, localSize, PETSC_DETERMINE);CHKERRQ(ierr);
+  } else {
+    ierr = VecSetSizes(*g,dd->nlocal,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*g,dd->w);CHKERRQ(ierr);
+  }
   ierr = VecSetType(*g,da->vectype);CHKERRQ(ierr);
-  ierr = VecSetBlockSize(*g,dd->w);CHKERRQ(ierr);
   ierr = PetscObjectCompose((PetscObject)*g,"DM",(PetscObject)da);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
   if (dd->w == 1  && dd->dim == 2) {
@@ -68,245 +75,116 @@ PetscErrorCode  DMCreateLocalVector_DA(DM da,Vec* g)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "DMGetLocalVector"
-/*@
-   DMGetLocalVector - Gets a Seq PETSc vector that
-   may be used with the DMXXX routines. This vector has spaces for the ghost values.
+#undef __FUNCT__
+#define __FUNCT__ "DMDACreateSection"
+/*@C
+  DMDACreateSection - Create a PetscSection inside the DMDA that describes data layout. This allows multiple fields with
+  different numbers of dofs on vertices, cells, and faces in each direction.
 
-   Not Collective
+  Input Parameters:
++ dm- The DMDA
+. numFields - The number of fields
+. numComp - The number of components in each field, or PETSC_NULL for 1
+. numVertexDof - The number of dofs per vertex for each field, or PETSC_NULL
+. numFaceDof - The number of dofs per face for each field and direction, or PETSC_NULL
+- numCellDof - The number of dofs per cell for each field, or PETSC_NULL
 
-   Input Parameter:
-.  dm - the distributed array
+  Level: developer
 
-   Output Parameter:
-.  g - the local vector
+  Note:
+  The default DMDA numbering is as follows:
 
-   Level: beginner
+    - Cells:    [0,             nC)
+    - Vertices: [nC,            nC+nV)
+    - X-Faces:  [nC+nV,         nC+nV+nXF)
+    - Y-Faces:  [nC+nV+nXF,     nC+nV+nXF+nYF)
+    - Z-Faces:  [nC+nV+nXF+nYF, nC+nV+nXF+nYF+nZF)
 
-   Note:
-   The vector values are NOT initialized and may have garbage in them, so you may need
-   to zero them.
-
-   The output parameter, g, is a regular PETSc vector that should be returned with 
-   DMRestoreLocalVector() DO NOT call VecDestroy() on it.
-
-   VecStride*() operations can be useful when using DM with dof > 1
-
-.keywords: distributed array, create, local, vector
-
-.seealso: DMCreateGlobalVector(), VecDuplicate(), VecDuplicateVecs(),
-          DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMGlobalToLocalBegin(),
-          DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMCreateLocalVector(), DMRestoreLocalVector(),
-          VecStrideMax(), VecStrideMin(), VecStrideNorm()
+  We interpret the default DMDA partition as a cell partition, and the data assignment as a cell assignment.
 @*/
-PetscErrorCode  DMGetLocalVector(DM dm,Vec* g)
+PetscErrorCode DMDACreateSection(DM dm, PetscInt numComp[], PetscInt numVertexDof[], PetscInt numFaceDof[], PetscInt numCellDof[])
 {
-  PetscErrorCode ierr,i;
-
-  PetscFunctionBegin; 
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  PetscValidPointer(g,2);
-  for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-    if (dm->localin[i]) {
-      *g             = dm->localin[i];
-      dm->localin[i] = PETSC_NULL;
-      goto alldone;
-    }
-  }
-  ierr = DMCreateLocalVector(dm,g);CHKERRQ(ierr);
-
-  alldone:
-  for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-    if (!dm->localout[i]) {
-      dm->localout[i] = *g;
-      break;
-    }
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "DMRestoreLocalVector"
-/*@
-   DMRestoreLocalVector - Returns a Seq PETSc vector that
-     obtained from DMGetLocalVector(). Do not use with vector obtained via
-     DMCreateLocalVector().
-
-   Not Collective
-
-   Input Parameter:
-+  dm - the distributed array
--  g - the local vector
-
-   Level: beginner
-
-.keywords: distributed array, create, local, vector
-
-.seealso: DMCreateGlobalVector(), VecDuplicate(), VecDuplicateVecs(),
-          DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMGlobalToLocalBegin(),
-          DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMCreateLocalVector(), DMGetLocalVector()
-@*/
-PetscErrorCode  DMRestoreLocalVector(DM dm,Vec* g)
-{
+  DM_DA         *da  = (DM_DA *) dm->data;
+  PetscInt       mx  = (da->Xe - da->Xs)/da->w, my = da->Ye - da->Ys, mz = da->Ze - da->Zs;
+  PetscInt       nC  = (mx  )*(da->dim > 1 ? (my  )*(da->dim > 2 ? (mz  ) : 1) : 1);
+  PetscInt       nV  = (mx+1)*(da->dim > 1 ? (my+1)*(da->dim > 2 ? (mz+1) : 1) : 1);
+  PetscInt       nXF = (mx+1)*(da->dim > 1 ? (my  )*(da->dim > 2 ? (mz  ) : 1) : 1);
+  PetscInt       nYF = (mx  )*(da->dim > 1 ? (my+1)*(da->dim > 2 ? (mz  ) : 1) : 0);
+  PetscInt       nZF = (mx  )*(da->dim > 1 ? (my  )*(da->dim > 2 ? (mz+1) : 0) : 0);
+  PetscInt       cStart  = 0,     cEnd  = cStart+nC;
+  PetscInt       vStart  = cEnd,  vEnd  = vStart+nV;
+  PetscInt       xfStart = vEnd,  xfEnd = xfStart+nXF;
+  PetscInt       yfStart = xfEnd, yfEnd = yfStart+nYF;
+  PetscInt       zfStart = yfEnd, zfEnd = zfStart+nZF;
+  PetscInt       pStart  = 0,     pEnd  = zfEnd;
+  PetscInt       numFields, numVertexTotDof = 0, numCellTotDof = 0, numFaceTotDof[3] = {0, 0, 0};
+  PetscInt       f, v, c, xf, yf, zf;
   PetscErrorCode ierr;
-  PetscInt       i,j;
 
-  PetscFunctionBegin; 
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  PetscValidPointer(g,2);
-  for (j=0; j<DM_MAX_WORK_VECTORS; j++) {
-    if (*g == dm->localout[j]) {
-      dm->localout[j] = PETSC_NULL;
-      for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-        if (!dm->localin[i]) {
-          dm->localin[i] = *g;
-          goto alldone;
-        }
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
+  ierr = DMDAGetInfo(dm, 0,0,0,0,0,0,0, &numFields, 0,0,0,0,0);CHKERRQ(ierr);
+  for(f = 0; f < numFields; ++f) {
+    if (numVertexDof) {numVertexTotDof  += numVertexDof[f];}
+    if (numCellDof)   {numCellTotDof    += numCellDof[f];}
+    if (numFaceDof)   {numFaceTotDof[0] += numFaceDof[f*da->dim+0];
+                       numFaceTotDof[1] += da->dim > 1 ? numFaceDof[f*da->dim+1] : 0;
+                       numFaceTotDof[2] += da->dim > 2 ? numFaceDof[f*da->dim+2] : 0;}
+  }
+  ierr = PetscSectionCreate(((PetscObject) dm)->comm, &da->defaultSection);CHKERRQ(ierr);
+  if (numFields > 1) {
+    ierr = PetscSectionSetNumFields(da->defaultSection, numFields);CHKERRQ(ierr);
+    for(f = 0; f < numFields; ++f) {
+      const char *name;
+
+      ierr = DMDAGetFieldName(dm, f, &name);CHKERRQ(ierr);
+      ierr = PetscSectionSetFieldName(da->defaultSection, f, name);CHKERRQ(ierr);
+      if (numComp) {
+        ierr = PetscSectionSetFieldComponents(da->defaultSection, f, numComp[f]);CHKERRQ(ierr);
       }
     }
+  } else {
+    numFields = 0;
   }
-  ierr = VecDestroy(g);CHKERRQ(ierr);
-  alldone:
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "DMGetGlobalVector"
-/*@
-   DMGetGlobalVector - Gets a MPI PETSc vector that
-   may be used with the DMXXX routines.
-
-   Collective on DM
-
-   Input Parameter:
-.  dm - the distributed array
-
-   Output Parameter:
-.  g - the global vector
-
-   Level: beginner
-
-   Note:
-   The vector values are NOT initialized and may have garbage in them, so you may need
-   to zero them.
-
-   The output parameter, g, is a regular PETSc vector that should be returned with 
-   DMRestoreGlobalVector() DO NOT call VecDestroy() on it.
-
-   VecStride*() operations can be useful when using DM with dof > 1
-
-.keywords: distributed array, create, Global, vector
-
-.seealso: DMCreateGlobalVector(), VecDuplicate(), VecDuplicateVecs(),
-          DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMGlobalToLocalBegin(),
-          DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMCreateLocalVector(), DMRestoreLocalVector()
-          VecStrideMax(), VecStrideMin(), VecStrideNorm()
-
-@*/
-PetscErrorCode  DMGetGlobalVector(DM dm,Vec* g)
-{
-  PetscErrorCode ierr;
-  PetscInt       i;
-
-  PetscFunctionBegin; 
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  PetscValidPointer(g,2);
-  for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-    if (dm->globalin[i]) {
-      *g             = dm->globalin[i];
-      dm->globalin[i] = PETSC_NULL;
-      goto alldone;
-    }
-  }
-  ierr = DMCreateGlobalVector(dm,g);CHKERRQ(ierr);
-
-  alldone:
-  for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-    if (!dm->globalout[i]) {
-      dm->globalout[i] = *g;
-      break;
-    }
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "DMClearGlobalVectors"
-/*@
-   DMClearGlobalVectors - Destroys all the global vectors that have been stashed in this DM
-
-   Collective on DM
-
-   Input Parameter:
-.  dm - the distributed array
-
-   Level: developer
-
-.keywords: distributed array, create, Global, vector
-
-.seealso: DMCreateGlobalVector(), VecDuplicate(), VecDuplicateVecs(),
-          DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMGlobalToLocalBegin(),
-          DMGlobalToLocalEnd(), DMLocalToGlobalBegin(), DMCreateLocalVector(), DMRestoreLocalVector()
-          VecStrideMax(), VecStrideMin(), VecStrideNorm()
-
-@*/
-PetscErrorCode  DMClearGlobalVectors(DM dm)
-{
-  PetscErrorCode ierr;
-  PetscInt       i;
-
-  PetscFunctionBegin; 
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-    if (dm->globalout[i]) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Clearing DM of global vectors that has a global vector obtained with DMGetGlobalVector()");
-    ierr = VecDestroy(&dm->globalin[i]);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "DMRestoreGlobalVector"
-/*@
-   DMRestoreGlobalVector - Returns a Seq PETSc vector that
-     obtained from DMGetGlobalVector(). Do not use with vector obtained via
-     DMCreateGlobalVector().
-
-   Not Collective
-
-   Input Parameter:
-+  dm - the distributed array
--  g - the global vector
-
-   Level: beginner
-
-.keywords: distributed array, create, global, vector
-
-.seealso: DMCreateGlobalVector(), VecDuplicate(), VecDuplicateVecs(),
-          DMDACreate1d(), DMDACreate2d(), DMDACreate3d(), DMGlobalToGlobalBegin(),
-          DMGlobalToGlobalEnd(), DMGlobalToGlobal(), DMCreateLocalVector(), DMGetGlobalVector()
-@*/
-PetscErrorCode  DMRestoreGlobalVector(DM dm,Vec* g)
-{
-  PetscErrorCode ierr;
-  PetscInt       i,j;
-
-  PetscFunctionBegin; 
-  PetscValidHeaderSpecific(dm,DM_CLASSID,1);
-  PetscValidPointer(g,2);
-  for (j=0; j<DM_MAX_WORK_VECTORS; j++) {
-    if (*g == dm->globalout[j]) {
-      dm->globalout[j] = PETSC_NULL;
-      for (i=0; i<DM_MAX_WORK_VECTORS; i++) {
-        if (!dm->globalin[i]) {
-          dm->globalin[i] = *g;
-          goto alldone;
-        }
+  ierr = PetscSectionSetChart(da->defaultSection, pStart, pEnd);CHKERRQ(ierr);
+  if (numVertexDof) {
+    for(v = vStart; v < vEnd; ++v) {
+      for(f = 0; f < numFields; ++f) {
+        ierr = PetscSectionSetFieldDof(da->defaultSection, v, f, numVertexDof[f]);CHKERRQ(ierr);
       }
+      ierr = PetscSectionSetDof(da->defaultSection, v, numVertexTotDof);CHKERRQ(ierr);
     }
   }
-  ierr = VecDestroy(g);CHKERRQ(ierr);
-  alldone:
+  if (numFaceDof) {
+    for(xf = xfStart; xf < xfEnd; ++xf) {
+      for(f = 0; f < numFields; ++f) {
+        ierr = PetscSectionSetFieldDof(da->defaultSection, xf, f, numFaceDof[f*da->dim+0]);CHKERRQ(ierr);
+      }
+      ierr = PetscSectionSetDof(da->defaultSection, xf, numFaceTotDof[0]);CHKERRQ(ierr);
+    }
+    for(yf = yfStart; yf < yfEnd; ++yf) {
+      for(f = 0; f < numFields; ++f) {
+        ierr = PetscSectionSetFieldDof(da->defaultSection, yf, f, numFaceDof[f*da->dim+1]);CHKERRQ(ierr);
+      }
+      ierr = PetscSectionSetDof(da->defaultSection, yf, numFaceTotDof[1]);CHKERRQ(ierr);
+    }
+    for(zf = zfStart; zf < zfEnd; ++zf) {
+      for(f = 0; f < numFields; ++f) {
+        ierr = PetscSectionSetFieldDof(da->defaultSection, zf, f, numFaceDof[f*da->dim+2]);CHKERRQ(ierr);
+      }
+      ierr = PetscSectionSetDof(da->defaultSection, zf, numFaceTotDof[2]);CHKERRQ(ierr);
+    }
+  }
+  if (numCellDof) {
+    for(c = cStart; c < cEnd; ++c) {
+      for(f = 0; f < numFields; ++f) {
+        ierr = PetscSectionSetFieldDof(da->defaultSection, c, f, numCellDof[f]);CHKERRQ(ierr);
+      }
+      ierr = PetscSectionSetDof(da->defaultSection, c, numCellTotDof);CHKERRQ(ierr);
+    }
+  }
+  ierr = PetscSectionSetUp(da->defaultSection);CHKERRQ(ierr);
+  da->defaultGlobalSection = da->defaultSection;
   PetscFunctionReturn(0);
 }
 

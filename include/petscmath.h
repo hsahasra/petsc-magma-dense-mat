@@ -100,12 +100,12 @@ typedef double complex PetscScalar;
 #endif /* PETSC_USE_REAL_* */
 #endif /* PETSC_CLANGUAGE_CXX */
 
-#if !defined(PETSC_HAVE_MPI_C_DOUBLE_COMPLEX)
-extern  MPI_Datatype  MPIU_C_DOUBLE_COMPLEX;
-extern  MPI_Datatype  MPIU_C_COMPLEX;
-#else
+#if defined(PETSC_HAVE_MPI_C_DOUBLE_COMPLEX)
 #define MPIU_C_DOUBLE_COMPLEX MPI_C_DOUBLE_COMPLEX
 #define MPIU_C_COMPLEX MPI_C_COMPLEX
+#else
+extern MPI_Datatype  MPIU_C_DOUBLE_COMPLEX;
+extern MPI_Datatype  MPIU_C_COMPLEX;
 #endif /* PETSC_HAVE_MPI_C_DOUBLE_COMPLEX */
 
 #if defined(PETSC_USE_REAL_SINGLE)
@@ -184,7 +184,7 @@ extern  PetscScalar  PETSC_i;
    Level: beginner
 
 
-.seealso: PetscMin(), PetscAbsInt(), PetscAbsReal(), PetscSqr()
+.seealso: PetscMin(), PetscClipInterval(), PetscAbsInt(), PetscAbsReal(), PetscSqr()
 
 M*/
 #define PetscMin(a,b)   (((a)<(b)) ?  (a) : (b))
@@ -205,10 +205,32 @@ M*/
 
    Level: beginner
 
-.seealso: PetscMin(), PetscAbsInt(), PetscAbsReal(), PetscSqr()
+.seealso: PetscMin(), PetscClipInterval(), PetscAbsInt(), PetscAbsReal(), PetscSqr()
 
 M*/
 #define PetscMax(a,b)   (((a)<(b)) ?  (b) : (a))
+
+/*MC
+   PetscClipInterval - Returns a number clipped to be within an interval
+
+   Synopsis:
+   type clip PetscClipInterval(type x,type a,type b)
+
+   Not Collective
+
+   Input Parameter:
++  x - value to use if within interval (a,b)
+.  a - lower end of interval
+-  b - upper end of interval
+
+   Notes: type can be integer or floating point value
+
+   Level: beginner
+
+.seealso: PetscMin(), PetscMax(), PetscAbsInt(), PetscAbsReal(), PetscSqr()
+
+M*/
+#define PetscClipInterval(x,a,b)   (PetscMax((a),PetscMin((x),(b))))
 
 /*MC
    PetscAbsInt - Returns the absolute value of an integer
@@ -276,7 +298,7 @@ M*/
 #elif defined(M_PI)
 #define PETSC_PI                 M_PI
 #else
-#define PETSC_PI                 3.14159265358979323846264
+#define PETSC_PI                 3.14159265358979323846264338327950288419716939937510582
 #endif
 
 #if !defined(PETSC_USE_64BIT_INDICES)

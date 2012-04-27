@@ -3,7 +3,7 @@
   Code for manipulating distributed regular arrays in parallel.
 */
 
-#include <private/daimpl.h>    /*I   "petscdmda.h"   I*/
+#include <petsc-private/daimpl.h>    /*I   "petscdmda.h"   I*/
 
 #undef __FUNCT__  
 #define __FUNCT__ "DMDASetCoordinates"
@@ -30,14 +30,16 @@ PetscErrorCode  DMDASetCoordinates(DM da,Vec c)
 {
   PetscErrorCode ierr;
   DM_DA          *dd = (DM_DA*)da->data;
+  PetscInt       bs;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
   PetscValidHeaderSpecific(c,VEC_CLASSID,2);
+  ierr = VecGetBlockSize(c,&bs);CHKERRQ(ierr);
+  if (bs != dd->dim) SETERRQ(((PetscObject)da)->comm,PETSC_ERR_ARG_INCOMP,"Block size of vector must match dimension of DMDA");
   ierr = PetscObjectReference((PetscObject)c);CHKERRQ(ierr);
   ierr = VecDestroy(&dd->coordinates);CHKERRQ(ierr);
   dd->coordinates = c;
-  ierr = VecSetBlockSize(c,dd->dim);CHKERRQ(ierr);
   ierr = VecDestroy(&dd->ghosted_coordinates);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -71,14 +73,16 @@ PetscErrorCode  DMDASetGhostedCoordinates(DM da,Vec c)
 {
   PetscErrorCode ierr;
   DM_DA          *dd = (DM_DA*)da->data;
+  PetscInt       bs;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
   PetscValidHeaderSpecific(c,VEC_CLASSID,2);
+  ierr = VecGetBlockSize(c,&bs);CHKERRQ(ierr);
+  if (bs != dd->dim) SETERRQ(((PetscObject)da)->comm,PETSC_ERR_ARG_INCOMP,"Block size of vector must match dimension of DMDA");
   ierr = PetscObjectReference((PetscObject)c);CHKERRQ(ierr);
   ierr = VecDestroy(&dd->ghosted_coordinates);CHKERRQ(ierr);
   dd->ghosted_coordinates = c;
-  ierr = VecSetBlockSize(c,dd->dim);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -389,16 +393,27 @@ PetscErrorCode  DMDAGetLocalBoundingBox(DM da,PetscReal lmin[],PetscReal lmax[])
   PetscValidHeaderSpecific(da,DM_CLASSID,1);
   dim = dd->dim;
   ierr = DMDAGetCoordinates(da,&coords);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(coords,&local_coords);CHKERRQ(ierr);
-  ierr = VecGetLocalSize(coords,&N);CHKERRQ(ierr);
-  Ni = N/dim;
-  for (i=0; i<Ni; i++) {
-    for (j=0; j<dim; j++) {
-      min[j] = PetscMin(min[j],PetscRealPart(local_coords[i*dim+j]));CHKERRQ(ierr);
-      max[j] = PetscMax(min[j],PetscRealPart(local_coords[i*dim+j]));CHKERRQ(ierr);
+  if (coords) {
+    ierr = VecGetArrayRead(coords,&local_coords);CHKERRQ(ierr);
+    ierr = VecGetLocalSize(coords,&N);CHKERRQ(ierr);
+    Ni = N/dim;
+    for (i=0; i<Ni; i++) {
+      for (j=0; j<3; j++) {
+        min[j] = j < dim ? PetscMin(min[j],PetscRealPart(local_coords[i*dim+j])) : 0;
+        max[j] = j < dim ? PetscMax(min[j],PetscRealPart(local_coords[i*dim+j])) : 0;
+      }
     }
+    ierr = VecRestoreArrayRead(coords,&local_coords);CHKERRQ(ierr);
+  } else {                      /* Just use grid indices */
+    DMDALocalInfo info;
+    ierr = DMDAGetLocalInfo(da,&info);CHKERRQ(ierr);
+    min[0] = info.xs;
+    min[1] = info.ys;
+    min[2] = info.zs;
+    max[0] = info.xs + info.xm-1;
+    max[1] = info.ys + info.ym-1;
+    max[2] = info.zs + info.zm-1;
   }
-  ierr = VecRestoreArrayRead(coords,&local_coords);CHKERRQ(ierr);
   if (lmin) {ierr = PetscMemcpy(lmin,min,dim*sizeof(PetscReal));CHKERRQ(ierr);}
   if (lmax) {ierr = PetscMemcpy(lmax,max,dim*sizeof(PetscReal));CHKERRQ(ierr);}
   PetscFunctionReturn(0);

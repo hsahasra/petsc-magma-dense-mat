@@ -4,20 +4,16 @@
 
 #define QUEUESTRINGSIZE 8192
 
-/* ----------------------------------------------------------------------*/
-#undef __FUNCT__  
-#define __FUNCT__ "PetscViewerDestroy_ASCII" 
-PetscErrorCode PetscViewerDestroy_ASCII(PetscViewer viewer)
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerFileClose_ASCII"
+static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
 {
-  PetscMPIInt       rank;
   PetscErrorCode    ierr;
+  PetscMPIInt       rank;
   PetscViewer_ASCII *vascii = (PetscViewer_ASCII *)viewer->data;
-  PetscViewerLink   *vlink;
-  PetscBool         flg;
   int               err;
 
   PetscFunctionBegin;
-  if (vascii->sviewer) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ORDER,"ASCII PetscViewer destroyed before restoring singleton PetscViewer");
   ierr = MPI_Comm_rank(((PetscObject)viewer)->comm,&rank);CHKERRQ(ierr);
   if (!rank && vascii->fd != stderr && vascii->fd != PETSC_STDOUT) {
     if (vascii->fd && vascii->closefile) {
@@ -41,6 +37,22 @@ PetscErrorCode PetscViewerDestroy_ASCII(PetscViewer viewer)
     }
   }
   ierr = PetscFree(vascii->filename);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/* ----------------------------------------------------------------------*/
+#undef __FUNCT__  
+#define __FUNCT__ "PetscViewerDestroy_ASCII" 
+PetscErrorCode PetscViewerDestroy_ASCII(PetscViewer viewer)
+{
+  PetscErrorCode    ierr;
+  PetscViewer_ASCII *vascii = (PetscViewer_ASCII *)viewer->data;
+  PetscViewerLink   *vlink;
+  PetscBool         flg;
+
+  PetscFunctionBegin;
+  if (vascii->sviewer) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ORDER,"ASCII PetscViewer destroyed before restoring singleton PetscViewer");
+  ierr = PetscViewerFileClose_ASCII(viewer);CHKERRQ(ierr);
   ierr = PetscFree(vascii);CHKERRQ(ierr);
 
   /* remove the viewer from the list in the MPI Communicator */
@@ -526,14 +538,14 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
   if (!rank) {
     va_list Argp;
     if (ascii->bviewer) {
-      queuefile = fd;
+      petsc_printfqueuefile = fd;
     }
 
     tab = ascii->tab;
     while (tab--) {ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  ");CHKERRQ(ierr);}
 
     va_start(Argp,format);
-    ierr = PetscVFPrintf(fd,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(fd,format,Argp);CHKERRQ(ierr);
     err = fflush(fd);
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");        
     if (petsc_history) {
@@ -552,9 +564,9 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
 
     PrintfQueue next;
     ierr = PetscNew(struct _PrintfQueue,&next);CHKERRQ(ierr);
-    if (queue) {queue->next = next; queue = next;}
-    else       {queuebase   = queue = next;}
-    queuelength++;
+    if (petsc_printfqueue) {petsc_printfqueue->next = next; petsc_printfqueue = next;}
+    else                   {petsc_printfqueuebase   = petsc_printfqueue = next;}
+    petsc_printfqueuelength++;
     next->size = QUEUESTRINGSIZE;
     ierr = PetscMalloc(next->size*sizeof(char), &next->string);CHKERRQ(ierr);
     ierr = PetscMemzero(next->string,next->size);CHKERRQ(ierr);
@@ -651,8 +663,8 @@ PetscErrorCode  PetscViewerFileSetName_ASCII(PetscViewer viewer,const char name[
   PetscMPIInt       rank;
 
   PetscFunctionBegin;
+  ierr = PetscViewerFileClose_ASCII(viewer);CHKERRQ(ierr);
   if (!name) PetscFunctionReturn(0);
-  ierr = PetscFree(vascii->filename);CHKERRQ(ierr);
   ierr = PetscStrallocpy(name,&vascii->filename);CHKERRQ(ierr);
 
   /* Is this file to be compressed */
@@ -784,7 +796,6 @@ PetscErrorCode PetscViewerGetSubcomm_ASCII(PetscViewer viewer,MPI_Comm subcomm,P
 
   PetscFunctionBegin;
   if (vascii->sviewer) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ORDER,"Subcomm already obtained from PetscViewer and not restored");
-  /* ierr         = PetscViewerCreate(PETSC_COMM_SELF,outviewer);CHKERRQ(ierr); */
   ierr         = PetscViewerCreate(subcomm,outviewer);CHKERRQ(ierr);
   ierr         = PetscViewerSetType(*outviewer,PETSCVIEWERASCII);CHKERRQ(ierr);
   ovascii      = (PetscViewer_ASCII*)(*outviewer)->data;
@@ -919,6 +930,7 @@ PetscErrorCode  PetscViewerASCIISynchronizedPrintf(PetscViewer viewer,const char
   if (!iascii) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not ASCII PetscViewer");
   ierr = MPI_Comm_size(((PetscObject)viewer)->comm,&size);CHKERRQ(ierr);
   if (size > 1 && !vascii->allowsynchronized) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"First call PetscViewerASCIISynchronizedAllow() to allow this call");
+  if (!viewer->ops->flush) PetscFunctionReturn(0); /* This viewer obtained via PetscViewerGetSubcomm_ASCII(), should not participate. */
 
   comm = ((PetscObject)viewer)->comm;
   fp   = vascii->fd;
@@ -936,7 +948,7 @@ PetscErrorCode  PetscViewerASCIISynchronizedPrintf(PetscViewer viewer,const char
     ierr = (*PetscVFPrintf)(fp,format,Argp);CHKERRQ(ierr);
     err = fflush(fp);
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");        
-    queuefile = fp;
+    petsc_printfqueuefile = fp;
     if (petsc_history) {
       va_start(Argp,format);
       ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
@@ -951,9 +963,9 @@ PetscErrorCode  PetscViewerASCIISynchronizedPrintf(PetscViewer viewer,const char
     PrintfQueue next;
 
     ierr = PetscNew(struct _PrintfQueue,&next);CHKERRQ(ierr);
-    if (queue) {queue->next = next; queue = next;}
-    else       {queuebase   = queue = next;}
-    queuelength++;
+    if (petsc_printfqueue) {petsc_printfqueue->next = next; petsc_printfqueue = next;}
+    else                   {petsc_printfqueuebase   = petsc_printfqueue = next;}
+    petsc_printfqueuelength++;
     next->size = QUEUESTRINGSIZE;
     ierr = PetscMalloc(next->size*sizeof(char), &next->string);CHKERRQ(ierr);
     ierr = PetscMemzero(next->string,next->size);CHKERRQ(ierr);

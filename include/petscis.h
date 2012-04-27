@@ -5,6 +5,7 @@
 #if !defined(__PETSCIS_H)
 #define __PETSCIS_H
 #include "petscsys.h"
+#include "petscsf.h"
 PETSC_EXTERN_CXX_BEGIN
 
 #define IS_FILE_CLASSID 1211218
@@ -68,23 +69,26 @@ extern PetscErrorCode  ISCreate(MPI_Comm,IS*);
 
   Sample usage:
 .vb
-    ISRegisterDynamic("my_is","/home/username/my_lib/lib/libO/solaris/libmy.a", "MyIStorCreate", MyIStorCreate);
+    ISRegisterDynamic("my_is_name","/home/username/my_lib/lib/libO/solaris/libmy.a", "MyISCreate", MyISCreate);
 .ve
 
   Then, your vector type can be chosen with the procedural interface via
 .vb
     ISCreate(MPI_Comm, IS *);
-    ISSetType(IS,"my_vector_name");
+    ISSetType(IS,"my_is_name");
 .ve
    or at runtime via the option
 .vb
-    -vec_type my_vector_name
+    -is_type my_is_name
 .ve
 
   Notes: $PETSC_ARCH occuring in pathname will be replaced with appropriate values.
          If your function is not being put into a shared library then use ISRegister() instead
-        
-  Level: advanced
+
+  This is no ISSetFromOptions() and the current implementations do not have a way to dynamically determine type, so
+  dynamic registration of custom IS types will be of limited use to users.
+
+  Level: developer
 
 .keywords: IS, register
 .seealso: ISRegisterAll(), ISRegisterDestroy(), ISRegister()
@@ -196,6 +200,7 @@ typedef enum {IS_GTOLM_MASK,IS_GTOLM_DROP} ISGlobalToLocalMappingType;
 
 extern PetscErrorCode  ISLocalToGlobalMappingCreate(MPI_Comm,PetscInt,const PetscInt[],PetscCopyMode,ISLocalToGlobalMapping*);
 extern PetscErrorCode  ISLocalToGlobalMappingCreateIS(IS,ISLocalToGlobalMapping *);
+extern PetscErrorCode  ISLocalToGlobalMappingCreateSF(PetscSF,PetscInt,ISLocalToGlobalMapping*);
 extern PetscErrorCode  ISLocalToGlobalMappingView(ISLocalToGlobalMapping,PetscViewer);
 extern PetscErrorCode  ISLocalToGlobalMappingDestroy(ISLocalToGlobalMapping*);
 extern PetscErrorCode  ISLocalToGlobalMappingApplyIS(ISLocalToGlobalMapping,IS,IS*);
@@ -239,7 +244,7 @@ $                         require a "parallel coloring", rather each process col
 $                         Using this can result in much less parallel communication. In the paradigm of 
 $                         DMGetLocalVector() and DMGetGlobalVector() this could be called IS_COLORING_LOCAL
 
-.seealso: DMGetColoring()
+.seealso: DMCreateColoring()
 E*/
 typedef enum {IS_COLORING_GLOBAL,IS_COLORING_GHOSTED} ISColoringType;
 extern const char *ISColoringTypes[];

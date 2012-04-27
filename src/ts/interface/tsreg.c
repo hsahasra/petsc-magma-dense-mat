@@ -1,4 +1,4 @@
-#include <private/tsimpl.h>      /*I "petscts.h"  I*/
+#include <petsc-private/tsimpl.h>      /*I "petscts.h"  I*/
 
 PetscFList TSList                       = PETSC_NULL;
 PetscBool  TSRegisterAllCalled          = PETSC_FALSE;
@@ -56,6 +56,7 @@ PetscErrorCode  TSSetType(TS ts,const TSType type)
   if (!r) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown TS type: %s", type);
   if (ts->ops->destroy) {
     ierr = (*(ts)->ops->destroy)(ts);CHKERRQ(ierr);
+    ts->ops->destroy = PETSC_NULL;
   }
   ierr = PetscMemzero(ts->ops,sizeof(*ts->ops));CHKERRQ(ierr);
   ts->setupcalled = PETSC_FALSE;

@@ -1,4 +1,4 @@
-static const char help[] = "Toy hydrostatic ice flow with multigrid in 3D\n\
+static const char help[] = "Toy hydrostatic ice flow with multigrid in 3D.\n\
 \n\
 Solves the hydrostatic (aka Blatter/Pattyn/First Order) equations for ice sheet flow\n\
 using multigrid.  The ice uses a power-law rheology with \"Glen\" exponent 3 (corresponds\n\
@@ -362,7 +362,7 @@ static void THIInitialize_HOM_X(THI thi,PetscReal xx,PetscReal yy,PrmNode *p)
 {
   Units units = thi->units;
   PetscReal x = xx*2*PETSC_PI/thi->Lx - PETSC_PI,y = yy*2*PETSC_PI/thi->Ly - PETSC_PI; /* [-pi,pi] */
-  PetscReal r = sqrt(x*x + y*y),s = -x*sin(thi->alpha);
+  PetscReal r = PetscSqrtReal(x*x + y*y),s = -x*sin(thi->alpha);
   p->b = s - 1000*units->meter + 500*units->meter * sin(x + PETSC_PI) * sin(y + PETSC_PI);
   p->h = s - p->b;
   p->beta2 = 1000 * (r < 1 ? 2 : 0) * units->Pascal * units->year / units->meter / thi->rhog;
@@ -373,11 +373,11 @@ static void THIInitialize_HOM_Y(THI thi,PetscReal xx,PetscReal yy,PrmNode *p)
 {
   Units units = thi->units;
   PetscReal x = xx*2*PETSC_PI/thi->Lx - PETSC_PI,y = yy*2*PETSC_PI/thi->Ly - PETSC_PI; /* [-pi,pi] */
-  PetscReal r = sqrt(x*x + y*y),s = -x*sin(thi->alpha);
+  PetscReal r = PetscSqrtReal(x*x + y*y),s = -x*sin(thi->alpha);
   p->b = s - 1000*units->meter + 500*units->meter * sin(x + PETSC_PI) * sin(y + PETSC_PI);
   if (PetscRealPart(p->b) > -700*units->meter) p->b += 200*units->meter;
   p->h = s - p->b;
-  p->beta2 = 1000 * (1. + sin(sqrt(16*r))/sqrt(1e-2 + 16*r)*cos(x*3/2)*cos(y*3/2)) * units->Pascal * units->year / units->meter / thi->rhog;
+  p->beta2 = 1000 * (1. + sin(PetscSqrtReal(16*r))/PetscSqrtReal(1e-2 + 16*r)*cos(x*3/2)*cos(y*3/2)) * units->Pascal * units->year / units->meter / thi->rhog;
 }
 
 /* Same bed as A, smoothly varying slipperiness, similar to MATLAB's "sombrero" (uncorrelated with bathymetry) */
@@ -385,10 +385,10 @@ static void THIInitialize_HOM_Z(THI thi,PetscReal xx,PetscReal yy,PrmNode *p)
 {
   Units units = thi->units;
   PetscReal x = xx*2*PETSC_PI/thi->Lx - PETSC_PI,y = yy*2*PETSC_PI/thi->Ly - PETSC_PI; /* [-pi,pi] */
-  PetscReal r = sqrt(x*x + y*y),s = -x*sin(thi->alpha);
+  PetscReal r = PetscSqrtReal(x*x + y*y),s = -x*sin(thi->alpha);
   p->b = s - 1000*units->meter + 500*units->meter * sin(x + PETSC_PI) * sin(y + PETSC_PI);
   p->h = s - p->b;
-  p->beta2 = 1000 * (1. + sin(sqrt(16*r))/sqrt(1e-2 + 16*r)*cos(x*3/2)*cos(y*3/2)) * units->Pascal * units->year / units->meter / thi->rhog;
+  p->beta2 = 1000 * (1. + sin(PetscSqrtReal(16*r))/PetscSqrtReal(1e-2 + 16*r)*cos(x*3/2)*cos(y*3/2)) * units->Pascal * units->year / units->meter / thi->rhog;
 }
 
 static void THIFriction(THI thi,PetscReal rbeta2,PetscReal gam,PetscReal *beta2,PetscReal *dbeta2)
@@ -1097,7 +1097,7 @@ static PetscErrorCode THISolveStatistics(THI thi,DMMG *dmmg,PetscInt coarsened,c
     ierr = VecGetLocalSize(X3,&m);CHKERRQ(ierr);
     ierr = VecGetArray(X3,&x);CHKERRQ(ierr);
     for (i=0; i<m; i+=2) {
-      PetscReal u = PetscRealPart(x[i]),v = PetscRealPart(x[i+1]),c = sqrt(u*u+v*v);
+      PetscReal u = PetscRealPart(x[i]),v = PetscRealPart(x[i+1]),c = PetscSqrtReal(u*u+v*v);
       tmin[0] = PetscMin(u,tmin[0]);
       tmin[1] = PetscMin(v,tmin[1]);
       tmin[2] = PetscMin(c,tmin[2]);
@@ -1682,7 +1682,7 @@ int main(int argc,char *argv[])
   ierr = DMDestroy(&da3);CHKERRQ(ierr);
   ierr = DMDestroy(&da2);CHKERRQ(ierr);
   ierr = DMSetUp(pack);CHKERRQ(ierr);
-  ierr = DMGetMatrix(pack,PETSC_NULL,&B);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(pack,PETSC_NULL,&B);CHKERRQ(ierr);
   ierr = MatSetOptionsPrefix(B,"thi_");CHKERRQ(ierr);
 
   ierr = DMMGCreate(comm,thi->nlevels,thi,&dmmg);CHKERRQ(ierr);

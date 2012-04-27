@@ -107,7 +107,9 @@ J*/
 #define VECCUSP        "cusp"       /* seqcusp on one process and mpicusp on several */
 #define VECNEST        "nest"
 #define VECSEQPTHREAD  "seqpthread"
+#define VECMPIPTHREAD  "mpipthread"
 #define VECPTHREAD     "pthread"    /* seqpthread on one process and mpipthread on several */
+
 
 /* Logging support */
 #define    VEC_FILE_CLASSID 1211214
@@ -119,15 +121,10 @@ extern PetscErrorCode  VecInitializePackage(const char[]);
 extern PetscErrorCode  VecFinalizePackage(void);
 
 extern PetscErrorCode  VecCreate(MPI_Comm,Vec*);
-PetscPolymorphicSubroutine(VecCreate,(Vec *x),(PETSC_COMM_SELF,x))
 extern PetscErrorCode  VecCreateSeq(MPI_Comm,PetscInt,Vec*);
-PetscPolymorphicSubroutine(VecCreateSeq,(PetscInt n,Vec *x),(PETSC_COMM_SELF,n,x))
 extern PetscErrorCode  VecCreateMPI(MPI_Comm,PetscInt,PetscInt,Vec*);
-PetscPolymorphicSubroutine(VecCreateMPI,(PetscInt n,PetscInt N,Vec *x),(PETSC_COMM_WORLD,n,N,x))
-extern PetscErrorCode  VecCreateSeqWithArray(MPI_Comm,PetscInt,const PetscScalar[],Vec*);
-PetscPolymorphicSubroutine(VecCreateSeqWithArray,(PetscInt n,PetscScalar s[],Vec *x),(PETSC_COMM_SELF,n,s,x))
-extern PetscErrorCode  VecCreateMPIWithArray(MPI_Comm,PetscInt,PetscInt,const PetscScalar[],Vec*);
-PetscPolymorphicSubroutine(VecCreateMPIWithArray,(PetscInt n,PetscInt N,PetscScalar s[],Vec *x),(PETSC_COMM_WORLD,n,N,s,x))
+extern PetscErrorCode  VecCreateSeqWithArray(MPI_Comm,PetscInt,PetscInt,const PetscScalar[],Vec*);
+extern PetscErrorCode  VecCreateMPIWithArray(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscScalar[],Vec*);
 extern PetscErrorCode  VecCreateShared(MPI_Comm,PetscInt,PetscInt,Vec*);
 extern PetscErrorCode  VecSetFromOptions(Vec);
 extern PetscErrorCode  VecSetUp(Vec);
@@ -141,9 +138,7 @@ extern PetscErrorCode  VecSetSizes(Vec,PetscInt,PetscInt);
 
 extern PetscErrorCode  VecDotNorm2(Vec,Vec,PetscScalar*,PetscScalar*);
 extern PetscErrorCode  VecDot(Vec,Vec,PetscScalar*);
-PetscPolymorphicFunction(VecDot,(Vec x,Vec y),(x,y,&s),PetscScalar,s)
 extern PetscErrorCode  VecTDot(Vec,Vec,PetscScalar*);  
-PetscPolymorphicFunction(VecTDot,(Vec x,Vec y),(x,y,&s),PetscScalar,s)
 extern PetscErrorCode  VecMDot(Vec,PetscInt,const Vec[],PetscScalar[]);
 extern PetscErrorCode  VecMTDot(Vec,PetscInt,const Vec[],PetscScalar[]);
 extern PetscErrorCode  VecGetSubVector(Vec,IS,Vec*);
@@ -219,15 +214,10 @@ M*/
 
 extern PetscErrorCode  VecNorm(Vec,NormType,PetscReal *);
 extern PetscErrorCode  VecNormAvailable(Vec,NormType,PetscBool *,PetscReal *);
-PetscPolymorphicSubroutine(VecNorm,(Vec x,PetscReal *r),(x,NORM_2,r))
-PetscPolymorphicFunction(VecNorm,(Vec x,NormType t),(x,t,&r),PetscReal,r)
-PetscPolymorphicFunction(VecNorm,(Vec x),(x,NORM_2,&r),PetscReal,r)
 extern PetscErrorCode  VecNormalize(Vec,PetscReal *);
 extern PetscErrorCode  VecSum(Vec,PetscScalar*);
 extern PetscErrorCode  VecMax(Vec,PetscInt*,PetscReal *);
-PetscPolymorphicSubroutine(VecMax,(Vec x,PetscReal *r),(x,PETSC_NULL,r))
 extern PetscErrorCode  VecMin(Vec,PetscInt*,PetscReal *);
-PetscPolymorphicSubroutine(VecMin,(Vec x,PetscReal *r),(x,PETSC_NULL,r))
 extern PetscErrorCode  VecScale(Vec,PetscScalar);
 extern PetscErrorCode  VecCopy(Vec,Vec);        
 extern PetscErrorCode  VecSetRandom(Vec,PetscRandom);
@@ -240,15 +230,10 @@ extern PetscErrorCode  VecAYPX(Vec,PetscScalar,Vec);
 extern PetscErrorCode  VecWAXPY(Vec,PetscScalar,Vec,Vec);
 extern PetscErrorCode  VecAXPBYPCZ(Vec,PetscScalar,PetscScalar,PetscScalar,Vec,Vec);
 extern PetscErrorCode  VecPointwiseMax(Vec,Vec,Vec);    
-PetscPolymorphicSubroutine(VecPointwiseMax,(Vec x,Vec y),(x,y,y))
 extern PetscErrorCode  VecPointwiseMaxAbs(Vec,Vec,Vec);    
-PetscPolymorphicSubroutine(VecPointwiseMaxAbs,(Vec x,Vec y),(x,y,y))
 extern PetscErrorCode  VecPointwiseMin(Vec,Vec,Vec);    
-PetscPolymorphicSubroutine(VecPointwiseMin,(Vec x,Vec y),(x,y,y))
 extern PetscErrorCode  VecPointwiseMult(Vec,Vec,Vec);    
-PetscPolymorphicSubroutine(VecPointwiseMult,(Vec x,Vec y),(x,x,y))
 extern PetscErrorCode  VecPointwiseDivide(Vec,Vec,Vec);    
-PetscPolymorphicSubroutine(VecPointwiseDivide,(Vec x,Vec y),(x,x,y))
 extern PetscErrorCode  VecMaxPointwiseDivide(Vec,Vec,PetscReal*);    
 extern PetscErrorCode  VecShift(Vec,PetscScalar);
 extern PetscErrorCode  VecReciprocal(Vec);
@@ -266,12 +251,8 @@ extern PetscErrorCode  VecStrideMinAll(Vec,PetscInt [],PetscReal []);
 extern PetscErrorCode  VecStrideScaleAll(Vec,const PetscScalar[]);
 
 extern PetscErrorCode  VecStrideNorm(Vec,PetscInt,NormType,PetscReal*);
-PetscPolymorphicFunction(VecStrideNorm,(Vec x,PetscInt i),(x,i,NORM_2,&r),PetscReal,r)
-PetscPolymorphicFunction(VecStrideNorm,(Vec x,PetscInt i,NormType t),(x,i,t,&r),PetscReal,r)
 extern PetscErrorCode  VecStrideMax(Vec,PetscInt,PetscInt *,PetscReal *);
-PetscPolymorphicFunction(VecStrideMax,(Vec x,PetscInt i),(x,i,PETSC_NULL,&r),PetscReal,r)
 extern PetscErrorCode  VecStrideMin(Vec,PetscInt,PetscInt *,PetscReal *);
-PetscPolymorphicFunction(VecStrideMin,(Vec x,PetscInt i),(x,i,PETSC_NULL,&r),PetscReal,r)
 extern PetscErrorCode  VecStrideScale(Vec,PetscInt,PetscScalar);
 extern PetscErrorCode  VecStrideSet(Vec,PetscInt,PetscScalar);
 
@@ -321,7 +302,6 @@ PETSC_STATIC_INLINE PetscErrorCode VecSetValue(Vec v,PetscInt i,PetscScalar va,I
 
 extern PetscErrorCode  VecSetBlockSize(Vec,PetscInt);
 extern PetscErrorCode  VecGetBlockSize(Vec,PetscInt*);
-PetscPolymorphicFunction(VecGetBlockSize,(Vec x),(x,&i),PetscInt,i)
 extern PetscErrorCode  VecSetValuesBlocked(Vec,PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
 
 /* Dynamic creation and loading functions */
@@ -383,11 +363,6 @@ M*/
 
 
 extern PetscErrorCode  VecScatterCreate(Vec,IS,Vec,IS,VecScatter *);
-PetscPolymorphicFunction(VecScatterCreate,(Vec x,IS is1,Vec y,IS is2),(x,is1,y,is2,&s),VecScatter,s)
-PetscPolymorphicSubroutine(VecScatterCreate,(Vec x,IS is,Vec y,VecScatter *s),(x,is,y,PETSC_NULL,s))
-PetscPolymorphicFunction(VecScatterCreate,(Vec x,IS is,Vec y),(x,is,y,PETSC_NULL,&s),VecScatter,s)
-PetscPolymorphicSubroutine(VecScatterCreate,(Vec x,Vec y,IS is,VecScatter *s),(x,PETSC_NULL,y,is,s))
-PetscPolymorphicFunction(VecScatterCreate,(Vec x,Vec y,IS is),(x,PETSC_NULL,y,is,&s),VecScatter,s)
 extern PetscErrorCode  VecScatterCreateEmpty(MPI_Comm,VecScatter *);
 extern PetscErrorCode  VecScatterCreateLocal(VecScatter,PetscInt,const PetscInt[],const PetscInt[],const PetscInt[],PetscInt,const PetscInt[],const PetscInt[],const PetscInt[],PetscInt);
 extern PetscErrorCode  VecScatterBegin(VecScatter,Vec,Vec,InsertMode,ScatterMode);
@@ -416,13 +391,10 @@ extern PetscErrorCode  VecRestoreArrays(const Vec[],PetscInt,PetscScalar**[]);
 extern PetscErrorCode  VecView(Vec,PetscViewer);
 extern PetscErrorCode  VecViewFromOptions(Vec, const char *);
 extern PetscErrorCode  VecEqual(Vec,Vec,PetscBool *);
-PetscPolymorphicFunction(VecEqual,(Vec x,Vec y),(x,y,&s),PetscBool ,s)
 extern PetscErrorCode  VecLoad(Vec, PetscViewer);
 
 extern PetscErrorCode  VecGetSize(Vec,PetscInt*);
-PetscPolymorphicFunction(VecGetSize,(Vec x),(x,&s),PetscInt,s)
 extern PetscErrorCode  VecGetLocalSize(Vec,PetscInt*);
-PetscPolymorphicFunction(VecGetLocalSize,(Vec x),(x,&s),PetscInt,s)
 extern PetscErrorCode  VecGetOwnershipRange(Vec,PetscInt*,PetscInt*);
 extern PetscErrorCode  VecGetOwnershipRanges(Vec,const PetscInt *[]);
 
@@ -464,24 +436,41 @@ extern PetscErrorCode  VecGetLocalToGlobalMappingBlock(Vec,ISLocalToGlobalMappin
 extern PetscErrorCode  VecGetLocalToGlobalMapping(Vec,ISLocalToGlobalMapping*);
 
 extern PetscErrorCode  VecDotBegin(Vec,Vec,PetscScalar *);
-PetscPolymorphicSubroutine(VecDotBegin,(Vec x,Vec y),(x,y,PETSC_NULL))
 extern PetscErrorCode  VecDotEnd(Vec,Vec,PetscScalar *);
-PetscPolymorphicFunction(VecDotEnd,(Vec x,Vec y),(x,y,&s),PetscScalar,s)
 extern PetscErrorCode  VecTDotBegin(Vec,Vec,PetscScalar *);
-PetscPolymorphicSubroutine(VecTDotBegin,(Vec x,Vec y),(x,y,PETSC_NULL))
 extern PetscErrorCode  VecTDotEnd(Vec,Vec,PetscScalar *);
-PetscPolymorphicFunction(VecTDotEnd,(Vec x,Vec y),(x,y,&s),PetscScalar,s)
 extern PetscErrorCode  VecNormBegin(Vec,NormType,PetscReal *);
-PetscPolymorphicSubroutine(VecNormBegin,(Vec x,NormType t),(x,t,PETSC_NULL))
-PetscPolymorphicSubroutine(VecNormBegin,(Vec x),(x,NORM_2,PETSC_NULL))
 extern PetscErrorCode  VecNormEnd(Vec,NormType,PetscReal *);
-PetscPolymorphicFunction(VecNormEnd,(Vec x,NormType t),(x,t,&s),PetscReal,s)
-PetscPolymorphicFunction(VecNormEnd,(Vec x),(x,NORM_2,&s),PetscReal,s)
 
 extern PetscErrorCode  VecMDotBegin(Vec,PetscInt,const Vec[],PetscScalar[]);
 extern PetscErrorCode  VecMDotEnd(Vec,PetscInt,const Vec[],PetscScalar[]);
 extern PetscErrorCode  VecMTDotBegin(Vec,PetscInt,const Vec[],PetscScalar[]);
 extern PetscErrorCode  VecMTDotEnd(Vec,PetscInt,const Vec[],PetscScalar[]);
+extern PetscErrorCode PetscCommSplitReductionBegin(MPI_Comm);
+
+
+#if defined(PETSC_USE_DEBUG)
+#define VecValidValues(vec,argnum,input) do {                           \
+    PetscErrorCode     _ierr;                                           \
+    PetscInt          _n,_i;                                            \
+    const PetscScalar *_x;                                              \
+                                                                        \
+    if (vec->petscnative || vec->ops->getarray) {                       \
+      _ierr = VecGetLocalSize(vec,&_n);CHKERRQ(_ierr);                  \
+      _ierr = VecGetArrayRead(vec,&_x);CHKERRQ(_ierr);                  \
+      for (_i=0; _i<_n; _i++) {                                         \
+        if (input) {                                                    \
+          if (PetscIsInfOrNanScalar(_x[_i])) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FP,"Vec entry at local location %D is not-a-number or infinite at beginning of function: Parameter number %d",_i,argnum); \
+        } else {                                                        \
+          if (PetscIsInfOrNanScalar(_x[_i])) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FP,"Vec entry at local location %D is not-a-number or infinite at end of function: Parameter number %d",_i,argnum); \
+        }                                                               \
+      }                                                                 \
+      _ierr = VecRestoreArrayRead(vec,&_x);CHKERRQ(_ierr);              \
+    }                                                                   \
+  } while (0)
+#else
+#define VecValidValues(vec,argnum,input)
+#endif
 
 
 typedef enum {VEC_IGNORE_OFF_PROC_ENTRIES,VEC_IGNORE_NEGATIVE_INDICES} VecOption;
@@ -492,7 +481,7 @@ extern PetscErrorCode  VecSetOption(Vec,VecOption,PetscBool );
    call overhead on any 'native' Vecs.
 */
 
-#include "private/vecimpl.h"
+#include "petsc-private/vecimpl.h"
 
 extern PetscErrorCode  VecContourScale(Vec,PetscReal,PetscReal);
 
@@ -507,12 +496,12 @@ extern PetscErrorCode  VecSetOperation(Vec,VecOperation,void(*)(void));
      Routines for dealing with ghosted vectors:
   vectors with ghost elements at the end of the array.
 */
+extern PetscErrorCode  VecMPISetGhost(Vec,PetscInt,const PetscInt[]);
 extern PetscErrorCode  VecCreateGhost(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Vec*);  
 extern PetscErrorCode  VecCreateGhostWithArray(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],Vec*);  
 extern PetscErrorCode  VecCreateGhostBlock(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Vec*);  
 extern PetscErrorCode  VecCreateGhostBlockWithArray(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],const PetscScalar[],Vec*);  
 extern PetscErrorCode  VecGhostGetLocalForm(Vec,Vec*);
-PetscPolymorphicFunction(VecGhostGetLocalForm,(Vec x),(x,&s),Vec,s)
 extern PetscErrorCode  VecGhostRestoreLocalForm(Vec,Vec*);
 extern PetscErrorCode  VecGhostUpdateBegin(Vec,InsertMode,ScatterMode);
 extern PetscErrorCode  VecGhostUpdateEnd(Vec,InsertMode,ScatterMode);
@@ -544,29 +533,43 @@ S*/
 typedef struct _n_Vecs* Vecs;
 #define VecsDestroy(x)            (VecDestroy(&(x)->v)         || PetscFree(x))
 #define VecsCreateSeq(comm,p,m,x) (PetscNew(struct _n_Vecs,x) || VecCreateSeq(comm,p*m,&(*(x))->v) || (-1 == ((*(x))->n = (m))))
-#define VecsCreateSeqWithArray(comm,p,m,a,x) (PetscNew(struct _n_Vecs,x) || VecCreateSeqWithArray(comm,p*m,a,&(*(x))->v) || (-1 == ((*(x))->n = (m))))
+#define VecsCreateSeqWithArray(comm,p,m,a,x) (PetscNew(struct _n_Vecs,x) || VecCreateSeqWithArray(comm,1,p*m,a,&(*(x))->v) || (-1 == ((*(x))->n = (m))))
 #define VecsDuplicate(x,y)        (PetscNew(struct _n_Vecs,y) || VecDuplicate(x->v,&(*(y))->v) || (-1 == ((*(y))->n = (x)->n)))
 
 
 
 #if defined(PETSC_HAVE_CUSP)
 typedef struct _p_PetscCUSPIndices* PetscCUSPIndices;
-extern PetscErrorCode PetscCUSPIndicesCreate(PetscInt,const PetscInt*,PetscCUSPIndices*);
+extern PetscErrorCode PetscCUSPIndicesCreate(PetscInt, PetscInt*,PetscInt, PetscInt*,PetscCUSPIndices*);
 extern PetscErrorCode PetscCUSPIndicesDestroy(PetscCUSPIndices*);
 extern PetscErrorCode VecCUSPCopyToGPUSome_Public(Vec,PetscCUSPIndices);
 extern PetscErrorCode VecCUSPCopyFromGPUSome_Public(Vec,PetscCUSPIndices);
+
+#if defined(PETSC_HAVE_TXPETSCGPU)
+extern PetscErrorCode VecCUSPResetIndexBuffersFlagsGPU_Public(PetscCUSPIndices);
+extern PetscErrorCode VecCUSPCopySomeToContiguousBufferGPU_Public(Vec,PetscCUSPIndices);
+extern PetscErrorCode VecCUSPCopySomeFromContiguousBufferGPU_Public(Vec,PetscCUSPIndices);
+extern PetscErrorCode VecScatterInitializeForGPU(VecScatter,Vec,ScatterMode);
+extern PetscErrorCode VecScatterFinalizeForGPU(VecScatter);
+#endif
 
 extern PetscErrorCode  VecCreateSeqCUSP(MPI_Comm,PetscInt,Vec*);
 extern PetscErrorCode  VecCreateMPICUSP(MPI_Comm,PetscInt,PetscInt,Vec*);
 #endif
 
 #if defined(PETSC_HAVE_PTHREADCLASSES)
-extern PetscErrorCode VecSeqPThreadSetNThreads(Vec,PetscInt);
-extern PetscErrorCode VecCreateSeqPThread(MPI_Comm,PetscInt,PetscInt,Vec*);
+extern PetscErrorCode VecSetNThreads(Vec,PetscInt);
+extern PetscErrorCode VecGetNThreads(Vec,PetscInt*);
+extern PetscErrorCode VecGetThreadOwnershipRange(Vec,PetscInt,PetscInt*,PetscInt*);
+extern PetscErrorCode VecSetThreadAffinities(Vec,const PetscInt[]);
+extern PetscErrorCode VecCreateSeqPThread(MPI_Comm,PetscInt,PetscInt,PetscInt[],Vec*);
+extern PetscErrorCode VecCreateMPIPThread(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt[],Vec*);
 #endif
 
 extern PetscErrorCode  VecNestGetSubVecs(Vec,PetscInt*,Vec**);
 extern PetscErrorCode  VecNestGetSubVec(Vec,PetscInt,Vec*);
+extern PetscErrorCode  VecNestSetSubVecs(Vec,PetscInt,PetscInt*,Vec*);
+extern PetscErrorCode  VecNestSetSubVec(Vec,PetscInt,Vec);
 extern PetscErrorCode  VecCreateNest(MPI_Comm,PetscInt,IS*,Vec*,Vec*);
 extern PetscErrorCode  VecNestGetSize(Vec,PetscInt*);
 

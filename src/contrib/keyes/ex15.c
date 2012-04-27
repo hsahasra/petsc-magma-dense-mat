@@ -137,7 +137,7 @@ int main( int argc, char **argv )
     ierr = VecDuplicate(user.grid[i].localX,&user.grid[i].localF);CHKERRA(ierr);
     ierr = VecGetLocalSize(user.grid[i].x,&nlocal);CHKERRA(ierr);
     ierr = VecGetSize(user.grid[i].x,&n);CHKERRA(ierr);
-    ierr = MatCreateMPIAIJ(PETSC_COMM_WORLD,nlocal,nlocal,n,n,5,PETSC_NULL,3,PETSC_NULL,&user.grid[i].J);CHKERRA(ierr);
+    ierr = MatCreateAIJ(PETSC_COMM_WORLD,nlocal,nlocal,n,n,5,PETSC_NULL,3,PETSC_NULL,&user.grid[i].J);CHKERRA(ierr);
   }
 
   /* Create nonlinear solver */
@@ -837,7 +837,7 @@ int FormInterpolation(AppCtx *user,GridCtx *g_f,GridCtx *g_c)
   ierr = VecGetLocalSize(g_c->x,&m_c_local);CHKERRQ(ierr);
   ierr = VecGetSize(g_f->x,&m_f);CHKERRQ(ierr);
   ierr = VecGetSize(g_c->x,&m_c);CHKERRQ(ierr);
-  ierr = MatCreateMPIAIJ(PETSC_COMM_WORLD,m_f_local,m_c_local,m_f,m_c,5,0,3,0,&mat);CHKERRQ(ierr);
+  ierr = MatCreateAIJ(PETSC_COMM_WORLD,m_f_local,m_c_local,m_f,m_c,5,0,3,0,&mat);CHKERRQ(ierr);
 
   /* loop over local fine grid nodes setting interpolation for those*/
   for ( j=j_start; j<j_start+n; j++ ) {
@@ -859,12 +859,8 @@ int FormInterpolation(AppCtx *user,GridCtx *g_f,GridCtx *g_c)
       /* printf("i j %d %d %g %g\n",i,j,x,y); */
       nc = 0;
       /* one left and below; or we are right on it */
-      if (j_c < j_start_ghost_c || j_c > j_start_ghost_c+n_ghost_c) {
-        SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Sorry j %d %d %d",j_c,j_start_ghost_c,j_start_ghost_c+n_ghost_c);
-      }
-      if (i_c < i_start_ghost_c || i_c > i_start_ghost_c+m_ghost_c) {
-        SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Sorry i %d %d %d",i_c,i_start_ghost_c,i_start_ghost_c+m_ghost_c);
-      }
+      if (j_c < j_start_ghost_c || j_c > j_start_ghost_c+n_ghost_c) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Sorry j %d %d %d",j_c,j_start_ghost_c,j_start_ghost_c+n_ghost_c);
+      if (i_c < i_start_ghost_c || i_c > i_start_ghost_c+m_ghost_c) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_PLIB,PETSC_ERROR_INITIAL,"Sorry i %d %d %d",i_c,i_start_ghost_c,i_start_ghost_c+m_ghost_c);
       col      = m_ghost_c*(j_c-j_start_ghost_c) + (i_c-i_start_ghost_c);
       cols[nc] = idx_c[col]; 
       v[nc++]  = x*y - x - y + 1.0;

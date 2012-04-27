@@ -2809,16 +2809,16 @@ PetscErrorCode MatSOR_SeqAIJ_Inode(Mat A,Vec bb,PetscReal omega,MatSORType flag,
           ibdiag[cnt] = 1.0/ibdiag[cnt];
           break;
         case 2:
-          ierr = Kernel_A_gets_inverse_A_2(ibdiag+cnt,shift);CHKERRQ(ierr);
+          ierr = PetscKernel_A_gets_inverse_A_2(ibdiag+cnt,shift);CHKERRQ(ierr);
           break;
         case 3:
-          ierr = Kernel_A_gets_inverse_A_3(ibdiag+cnt,shift);CHKERRQ(ierr);
+          ierr = PetscKernel_A_gets_inverse_A_3(ibdiag+cnt,shift);CHKERRQ(ierr);
           break;
         case 4:
-          ierr = Kernel_A_gets_inverse_A_4(ibdiag+cnt,shift);CHKERRQ(ierr);
+          ierr = PetscKernel_A_gets_inverse_A_4(ibdiag+cnt,shift);CHKERRQ(ierr);
           break;
         case 5:
-          ierr = Kernel_A_gets_inverse_A_5(ibdiag+cnt,ipvt,work,shift);CHKERRQ(ierr);
+          ierr = PetscKernel_A_gets_inverse_A_5(ibdiag+cnt,ipvt,work,shift);CHKERRQ(ierr);
           break;
        default:
 	 SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Inode size %D not supported",sizes[i]);
@@ -3757,6 +3757,48 @@ PetscErrorCode Mat_CheckInode(Mat A,PetscBool  samestructure)
     ierr = PetscInfo3(A,"Found %D nodes of %D. Limit used: %D. Using Inode routines\n",node_count,m,a->inode.limit);CHKERRQ(ierr);
   }
   a->inode.checked = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "MatDuplicate_SeqAIJ_Inode"
+PetscErrorCode MatDuplicate_SeqAIJ_Inode(Mat A,MatDuplicateOption cpvalues,Mat *C)
+{
+  Mat            B=*C;
+  Mat_SeqAIJ     *c=(Mat_SeqAIJ*)B->data,*a=(Mat_SeqAIJ*)A->data;
+  PetscErrorCode ierr;
+  PetscInt       m=A->rmap->n;
+
+  PetscFunctionBegin;
+
+  c->inode.use          = a->inode.use;
+  c->inode.limit        = a->inode.limit;
+  c->inode.max_limit    = a->inode.max_limit;
+  if (a->inode.size){
+    ierr                = PetscMalloc((m+1)*sizeof(PetscInt),&c->inode.size);CHKERRQ(ierr);
+    c->inode.node_count = a->inode.node_count;
+    ierr                = PetscMemcpy(c->inode.size,a->inode.size,(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
+    /* note the table of functions below should match that in Mat_CheckInode() */
+    if (!A->factortype) {
+      A->ops->mult              = MatMult_SeqAIJ_Inode;
+      A->ops->sor               = MatSOR_SeqAIJ_Inode;
+      A->ops->multadd           = MatMultAdd_SeqAIJ_Inode;
+      A->ops->getrowij          = MatGetRowIJ_SeqAIJ_Inode;
+      A->ops->restorerowij      = MatRestoreRowIJ_SeqAIJ_Inode;
+      A->ops->getcolumnij       = MatGetColumnIJ_SeqAIJ_Inode;
+      A->ops->restorecolumnij   = MatRestoreColumnIJ_SeqAIJ_Inode;
+      A->ops->coloringpatch     = MatColoringPatch_SeqAIJ_Inode;
+      A->ops->multdiagonalblock = MatMultDiagonalBlock_SeqAIJ_Inode;
+    } else {
+      A->ops->solve             = MatSolve_SeqAIJ_Inode_inplace;
+    }
+  } else {
+    c->inode.size       = 0;
+    c->inode.node_count = 0;
+  }
+  c->inode.ibdiagvalid = PETSC_FALSE;
+  c->inode.ibdiag      = 0;
+  c->inode.bdiag       = 0;
   PetscFunctionReturn(0);
 }
 

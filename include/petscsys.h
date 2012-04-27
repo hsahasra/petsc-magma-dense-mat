@@ -8,7 +8,8 @@
 /* 
    petscconf.h is contained in ${PETSC_ARCH}/include/petscconf.h it is 
    found automatically by the compiler due to the -I${PETSC_DIR}/${PETSC_ARCH}/include
-   in the conf/variables definition of PETSC_INCLUDE
+   in the conf/variables definition of PETSC_INCLUDE. For --prefix installs the ${PETSC_ARCH}/
+   does not exist and petscconf.h is in the same directory as the other PETSc include files.
 */
 #include "petscconf.h"
 #include "petscfix.h"
@@ -18,17 +19,17 @@
    Feature test macros must be included before headers defined by IEEE Std 1003.1-2001
    We only turn these in PETSc source files that require them by setting PETSC_DESIRE_FEATURE_TEST_MACROS
 */
-#if defined(PETSC__POSIX_C_SOURCE_200112L)
+#if defined(PETSC__POSIX_C_SOURCE_200112L) && !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200112L
 #endif
-#if defined(PETSC__BSD_SOURCE)
+#if defined(PETSC__BSD_SOURCE) && !defined(_BSD_SOURCE)
 #define _BSD_SOURCE
 #endif
 #endif
 
 /* ========================================================================== */
 /* 
-   This facilitates using C version of PETSc from C++ and 
+   This facilitates using the C version of PETSc from C++ and the
    C++ version from C. Use --with-c-support --with-clanguage=c++ with ./configure for the latter)
 */
 #if defined(PETSC_CLANGUAGE_CXX) && !defined(PETSC_USE_EXTERN_CXX) && !defined(__cplusplus)
@@ -42,9 +43,11 @@
 #endif
 
 #if defined(PETSC_USE_EXTERN_CXX) && defined(__cplusplus)
+#define PETSC_EXTERN extern "C"
 #define PETSC_EXTERN_CXX_BEGIN extern "C" {
 #define PETSC_EXTERN_CXX_END  }
 #else
+#define PETSC_EXTERN extern
 #define PETSC_EXTERN_CXX_BEGIN
 #define PETSC_EXTERN_CXX_END
 #endif
@@ -105,10 +108,8 @@ M*/
 #include "mpi.h"
 
 /*
-    Yuck, we need to put stdio.h AFTER mpi.h for MPICH2 with C++ compiler 
+    Need to put stdio.h AFTER mpi.h for MPICH2 with C++ compiler 
     see the top of mpicxx.h in the MPICH2 distribution.
-
-    The MPI STANDARD HAS TO BE CHANGED to prevent this nonsense.
 */
 #include <stdio.h>
 
@@ -131,7 +132,7 @@ typedef int PetscErrorCode;
 
     PetscClassId - A unique id used to identify each PETSc class.
          (internal integer in the data structure used for error
-         checking). These are all defined by an offset from the lowest
+         checking). These are all computed by an offset from the lowest
          one, PETSC_SMALLEST_CLASSID. 
 
     Level: advanced
@@ -142,35 +143,6 @@ typedef int PetscClassId;
 
 
 /*MC
-    PetscBLASInt - datatype used to represent 'int' parameters to BLAS/LAPACK functions.
-
-    Level: intermediate
-
-    Notes: usually this is the same as PetscInt, but if PETSc was built with --with-64-bit-indices but 
-           standard C/Fortran integers are 32 bit then this is NOT the same as PetscInt it remains 32 bit 
-           (except on very rare BLAS/LAPACK implementations that support 64 bit integers see the note below).
-
-    PetscBLASIntCheck(a) checks if the given PetscInt a will fit in a PetscBLASInt, if not it generates a 
-      PETSC_ERR_ARG_OUTOFRANGE.
-
-    PetscBLASInt b = PetscBLASIntCast(a) checks if the given PetscInt a will fit in a PetscBLASInt, if not it 
-      generates a PETSC_ERR_ARG_OUTOFRANGE
-
-    Developer Notes: The 64bit versions of MATLAB ship with BLAS and LAPACK that use 64 bit integers for sizes etc,
-     if you run ./configure with the option
-     --with-blas-lapack-lib=[/Applications/MATLAB_R2010b.app/bin/maci64/libmwblas.dylib,/Applications/MATLAB_R2010b.app/bin/maci64/libmwlapack.dylib]
-     for example, you can change the int below to long int. Since MATLAB uses the MKL (Intel Math Libraries) it is likely one can
-     purchase a 64 bit integer version of the MKL and use that with a  PetscBLASInt of long int.
-
-     External packages such as hypre, ML, SuperLU etc do not provide any support for passing 64 bit integers to BLAS/LAPACK so cannot
-     be used with PETSc if you have set PetscBLASInt to long int.
-
-.seealso: PetscMPIInt, PetscInt
-
-M*/
-typedef int PetscBLASInt;
-
-/*MC
     PetscMPIInt - datatype used to represent 'int' parameters to MPI functions.
 
     Level: intermediate
@@ -179,10 +151,10 @@ typedef int PetscBLASInt;
            standard C/Fortran integers are 32 bit then this is NOT the same as PetscInt it remains 32 bit
 
     PetscMPIIntCheck(a) checks if the given PetscInt a will fit in a PetscMPIInt, if not it generates a 
-      PETSC_ERR_ARG_OUTOFRANGE.
+      PETSC_ERR_ARG_OUTOFRANGE error.
 
     PetscMPIInt b = PetscMPIIntCast(a) checks if the given PetscInt a will fit in a PetscMPIInt, if not it 
-      generates a PETSC_ERR_ARG_OUTOFRANGE
+      generates a PETSC_ERR_ARG_OUTOFRANGE error.
 
 .seealso: PetscBLASInt, PetscInt
 
@@ -193,12 +165,6 @@ typedef int PetscMPIInt;
     PetscEnum - datatype used to pass enum types within PETSc functions.
 
     Level: intermediate
-
-    PetscMPIIntCheck(a) checks if the given PetscInt a will fit in a PetscMPIInt, if not it generates a 
-      PETSC_ERR_ARG_OUTOFRANGE.
-
-    PetscMPIInt b = PetscMPIIntCast(a) checks if the given PetscInt a will fit in a PetscMPIInt, if not it 
-      generates a PETSC_ERR_ARG_OUTOFRANGE
 
 .seealso: PetscOptionsGetEnum(), PetscOptionsEnum(), PetscBagRegisterEnum()
 M*/
@@ -213,18 +179,61 @@ typedef enum { ENUM_DUMMY } PetscEnum;
 
 .seealso: PetscScalar, PetscBLASInt, PetscMPIInt
 M*/
+#if (PETSC_SIZEOF_LONG_LONG == 8)
+typedef long long Petsc64bitInt;
+#elif defined(PETSC_HAVE___INT64)
+typedef __int64 Petsc64bitInt;
+#else
+typedef unknown64bit Petsc64bitInt
+#endif
 #if defined(PETSC_USE_64BIT_INDICES)
-typedef long long PetscInt;
+typedef Petsc64bitInt PetscInt;
 #define MPIU_INT MPI_LONG_LONG_INT
 #else
 typedef int PetscInt;
 #define MPIU_INT MPI_INT
 #endif
-typedef long long Petsc64bitInt;
+
+
+/*MC
+    PetscBLASInt - datatype used to represent 'int' parameters to BLAS/LAPACK functions.
+
+    Level: intermediate
+
+    Notes: usually this is the same as PetscInt, but if PETSc was built with --with-64-bit-indices but
+           standard C/Fortran integers are 32 bit then this is NOT the same as PetscInt it remains 32 bit
+           (except on very rare BLAS/LAPACK implementations that support 64 bit integers see the note below).
+
+    PetscBLASIntCheck(a) checks if the given PetscInt a will fit in a PetscBLASInt, if not it generates a
+      PETSC_ERR_ARG_OUTOFRANGE error.
+
+    PetscBLASInt b = PetscBLASIntCast(a) checks if the given PetscInt a will fit in a PetscBLASInt, if not it
+      generates a PETSC_ERR_ARG_OUTOFRANGE error
+
+    Installation Notes: The 64bit versions of MATLAB ship with BLAS and LAPACK that use 64 bit integers for sizes etc,
+     if you run ./configure with the option
+     --with-blas-lapack-lib=[/Applications/MATLAB_R2010b.app/bin/maci64/libmwblas.dylib,/Applications/MATLAB_R2010b.app/bin/maci64/libmwlapack.dylib]
+     but you need to also use --known-64-bit-blas-indices. 
+
+        MKL also ships with 64 bit integer versions of the BLAS and LAPACK, if you select those you must also ./configure with --known-64-bit-blas-indices
+
+     Developer Notes: Eventually ./configure should automatically determine the size of the integers used by BLAS/LAPACK.
+
+     External packages such as hypre, ML, SuperLU etc do not provide any support for passing 64 bit integers to BLAS/LAPACK so cannot
+     be used with PETSc if you have set PetscBLASInt to long int.
+
+.seealso: PetscMPIInt, PetscInt
+
+M*/
+#if defined(PETSC_HAVE_64BIT_BLAS_INDICES)
+typedef Petsc64bitInt PetscBLASInt;
+#else
+typedef int PetscBLASInt;
+#endif
 
 /*EC
 
-    PetscPrecision - indicates what precision the object is using
+    PetscPrecision - indicates what precision the object is using. This is currently not used.
 
     Level: advanced
 
@@ -232,7 +241,6 @@ typedef long long Petsc64bitInt;
 E*/
 typedef enum { PETSC_PRECISION_SINGLE=4,PETSC_PRECISION_DOUBLE=8 } PetscPrecision;
 extern const char *PetscPrecisions[];
-
 
 /* 
     For the rare cases when one needs to send a size_t object with MPI
@@ -252,7 +260,6 @@ extern const char *PetscPrecisions[];
       You can use PETSC_STDOUT as a replacement of stdout. You can also change
     the value of PETSC_STDOUT to redirect all standard output elsewhere
 */
-
 extern FILE* PETSC_STDOUT;
 
 /*
@@ -260,80 +267,6 @@ extern FILE* PETSC_STDOUT;
     the value of PETSC_STDERR to redirect all standard error elsewhere
 */
 extern FILE* PETSC_STDERR;
-
-/*
-      PETSC_ZOPEFD is used to send data to the PETSc webpage.  It can be used
-    in conjunction with PETSC_STDOUT, or by itself.
-*/
-extern FILE* PETSC_ZOPEFD;
-
-#if !defined(PETSC_USE_EXTERN_CXX) && defined(__cplusplus)
-/*MC
-      PetscPolymorphicSubroutine - allows defining a C++ polymorphic version of 
-            a PETSc function that remove certain optional arguments for a simplier user interface
-
-   Synopsis:
-   PetscPolymorphicSubroutine(Functionname,(arguments of C++ function),(arguments of C function))
- 
-     Not collective
-
-   Level: developer
-
-    Example:
-      PetscPolymorphicSubroutine(VecNorm,(Vec x,PetscReal *r),(x,NORM_2,r)) generates the new routine
-           PetscErrorCode VecNorm(Vec x,PetscReal *r) = VecNorm(x,NORM_2,r)
-
-.seealso: PetscPolymorphicFunction()
-
-M*/
-#define PetscPolymorphicSubroutine(A,B,C) PETSC_STATIC_INLINE PetscErrorCode A B {return A C;}
-
-/*MC
-      PetscPolymorphicScalar - allows defining a C++ polymorphic version of 
-            a PETSc function that replaces a PetscScalar * argument with a PetscScalar argument
-
-   Synopsis:
-   PetscPolymorphicScalar(Functionname,(arguments of C++ function),(arguments of C function))
- 
-   Not collective
-
-   Level: developer
-
-    Example:
-      PetscPolymorphicScalar(VecAXPY,(PetscScalar _val,Vec x,Vec y),(&_Val,x,y)) generates the new routine
-           PetscErrorCode VecAXPY(PetscScalar _val,Vec x,Vec y) = {PetscScalar _Val = _val; return VecAXPY(&_Val,x,y);}
-
-.seealso: PetscPolymorphicFunction(),PetscPolymorphicSubroutine()
-
-M*/
-#define PetscPolymorphicScalar(A,B,C) PETSC_STATIC_INLINE PetscErrorCode A B {PetscScalar _Val = _val; return A C;}
-
-/*MC
-      PetscPolymorphicFunction - allows defining a C++ polymorphic version of 
-            a PETSc function that remove certain optional arguments for a simplier user interface
-            and returns the computed value (istead of an error code)
-
-   Synopsis:
-   PetscPolymorphicFunction(Functionname,(arguments of C++ function),(arguments of C function),return type,return variable name)
- 
-     Not collective
-
-   Level: developer
-
-    Example:
-      PetscPolymorphicFunction(VecNorm,(Vec x,NormType t),(x,t,&r),PetscReal,r) generates the new routine
-         PetscReal VecNorm(Vec x,NormType t) = {PetscReal r; VecNorm(x,t,&r); return r;}
-
-.seealso: PetscPolymorphicSubroutine()
-
-M*/
-#define PetscPolymorphicFunction(A,B,C,D,E) PETSC_STATIC_INLINE D A B {D E; A C;return E;}
-
-#else
-#define PetscPolymorphicSubroutine(A,B,C)
-#define PetscPolymorphicScalar(A,B,C)
-#define PetscPolymorphicFunction(A,B,C,D,E)
-#endif
 
 /*MC
     PetscUnlikely - hints the compiler that the given condition is usually FALSE
@@ -544,6 +477,7 @@ M*/
 
 extern  PetscBool  PetscInitializeCalled;
 extern  PetscBool  PetscFinalizeCalled;
+extern  PetscBool  PetscCUSPSynchronize;
 
 extern PetscErrorCode  PetscSetHelpVersionFunctions(PetscErrorCode (*)(MPI_Comm),PetscErrorCode (*)(MPI_Comm));
 extern PetscErrorCode  PetscCommDuplicate(MPI_Comm,MPI_Comm*,int*);
@@ -624,8 +558,7 @@ M*/
 #if defined(PETSC_USE_DEBUG)
 #define PetscMalloc2(m1,t1,r1,m2,t2,r2) (PetscMalloc((m1)*sizeof(t1),r1) || PetscMalloc((m2)*sizeof(t2),r2))
 #else
-#define PetscMalloc2(m1,t1,r1,m2,t2,r2) ((*(r2) = 0,PetscMalloc((m1)*sizeof(t1)+(m2)*sizeof(t2)+(PETSC_MEMALIGN-1),r1)) \
-                                         || (*(r2) = (t2*)PetscAddrAlign(*(r1)+m1),0))
+#define PetscMalloc2(m1,t1,r1,m2,t2,r2) ((*(r2) = 0,PetscMalloc((m1)*sizeof(t1)+(m2)*sizeof(t2)+(PETSC_MEMALIGN-1),r1)) || (*(r2) = (t2*)PetscAddrAlign(*(r1)+m1),0))
 #endif
 
 /*MC
@@ -1127,7 +1060,7 @@ extern PetscErrorCode    PetscMallocGetMaximumUsage(PetscLogDouble *);
 extern PetscErrorCode    PetscMallocDebug(PetscBool);
 extern PetscErrorCode    PetscMallocValidate(int,const char[],const char[],const char[]);
 extern PetscErrorCode    PetscMallocSetDumpLog(void);
-
+extern PetscErrorCode    PetscMallocGetDumpLog(PetscBool*);
 
 /*E
     PetscDataType - Used for handling different basic data types.
@@ -1141,7 +1074,7 @@ extern PetscErrorCode    PetscMallocSetDumpLog(void);
 
 E*/
 typedef enum {PETSC_INT = 0,PETSC_DOUBLE = 1,PETSC_COMPLEX = 2, PETSC_LONG = 3 ,PETSC_SHORT = 4,PETSC_FLOAT = 5,
-              PETSC_CHAR = 6,PETSC_BIT_LOGICAL = 7,PETSC_ENUM = 8,PETSC_BOOL=9, PETSC_LONG_DOUBLE = 10} PetscDataType;
+              PETSC_CHAR = 6,PETSC_BIT_LOGICAL = 7,PETSC_ENUM = 8,PETSC_BOOL=9, PETSC___FLOAT128 = 10} PetscDataType;
 extern const char *PetscDataTypes[];
 
 #if defined(PETSC_USE_COMPLEX)
@@ -1149,12 +1082,16 @@ extern const char *PetscDataTypes[];
 #else
 #if defined(PETSC_USE_REAL_SINGLE)
 #define  PETSC_SCALAR  PETSC_FLOAT
+#elif defined(PETSC_USE_REAL___FLOAT128)
+#define  PETSC_SCALAR  PETSC___FLOAT128
 #else
 #define  PETSC_SCALAR  PETSC_DOUBLE
 #endif
 #endif
 #if defined(PETSC_USE_REAL_SINGLE)
 #define  PETSC_REAL  PETSC_FLOAT
+#elif defined(PETSC_USE_REAL___FLOAT128)
+#define  PETSC_REAL  PETSC___FLOAT128
 #else
 #define  PETSC_REAL  PETSC_DOUBLE
 #endif
@@ -1224,15 +1161,15 @@ extern  MPI_Op MPIU_MIN;
 #endif
 extern PetscErrorCode  PetscMaxSum(MPI_Comm,const PetscInt[],PetscInt*,PetscInt*);
 
-extern PetscErrorCode MPILong_Send(void*,PetscInt,MPI_Datatype,PetscMPIInt,PetscMPIInt,MPI_Comm);
-extern PetscErrorCode MPILong_Recv(void*,PetscInt,MPI_Datatype,PetscMPIInt,PetscMPIInt,MPI_Comm);
+extern PetscErrorCode MPIULong_Send(void*,PetscInt,MPI_Datatype,PetscMPIInt,PetscMPIInt,MPI_Comm);
+extern PetscErrorCode MPIULong_Recv(void*,PetscInt,MPI_Datatype,PetscMPIInt,PetscMPIInt,MPI_Comm);
 
 /*S
      PetscObject - any PETSc object, PetscViewer, Mat, Vec, KSP etc
 
    Level: beginner
 
-   Note: This is the base class from which all objects appear.
+   Note: This is the base class from which all PETSc objects are derived from.
 
 .seealso:  PetscObjectDestroy(), PetscObjectView(), PetscObjectGetName(), PetscObjectSetName(), PetscObjectReference(), PetscObjectDereferenc()
 S*/
@@ -1244,9 +1181,19 @@ typedef struct _p_PetscObject* PetscObject;
 
    Level: advanced
 
-.seealso:  PetscFListAdd(), PetscFListDestroy()
+.seealso:  PetscFListAdd(), PetscFListDestroy(), PetscOpFlist
 S*/
 typedef struct _n_PetscFList *PetscFList;
+
+/*S
+     PetscOpFList - Linked list of operations on objects, implemented by functions, possibly stored in dynamic libraries, 
+                    accessed by string op name together with string argument types.
+
+   Level: advanced
+
+.seealso:  PetscFList, PetscOpFListAdd(), PetscOpFListFind(), PetscOpFListDestroy()
+S*/
+typedef struct _n_PetscOpFList *PetscOpFList;
 
 /*E
   PetscFileMode - Access mode for a file.
@@ -1292,10 +1239,10 @@ extern PetscErrorCode  PetscSleep(PetscReal);
    Initialization of PETSc
 */
 extern PetscErrorCode  PetscInitialize(int*,char***,const char[],const char[]);
-PetscPolymorphicSubroutine(PetscInitialize,(int *argc,char ***args),(argc,args,PETSC_NULL,PETSC_NULL))
+extern PetscErrorCode  PetscInitializeNoPointers(int,char**,const char[],const char[]);
 extern PetscErrorCode  PetscInitializeNoArguments(void);
-extern PetscErrorCode  PetscInitialized(PetscBool  *);
-extern PetscErrorCode  PetscFinalized(PetscBool  *);
+extern PetscErrorCode  PetscInitialized(PetscBool *);
+extern PetscErrorCode  PetscFinalized(PetscBool *);
 extern PetscErrorCode  PetscFinalize(void);
 extern PetscErrorCode  PetscInitializeFortran(void);
 extern PetscErrorCode  PetscGetArgs(int*,char ***);
@@ -1321,8 +1268,7 @@ extern PetscErrorCode  PetscPythonMonitorSet(PetscObject,const char[]);
 
 /*
      These are so that in extern C code we can caste function pointers to non-extern C
-   function pointers. Since the regular C++ code expects its function pointers to be 
-   C++.
+   function pointers. Since the regular C++ code expects its function pointers to be C++
 */
 typedef void (**PetscVoidStarFunction)(void);
 typedef void (*PetscVoidFunction)(void); 
@@ -1459,7 +1405,7 @@ extern PetscErrorCode  PetscRegisterFinalizeAll(void);
 
    Notes: Used by PetscObjectCompose() and PetscObjectQuery() 
 
-.seealso:  PetscOListAdd(), PetscOListDestroy(), PetscOListFind(), PetscObjectCompose(), PetscObjectQuery() 
+.seealso:  PetscOListAdd(), PetscOListDestroy(), PetscOListFind(), PetscObjectCompose(), PetscObjectQuery(), PetscFList
 S*/
 typedef struct _n_PetscOList *PetscOList;
 
@@ -1488,6 +1434,16 @@ extern PetscErrorCode  PetscFListView(PetscFList,PetscViewer);
 extern PetscErrorCode  PetscFListConcat(const char [],const char [],char []);
 extern PetscErrorCode  PetscFListGet(PetscFList,char ***,int*);
 
+/*
+    Multiple dispatch operation function lists. Lists of names of routines with corresponding
+    argument type names with function pointers or in dynamic link libraries that will be loaded 
+    as needed.  Search on the op name and argument type names.
+*/
+extern PetscErrorCode  PetscOpFListAdd(MPI_Comm, PetscOpFList*,const char[],PetscVoidFunction, const char[], PetscInt, char*[]);
+extern PetscErrorCode  PetscOpFListDestroy(PetscOpFList*);
+extern PetscErrorCode  PetscOpFListFind(MPI_Comm, PetscOpFList, PetscVoidFunction*, const char[], PetscInt, char*[]);
+extern PetscErrorCode  PetscOpFListView(PetscOpFList,PetscViewer);
+
 /*S
      PetscDLLibrary - Linked list of dynamics libraries to search for functions
 
@@ -1498,7 +1454,7 @@ extern PetscErrorCode  PetscFListGet(PetscFList,char ***,int*);
 .seealso:  PetscDLLibraryOpen()
 S*/
 typedef struct _n_PetscDLLibrary *PetscDLLibrary;
-extern  PetscDLLibrary DLLibrariesLoaded;
+extern PetscDLLibrary  PetscDLLibrariesLoaded;
 extern PetscErrorCode  PetscDLLibraryAppend(MPI_Comm,PetscDLLibrary *,const char[]);
 extern PetscErrorCode  PetscDLLibraryPrepend(MPI_Comm,PetscDLLibrary *,const char[]);
 extern PetscErrorCode  PetscDLLibrarySym(MPI_Comm,PetscDLLibrary *,const char[],const char[],void **);
@@ -1506,13 +1462,12 @@ extern PetscErrorCode  PetscDLLibraryPrintPath(PetscDLLibrary);
 extern PetscErrorCode  PetscDLLibraryRetrieve(MPI_Comm,const char[],char *,size_t,PetscBool  *);
 extern PetscErrorCode  PetscDLLibraryOpen(MPI_Comm,const char[],PetscDLLibrary *);
 extern PetscErrorCode  PetscDLLibraryClose(PetscDLLibrary);
-extern PetscErrorCode  PetscDLLibraryCCAAppend(MPI_Comm,PetscDLLibrary *,const char[]);
 
 /*
-  PetscFwk support.  Needs to be documented.  
+  PetscShell support.  Needs to be better documented.  
   Logically it is an extension of PetscDLLXXX, PetscObjectCompose, etc.
 */
-#include "petscfwk.h"
+#include "petscshell.h"
 
 /*
      Useful utility routines
@@ -1520,11 +1475,7 @@ extern PetscErrorCode  PetscDLLibraryCCAAppend(MPI_Comm,PetscDLLibrary *,const c
 extern PetscErrorCode  PetscSplitOwnership(MPI_Comm,PetscInt*,PetscInt*);
 extern PetscErrorCode  PetscSplitOwnershipBlock(MPI_Comm,PetscInt,PetscInt*,PetscInt*);
 extern PetscErrorCode  PetscSequentialPhaseBegin(MPI_Comm,PetscMPIInt);
-PetscPolymorphicSubroutine(PetscSequentialPhaseBegin,(MPI_Comm comm),(comm,1))
-PetscPolymorphicSubroutine(PetscSequentialPhaseBegin,(void),(PETSC_COMM_WORLD,1))
 extern PetscErrorCode  PetscSequentialPhaseEnd(MPI_Comm,PetscMPIInt);
-PetscPolymorphicSubroutine(PetscSequentialPhaseEnd,(MPI_Comm comm),(comm,1))
-PetscPolymorphicSubroutine(PetscSequentialPhaseEnd,(void),(PETSC_COMM_WORLD,1))
 extern PetscErrorCode  PetscBarrier(PetscObject);
 extern PetscErrorCode  PetscMPIDump(FILE*);
 
@@ -1536,7 +1487,7 @@ $     int        *a;
 $     PetscBool  flag = PetscNot(a) 
      where !a does not return a PetscBool  because we cannot provide a cast from int to PetscBool  in C.
 */
- #define PetscNot(a) ((a) ? PETSC_FALSE : PETSC_TRUE)
+#define PetscNot(a) ((a) ? PETSC_FALSE : PETSC_TRUE)
 
 /*
     Defines basic graphics available from PETSc. 
@@ -1546,7 +1497,7 @@ $     PetscBool  flag = PetscNot(a)
 /*
     Defines the base data structures for all PETSc objects
 */
-#include "private/petscimpl.h"
+#include "petsc-private/petscimpl.h"
 
 
 /*MC
@@ -1644,15 +1595,11 @@ extern PetscErrorCode   PetscPrintf(MPI_Comm,const char[],...);
 extern PetscErrorCode   PetscSNPrintf(char*,size_t,const char [],...);
 extern PetscErrorCode   PetscSNPrintfCount(char*,size_t,const char [],size_t*,...);
 
-
-
 /* These are used internally by PETSc ASCII IO routines*/
 #include <stdarg.h>
 extern PetscErrorCode   PetscVSNPrintf(char*,size_t,const char[],size_t*,va_list);
 extern PetscErrorCode   (*PetscVFPrintf)(FILE*,const char[],va_list);
 extern PetscErrorCode   PetscVFPrintfDefault(FILE*,const char[],va_list);
-extern PetscErrorCode   PetscVFPrintfRegress(FILE*,const char *,va_list);
-extern PetscErrorCode   PetscVFPrintfRegressSetUp(MPI_Comm,const char *);
 
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
 extern PetscErrorCode  PetscVFPrintf_Matlab(FILE*,const char[],va_list);
@@ -1714,8 +1661,7 @@ extern PetscErrorCode  PetscScalarView(PetscInt,const PetscScalar[],PetscViewer)
 #include <string.h>
 #endif
 
-
-#if defined(PETSC_HAVE_XMMINTRIN_H)
+#if defined(PETSC_HAVE_XMMINTRIN_H) && !defined(__CUDACC__)
 #include <xmmintrin.h>
 #endif
 #if defined(PETSC_HAVE_STDINT_H)
@@ -1772,11 +1718,9 @@ PETSC_STATIC_INLINE PetscErrorCode  PetscMemcpy(void *a,const void *b,size_t n)
 #endif
   if (a != b) {
 #if defined(PETSC_USE_DEBUG)
-    if ((al > bl && (al - bl) < nl) || (bl - al) < nl) {
-      SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Memory regions overlap: either use PetscMemmov()\n\
+    if ((al > bl && (al - bl) < nl) || (bl - al) < nl)  SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Memory regions overlap: either use PetscMemmov()\n\
               or make sure your copy regions and lengths are correct. \n\
               Length (bytes) %ld first address %ld second address %ld",nl,al,bl);
-    }
 #endif
 #if (defined(PETSC_PREFER_DCOPY_FOR_MEMCPY) || defined(PETSC_PREFER_COPY_FOR_MEMCPY) || defined(PETSC_PREFER_FORTRAN_FORMEMCPY))
    if (!(((long) a) % sizeof(PetscScalar)) && !(n % sizeof(PetscScalar))) {
@@ -1969,9 +1913,11 @@ M*/
    ugly extern "C" {} wrappers.
 */
 #if defined(__cplusplus)
+#define PETSC_EXTERN_C extern "C"
 #define EXTERN_C_BEGIN extern "C" {
 #define EXTERN_C_END }
 #else
+#define PETSC_EXTERN_C
 #define EXTERN_C_BEGIN 
 #define EXTERN_C_END 
 #endif
@@ -2085,10 +2031,8 @@ extern PetscErrorCode MPIU_File_read_all(MPI_File,void*,PetscMPIInt,MPI_Datatype
 #define PetscHDF5IntCast(a) a
 #endif  
 
-
 /*
-     The IBM include files define hz, here we hide it so that it may be used
-   as a regular user variable.
+     The IBM include files define hz, here we hide it so that it may be used as a regular user variable.
 */
 #if defined(hz)
 #undef hz
@@ -2118,7 +2062,6 @@ extern PetscErrorCode MPIU_File_read_all(MPI_File,void*,PetscMPIInt,MPI_Datatype
 
 /* Special support for C++ */
 #include "petscsys.hh"
-
 
 /*MC
 
@@ -2375,11 +2318,12 @@ E*/
 typedef enum {PETSC_BINARY_SEEK_SET = 0,PETSC_BINARY_SEEK_CUR = 1,PETSC_BINARY_SEEK_END = 2} PetscBinarySeekType;
 extern PetscErrorCode  PetscBinarySeek(int,off_t,PetscBinarySeekType,off_t*);
 extern PetscErrorCode  PetscBinarySynchronizedSeek(MPI_Comm,int,off_t,PetscBinarySeekType,off_t*);
+extern PetscErrorCode  PetscByteSwap(void *,PetscDataType,PetscInt);
 
 extern PetscErrorCode  PetscSetDebugTerminal(const char[]);
 extern PetscErrorCode  PetscSetDebugger(const char[],PetscBool );
 extern PetscErrorCode  PetscSetDefaultDebugger(void);
-extern PetscErrorCode  PetscSetDebuggerFromString(char*);
+extern PetscErrorCode  PetscSetDebuggerFromString(const char*);
 extern PetscErrorCode  PetscAttachDebugger(void);
 extern PetscErrorCode  PetscStopForDebugger(void);
 
@@ -2457,7 +2401,7 @@ extern const char *PetscSubcommTypes[];
 extern PetscErrorCode  PetscSubcommCreate(MPI_Comm,PetscSubcomm*);
 extern PetscErrorCode  PetscSubcommDestroy(PetscSubcomm*);
 extern PetscErrorCode  PetscSubcommSetNumber(PetscSubcomm,PetscInt);
-extern PetscErrorCode  PetscSubcommSetType(PetscSubcomm,const PetscSubcommType);
+extern PetscErrorCode  PetscSubcommSetType(PetscSubcomm,PetscSubcommType);
 extern PetscErrorCode  PetscSubcommSetTypeGeneral(PetscSubcomm,PetscMPIInt,PetscMPIInt,PetscMPIInt);
 
 #include <petscctable.h>

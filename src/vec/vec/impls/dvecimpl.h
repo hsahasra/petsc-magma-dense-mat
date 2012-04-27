@@ -9,7 +9,7 @@
 #ifndef __DVECIMPL 
 #define __DVECIMPL
 
-#include <private/vecimpl.h>
+#include <petsc-private/vecimpl.h>
 
 typedef struct { 
   VECHEADER
@@ -45,7 +45,6 @@ extern PetscErrorCode VecGetSize_Seq(Vec,PetscInt*);
 extern PetscErrorCode VecCopy_Seq(Vec,Vec);
 extern PetscErrorCode VecSwap_Seq(Vec,Vec);
 extern PetscErrorCode VecConjugate_Seq(Vec);
-extern PetscErrorCode VecDestroy_Seq(Vec);
 extern PetscErrorCode VecSetRandom_Seq(Vec,PetscRandom);
 extern PetscErrorCode VecPointwiseMult_Seq(Vec,Vec,Vec);
 extern PetscErrorCode VecPointwiseMax_Seq(Vec,Vec,Vec);

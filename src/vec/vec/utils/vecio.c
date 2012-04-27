@@ -7,7 +7,7 @@
 
 #include <petscsys.h>
 #include <petscvec.h>         /*I  "petscvec.h"  I*/
-#include <private/vecimpl.h>
+#include <petsc-private/vecimpl.h>
 #include <petscmat.h> /* so that MAT_FILE_CLASSID is defined */
 
 #undef __FUNCT__  
@@ -96,10 +96,10 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
   ierr = PetscViewerBinaryReadVecHeader_Private(viewer,&rows);CHKERRQ(ierr);
   /* Set Vec sizes,blocksize,and type if not already set */
-  if (vec->map-> n < 0 && vec->map->N < 0) {
+  if (vec->map->n < 0 && vec->map->N < 0) {
      ierr = VecSetSizes(vec,PETSC_DECIDE,rows);CHKERRQ(ierr);
   }
-  ierr = PetscOptionsGetInt(PETSC_NULL, "-vecload_block_size", &bs, &flag);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(((PetscObject)vec)->prefix, "-vecload_block_size", &bs, &flag);CHKERRQ(ierr);
   if (flag) {
     ierr = VecSetBlockSize(vec, bs);CHKERRQ(ierr);
   }
@@ -209,7 +209,7 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
   PetscFunctionBegin;
   ierr = PetscViewerHDF5OpenGroup(viewer, &file_id, &group);CHKERRQ(ierr);
   ierr = PetscViewerHDF5GetTimestep(viewer, &timestep);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(PETSC_NULL, "-vecload_block_size", &bs, &flag);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(((PetscObject)xin)->prefix, "-vecload_block_size", &bs, &flag);CHKERRQ(ierr);
 
   /* Create the dataset with default properties and close filespace */
   ierr = PetscObjectGetName((PetscObject)xin,&vecname);CHKERRQ(ierr);
@@ -227,7 +227,7 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
     ++dim;
   }
   ++dim;
-  if (bs > 1) {
+  if (bs >= 1) {
     ++dim;
   }
 #if defined(PETSC_USE_COMPLEX)
@@ -244,12 +244,8 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
     if (rdim == dim+1 && bs == 1) {
       bs = dims[bsInd];
       if (flag) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Block size 1 specified for vector does not match blocksize in file %d",bs);
-    } else {
-      SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED, "Dimension of array in file %d not %d as expected",rdim,dim);
-    }
-} else if (bs > 1 && bs != (PetscInt) dims[bsInd]) {
-    SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Block size %d specified for vector does not match blocksize in file %d",bs,dims[bsInd]);
-  }
+    } else SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED, "Dimension of array in file %d not %d as expected",rdim,dim);
+  } else if (bs >= 1 && bs != (PetscInt) dims[bsInd]) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Block size %d specified for vector does not match blocksize in file %d",bs,dims[bsInd]);
 
   /* Set Vec sizes,blocksize,and type if not already set */
   if ((xin)->map-> n < 0 && (xin)->map->N < 0) {
@@ -272,7 +268,7 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
   }
   count[dim] = PetscHDF5IntCast(n)/bs;
   ++dim;
-  if (bs > 1) {
+  if (bs >= 1) {
     count[dim] = bs;
     ++dim;
   }
@@ -292,7 +288,7 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
   }
   offset[dim] = PetscHDF5IntCast(low/bs);
   ++dim;
-  if (bs > 1) {
+  if (bs >= 1) {
     offset[dim] = 0;
     ++dim;
   }

@@ -1,12 +1,8 @@
-	[0]PCSetUp_GAMG level 0 N=1681, n data rows=0, n data cols=1, nnz/row (ave)=1, np=8
-	createProlongation ave nnz/row 8 --> 7
-			createProlongation max eigen=1.454859e+00 min=2.182570e-02 PC=pbjacobi
-	[0]partitionLevel npe (active): 4 --> 4. new npe = 1, neq = 156
-		[0]PCSetUp_GAMG 1) N=156, bs=0, n data cols=1, nnz/row (ave)=1, 11 active pes
-	[0]PCSetUp_GAMG 2 levels
-  0 KSP Residual norm 140.361 
-  1 KSP Residual norm 4.00728 
-  2 KSP Residual norm 0.366297 
-  3 KSP Residual norm 0.039895 
-  4 KSP Residual norm 0.00303382 
-  5 KSP Residual norm 0.000392137 
+  0 KSP Residual norm 301.674 
+  1 KSP Residual norm 15.7386 
+  2 KSP Residual norm 3.82764 
+  3 KSP Residual norm 0.844499 
+  4 KSP Residual norm 0.0885567 
+  5 KSP Residual norm 0.012406 
+  6 KSP Residual norm 0.00296531 
+Linear solve converged due to CONVERGED_RTOL iterations 6
