@@ -20,6 +20,21 @@ int OPENMPB = 0;
 
      Author: Chekuri S. Choudary, RNET
 */
+#define setupct(pos, iter)	count = stpoffset[pos] + iter*nos;\
+				ct0 = ctl[count + 0];\
+				ct1 = ctl[count + 1];\
+				ct2 = ctl[count + 2];\
+				ct3 = ctl[count + 3];\
+				ct4 = ctl[count + 4];\
+				ct5 = ctl[count + 5];\
+				ct6 = ctl[count + 6]
+
+#define setup_ct(rno) 	count = stpoffset[rno];\
+			for(l = lbeg[rno]; l< lend[rno]; l++){\
+				ct[l] = ctl[count+l];\
+			}
+
+#ifdef _VEC2
 
 #define inline_2_unroll_load(l,iter)	mx##iter##0 = _mm_loadu_pd(xt##l+t1);\
 			mc##iter##0 = _mm_loadu_pd(ct##l+t2);\
@@ -56,19 +71,6 @@ int OPENMPB = 0;
 #define save_2() msum1 = _mm_hadd_pd(msum0,msum1);\
 		_mm_storeu_pd(y+t1, msum1)
 
-#define setupct(pos, iter)	count = stpoffset[pos] + iter*nos;\
-				ct0 = ctl[count + 0];\
-				ct1 = ctl[count + 1];\
-				ct2 = ctl[count + 2];\
-				ct3 = ctl[count + 3];\
-				ct4 = ctl[count + 4];\
-				ct5 = ctl[count + 5];\
-				ct6 = ctl[count + 6]
-
-#define setup_ct(rno) 	count = stpoffset[rno];\
-			for(l = lbeg[rno]; l< lend[rno]; l++){\
-				ct[l] = ctl[count+l];\
-			}
 
 PetscInt BSG_MatMult_2_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
 {
@@ -410,7 +412,6 @@ PetscInt BSG_MatMult_4_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
 	PetscFunctionReturn(0);
 }
 
-#ifdef _VEC2
 
 #define ninline_4() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
@@ -477,7 +478,6 @@ PetscFunctionReturn(0);
 }
 
 
-#endif
 
 /// This version has slightly decreased performance for dof = 4. Need to be tested with other dof. Will be integrated into Petsc
 PetscInt BSG_MatMult_4_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
@@ -894,7 +894,6 @@ PetscInt BSG_MatMult_6_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar *
 	PetscFunctionReturn(0);
 }
 
-#ifdef _VEC2
 
 #define ninline_6() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
@@ -985,7 +984,6 @@ PetscErrorCode BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 PetscFunctionReturn(0);
 }
 
-#endif
 
 #define setup_Neven()	for(i=0;i<dofby2;i++){\
 				 msum[i] = _mm_set_pd(0,0);\
@@ -1210,7 +1208,6 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 	PetscFunctionReturn(0);
 }
 
-#ifdef _VEC2
 #define nsetup_Neven()	for(i=0;i<dofby2;i++){\
 				 msum[i] = _mm_set_pd(0,0);\
 			 }\
@@ -1320,7 +1317,6 @@ PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, Petsc
 
 PetscFunctionReturn(0);
 }
-#endif
 
 
 #define inline_1(l) msum0 += xt##l[t1] * ct##l[t2]
@@ -1341,7 +1337,7 @@ PetscFunctionReturn(0);
 
 #define nsave_1() y[t1] = msum0
 
-PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt * lend, const PetscInt * rstart)
+PetscInt BSG_MatMult_1_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt * lend, const PetscInt * rstart)
 {
 	PetscInt k,l,k1, it, t1, t2, l1;
 	const PetscInt lda3 = m;
@@ -2404,7 +2400,6 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 	PetscFunctionReturn(0);
 }
 
-#ifdef _VEC2
 
 #define nsetup_Nodd()   for(i=0;i<dofby2;i++){\
                                  msum[i] = _mm_set_pd(0,0);\
