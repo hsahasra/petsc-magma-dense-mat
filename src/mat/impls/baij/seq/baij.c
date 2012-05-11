@@ -1420,6 +1420,9 @@ PetscErrorCode MatDestroy_SeqBAIJ(Mat A)
   ierr = ISDestroy(&a->col);CHKERRQ(ierr);
   if (a->free_diag) {ierr = PetscFree(a->diag);CHKERRQ(ierr);}
   ierr = PetscFree(a->idiag);CHKERRQ(ierr);
+#ifndef _VEC1
+  ierr = PetscFree(a->block_a);CHKERRQ(ierr);
+#endif
   if (a->free_imax_ilen) {ierr = PetscFree2(a->imax,a->ilen);CHKERRQ(ierr);}
   ierr = PetscFree(a->solve_work);CHKERRQ(ierr);
   ierr = PetscFree(a->mult_work);CHKERRQ(ierr);
@@ -1964,6 +1967,8 @@ PetscErrorCode MatGetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscIn
   PetscFunctionReturn(0);
 } 
 
+//#ifndef _VEC1
+
 #undef __FUNCT__  
 #define __FUNCT__ "MatSetValuesBlocked_SeqBAIJ"
 PetscErrorCode MatSetValuesBlocked_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
@@ -2084,7 +2089,9 @@ PetscErrorCode MatSetValuesBlocked_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],
     ailen[row] = nrow;
   }
   PetscFunctionReturn(0);
-} 
+}
+
+//#endif 
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatAssemblyEnd_SeqBAIJ"
@@ -2337,6 +2344,7 @@ PetscErrorCode MatZeroRowsColumns_SeqBAIJ(Mat A,PetscInt is_n,const PetscInt is_
   PetscFunctionReturn(0);
 }
 
+//#ifndef _VEC1
 #undef __FUNCT__  
 #define __FUNCT__ "MatSetValues_SeqBAIJ"
 PetscErrorCode MatSetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
@@ -2416,6 +2424,8 @@ PetscErrorCode MatSetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscIn
   A->same_nonzero = PETSC_FALSE;
   PetscFunctionReturn(0);
 } 
+
+//#endif
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatILUFactor_SeqBAIJ"
@@ -3124,6 +3134,7 @@ PetscErrorCode  MatSeqBAIJSetPreallocation_SeqBAIJ(Mat B,PetscInt bs,PetscInt nz
   PetscErrorCode ierr;
   PetscInt       i,mbs,nbs,bs2,newbs = PetscAbs(bs);
   PetscBool      flg,skipallocation = PETSC_FALSE;
+	PetscInt strtval, j, k;
 
   PetscFunctionBegin;
 
@@ -3241,6 +3252,184 @@ PetscErrorCode  MatSeqBAIJSetPreallocation_SeqBAIJ(Mat B,PetscInt bs,PetscInt nz
     /* allocate the matrix space */
     ierr = MatSeqXAIJFreeAIJ(B,&b->a,&b->j,&b->i);CHKERRQ(ierr);
     ierr = PetscMalloc3(bs2*nz,PetscScalar,&b->a,nz,PetscInt,&b->j,B->rmap->N+1,PetscInt,&b->i);CHKERRQ(ierr);
+#ifndef _VEC1
+    ierr = PetscMalloc(bs2*sizeof(PetscInt), &(b->block_a)); CHKERRQ(ierr);
+
+
+	memset(b->block_a, 0,sizeof(PetscInt)*bs2);
+#ifdef _VEC4
+	strtval = 0;
+	for(j=0; (j+4) <= bs; j+=4){
+		for(i = 0; (i+4) <= bs ; i+=4,strtval += 16){
+			for(k = 0; k < 2 ; k++ ){
+				b->block_a [i*bs+k+j] = strtval+k;
+				b->block_a [i*bs+k+j+2] = strtval+4+k;
+				b->block_a [(i+1)*bs+k+j] = strtval+8+k;
+				b->block_a [(i+1)*bs+k+j+2] = strtval+12+k;
+			}
+			for(k = 2; k < 4 ; k++ ){
+				b->block_a [(i+2)*bs+k+j] = strtval+k;
+				b->block_a [(i+2)*bs+k+j-2] = strtval+4+k;
+				b->block_a [(i+3)*bs+k+j] = strtval+8+k;
+				b->block_a [(i+3)*bs+k+j-2] = strtval+12+k;
+			}
+		}
+		for(; (i+2) <= bs ; i+=2,strtval += 8){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [i*bs+j+1] = strtval+1;
+			b->block_a [i*bs+j+2] = strtval+2;
+			b->block_a [i*bs+j+3] = strtval+3;
+			b->block_a [(i+1)*bs+j] = strtval+4;
+			b->block_a [(i+1)*bs+j+1] = strtval+5;
+			b->block_a [(i+1)*bs+j+2] = strtval+6;
+			b->block_a [(i+1)*bs+j+3] = strtval+7;
+		}
+		for(; i < bs ; i++,strtval += 4){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [i*bs+j+1] = strtval+1;
+			b->block_a [i*bs+j+2] = strtval+2;
+			b->block_a [i*bs+j+3] = strtval+3;
+		}
+	}
+	for(; (j+2) <= bs; j+=2){
+		for(i = 0; (i+4) <= bs ; i+=4,strtval += 8){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [i*bs+j+1] = strtval+1;
+			b->block_a [(i+2)*bs+j] = strtval+2;
+			b->block_a [(i+2)*bs+j+1] = strtval+3;
+			b->block_a [(i+1)*bs+j] = strtval+4;
+			b->block_a [(i+1)*bs+j+1] = strtval+5;
+			b->block_a [(i+3)*bs+j] = strtval+6;
+			b->block_a [(i+3)*bs+j+1] = strtval+7;
+		}
+		for(; (i+2) <= bs ; i+=2,strtval += 4){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [i*bs+j+1] = strtval+1;
+			b->block_a [(i+1)*bs+j] = strtval+2;
+			b->block_a [(i+1)*bs+j+1] = strtval+3;
+		}
+		for(; i < bs ; i++,strtval += 2){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [i*bs+j+1] = strtval+1;
+		}
+	}
+	for(; j < bs; j++){
+		for(i = 0; (i+4) <= bs ; i+=4,strtval += 4){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [(i+1)*bs+j] = strtval+1;
+			b->block_a [(i+2)*bs+j] = strtval+2;
+			b->block_a [(i+3)*bs+j] = strtval+3;
+		}
+		for(; (i+2) <= bs ; i+=2,strtval += 2){
+			b->block_a [i*bs+j] = strtval+0;
+			b->block_a [(i+1)*bs+j] = strtval+1;
+		}
+		for(; i < bs ; i++,strtval += 1){
+			b->block_a [i*bs+j] = strtval+0;
+		}
+	}
+#elif defined _VEC2
+	if(bs%2 == 0){
+		for(i=0;i<bs2;i++){
+			b->block_a[i] = i;
+		}
+	}
+	else{
+		for(i=0;i<bs;i++){
+			for(j=0;j<bs-1;j++){
+				b->block_a[i*bs+j] = i*(bs-1)+j;
+			}
+		}
+		for(i=0;i<bs;i++){
+				b->block_a[(i+1)*bs - 1] = bs*(bs-1)+i;
+		}
+	}
+#endif
+#endif
+/*	for(i = 0; (i+4) <= bs ; i+=4)
+	{
+		for(j=0; (j+4) <= bs; j+=4,strtval += 16)
+		{
+			for(k = 0; k < 2 ; k++ ){
+				b->block_a [i*bs+k+j] = strtval+k;
+				b->block_a [i*bs+k+j+2] = strtval+4+k;
+				b->block_a [(i+1)*bs+k+j] = strtval+8+k;
+				b->block_a [(i+1)*bs+k+j+2] = strtval+12+k;
+			}
+			for(k = 2; k < 4 ; k++ ){
+				b->block_a [(i+2)*bs+k+j] = strtval+k;
+				b->block_a [(i+2)*bs+k+j-2] = strtval+4+k;
+				b->block_a [(i+3)*bs+k+j] = strtval+8+k;
+				b->block_a [(i+3)*bs+k+j-2] = strtval+12+k;
+			}
+		}
+		for(; (j+2) <= bs; j+=2,strtval += 8)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [i*bs+j+1] = strtval+1;
+				b->block_a [(i+2)*bs+j] = strtval+2;
+				b->block_a [(i+2)*bs+j+1] = strtval+3;
+				b->block_a [(i+1)*bs+j] = strtval+4;
+				b->block_a [(i+1)*bs+j+1] = strtval+5;
+				b->block_a [(i+3)*bs+j] = strtval+6;
+				b->block_a [(i+3)*bs+j+1] = strtval+7;
+			
+		}
+		for(; j < bs; j++, strtval += 4)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [(i+1)*bs+j] = strtval+1;
+				b->block_a [(i+2)*bs+j] = strtval+2;
+				b->block_a [(i+3)*bs+j] = strtval+3;
+		}
+	}
+	for(; (i+2) <= bs ; i+=2)
+	{
+		for(j=0; (j+4) <= bs; j+=4,strtval += 8)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [i*bs+j+1] = strtval+1;
+				b->block_a [i*bs+j+2] = strtval+2;
+				b->block_a [i*bs+j+3] = strtval+3;
+				b->block_a [(i+1)*bs+j] = strtval+4;
+				b->block_a [(i+1)*bs+j+1] = strtval+5;
+				b->block_a [(i+1)*bs+j+2] = strtval+6;
+				b->block_a [(i+1)*bs+j+3] = strtval+7;
+		}
+		for(; (j+2) <= bs; j+=2,strtval += 4)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [i*bs+j+1] = strtval+1;
+				b->block_a [(i+1)*bs+j] = strtval+2;
+				b->block_a [(i+1)*bs+j+1] = strtval+3;
+		}
+		for(; j < bs; j++, strtval += 2)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [(i+1)*bs+j] = strtval+1;
+		}
+	}
+	for(; i < bs ; i++)
+	{
+		for(j=0; (j+4) <= bs; j+=4,strtval += 4)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [i*bs+j+1] = strtval+1;
+				b->block_a [i*bs+j+2] = strtval+2;
+				b->block_a [i*bs+j+3] = strtval+3;
+		}
+		for(; (j+2) <= bs; j+=2,strtval += 2)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+				b->block_a [i*bs+j+1] = strtval+1;
+		}
+		for(; j < bs; j++, strtval += 1)
+		{
+				b->block_a [i*bs+j] = strtval+0;
+		}
+	}
+*/
+/////
     ierr = PetscLogObjectMemory(B,(B->rmap->N+1)*sizeof(PetscInt)+nz*(bs2*sizeof(PetscScalar)+sizeof(PetscInt)));CHKERRQ(ierr);
     ierr  = PetscMemzero(b->a,nz*bs2*sizeof(MatScalar));CHKERRQ(ierr);
     ierr  = PetscMemzero(b->j,nz*sizeof(PetscInt));CHKERRQ(ierr);

@@ -1,0 +1,786 @@
+ 18218              	.LFE73:
+ 18219              		.size	MatMult_SeqBAIJ_3, .-MatMult_SeqBAIJ_3
+ 18220              	.globl MatMult_SeqBAIJ_2
+ 18221              		.type	MatMult_SeqBAIJ_2, @function
+ 18222              	MatMult_SeqBAIJ_2:
+ 18223              	.LFB72:
+ 281:baij2.c       **** {
+ 18224              		.loc 1 281 0
+GAS LISTING /tmp/cceHNn5g.s 			page 588
+
+
+ 18225              		.cfi_startproc
+ 18226              	.LVL2370:
+ 18227 e904 4157     		pushq	%r15
+ 18228              		.cfi_def_cfa_offset 16
+ 18229              		.cfi_offset 15, -16
+ 18230 e906 4156     		pushq	%r14
+ 18231              		.cfi_def_cfa_offset 24
+ 18232              		.cfi_offset 14, -24
+ 18233 e908 4155     		pushq	%r13
+ 18234              		.cfi_def_cfa_offset 32
+ 18235              		.cfi_offset 13, -32
+ 18236 e90a 4154     		pushq	%r12
+ 18237              		.cfi_def_cfa_offset 40
+ 18238              		.cfi_offset 12, -40
+ 18239 e90c 55       		pushq	%rbp
+ 18240              		.cfi_def_cfa_offset 48
+ 18241              		.cfi_offset 6, -48
+ 18242 e90d 53       		pushq	%rbx
+ 18243              		.cfi_def_cfa_offset 56
+ 18244              		.cfi_offset 3, -56
+ 18245 e90e 4883EC68 		subq	$104, %rsp
+ 18246              		.cfi_def_cfa_offset 160
+ 18247 e912 48897424 		movq	%rsi, 64(%rsp)
+ 18247      40
+ 18248 e917 48895424 		movq	%rdx, 48(%rsp)
+ 18248      30
+ 282:baij2.c       ****   Mat_SeqBAIJ       *a = (Mat_SeqBAIJ*)A->data;
+ 18249              		.loc 1 282 0
+ 18250 e91c 488BBFD8 		movq	472(%rdi), %rdi
+ 18250      010000
+ 18251              	.LVL2371:
+ 18252 e923 48897C24 		movq	%rdi, 56(%rsp)
+ 18252      38
+ 18253              	.LVL2372:
+ 289:baij2.c       ****   PetscBool         usecprow=a->compressedrow.use;
+ 18254              		.loc 1 289 0
+ 18255 e928 8B6F64   		movl	100(%rdi), %ebp
+ 18256              	.LVL2373:
+ 18257              	.LBB528:
+ 18258              	.LBB529:
+ 281:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****   if (x->petscnative){
+ 18259              		.loc 2 281 0
+ 18260 e92b 83BE3003 		cmpl	$0, 816(%rsi)
+ 18260      000000
+ 18261 e932 7476     		je	.L967
+ 283:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     if (x->valid_GPU_array == PETSC_CUSP_GPU || !*((PetscScalar**)x->data)){
+ 18262              		.loc 2 283 0
+ 18263 e934 83BE3403 		cmpl	$1, 820(%rsi)
+ 18263      000001
+ 18264 e93b 740D     		je	.L968
+ 18265 e93d 488B86D0 		movq	464(%rsi), %rax
+ 18265      010000
+ 18266 e944 48833800 		cmpq	$0, (%rax)
+ 18267 e948 7547     		jne	.L969
+ 18268              	.L968:
+ 284:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****       ierr = VecCUSPCopyFromGPU(x);CHKERRQ(ierr);
+ 18269              		.loc 2 284 0
+GAS LISTING /tmp/cceHNn5g.s 			page 589
+
+
+ 18270 e94a 488B7C24 		movq	64(%rsp), %rdi
+ 18270      40
+ 18271              	.LVL2374:
+ 18272 e94f E8000000 		call	VecCUSPCopyFromGPU
+ 18272      00
+ 18273              	.LVL2375:
+ 18274 e954 85C0     		testl	%eax, %eax
+ 18275 e956 7439     		je	.L969
+ 18276 e958 48C74424 		movq	$.LC3, 8(%rsp)
+ 18276      08000000 
+ 18276      00
+ 18277 e961 C7042401 		movl	$1, (%rsp)
+ 18277      000000
+ 18278 e968 4189C1   		movl	%eax, %r9d
+ 18279 e96b 41B80000 		movl	$.LC1, %r8d
+ 18279      0000
+ 18280 e971 B9000000 		movl	$.LC2, %ecx
+ 18280      00
+ 18281 e976 BA000000 		movl	$__func__.14862, %edx
+ 18281      00
+ 18282 e97b BE1C0100 		movl	$284, %esi
+ 18282      00
+ 18283 e980 BF010000 		movl	$1140850689, %edi
+ 18283      44
+ 18284 e985 B8000000 		movl	$0, %eax
+ 18284      00
+ 18285              	.LVL2376:
+ 18286 e98a E8000000 		call	PetscError
+ 18286      00
+ 18287              	.LVL2377:
+ 18288 e98f EB6E     		jmp	.L970
+ 18289              	.L969:
+ 287:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     *a = *((PetscScalar **)x->data);
+ 18290              		.loc 2 287 0
+ 18291 e991 488B5424 		movq	64(%rsp), %rdx
+ 18291      40
+ 18292 e996 488B82D0 		movq	464(%rdx), %rax
+ 18292      010000
+ 18293 e99d 488B00   		movq	(%rax), %rax
+ 18294 e9a0 48894424 		movq	%rax, 80(%rsp)
+ 18294      50
+ 18295              	.LVL2378:
+ 18296 e9a5 E9950000 		jmp	.L971
+ 18296      00
+ 18297              	.LVL2379:
+ 18298              	.L967:
+ 289:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     ierr = (*x->ops->getarray)(x,(PetscScalar**)a);CHKERRQ(ierr);
+ 18299              		.loc 2 289 0
+ 18300 e9aa 488B4C24 		movq	64(%rsp), %rcx
+ 18300      40
+ 18301 e9af 488B81C0 		movq	448(%rcx), %rax
+ 18301      010000
+ 18302 e9b6 488D7424 		leaq	80(%rsp), %rsi
+ 18302      50
+ 18303 e9bb 4889CF   		movq	%rcx, %rdi
+ 18304 e9be FF90B800 		call	*184(%rax)
+ 18304      0000
+GAS LISTING /tmp/cceHNn5g.s 			page 590
+
+
+ 18305              	.LVL2380:
+ 18306 e9c4 85C0     		testl	%eax, %eax
+ 18307 e9c6 7477     		je	.L971
+ 18308 e9c8 48C74424 		movq	$.LC3, 8(%rsp)
+ 18308      08000000 
+ 18308      00
+ 18309 e9d1 C7042401 		movl	$1, (%rsp)
+ 18309      000000
+ 18310 e9d8 4189C1   		movl	%eax, %r9d
+ 18311 e9db 41B80000 		movl	$.LC1, %r8d
+ 18311      0000
+ 18312 e9e1 B9000000 		movl	$.LC2, %ecx
+ 18312      00
+ 18313 e9e6 BA000000 		movl	$__func__.14862, %edx
+ 18313      00
+ 18314 e9eb BE210100 		movl	$289, %esi
+ 18314      00
+ 18315 e9f0 BF010000 		movl	$1140850689, %edi
+ 18315      44
+ 18316 e9f5 B8000000 		movl	$0, %eax
+ 18316      00
+ 18317              	.LVL2381:
+ 18318 e9fa E8000000 		call	PetscError
+ 18318      00
+ 18319              	.LVL2382:
+ 18320              	.L970:
+ 18321              	.LBE529:
+ 18322              	.LBE528:
+ 292:baij2.c       ****   ierr = VecGetArrayRead(xx,&x);CHKERRQ(ierr);
+ 18323              		.loc 1 292 0
+ 18324 e9ff 85C0     		testl	%eax, %eax
+ 18325 ea01 743C     		je	.L971
+ 18326 ea03 48C74424 		movq	$.LC3, 8(%rsp)
+ 18326      08000000 
+ 18326      00
+ 18327 ea0c C7042401 		movl	$1, (%rsp)
+ 18327      000000
+ 18328 ea13 4189C1   		movl	%eax, %r9d
+ 18329 ea16 41B80000 		movl	$.LC1, %r8d
+ 18329      0000
+ 18330 ea1c B9000000 		movl	$.LC4, %ecx
+ 18330      00
+ 18331 ea21 BA000000 		movl	$__func__.21012, %edx
+ 18331      00
+ 18332 ea26 BE240100 		movl	$292, %esi
+ 18332      00
+ 18333 ea2b BF010000 		movl	$1140850689, %edi
+ 18333      44
+ 18334 ea30 B8000000 		movl	$0, %eax
+ 18334      00
+ 18335 ea35 E8000000 		call	PetscError
+ 18335      00
+ 18336 ea3a E9400400 		jmp	.L972
+ 18336      00
+ 18337              	.LVL2383:
+ 18338              	.L971:
+ 18339              	.LBB530:
+GAS LISTING /tmp/cceHNn5g.s 			page 591
+
+
+ 18340              	.LBB531:
+ 320:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****   if (x->petscnative){
+ 18341              		.loc 2 320 0
+ 18342 ea3f 488B4424 		movq	48(%rsp), %rax
+ 18342      30
+ 18343 ea44 83B83003 		cmpl	$0, 816(%rax)
+ 18343      000000
+ 18344 ea4b 7476     		je	.L973
+ 322:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     if (x->valid_GPU_array == PETSC_CUSP_GPU || !*((PetscScalar**)x->data)){
+ 18345              		.loc 2 322 0
+ 18346 ea4d 83B83403 		cmpl	$1, 820(%rax)
+ 18346      000001
+ 18347 ea54 740D     		je	.L974
+ 18348 ea56 488B80D0 		movq	464(%rax), %rax
+ 18348      010000
+ 18349 ea5d 48833800 		cmpq	$0, (%rax)
+ 18350 ea61 7547     		jne	.L975
+ 18351              	.L974:
+ 323:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****       ierr = VecCUSPCopyFromGPU(x);CHKERRQ(ierr);
+ 18352              		.loc 2 323 0
+ 18353 ea63 488B7C24 		movq	48(%rsp), %rdi
+ 18353      30
+ 18354 ea68 E8000000 		call	VecCUSPCopyFromGPU
+ 18354      00
+ 18355              	.LVL2384:
+ 18356 ea6d 85C0     		testl	%eax, %eax
+ 18357 ea6f 7439     		je	.L975
+ 18358 ea71 48C74424 		movq	$.LC3, 8(%rsp)
+ 18358      08000000 
+ 18358      00
+ 18359 ea7a C7042401 		movl	$1, (%rsp)
+ 18359      000000
+ 18360 ea81 4189C1   		movl	%eax, %r9d
+ 18361 ea84 41B80000 		movl	$.LC1, %r8d
+ 18361      0000
+ 18362 ea8a B9000000 		movl	$.LC2, %ecx
+ 18362      00
+ 18363 ea8f BA000000 		movl	$__func__.14914, %edx
+ 18363      00
+ 18364 ea94 BE430100 		movl	$323, %esi
+ 18364      00
+ 18365 ea99 BF010000 		movl	$1140850689, %edi
+ 18365      44
+ 18366 ea9e B8000000 		movl	$0, %eax
+ 18366      00
+ 18367              	.LVL2385:
+ 18368 eaa3 E8000000 		call	PetscError
+ 18368      00
+ 18369              	.LVL2386:
+ 18370 eaa8 EB6E     		jmp	.L976
+ 18371              	.L975:
+ 326:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     *a = *((PetscScalar **)x->data);
+ 18372              		.loc 2 326 0
+ 18373 eaaa 488B4C24 		movq	48(%rsp), %rcx
+ 18373      30
+ 18374 eaaf 488B81D0 		movq	464(%rcx), %rax
+ 18374      010000
+GAS LISTING /tmp/cceHNn5g.s 			page 592
+
+
+ 18375 eab6 488B00   		movq	(%rax), %rax
+ 18376 eab9 48894424 		movq	%rax, 88(%rsp)
+ 18376      58
+ 18377              	.LVL2387:
+ 18378 eabe E9950000 		jmp	.L977
+ 18378      00
+ 18379              	.LVL2388:
+ 18380              	.L973:
+ 328:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     ierr = (*x->ops->getarray)(x,a);CHKERRQ(ierr);
+ 18381              		.loc 2 328 0
+ 18382 eac3 488B5424 		movq	48(%rsp), %rdx
+ 18382      30
+ 18383 eac8 488B82C0 		movq	448(%rdx), %rax
+ 18383      010000
+ 18384 eacf 488D7424 		leaq	88(%rsp), %rsi
+ 18384      58
+ 18385 ead4 4889D7   		movq	%rdx, %rdi
+ 18386 ead7 FF90B800 		call	*184(%rax)
+ 18386      0000
+ 18387              	.LVL2389:
+ 18388 eadd 85C0     		testl	%eax, %eax
+ 18389 eadf 7477     		je	.L977
+ 18390 eae1 48C74424 		movq	$.LC3, 8(%rsp)
+ 18390      08000000 
+ 18390      00
+ 18391 eaea C7042401 		movl	$1, (%rsp)
+ 18391      000000
+ 18392 eaf1 4189C1   		movl	%eax, %r9d
+ 18393 eaf4 41B80000 		movl	$.LC1, %r8d
+ 18393      0000
+ 18394 eafa B9000000 		movl	$.LC2, %ecx
+ 18394      00
+ 18395 eaff BA000000 		movl	$__func__.14914, %edx
+ 18395      00
+ 18396 eb04 BE480100 		movl	$328, %esi
+ 18396      00
+ 18397 eb09 BF010000 		movl	$1140850689, %edi
+ 18397      44
+ 18398 eb0e B8000000 		movl	$0, %eax
+ 18398      00
+ 18399              	.LVL2390:
+ 18400 eb13 E8000000 		call	PetscError
+ 18400      00
+ 18401              	.LVL2391:
+ 18402              	.L976:
+ 18403              	.LBE531:
+ 18404              	.LBE530:
+ 293:baij2.c       ****   ierr = VecGetArray(zz,&zarray);CHKERRQ(ierr);
+ 18405              		.loc 1 293 0
+ 18406 eb18 85C0     		testl	%eax, %eax
+ 18407 eb1a 743C     		je	.L977
+ 18408 eb1c 48C74424 		movq	$.LC3, 8(%rsp)
+ 18408      08000000 
+ 18408      00
+ 18409 eb25 C7042401 		movl	$1, (%rsp)
+ 18409      000000
+ 18410 eb2c 4189C1   		movl	%eax, %r9d
+GAS LISTING /tmp/cceHNn5g.s 			page 593
+
+
+ 18411 eb2f 41B80000 		movl	$.LC1, %r8d
+ 18411      0000
+ 18412 eb35 B9000000 		movl	$.LC4, %ecx
+ 18412      00
+ 18413 eb3a BA000000 		movl	$__func__.21012, %edx
+ 18413      00
+ 18414 eb3f BE250100 		movl	$293, %esi
+ 18414      00
+ 18415 eb44 BF010000 		movl	$1140850689, %edi
+ 18415      44
+ 18416 eb49 B8000000 		movl	$0, %eax
+ 18416      00
+ 18417 eb4e E8000000 		call	PetscError
+ 18417      00
+ 18418 eb53 E9270300 		jmp	.L972
+ 18418      00
+ 18419              	.LVL2392:
+ 18420              	.L977:
+ 295:baij2.c       ****   idx = a->j;
+ 18421              		.loc 1 295 0
+ 18422 eb58 488B4C24 		movq	56(%rsp), %rcx
+ 18422      38
+ 18423 eb5d 488BB190 		movq	144(%rcx), %rsi
+ 18423      000000
+ 18424              	.LVL2393:
+ 296:baij2.c       ****   v   = a->a;
+ 18425              		.loc 1 296 0
+ 18426 eb64 488B91A8 		movq	168(%rcx), %rdx
+ 18426      000000
+ 18427              	.LVL2394:
+ 297:baij2.c       ****   if (usecprow){
+ 18428              		.loc 1 297 0
+ 18429 eb6b 85ED     		testl	%ebp, %ebp
+ 18430 eb6d 7418     		je	.L978
+ 298:baij2.c       ****     mbs  = a->compressedrow.nrows;
+ 18431              		.loc 1 298 0
+ 18432 eb6f 8B4168   		movl	104(%rcx), %eax
+ 18433              	.LVL2395:
+ 299:baij2.c       ****     ii   = a->compressedrow.i;
+ 18434              		.loc 1 299 0
+ 18435 eb72 4C8B6170 		movq	112(%rcx), %r12
+ 18436              	.LVL2396:
+ 300:baij2.c       ****     ridx = a->compressedrow.rindex;
+ 18437              		.loc 1 300 0
+ 18438 eb76 488B4978 		movq	120(%rcx), %rcx
+ 18439 eb7a 48894C24 		movq	%rcx, 72(%rsp)
+ 18439      48
+ 18440              	.LVL2397:
+ 18441 eb7f 41BA0000 		movl	$0, %r10d
+ 18441      0000
+ 18442 eb85 EB20     		jmp	.L979
+ 18443              	.LVL2398:
+ 18444              	.L978:
+ 302:baij2.c       ****     mbs = a->mbs;
+ 18445              		.loc 1 302 0
+ 18446 eb87 488B4C24 		movq	56(%rsp), %rcx
+ 18446      38
+GAS LISTING /tmp/cceHNn5g.s 			page 594
+
+
+ 18447 eb8c 8B81E400 		movl	228(%rcx), %eax
+ 18447      0000
+ 18448              	.LVL2399:
+ 303:baij2.c       ****     ii  = a->i;
+ 18449              		.loc 1 303 0
+ 18450 eb92 4C8BA188 		movq	136(%rcx), %r12
+ 18450      000000
+ 18451              	.LVL2400:
+ 304:baij2.c       ****     z   = zarray;
+ 18452              		.loc 1 304 0
+ 18453 eb99 4C8B5424 		movq	88(%rsp), %r10
+ 18453      58
+ 18454              	.LVL2401:
+ 18455 eb9e 48C74424 		movq	$0, 72(%rsp)
+ 18455      48000000 
+ 18455      00
+ 18456              	.LVL2402:
+ 18457              	.L979:
+ 307:baij2.c       ****   for (i=0; i<mbs; i++) {
+ 18458              		.loc 1 307 0
+ 18459 eba7 BB000000 		movl	$0, %ebx
+ 18459      00
+ 18460 ebac 85C0     		testl	%eax, %eax
+ 18461 ebae 0F8E0D01 		jle	.L981
+ 18461      0000
+ 280:baij2.c       **** PetscErrorCode MatMult_SeqBAIJ_2(Mat A,Vec xx,Vec zz)
+ 18462              		.loc 1 280 0
+ 18463 ebb4 83E801   		subl	$1, %eax
+ 18464              	.LVL2403:
+ 18465 ebb7 4C8D3C85 		leaq	4(,%rax,4), %r15
+ 18465      04000000 
+ 18466 ebbf 41B90000 		movl	$0, %r9d
+ 18466      0000
+ 18467 ebc5 660F57C0 		xorpd	%xmm0, %xmm0
+ 18468 ebc9 F20F1144 		movsd	%xmm0, 40(%rsp)
+ 18468      2428
+ 313:baij2.c       ****     for (j=0; j<n; j++) {
+ 18469              		.loc 1 313 0
+ 18470 ebcf 41BD0000 		movl	$0, %r13d
+ 18470      0000
+ 18471 ebd5 4D89EE   		movq	%r13, %r14
+ 18472              	.LVL2404:
+ 18473              	.L987:
+ 308:baij2.c       ****     n  = ii[1] - ii[0]; ii++; 
+ 18474              		.loc 1 308 0
+ 18475 ebd8 478B5C0C 		movl	4(%r12,%r9), %r11d
+ 18475      04
+ 18476 ebdd 472B1C0C 		subl	(%r12,%r9), %r11d
+ 18477              	.LVL2405:
+ 310:baij2.c       ****     nonzerorow += (n>0);
+ 18478              		.loc 1 310 0
+ 18479 ebe1 4585DB   		testl	%r11d, %r11d
+ 18480 ebe4 0F9FC0   		setg	%al
+ 18481 ebe7 0FB6C0   		movzbl	%al, %eax
+ 18482 ebea 01C3     		addl	%eax, %ebx
+ 18483              	.LVL2406:
+ 313:baij2.c       ****     for (j=0; j<n; j++) {
+GAS LISTING /tmp/cceHNn5g.s 			page 595
+
+
+ 18484              		.loc 1 313 0
+ 18485 ebec 4C896C24 		movq	%r13, 24(%rsp)
+ 18485      18
+ 18486 ebf1 F20F1054 		movsd	24(%rsp), %xmm2
+ 18486      2418
+ 18487 ebf7 4C897424 		movq	%r14, 24(%rsp)
+ 18487      18
+ 18488 ebfc F20F105C 		movsd	24(%rsp), %xmm3
+ 18488      2418
+ 18489 ec02 4585DB   		testl	%r11d, %r11d
+ 18490 ec05 7E7B     		jle	.L983
+ 314:baij2.c       ****       xb = x + 2*(*idx++); x1 = xb[0]; x2 = xb[1];
+ 18491              		.loc 1 314 0
+ 18492 ec07 4C8B4424 		movq	80(%rsp), %r8
+ 18492      50
+ 280:baij2.c       **** PetscErrorCode MatMult_SeqBAIJ_2(Mat A,Vec xx,Vec zz)
+ 18493              		.loc 1 280 0
+ 18494 ec0c 4183EB01 		subl	$1, %r11d
+ 18495              	.LVL2407:
+ 18496 ec10 4983C301 		addq	$1, %r11
+ 18497 ec14 4A8D3C9D 		leaq	0(,%r11,4), %rdi
+ 18497      00000000 
+ 18498 ec1c B8000000 		movl	$0, %eax
+ 18498      00
+ 18499 ec21 660F57D2 		xorpd	%xmm2, %xmm2
+ 18500 ec25 F20F105C 		movsd	40(%rsp), %xmm3
+ 18500      2428
+ 18501              	.LVL2408:
+ 18502              	.L984:
+ 314:baij2.c       ****       xb = x + 2*(*idx++); x1 = xb[0]; x2 = xb[1];
+ 18503              		.loc 1 314 0
+ 18504 ec2b 48630C06 		movslq	(%rsi,%rax), %rcx
+ 18505 ec2f 48C1E104 		salq	$4, %rcx
+ 18506 ec33 498D0C08 		leaq	(%r8,%rcx), %rcx
+ 18507              	.LVL2409:
+ 18508 ec37 F20F1009 		movsd	(%rcx), %xmm1
+ 18509              	.LVL2410:
+ 18510 ec3b F20F1041 		movsd	8(%rcx), %xmm0
+ 18510      08
+ 18511              	.LVL2411:
+ 315:baij2.c       ****       sum1 += v[0]*x1 + v[2]*x2;
+ 18512              		.loc 1 315 0
+ 18513 ec40 660F28E9 		movapd	%xmm1, %xmm5
+ 18514 ec44 F20F592C 		mulsd	(%rdx,%rax,8), %xmm5
+ 18514      C2
+ 18515 ec49 660F28E0 		movapd	%xmm0, %xmm4
+ 18516 ec4d F20F5964 		mulsd	16(%rdx,%rax,8), %xmm4
+ 18516      C210
+ 18517 ec53 F20F58E5 		addsd	%xmm5, %xmm4
+ 18518 ec57 F20F58DC 		addsd	%xmm4, %xmm3
+ 18519              	.LVL2412:
+ 316:baij2.c       ****       sum2 += v[1]*x1 + v[3]*x2;
+ 18520              		.loc 1 316 0
+ 18521 ec5b F20F594C 		mulsd	8(%rdx,%rax,8), %xmm1
+ 18521      C208
+ 18522 ec61 F20F5944 		mulsd	24(%rdx,%rax,8), %xmm0
+ 18522      C218
+GAS LISTING /tmp/cceHNn5g.s 			page 596
+
+
+ 18523 ec67 F20F58C1 		addsd	%xmm1, %xmm0
+ 18524 ec6b F20F58D0 		addsd	%xmm0, %xmm2
+ 18525              	.LVL2413:
+ 18526 ec6f 4883C004 		addq	$4, %rax
+ 313:baij2.c       ****     for (j=0; j<n; j++) {
+ 18527              		.loc 1 313 0
+ 18528 ec73 4839F8   		cmpq	%rdi, %rax
+ 18529 ec76 75B3     		jne	.L984
+ 18530 ec78 4801FE   		addq	%rdi, %rsi
+ 18531 ec7b 49C1E305 		salq	$5, %r11
+ 18532 ec7f 4C01DA   		addq	%r11, %rdx
+ 18533              	.LVL2414:
+ 18534              	.L983:
+ 319:baij2.c       ****     if (usecprow) z = zarray + 2*ridx[i];
+ 18535              		.loc 1 319 0
+ 18536 ec82 85ED     		testl	%ebp, %ebp
+ 18537 ec84 741F     		je	.L985
+ 18538 ec86 488B4424 		movq	72(%rsp), %rax
+ 18538      48
+ 18539 ec8b 4E631408 		movslq	(%rax,%r9), %r10
+ 18540              	.LVL2415:
+ 18541 ec8f 49C1E204 		salq	$4, %r10
+ 18542 ec93 4C035424 		addq	88(%rsp), %r10
+ 18542      58
+ 18543              	.LVL2416:
+ 320:baij2.c       ****     z[0] = sum1; z[1] = sum2;
+ 18544              		.loc 1 320 0
+ 18545 ec98 F2410F11 		movsd	%xmm3, (%r10)
+ 18545      1A
+ 18546 ec9d F2410F11 		movsd	%xmm2, 8(%r10)
+ 18546      5208
+ 18547 eca3 EB0F     		jmp	.L986
+ 18548              	.L985:
+ 18549 eca5 F2410F11 		movsd	%xmm3, (%r10)
+ 18549      1A
+ 18550 ecaa F2410F11 		movsd	%xmm2, 8(%r10)
+ 18550      5208
+ 321:baij2.c       ****     if (!usecprow) z += 2;
+ 18551              		.loc 1 321 0
+ 18552 ecb0 4983C210 		addq	$16, %r10
+ 18553              	.LVL2417:
+ 18554              	.L986:
+ 18555 ecb4 4983C104 		addq	$4, %r9
+ 307:baij2.c       ****   for (i=0; i<mbs; i++) {
+ 18556              		.loc 1 307 0
+ 18557 ecb8 4D39F9   		cmpq	%r15, %r9
+ 18558 ecbb 0F8517FF 		jne	.L987
+ 18558      FFFF
+ 18559              	.LVL2418:
+ 18560              	.L981:
+ 18561              	.LBB532:
+ 18562              	.LBB533:
+ 301:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****   if (x->petscnative){
+ 18563              		.loc 2 301 0
+ 18564 ecc1 488B5424 		movq	64(%rsp), %rdx
+ 18564      40
+ 18565              	.LVL2419:
+GAS LISTING /tmp/cceHNn5g.s 			page 597
+
+
+ 18566 ecc6 83BA3003 		cmpl	$0, 816(%rdx)
+ 18566      000000
+ 18567 eccd 741C     		je	.L988
+ 303:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     if (x->valid_GPU_array != PETSC_CUSP_UNALLOCATED) {
+ 18568              		.loc 2 303 0
+ 18569 eccf 83BA3403 		cmpl	$0, 820(%rdx)
+ 18569      000000
+ 18570 ecd6 0F84A400 		je	.L989
+ 18570      0000
+ 304:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****       x->valid_GPU_array = PETSC_CUSP_BOTH;
+ 18571              		.loc 2 304 0
+ 18572 ecdc C7823403 		movl	$3, 820(%rdx)
+ 18572      00000300 
+ 18572      0000
+ 18573 ece6 E9950000 		jmp	.L989
+ 18573      00
+ 18574              	.L988:
+ 308:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     ierr = (*x->ops->restorearray)(x,(PetscScalar**)a);CHKERRQ(ierr);
+ 18575              		.loc 2 308 0
+ 18576 eceb 488B4C24 		movq	64(%rsp), %rcx
+ 18576      40
+ 18577 ecf0 488B81C0 		movq	448(%rcx), %rax
+ 18577      010000
+ 18578 ecf7 488D7424 		leaq	80(%rsp), %rsi
+ 18578      50
+ 18579              	.LVL2420:
+ 18580 ecfc 4889CF   		movq	%rcx, %rdi
+ 18581 ecff FF90D000 		call	*208(%rax)
+ 18581      0000
+ 18582              	.LVL2421:
+ 18583 ed05 85C0     		testl	%eax, %eax
+ 18584 ed07 7477     		je	.L989
+ 18585 ed09 48C74424 		movq	$.LC3, 8(%rsp)
+ 18585      08000000 
+ 18585      00
+ 18586 ed12 C7042401 		movl	$1, (%rsp)
+ 18586      000000
+ 18587 ed19 4189C1   		movl	%eax, %r9d
+ 18588 ed1c 41B80000 		movl	$.LC1, %r8d
+ 18588      0000
+ 18589 ed22 B9000000 		movl	$.LC2, %ecx
+ 18589      00
+ 18590 ed27 BA000000 		movl	$__func__.14892, %edx
+ 18590      00
+ 18591 ed2c BE340100 		movl	$308, %esi
+ 18591      00
+ 18592 ed31 BF010000 		movl	$1140850689, %edi
+ 18592      44
+ 18593 ed36 B8000000 		movl	$0, %eax
+ 18593      00
+ 18594              	.LVL2422:
+ 18595 ed3b E8000000 		call	PetscError
+ 18595      00
+ 18596              	.LVL2423:
+ 18597 ed40 4189C1   		movl	%eax, %r9d
+ 18598              	.LBE533:
+ 18599              	.LBE532:
+GAS LISTING /tmp/cceHNn5g.s 			page 598
+
+
+ 323:baij2.c       ****   ierr = VecRestoreArrayRead(xx,&x);CHKERRQ(ierr);
+ 18600              		.loc 1 323 0
+ 18601 ed43 85C0     		testl	%eax, %eax
+ 18602 ed45 7439     		je	.L989
+ 18603 ed47 48C74424 		movq	$.LC3, 8(%rsp)
+ 18603      08000000 
+ 18603      00
+ 18604 ed50 C7042401 		movl	$1, (%rsp)
+ 18604      000000
+ 18605 ed57 41B80000 		movl	$.LC1, %r8d
+ 18605      0000
+ 18606 ed5d B9000000 		movl	$.LC4, %ecx
+ 18606      00
+ 18607 ed62 BA000000 		movl	$__func__.21012, %edx
+ 18607      00
+ 18608 ed67 BE430100 		movl	$323, %esi
+ 18608      00
+ 18609 ed6c BF010000 		movl	$1140850689, %edi
+ 18609      44
+ 18610 ed71 B8000000 		movl	$0, %eax
+ 18610      00
+ 18611 ed76 E8000000 		call	PetscError
+ 18611      00
+ 18612 ed7b E9FF0000 		jmp	.L972
+ 18612      00
+ 18613              	.L989:
+ 18614              	.LVL2424:
+ 18615              	.LBB534:
+ 18616              	.LBB535:
+ 340:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****   if (x->petscnative){
+ 18617              		.loc 2 340 0
+ 18618 ed80 488B4424 		movq	48(%rsp), %rax
+ 18618      30
+ 18619 ed85 83B83003 		cmpl	$0, 816(%rax)
+ 18619      000000
+ 18620 ed8c 7415     		je	.L990
+ 342:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     if (x->valid_GPU_array != PETSC_CUSP_UNALLOCATED) {
+ 18621              		.loc 2 342 0
+ 18622 ed8e 83B83403 		cmpl	$0, 820(%rax)
+ 18622      000000
+ 18623 ed95 746A     		je	.L991
+ 343:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****       x->valid_GPU_array = PETSC_CUSP_CPU;
+ 18624              		.loc 2 343 0
+ 18625 ed97 C7803403 		movl	$2, 820(%rax)
+ 18625      00000200 
+ 18625      0000
+ 18626 eda1 EB5E     		jmp	.L991
+ 18627              	.L990:
+ 347:/home/dpnkarthik/petsc-rnet/include/private/vecimpl.h ****     ierr = (*x->ops->restorearray)(x,a);CHKERRQ(ierr);
+ 18628              		.loc 2 347 0
+ 18629 eda3 488B5424 		movq	48(%rsp), %rdx
+ 18629      30
+ 18630 eda8 488B82C0 		movq	448(%rdx), %rax
+ 18630      010000
+ 18631 edaf 488D7424 		leaq	88(%rsp), %rsi
+ 18631      58
+ 18632 edb4 4889D7   		movq	%rdx, %rdi
+GAS LISTING /tmp/cceHNn5g.s 			page 599
+
+
+ 18633 edb7 FF90D000 		call	*208(%rax)
+ 18633      0000
+ 18634              	.LVL2425:
+ 18635 edbd 85C0     		testl	%eax, %eax
+ 18636 edbf 7440     		je	.L991
+ 18637 edc1 48C74424 		movq	$.LC3, 8(%rsp)
+ 18637      08000000 
+ 18637      00
+ 18638 edca C7042401 		movl	$1, (%rsp)
+ 18638      000000
+ 18639 edd1 4189C1   		movl	%eax, %r9d
+ 18640 edd4 41B80000 		movl	$.LC1, %r8d
+ 18640      0000
+ 18641 edda B9000000 		movl	$.LC2, %ecx
+ 18641      00
+ 18642 eddf BA000000 		movl	$__func__.14944, %edx
+ 18642      00
+ 18643 ede4 BE5B0100 		movl	$347, %esi
+ 18643      00
+ 18644 ede9 BF010000 		movl	$1140850689, %edi
+ 18644      44
+ 18645 edee B8000000 		movl	$0, %eax
+ 18645      00
+ 18646              	.LVL2426:
+ 18647 edf3 E8000000 		call	PetscError
+ 18647      00
+ 18648              	.LVL2427:
+ 18649 edf8 4189C1   		movl	%eax, %r9d
+ 18650              	.LBE535:
+ 18651              	.LBE534:
+ 324:baij2.c       ****   ierr = VecRestoreArray(zz,&zarray);CHKERRQ(ierr);
+ 18652              		.loc 1 324 0
+ 18653 edfb 85C0     		testl	%eax, %eax
+ 18654 edfd 7510     		jne	.L992
+ 18655 edff EB44     		jmp	.L993
+ 18656              	.L991:
+ 18657              	.LBB537:
+ 18658              	.LBB536:
+ 18659              		.loc 2 349 0
+ 18660 ee01 488B4C24 		movq	48(%rsp), %rcx
+ 18660      30
+ 18661 ee06 8381A400 		addl	$1, 164(%rcx)
+ 18661      000001
+ 18662              	.LVL2428:
+ 18663 ee0d EB36     		jmp	.L993
+ 18664              	.LVL2429:
+ 18665              	.L992:
+ 18666              	.LBE536:
+ 18667              	.LBE537:
+ 324:baij2.c       ****   ierr = VecRestoreArray(zz,&zarray);CHKERRQ(ierr);
+ 18668              		.loc 1 324 0
+ 18669 ee0f 48C74424 		movq	$.LC3, 8(%rsp)
+ 18669      08000000 
+ 18669      00
+ 18670 ee18 C7042401 		movl	$1, (%rsp)
+ 18670      000000
+ 18671 ee1f 41B80000 		movl	$.LC1, %r8d
+GAS LISTING /tmp/cceHNn5g.s 			page 600
+
+
+ 18671      0000
+ 18672 ee25 B9000000 		movl	$.LC4, %ecx
+ 18672      00
+ 18673 ee2a BA000000 		movl	$__func__.21012, %edx
+ 18673      00
+ 18674 ee2f BE440100 		movl	$324, %esi
+ 18674      00
+ 18675 ee34 BF010000 		movl	$1140850689, %edi
+ 18675      44
+ 18676 ee39 B8000000 		movl	$0, %eax
+ 18676      00
+ 18677 ee3e E8000000 		call	PetscError
+ 18677      00
+ 18678 ee43 EB3A     		jmp	.L972
+ 18679              	.L993:
+ 325:baij2.c       ****   ierr = PetscLogFlops(8.0*a->nz - 2.0*nonzerorow);CHKERRQ(ierr);
+ 18680              		.loc 1 325 0
+ 18681 ee45 488B4424 		movq	56(%rsp), %rax
+ 18681      38
+ 18682 ee4a F20F2A88 		cvtsi2sd	128(%rax), %xmm1
+ 18682      80000000 
+ 18683 ee52 F20F590D 		mulsd	.LC34(%rip), %xmm1
+ 18683      00000000 
+ 18684 ee5a F20F2AC3 		cvtsi2sd	%ebx, %xmm0
+ 18685 ee5e F20F5905 		mulsd	.LC35(%rip), %xmm0
+ 18685      00000000 
+ 18686 ee66 F20F58C1 		addsd	%xmm1, %xmm0
+ 18687 ee6a F20F5805 		addsd	_TotalFlops(%rip), %xmm0
+ 18687      00000000 
+ 18688 ee72 F20F1105 		movsd	%xmm0, _TotalFlops(%rip)
+ 18688      00000000 
+ 18689              	.LVL2430:
+ 18690 ee7a B8000000 		movl	$0, %eax
+ 18690      00
+ 18691              	.LVL2431:
+ 18692              	.L972:
+ 327:baij2.c       **** }
+ 18693              		.loc 1 327 0
+ 18694 ee7f 4883C468 		addq	$104, %rsp
+ 18695              		.cfi_def_cfa_offset 56
+ 18696 ee83 5B       		popq	%rbx
+ 18697              		.cfi_def_cfa_offset 48
+ 18698 ee84 5D       		popq	%rbp
+ 18699              		.cfi_def_cfa_offset 40
+ 18700              	.LVL2432:
+ 18701 ee85 415C     		popq	%r12
+ 18702              		.cfi_def_cfa_offset 32
+ 18703 ee87 415D     		popq	%r13
+ 18704              		.cfi_def_cfa_offset 24
+ 18705 ee89 415E     		popq	%r14
+ 18706              		.cfi_def_cfa_offset 16
+ 18707 ee8b 415F     		popq	%r15
+ 18708              		.cfi_def_cfa_offset 8
+ 18709 ee8d C3       		ret
+ 18710              		.cfi_endproc

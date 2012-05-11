@@ -80,16 +80,16 @@ class Configure(PETSc.package.NewPackage):
       self.setCompilers.pushLanguage('CUDA')
 #Not setting -arch if with-cuda-arch is not specified uses nvcc default architecture
       if 'with-cuda-arch' in self.framework.argDB:
-        if not self.framework.argDB['with-cuda-arch'] in ['compute_10', 'compute_11', 'compute_12', 'compute_13', 'compute_20', 'sm_10', 'sm_11', 'sm_12', 'sm_13', 'sm_20', 'sm_21']:
+        if not self.framework.argDB['with-cuda-arch'] in ['compute_10', 'compute_11', 'compute_12', 'compute_13', 'compute_20', 'sm_10', 'sm_11', 'sm_12', 'sm_13', 'sm_20', 'sm_21', 'sm_22', 'sm_23']:
           raise RuntimeError('CUDA Error: specified CUDA architecture invalid.  Example of valid architecture: \'-with-cuda-arch=sm_13\'')
         else:
           self.setCompilers.addCompilerFlag('-arch='+ self.framework.argDB['with-cuda-arch'])
-      elif self.scalartypes.precision == 'double':
+      #elif self.scalartypes.precision == 'double':
         #default to sm_13 for double precision
-        self.setCompilers.addCompilerFlag('-arch=sm_13')
-      elif self.scalartypes.precision == 'single':
+       # self.setCompilers.addCompilerFlag('-arch=sm_13')
+     # elif self.scalartypes.precision == 'single':
         #default to sm_10 for single precision
-        self.setCompilers.addCompilerFlag('-arch=sm_10')
+      #  self.setCompilers.addCompilerFlag('-arch=sm_10')
       self.setCompilers.popLanguage()
     self.checkSizeofVoidP()
     return

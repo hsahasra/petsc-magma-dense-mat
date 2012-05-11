@@ -277,7 +277,7 @@ PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, Petsc
 
     for(k1 = 0 ; k1 < nregion; k1++){
         setup_ct(k1);
-#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp)private(t1,t2,l1,l2,l3,l4, mx0, mx1, msum, mc0, mc1, mc2, mc3, i)
+//#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp)private(t1,t2,l1,l2,l3,l4, mx0, mx1, msum, mc0, mc1, mc2, mc3, i)
         for(k = rstart[k1]; k < rstart[k1+1]; k++){
             nsetup_Neven();
             ninline_Neven(rstart[k1]);
@@ -447,7 +447,7 @@ PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscS
 
     for(k1 = 0 ; k1 <  nregion; k1++){
         setup_ct(k1);
-#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp1, xtemp2) private(t1,t2, i,j,k, l1, l2,l3,mx0, mx1, msum, mc0, mc1, mc2, mc3)
+//#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp1, xtemp2) private(t1,t2, i,j,k, l1, l2,l3,mx0, mx1, msum, mc0, mc1, mc2, mc3)
         for(k = rstart[k1]; k < rstart[k1+1]; k++){
 		nsetup_Nodd();
 		ninline_Nodd(rstart[k1]);

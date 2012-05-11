@@ -4,7 +4,7 @@ OSKILIBS_DIR = ${OSKI_DIR}/lib/oski
 
 OSKILIBS_STATIC = -Wl,--whole-archive `cat $(OSKILIBS_DIR)/site-modules-static.txt` -Wl,--no-whole-archive
 
-CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include -ggdb
+CFLAGS 	        = -openmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include 
 FFLAGS	        = 
 CPPFLAGS        = 
 FPPFLAGS        =
@@ -34,6 +34,10 @@ exSG2: exSG2.o  chkopts
 exbSG: exbSG.o chkopts
 	-${CLINKER} -o exbSG exbSG.o ${PETSC_MAT_LIB}
 	${RM} exbSG.o
+
+exbSG31: exbSG31.o chkopts
+	-${CLINKER} -o exbSG31 exbSG31.o ${PETSC_MAT_LIB}
+	${RM} exbSG31.o
 
 exbSG_mpi: exbSG_mpi.o chkopts
 	-${CLINKER} -o exbSG_mpi exbSG_mpi.o ${PETSC_MAT_LIB}

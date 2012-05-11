@@ -4,6 +4,17 @@
 #include <private/matimpl.h>
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <../src/mat/impls/baij/seq/ftn-kernels/fsolvebaij.h>
+#ifdef __AVX__ //Use 256 AVX intrinsics
+#include <immintrin.h>
+//#define _VEC4
+//#define _VEC2
+#define _VEC1
+#elif defined(__SSE2__) //Use 128 bit SSE intrinsics
+#include <emmintrin.h>
+#define _VEC2
+#else
+#define _VEC1
+#endif
 
 /*  
   MATSEQBAIJ format - Block compressed row storage. The i[] and j[] 
@@ -28,6 +39,9 @@
 typedef struct {
   SEQAIJHEADER(MatScalar);
   SEQBAIJHEADER;
+#ifndef  _VEC1
+  PetscInt * block_a;
+#endif
 } Mat_SeqBAIJ;
 
 EXTERN_C_BEGIN
