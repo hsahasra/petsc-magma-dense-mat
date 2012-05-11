@@ -33,7 +33,7 @@ double rtclock() {
 
 #define CSR
 #define SG
-#define OMP
+//#define OMP
 //#define GPU
 
 #ifdef OMP

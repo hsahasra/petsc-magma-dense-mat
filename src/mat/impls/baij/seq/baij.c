@@ -1967,8 +1967,131 @@ PetscErrorCode MatGetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscIn
   PetscFunctionReturn(0);
 } 
 
-//#ifndef _VEC1
+#ifndef _VEC1
+#undef __FUNCT__  
+#define __FUNCT__ "MatSetValuesBlocked_SeqBAIJ"
+PetscErrorCode MatSetValuesBlocked_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
+{
+	Mat_SeqBAIJ       *a = (Mat_SeqBAIJ*)A->data;
+	PetscInt          *rp,k,low,high,t,ii,jj,row,nrow,i,col,l,rmax,N,lastcol = -1;
+	PetscInt          *imax=a->imax,*ai=a->i,*ailen=a->ilen;
+	PetscErrorCode    ierr;
+	PetscInt          *aj=a->j,nonew=a->nonew,bs2=a->bs2,bs=A->rmap->bs,stepval;
+	PetscBool         roworiented=a->roworiented; 
+	const PetscScalar *value = v;
+	MatScalar         *ap,*aa = a->a,*bap;
 
+	PetscInt *b_a = a->block_a;
+
+	PetscFunctionBegin;
+	if (roworiented) { 
+	stepval = (n-1)*bs;
+	} else {
+	stepval = (m-1)*bs;
+	}
+	for (k=0; k<m; k++) { /* loop over added rows */
+	row  = im[k]; 
+	if (row < 0) continue;
+	#if defined(PETSC_USE_DEBUG)  
+	if (row >= a->mbs) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",row,a->mbs-1);
+	#endif
+	rp   = aj + ai[row]; 
+	ap   = aa + bs2*ai[row];
+	rmax = imax[row]; 
+	nrow = ailen[row]; 
+	low  = 0;
+	high = nrow;
+	for (l=0; l<n; l++) { /* loop over added columns */
+	 if (in[l] < 0) continue;
+	#if defined(PETSC_USE_DEBUG)  
+	 if (in[l] >= a->nbs) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",in[l],a->nbs-1);
+	#endif
+	col = in[l]; 
+	 if (roworiented) { 
+	   value = v + (k*(stepval+bs) + l)*bs;
+	 } else {
+	  value = v + (l*(stepval+bs) + k)*bs;
+	 }
+	 if (col <= lastcol) low = 0; else high = nrow;
+	 lastcol = col;
+	 while (high-low > 7) {
+	   t = (low+high)/2;
+	   if (rp[t] > col) high = t;
+	   else             low  = t;
+	 }
+	 for (i=low; i<high; i++) {
+	   if (rp[i] > col) break;
+	   if (rp[i] == col) {
+	     bap  = ap +  bs2*i;
+	     if (roworiented) { 
+	       if (is == ADD_VALUES) {
+		 for (ii=0; ii<bs; ii++,value+=stepval) {
+		   for (jj=0; jj<bs; jj++) {
+		     bap[b_a[ii*bs+jj]] += *value++; 
+		   }
+		 }
+	       } else {
+		 for (ii=0; ii<bs; ii++,value+=stepval) {
+		   for (jj=0; jj<bs; jj++) {
+		     bap[b_a[ii*bs+jj]] = *value++; 
+		   }
+		 }
+	       }
+	     } else {
+	       if (is == ADD_VALUES) {
+		 for (ii=0; ii<bs; ii++,value+=bs+stepval) {
+		   for (jj=0; jj<bs; jj++) {
+		     bap[b_a[jj*bs+ii]] += value[jj]; 
+		   }
+		 }
+	       } else {
+		 for (ii=0; ii<bs; ii++,value+=bs+stepval) {
+		   for (jj=0; jj<bs; jj++) {
+		     bap[b_a[jj*bs+ii]]  = value[jj];
+		   }
+		 }
+	       }
+	     }
+	     goto noinsert2;
+	   }
+	} 
+	 if (nonew == 1) goto noinsert2;
+	 if (nonew == -1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Inserting a new nonzero (%D, %D) in the matrix", row, col);
+	 MatSeqXAIJReallocateAIJ(A,a->mbs,bs2,nrow,row,col,rmax,aa,ai,aj,rp,ap,imax,nonew,MatScalar);
+	 N = nrow++ - 1; high++;
+	 /* shift up all the later entries in this row */
+	 for (ii=N; ii>=i; ii--) {
+	   rp[ii+1] = rp[ii];
+	   ierr = PetscMemcpy(ap+bs2*(ii+1),ap+bs2*(ii),bs2*sizeof(MatScalar));CHKERRQ(ierr);
+	 }
+	 if (N >= i) {
+	   ierr = PetscMemzero(ap+bs2*i,bs2*sizeof(MatScalar));CHKERRQ(ierr);
+	 }
+	 rp[i] = col; 
+	 bap   = ap +  bs2*i;
+	 if (roworiented) { 
+	   for (ii=0; ii<bs; ii++,value+=stepval) {
+	     for (jj=0; jj<bs; jj++) {
+	       bap[b_a[ii*bs+jj]] = *value++;
+	     }
+	   }
+	 } else {
+	   for (ii=0; ii<bs; ii++,value+=stepval) {
+	     for (jj=0; jj<bs; jj++) {
+	       bap[b_a[jj*bs+ii]]  = *value++; 
+	     }
+	   }
+	 }
+	 noinsert2:;
+	 low = i;
+	}
+	ailen[row] = nrow;
+	}
+	PetscFunctionReturn(0);
+} 
+#endif
+
+#ifdef _VEC1
 #undef __FUNCT__  
 #define __FUNCT__ "MatSetValuesBlocked_SeqBAIJ"
 PetscErrorCode MatSetValuesBlocked_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
@@ -2090,8 +2213,7 @@ PetscErrorCode MatSetValuesBlocked_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],
   }
   PetscFunctionReturn(0);
 }
-
-//#endif 
+#endif 
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatAssemblyEnd_SeqBAIJ"
@@ -2344,7 +2466,90 @@ PetscErrorCode MatZeroRowsColumns_SeqBAIJ(Mat A,PetscInt is_n,const PetscInt is_
   PetscFunctionReturn(0);
 }
 
-//#ifndef _VEC1
+#ifndef _VEC1
+#undef __FUNCT__  
+#define __FUNCT__ "MatSetValues_SeqBAIJ"
+PetscErrorCode MatSetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
+{
+  Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*)A->data;
+  PetscInt       *rp,k,low,high,t,ii,row,nrow,i,col,l,rmax,N,lastcol = -1;
+  PetscInt       *imax=a->imax,*ai=a->i,*ailen=a->ilen;
+  PetscInt       *aj=a->j,nonew=a->nonew,bs=A->rmap->bs,brow,bcol;
+  PetscErrorCode ierr;
+  PetscInt       ridx,cidx,bs2=a->bs2;
+  PetscBool      roworiented=a->roworiented;
+  MatScalar      *ap,value,*aa=a->a,*bap;
+	PetscInt *b_a = a->block_a;
+
+  PetscFunctionBegin;
+  if (v) PetscValidScalarPointer(v,6);
+  for (k=0; k<m; k++) { /* loop over added rows */
+    row  = im[k];
+    brow = row/bs;  
+    if (row < 0) continue;
+#if defined(PETSC_USE_DEBUG)  
+    if (row >= A->rmap->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row too large: row %D max %D",row,A->rmap->N-1);
+#endif
+    rp   = aj + ai[brow]; 
+    ap   = aa + bs2*ai[brow];
+    rmax = imax[brow]; 
+    nrow = ailen[brow]; 
+    low  = 0;
+    high = nrow;
+    for (l=0; l<n; l++) { /* loop over added columns */
+      if (in[l] < 0) continue;
+#if defined(PETSC_USE_DEBUG)  
+      if (in[l] >= A->cmap->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Column too large: col %D max %D",in[l],A->cmap->n-1);
+#endif
+      col = in[l]; bcol = col/bs;
+      ridx = row % bs; cidx = col % bs;
+      if (roworiented) {
+        value = v[l + k*n]; 
+      } else {
+        value = v[k + l*m];
+      }
+      if (col <= lastcol) low = 0; else high = nrow;
+      lastcol = col;
+      while (high-low > 7) {
+        t = (low+high)/2;
+        if (rp[t] > bcol) high = t;
+        else              low  = t;
+      }
+      for (i=low; i<high; i++) {
+        if (rp[i] > bcol) break;
+        if (rp[i] == bcol) {
+          bap  = ap +  bs2*i + b_a[cidx + ridx*bs];
+          if (is == ADD_VALUES) *bap += value;  
+          else                  *bap  = value; 
+          goto noinsert1;
+        }
+      } 
+      if (nonew == 1) goto noinsert1;
+      if (nonew == -1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Inserting a new nonzero (%D, %D) in the matrix", row, col);
+      MatSeqXAIJReallocateAIJ(A,a->mbs,bs2,nrow,brow,bcol,rmax,aa,ai,aj,rp,ap,imax,nonew,MatScalar);
+      N = nrow++ - 1; high++;
+      /* shift up all the later entries in this row */
+      for (ii=N; ii>=i; ii--) {
+        rp[ii+1] = rp[ii];
+        ierr     = PetscMemcpy(ap+bs2*(ii+1),ap+bs2*(ii),bs2*sizeof(MatScalar));CHKERRQ(ierr);
+      }
+      if (N>=i) {
+        ierr = PetscMemzero(ap+bs2*i,bs2*sizeof(MatScalar));CHKERRQ(ierr);
+      }
+      rp[i]                      = bcol; 
+      ap[bs2*i + b_a[cidx + ridx*bs]] = value; 
+      a->nz++;
+      noinsert1:;
+      low = i;
+    }
+    ailen[brow] = nrow;
+  }
+  A->same_nonzero = PETSC_FALSE;
+  PetscFunctionReturn(0);
+} 
+
+#endif
+#ifdef _VEC1
 #undef __FUNCT__  
 #define __FUNCT__ "MatSetValues_SeqBAIJ"
 PetscErrorCode MatSetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode is)
@@ -2425,7 +2630,7 @@ PetscErrorCode MatSetValues_SeqBAIJ(Mat A,PetscInt m,const PetscInt im[],PetscIn
   PetscFunctionReturn(0);
 } 
 
-//#endif
+#endif
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatILUFactor_SeqBAIJ"
