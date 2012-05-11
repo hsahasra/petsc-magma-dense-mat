@@ -1092,7 +1092,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1107,7 +1107,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 		{
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1124,7 +1124,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 		{
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1142,7 +1142,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 		{
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1161,7 +1161,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 		{
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1179,7 +1179,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 		{
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1196,7 +1196,7 @@ PetscInt BSG_MatMult_Neven_1(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 		{
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,l1,l2, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
 		for(k = k1; k < endval; k++)
 		{
 		setup_Neven();
@@ -1310,7 +1310,7 @@ PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, Petsc
 
     for(k1 = 0 ; k1 < nregion; k1++){
         setup_ct(k1);
-#pragma omp parallel for if(OPENMPB) shared(xt,ct,y) private(t1,t2,l1,l2,l3, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
+//#pragma omp parallel for if(OPENMPB) shared(xt,ct,y) private(t1,t2,l1,l2,l3, mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7,i)
         for(k = rstart[k1]; k < rstart[k1+1]; k++){
             nsetup_Neven();
             ninline_Neven(rstart[k1]);
@@ -2286,7 +2286,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 	{
 		setupct(0,it);
 		endval = min(1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2301,7 +2301,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		{
 		setupct(1,it);
 		endval = min(lda3,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2318,7 +2318,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		{
 		setupct(2,it);
 		endval = min(lda2,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2336,7 +2336,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		{
 		setupct(3,it);
 		endval = min(lda1-lda2,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2355,7 +2355,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		{
 		setupct(4,it);
 		endval = min(lda1-lda3,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2373,7 +2373,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		{
 		setupct(5,it);
 		endval = min(lda1-1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2390,7 +2390,7 @@ PetscInt BSG_MatMult_Nodd_1(PetscScalar ** ctl,const PetscScalar * x, PetscScala
 		{
 		setupct(6,it);
 		endval = min(lda1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y,xtemp) private(t1,t2, i, l1, l2,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
 		for(k = k1; k < endval; k++)
 		{
 		setup_Nodd();
@@ -2557,7 +2557,7 @@ PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscS
 
     for(k1 = 0 ; k1 <  nregion; k1++){
         setup_ct(k1);
-#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp) private(t1,t2, i, l1, l2,l3,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
+//#pragma omp parallel for if(OPENMPB) shared(xt,ct,y,xtemp) private(t1,t2, i, l1, l2,l3,mx0, mx1, msum, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7 )
         for(k = rstart[k1]; k < rstart[k1+1]; k++){
 		nsetup_Nodd();
 		ninline_Nodd(rstart[k1]);

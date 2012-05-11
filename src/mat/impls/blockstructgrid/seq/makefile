@@ -1,7 +1,7 @@
 
 ALL: lib
 
-CFLAGS   = -mavx -fopenmp -ggdb
+CFLAGS   = -xavx -openmp
 FFLAGS   =
 SOURCEC  = matblockstructgrid.c matmultbintrinsics_sse.c matmultbintrinsics_avx.c 
 SOURCEF  = 
