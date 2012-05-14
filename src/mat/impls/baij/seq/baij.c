@@ -3765,6 +3765,10 @@ PetscErrorCode  MatCreate_SeqBAIJ(Mat B)
   b->keepnonzeropattern    = PETSC_FALSE;
   b->xtoy                  = 0;
   b->XtoY                  = 0;
+#ifndef _VEC1
+  b->block_a 		   = 0;
+#endif
+
   B->same_nonzero          = PETSC_FALSE;
 
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)B,"MatGetFactorAvailable_petsc_C",

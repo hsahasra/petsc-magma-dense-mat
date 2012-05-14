@@ -1457,6 +1457,25 @@ PetscErrorCode MatMult_SeqBAIJ_15_ver4(Mat A,Vec xx,Vec zz)
 #define __FUNCT__ "MatMult_SeqBAIJ_N"
 PetscErrorCode MatMult_SeqBAIJ_N(Mat A,Vec xx,Vec zz)
 {
+  PetscErrorCode ierr;
+  PetscInt       bs=A->rmap->bs;
+
+  PetscFunctionBegin;
+	if(bs%2 == 0)
+	{
+		ierr = MatMult_SeqBAIJ_Neven(A,xx,zz); CHKERRQ(ierr);
+	}
+	else
+	{
+		ierr = MatMult_SeqBAIJ_Nodd(A,xx,zz); CHKERRQ(ierr);
+	}
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatMult_SeqBAIJ_Neven"
+PetscErrorCode MatMult_SeqBAIJ_Neven(Mat A,Vec xx,Vec zz)
+{
   Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*)A->data;
   PetscScalar    *x,*z = 0,*xb,*work,*workt,*zarray;
   MatScalar      *v;
@@ -1792,6 +1811,7 @@ PetscErrorCode MatMultAdd_SeqBAIJ_2(Mat A,Vec xx,Vec yy,Vec zz)
   PetscErrorCode ierr;
   PetscInt       mbs=a->mbs,i,*idx,*ii,j,n,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+    __m128d mx0, mc0, mc1, msum0, msum1, msum2;
 
   PetscFunctionBegin;
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
@@ -1826,16 +1846,28 @@ PetscErrorCode MatMultAdd_SeqBAIJ_2(Mat A,Vec xx,Vec yy,Vec zz)
       z = zarray + 2*ridx[i];
       y = yarray + 2*ridx[i];
     }
-    sum1 = y[0]; sum2 = y[1];
+    //sum1 = y[0]; sum2 = y[1];
+	msum0 = _mm_loadu_pd(y);
+    msum1 = _mm_set_pd(0,0);
+    msum2 = _mm_set_pd(0,0);
     PetscPrefetchBlock(idx+n,n,0,PETSC_PREFETCH_HINT_NTA);   /* Indices for the next row (assumes same size as this one) */
     PetscPrefetchBlock(v+4*n,4*n,0,PETSC_PREFETCH_HINT_NTA); /* Entries for the next row */
     for (j=0; j<n; j++) {
-      xb = x + 2*(*idx++); x1 = xb[0]; x2 = xb[1];
+      xb = x + 2*(*idx++);
+	mx0 = _mm_loadu_pd(xb);
+	/* x1 = xb[0]; x2 = xb[1];
       sum1 += v[0]*x1 + v[2]*x2;
       sum2 += v[1]*x1 + v[3]*x2;
+*/
+                        mc0 = _mm_loadu_pd(v);
+                        mc1 = _mm_loadu_pd(v+2);
+                        msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc0));
+                        msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx0,mc1));
       v += 4;
     }
-    z[0] = sum1; z[1] = sum2;
+  //  z[0] = sum1; z[1] = sum2;
+			msum0 = _mm_add_pd(msum0,_mm_hadd_pd(msum1, msum2));
+			_mm_storeu_pd(z,msum0);
     if (!usecprow){
       z += 2; y += 2;
     }
@@ -1859,6 +1891,8 @@ PetscErrorCode MatMultAdd_SeqBAIJ_3(Mat A,Vec xx,Vec yy,Vec zz)
   PetscErrorCode ierr;
   PetscInt       mbs=a->mbs,i,*idx,*ii,j,n,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+	__m128d mx0, mx1, msum0, msum1, msum2, msum3, msum4, mc0, mc1, mc2, mc3, mc4, mfin0, mfin1;
+    __m128i xtemp = _mm_set_epi32(0,0,-1,-1);
 
   PetscFunctionBegin;
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
@@ -1890,17 +1924,44 @@ PetscErrorCode MatMultAdd_SeqBAIJ_3(Mat A,Vec xx,Vec yy,Vec zz)
       z = zarray + 3*ridx[i];
       y = yarray + 3*ridx[i];
     }
-    sum1 = y[0]; sum2 = y[1]; sum3 = y[2];
+    //sum1 = y[0]; sum2 = y[1]; sum3 = y[2];
+    				mfin0 = _mm_loadu_pd(y);
+    				mfin1 = _mm_loadu_pd(y+2);
+                                 msum0 = _mm_set_pd(0,0);
+                                 msum1 = _mm_set_pd(0,0);
+                                 msum2 = _mm_set_pd(0,0);
+                                 msum3 = _mm_set_pd(0,0);
+                                 msum4 = _mm_set_pd(0,0);
     PetscPrefetchBlock(idx+n,n,0,PETSC_PREFETCH_HINT_NTA);   /* Indices for the next row (assumes same size as this one) */
     PetscPrefetchBlock(v+9*n,9*n,0,PETSC_PREFETCH_HINT_NTA); /* Entries for the next row */
     for (j=0; j<n; j++) {
-      xb = x + 3*(*idx++); x1 = xb[0]; x2 = xb[1]; x3 = xb[2];
-      sum1 += v[0]*x1 + v[3]*x2 + v[6]*x3;
+      xb = x + 3*(*idx++); //x1 = xb[0]; x2 = xb[1]; x3 = xb[2];
+   /*   sum1 += v[0]*x1 + v[3]*x2 + v[6]*x3;
       sum2 += v[1]*x1 + v[4]*x2 + v[7]*x3;
       sum3 += v[2]*x1 + v[5]*x2 + v[8]*x3;
-      v += 9;
+     */
+			mx0 = _mm_loadu_pd(xb);
+                        mx1 = _mm_load1_pd(xb+2);
+                        
+			mc0 = _mm_loadu_pd(v);
+                        mc1 = _mm_loadu_pd(v+2);
+                        mc2 = _mm_loadu_pd(v+4);
+                        mc3 = _mm_loadu_pd(v+6);
+                        mc4 = _mm_loadu_pd(v+8);
+                        msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+                        msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx0,mc2));
+			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx1,mc3));
+			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx1,mc4));
+ v += 9;
     }
-    z[0] = sum1; z[1] = sum2; z[2] = sum3;
+//    z[0] = sum1; z[1] = sum2; z[2] = sum3;
+			msum0 = _mm_add_pd(msum3, _mm_hadd_pd(msum0,msum1));
+                        msum2 = _mm_add_pd(msum4, _mm_hadd_pd(msum2,msum2));
+                        mfin0 = _mm_add_pd(mfin0, msum0);
+                        mfin1 = _mm_add_pd(mfin1, msum2);
+			_mm_storeu_pd(z,mfin0);
+  			_mm_maskstore_pd(z+2,xtemp,mfin1);
     if (!usecprow){
       z += 3; y += 3;
     }
@@ -1924,6 +1985,7 @@ PetscErrorCode MatMultAdd_SeqBAIJ_4(Mat A,Vec xx,Vec yy,Vec zz)
   PetscErrorCode ierr;
   PetscInt       mbs=a->mbs,i,*idx,*ii,j,n,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+    __m128d mx0, mx1, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, msum0, msum1, msum2, msum3, mfin0, mfin1;
 
   PetscFunctionBegin;
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
@@ -1955,19 +2017,48 @@ PetscErrorCode MatMultAdd_SeqBAIJ_4(Mat A,Vec xx,Vec yy,Vec zz)
       z = zarray + 4*ridx[i];
       y = yarray + 4*ridx[i];
     }
-    sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3];
+    //sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3];
+    			mfin0 = _mm_loadu_pd(y);
+    			mfin1 = _mm_loadu_pd(y+2);
+                         msum0 = _mm_set_pd(0,0);
+                         msum1 = _mm_set_pd(0,0);
+                         msum2 = _mm_set_pd(0,0);
+                         msum3 = _mm_set_pd(0,0);
     PetscPrefetchBlock(idx+n,n,0,PETSC_PREFETCH_HINT_NTA);     /* Indices for the next row (assumes same size as this one) */
     PetscPrefetchBlock(v+16*n,16*n,0,PETSC_PREFETCH_HINT_NTA); /* Entries for the next row */
     for (j=0; j<n; j++) {
       xb = x + 4*(*idx++);
-      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3];
+/*      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3];
       sum1 += v[0]*x1 + v[4]*x2 + v[8]*x3   + v[12]*x4;
       sum2 += v[1]*x1 + v[5]*x2 + v[9]*x3   + v[13]*x4;
       sum3 += v[2]*x1 + v[6]*x2 + v[10]*x3  + v[14]*x4;
       sum4 += v[3]*x1 + v[7]*x2 + v[11]*x3  + v[15]*x4;
+*/
+                    mx0 = _mm_loadu_pd(xb);
+                    mx1 = _mm_loadu_pd(xb+2);
+                    mc0 = _mm_loadu_pd(v + 0);
+                    mc1 = _mm_loadu_pd(v + 2);
+                    mc2 = _mm_loadu_pd(v + 4);
+                    mc3 = _mm_loadu_pd(v + 6);
+                    mc4 = _mm_loadu_pd(v + 8);
+                    mc5 = _mm_loadu_pd(v + 10);
+                    mc6 = _mm_loadu_pd(v + 12);
+                    mc7 = _mm_loadu_pd(v + 14);
+                    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mx0, mc0));
+                    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mx1, mc1));
+                    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mx0, mc2));
+                    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mx1, mc3));
+                    msum2 = _mm_add_pd(msum2 , _mm_mul_pd(mx0, mc4));
+                    msum2 = _mm_add_pd(msum2 , _mm_mul_pd(mx1, mc5));
+                    msum3 = _mm_add_pd(msum3 , _mm_mul_pd(mx0, mc6));
+                    msum3 = _mm_add_pd(msum3 , _mm_mul_pd(mx1, mc7));
       v += 16;
     }
-    z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4;
+//    z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4;
+                  msum0 = _mm_add_pd(mfin0,_mm_hadd_pd(msum0, msum1));
+                  msum2 = _mm_add_pd(mfin1,_mm_hadd_pd(msum2, msum3));
+                  _mm_storeu_pd(z,msum0);
+                  _mm_storeu_pd(z+2,msum2);
     if (!usecprow){
       z += 4; y += 4;
     }
@@ -1992,6 +2083,8 @@ PetscErrorCode MatMultAdd_SeqBAIJ_5(Mat A,Vec xx,Vec yy,Vec zz)
   PetscErrorCode ierr;
   PetscInt       mbs=a->mbs,i,*idx,*ii,j,n,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+	__m128d mx0, mx1, mx2, msum0, msum1, msum2, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, mc8, mc9;
+    __m128i xtemp = _mm_set_epi32(0,0,-1,-1);
 
   PetscFunctionBegin;
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
@@ -2023,20 +2116,56 @@ PetscErrorCode MatMultAdd_SeqBAIJ_5(Mat A,Vec xx,Vec yy,Vec zz)
       z = zarray + 5*ridx[i];
       y = yarray + 5*ridx[i];
     }
-    sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3]; sum5 = y[4];
+                                 msum0 = _mm_loadu_pd(y);
+                                 msum1 = _mm_loadu_pd(y+2);
+                                 msum2 = _mm_loadu_pd(y+4);
+   // sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3]; sum5 = y[4];
     PetscPrefetchBlock(idx+n,n,0,PETSC_PREFETCH_HINT_NTA);     /* Indices for the next row (assumes same size as this one) */
     PetscPrefetchBlock(v+25*n,25*n,0,PETSC_PREFETCH_HINT_NTA); /* Entries for the next row */
     for (j=0; j<n; j++) {
       xb = x + 5*(*idx++);
-      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3]; x5 = xb[4];
+/*      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3]; x5 = xb[4];
       sum1 += v[0]*x1 + v[5]*x2 + v[10]*x3  + v[15]*x4 + v[20]*x5;
       sum2 += v[1]*x1 + v[6]*x2 + v[11]*x3  + v[16]*x4 + v[21]*x5;
       sum3 += v[2]*x1 + v[7]*x2 + v[12]*x3  + v[17]*x4 + v[22]*x5;
       sum4 += v[3]*x1 + v[8]*x2 + v[13]*x3  + v[18]*x4 + v[23]*x5;
       sum5 += v[4]*x1 + v[9]*x2 + v[14]*x3  + v[19]*x4 + v[24]*x5;
-      v += 25;
+  */
+			mx0 = _mm_loadu_pd(xb);
+			mx1 = _mm_loadu_pd(xb+2);
+                        mx2 = _mm_load1_pd(xb+4);
+
+			
+                        mc0 = _mm_loadu_pd(v);
+                        mc1 = _mm_loadu_pd(v+2);
+                        mc2 = _mm_loadu_pd(v+4);
+                        mc3 = _mm_loadu_pd(v+6);
+                        mc4 = _mm_loadu_pd(v+8);
+                        mc5 = _mm_loadu_pd(v+10);
+                        mc6 = _mm_loadu_pd(v+12);
+                        mc7 = _mm_loadu_pd(v+14);
+                        mc8 = _mm_loadu_pd(v+16);
+                        mc9 = _mm_loadu_pd(v+18);
+			mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0), _mm_mul_pd(mx1,mc1));
+			mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2), _mm_mul_pd(mx1,mc3));
+			mc4 = _mm_add_pd(_mm_mul_pd(mx0,mc4), _mm_mul_pd(mx1,mc5));
+			mc6 = _mm_add_pd(_mm_mul_pd(mx0,mc6), _mm_mul_pd(mx1,mc7));
+			mc8 = _mm_add_pd(_mm_mul_pd(mx0,mc8), _mm_mul_pd(mx1,mc9));
+			    msum0 = _mm_add_pd(msum0, _mm_hadd_pd(mc0, mc2));
+			    msum1 = _mm_add_pd(msum1, _mm_hadd_pd(mc4, mc6));
+			    msum2 = _mm_add_pd(msum2, _mm_hadd_pd(mc8, mc8));
+			    mc0 = _mm_loadu_pd(v + 20);
+			    mc1 = _mm_loadu_pd(v + 22);
+			    mc2 = _mm_loadu_pd(v + 24);
+			    msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx2, mc0));
+			    msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx2, mc1));
+			    msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx2, mc2));
+    v += 25;
     }
-    z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4; z[4] = sum5;
+//    z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4; z[4] = sum5;
+			_mm_storeu_pd(z,msum0);
+			_mm_storeu_pd(z+2,msum1);
+  			_mm_maskstore_pd(z+4,xtemp,msum2);
     if (!usecprow){
       z += 5; y += 5;
     }
@@ -2060,6 +2189,7 @@ PetscErrorCode MatMultAdd_SeqBAIJ_6(Mat A,Vec xx,Vec yy,Vec zz)
   PetscErrorCode ierr;
   PetscInt       mbs=a->mbs,i,*idx,*ii,j,n,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+	__m128d mx0, mx1, mx2, msum0, msum1, msum2, msum3, msum4,msum5, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, mc8, mc9,  mc10, mc11, mc12, mc13, mc14, mc15, mc16, mc17, mfin0, mfin1, mfin2;
 
   PetscFunctionBegin;
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
@@ -2091,21 +2221,76 @@ PetscErrorCode MatMultAdd_SeqBAIJ_6(Mat A,Vec xx,Vec yy,Vec zz)
       z = zarray + 6*ridx[i];
       y = yarray + 6*ridx[i];
     }
-    sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3]; sum5 = y[4]; sum6 = y[5];
+  //  sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3]; sum5 = y[4]; sum6 = y[5];
+			mfin0 = _mm_loadu_pd(y);
+			mfin1 = _mm_loadu_pd(y+2);
+			mfin2 = _mm_loadu_pd(y+4);
+		msum0 =_mm_set_pd(0,0);
+		msum1 =_mm_set_pd(0,0);
+		msum2 =_mm_set_pd(0,0);
+		msum3 =_mm_set_pd(0,0);
+		msum4 =_mm_set_pd(0,0);
+		msum5 =_mm_set_pd(0,0);
     PetscPrefetchBlock(idx+n,n,0,PETSC_PREFETCH_HINT_NTA);     /* Indices for the next row (assumes same size as this one) */
     PetscPrefetchBlock(v+36*n,36*n,0,PETSC_PREFETCH_HINT_NTA); /* Entries for the next row */
     for (j=0; j<n; j++) {
       xb = x + 6*(*idx++);
-      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3]; x5 = xb[4]; x6 = xb[5];
+/*      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3]; x5 = xb[4]; x6 = xb[5];
       sum1 += v[0]*x1 + v[6]*x2  + v[12]*x3  + v[18]*x4 + v[24]*x5 + v[30]*x6;
       sum2 += v[1]*x1 + v[7]*x2  + v[13]*x3  + v[19]*x4 + v[25]*x5 + v[31]*x6;
       sum3 += v[2]*x1 + v[8]*x2  + v[14]*x3  + v[20]*x4 + v[26]*x5 + v[32]*x6;
       sum4 += v[3]*x1 + v[9]*x2  + v[15]*x3  + v[21]*x4 + v[27]*x5 + v[33]*x6;
       sum5 += v[4]*x1 + v[10]*x2 + v[16]*x3  + v[22]*x4 + v[28]*x5 + v[34]*x6;
       sum6 += v[5]*x1 + v[11]*x2 + v[17]*x3  + v[23]*x4 + v[29]*x5 + v[35]*x6;
-      v += 36;
+  */
+			mx0 = _mm_loadu_pd(xb);
+			mx1 = _mm_loadu_pd(xb+2);
+			mx2 = _mm_loadu_pd(xb+4);
+			mc0 = _mm_loadu_pd(v);
+			mc1 = _mm_loadu_pd(v+2);
+			mc2 = _mm_loadu_pd(v+4);
+			mc3 = _mm_loadu_pd(v+6);
+			mc4 = _mm_loadu_pd(v+8);
+			mc5 = _mm_loadu_pd(v+10);
+			mc6 = _mm_loadu_pd(v+12);
+			mc7 = _mm_loadu_pd(v+14);
+			mc8 = _mm_loadu_pd(v+16);
+			mc9 = _mm_loadu_pd(v+18);
+			mc10 = _mm_loadu_pd(v+20);
+			mc11 = _mm_loadu_pd(v+22);
+			mc12 = _mm_loadu_pd(v+24);
+			mc13 = _mm_loadu_pd(v+26);
+			mc14 = _mm_loadu_pd(v+28);
+			mc15 = _mm_loadu_pd(v+30);
+			mc16 = _mm_loadu_pd(v+32);
+			mc17 = _mm_loadu_pd(v+34);
+			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx1,mc1));
+			msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx2,mc2));
+			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc3));
+			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx1,mc4));
+			msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx2,mc5));
+			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx0,mc6));
+			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx1,mc7));
+			msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx2,mc8));
+			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx0,mc9));
+			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx1,mc10));
+			msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx2,mc11));
+			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx0,mc12));
+			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx1,mc13));
+			msum4 = _mm_add_pd(msum4, _mm_mul_pd(mx2,mc14));
+			msum5 = _mm_add_pd(msum5, _mm_mul_pd(mx0,mc15));
+			msum5 = _mm_add_pd(msum5, _mm_mul_pd(mx1,mc16));
+			msum5 = _mm_add_pd(msum5, _mm_mul_pd(mx2,mc17));
+    v += 36;
     }
-    z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4; z[4] = sum5; z[5] = sum6;
+ //   z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4; z[4] = sum5; z[5] = sum6;
+		msum0 = _mm_add_pd(mfin0,_mm_hadd_pd(msum0,msum1));
+		msum2 = _mm_add_pd(mfin1,_mm_hadd_pd(msum2,msum3));
+		msum4 = _mm_add_pd(mfin2,_mm_hadd_pd(msum4,msum5));
+		_mm_storeu_pd(z, msum0);
+		_mm_storeu_pd(z+2, msum2);
+		_mm_storeu_pd(z+4, msum4);
     if (!usecprow){
       z += 6; y += 6;
     }
@@ -2130,6 +2315,9 @@ PetscErrorCode MatMultAdd_SeqBAIJ_7(Mat A,Vec xx,Vec yy,Vec zz)
   PetscErrorCode ierr;
   PetscInt       mbs=a->mbs,i,*idx,*ii,j,n,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+	__m128d mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
+    	__m128i xtemp = _mm_set_epi32(0,0,-1,-1);
+
 
   PetscFunctionBegin;
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
@@ -2161,12 +2349,16 @@ PetscErrorCode MatMultAdd_SeqBAIJ_7(Mat A,Vec xx,Vec yy,Vec zz)
       z = zarray + 7*ridx[i];
       y = yarray + 7*ridx[i];
     }
-    sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3]; sum5 = y[4]; sum6 = y[5]; sum7 = y[6];
+   // sum1 = y[0]; sum2 = y[1]; sum3 = y[2]; sum4 = y[3]; sum5 = y[4]; sum6 = y[5]; sum7 = y[6];
+                                 msum0 = _mm_loadu_pd(y);
+                                 msum1 = _mm_loadu_pd(y+2);
+                                 msum2 = _mm_loadu_pd(y+4);
+                                 msum3 = _mm_loadu_pd(y+6);
     PetscPrefetchBlock(idx+n,n,0,PETSC_PREFETCH_HINT_NTA);     /* Indices for the next row (assumes same size as this one) */
     PetscPrefetchBlock(v+49*n,49*n,0,PETSC_PREFETCH_HINT_NTA); /* Entries for the next row */
     for (j=0; j<n; j++) {
       xb = x + 7*(*idx++);
-      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3]; x5 = xb[4]; x6 = xb[5]; x7 = xb[6];
+/*      x1 = xb[0]; x2 = xb[1]; x3 = xb[2]; x4 = xb[3]; x5 = xb[4]; x6 = xb[5]; x7 = xb[6];
       sum1 += v[0]*x1 + v[7]*x2  + v[14]*x3  + v[21]*x4 + v[28]*x5 + v[35]*x6 + v[42]*x7;
       sum2 += v[1]*x1 + v[8]*x2  + v[15]*x3  + v[22]*x4 + v[29]*x5 + v[36]*x6 + v[43]*x7;
       sum3 += v[2]*x1 + v[9]*x2  + v[16]*x3  + v[23]*x4 + v[30]*x5 + v[37]*x6 + v[44]*x7;
@@ -2174,9 +2366,71 @@ PetscErrorCode MatMultAdd_SeqBAIJ_7(Mat A,Vec xx,Vec yy,Vec zz)
       sum5 += v[4]*x1 + v[11]*x2 + v[18]*x3  + v[25]*x4 + v[32]*x5 + v[39]*x6 + v[46]*x7;
       sum6 += v[5]*x1 + v[12]*x2 + v[19]*x3  + v[26]*x4 + v[33]*x5 + v[40]*x6 + v[47]*x7;
       sum7 += v[6]*x1 + v[13]*x2 + v[20]*x3  + v[27]*x4 + v[34]*x5 + v[41]*x6 + v[48]*x7;
-      v += 49;
+ */
+                        mx0 = _mm_loadu_pd(xb);
+                        mx1 = _mm_loadu_pd(xb+2);
+                        mc0 = _mm_loadu_pd(v);
+                        mc1 = _mm_loadu_pd(v+2);
+                        mc2 = _mm_loadu_pd(v+6);
+                        mc3 = _mm_loadu_pd(v+8);
+                        mc4 = _mm_loadu_pd(v+12);
+                        mc5 = _mm_loadu_pd(v+14);
+                        mc6 = _mm_loadu_pd(v+18);
+                        mc7 = _mm_loadu_pd(v+20);
+                        mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+                        mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));
+                        mc4 = _mm_add_pd(_mm_mul_pd(mx0,mc4),_mm_mul_pd(mx1,mc5));
+                        mc6 = _mm_add_pd(_mm_mul_pd(mx0,mc6),_mm_mul_pd(mx1,mc7));
+                        msum0 = _mm_add_pd(msum0, _mm_hadd_pd(mc0,mc2));
+                        msum1 = _mm_add_pd(msum1, _mm_hadd_pd(mc4,mc6));
+                        mc0 = _mm_loadu_pd(v+24);
+                        mc1 = _mm_loadu_pd(v+26);
+                        mc2 = _mm_loadu_pd(v+30);
+                        mc3 = _mm_loadu_pd(v+32);
+                        mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+                        mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));
+                        msum2 = _mm_add_pd(msum2, _mm_hadd_pd(mc0,mc2));
+                        mc0 = _mm_loadu_pd(v+36);
+                        mc1 = _mm_loadu_pd(v+38);
+                        mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+                        msum3 = _mm_add_pd(msum3, _mm_hadd_pd(mc0,mc0));
+
+                        mx0 = _mm_loadu_pd(xb+4);
+                        mc0 = _mm_loadu_pd(v+4);
+                        mc2 = _mm_loadu_pd(v+10);
+                        mc4 = _mm_loadu_pd(v+16);
+                        mc6 = _mm_loadu_pd(v+22);
+                        mc0 = _mm_mul_pd(mx0,mc0);
+                        mc2 = _mm_mul_pd(mx0,mc2);
+                        mc4 = _mm_mul_pd(mx0,mc4);
+                        mc6 = _mm_mul_pd(mx0,mc6);
+                        msum0 = _mm_add_pd(msum0, _mm_hadd_pd(mc0,mc2));
+                        msum1 = _mm_add_pd(msum1, _mm_hadd_pd(mc4,mc6));
+                        mc0 = _mm_loadu_pd(v+28);
+                        mc2 = _mm_loadu_pd(v+34);
+                        mc0 = _mm_mul_pd(mx0,mc0);
+                        mc2 = _mm_mul_pd(mx0,mc2);
+                        msum2 = _mm_add_pd(msum2, _mm_hadd_pd(mc0,mc2));
+                        mc0 = _mm_loadu_pd(v+40);
+                        mc0 = _mm_mul_pd(mx0,mc0);
+                        msum3 = _mm_add_pd(msum3, _mm_hadd_pd(mc0,mc0));
+
+                        mx0 = _mm_load1_pd(xb+6);
+                        mc0 = _mm_loadu_pd(v+42);
+                        mc1 = _mm_loadu_pd(v+44);
+                        msum0 = _mm_add_pd(msum0, _mm_mul_pd(mx0,mc0));
+                        msum1 = _mm_add_pd(msum1, _mm_mul_pd(mx0,mc1));
+                        mc0 = _mm_loadu_pd(v+46);
+                        msum2 = _mm_add_pd(msum2, _mm_mul_pd(mx0,mc0));
+                        mc0 = _mm_loadu_pd(v+48);
+                        msum3 = _mm_add_pd(msum3, _mm_mul_pd(mx0,mc0));
+    v += 49;
     }
-    z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4; z[4] = sum5; z[5] = sum6; z[6] = sum7;
+ //   z[0] = sum1; z[1] = sum2; z[2] = sum3; z[3] = sum4; z[4] = sum5; z[5] = sum6; z[6] = sum7;
+                                _mm_storeu_pd(z,msum0);
+                                _mm_storeu_pd(z+2,msum1);
+                                _mm_storeu_pd(z+4,msum2);
+  				_mm_maskstore_pd(z+6,xtemp,msum3);
     if (!usecprow){
       z += 7; y += 7;
     }
@@ -2194,6 +2448,25 @@ PetscErrorCode MatMultAdd_SeqBAIJ_7(Mat A,Vec xx,Vec yy,Vec zz)
 #define __FUNCT__ "MatMultAdd_SeqBAIJ_N"
 PetscErrorCode MatMultAdd_SeqBAIJ_N(Mat A,Vec xx,Vec yy,Vec zz)
 {
+  PetscErrorCode ierr;
+  PetscInt       bs=A->rmap->bs;
+
+  PetscFunctionBegin;
+	if(bs%2 == 0)
+	{
+		ierr = MatMultAdd_SeqBAIJ_Neven(A,xx,yy,zz); CHKERRQ(ierr);
+	}
+	else
+	{
+		ierr = MatMultAdd_SeqBAIJ_Nodd(A,xx,yy,zz); CHKERRQ(ierr);
+	}
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatMultAdd_SeqBAIJ_Neven"
+PetscErrorCode MatMultAdd_SeqBAIJ_Neven(Mat A,Vec xx,Vec yy,Vec zz)
+{
   Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*)A->data;
   PetscScalar    *x,*z = 0,*xb,*work,*workt,*zarray;
   MatScalar      *v;
@@ -2201,6 +2474,10 @@ PetscErrorCode MatMultAdd_SeqBAIJ_N(Mat A,Vec xx,Vec yy,Vec zz)
   PetscInt       mbs,i,*idx,*ii,bs=A->rmap->bs,j,n,bs2=a->bs2;
   PetscInt       ncols,k,*ridx=PETSC_NULL;
   PetscBool      usecprow=a->compressedrow.use;
+	PetscInt itemp, l1, l2, l3, l4;
+	const PetscInt dof = bs;
+	const PetscInt dofby2 = (dof)/2;
+	__m128d mx0, mx1, msum[dofby2], mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
 
   PetscFunctionBegin;
   ierr = VecCopy(yy,zz);CHKERRQ(ierr);
@@ -2226,17 +2503,225 @@ PetscErrorCode MatMultAdd_SeqBAIJ_N(Mat A,Vec xx,Vec yy,Vec zz)
   work = a->mult_work;
   for (i=0; i<mbs; i++) {
     n     = ii[1] - ii[0]; ii++;
+   for(itemp=0;itemp<dofby2;itemp++){
+                                 msum[itemp] = _mm_loadu_pd(z+2*itemp);
+                         }
     ncols = n*bs;
     workt = work;
     for (j=0; j<n; j++) {
       xb = x + bs*(*idx++);
-      for (k=0; k<bs; k++) workt[k] = xb[k];
-      workt += bs;
+  //   for (k=0; k<bs; k++) workt[k] = xb[k];
+  //    workt += bs;
+   
+			for(l2 = 0; l2 < dof-2; l2 += 4){
+				mx0 = _mm_loadu_pd(xb+l2);
+				mx1 = _mm_loadu_pd(xb+l2+2);
+				for(l1=0; l1<dofby2-1; l1+= 2){
+					mc0 = _mm_loadu_pd(v+2*l1*dof+l2);
+					mc1 = _mm_loadu_pd(v+2*l1*dof+l2+2);
+					mc2 = _mm_loadu_pd(v+2*l1*dof+l2+dof);
+					mc3 = _mm_loadu_pd(v+2*l1*dof+l2+dof+2);
+					mc4 = _mm_loadu_pd(v+2*l1*dof+l2+2*dof);
+					mc5 = _mm_loadu_pd(v+2*l1*dof+l2+2*dof+2);
+					mc6 = _mm_loadu_pd(v+2*l1*dof+l2+3*dof);
+					mc7 = _mm_loadu_pd(v+2*l1*dof+l2+3*dof+2);
+					mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+					mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));
+					mc4 = _mm_add_pd(_mm_mul_pd(mx0,mc4),_mm_mul_pd(mx1,mc5));
+					mc6 = _mm_add_pd(_mm_mul_pd(mx0,mc6),_mm_mul_pd(mx1,mc7));
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+					msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6));
+				}
+				for(;l1<dofby2;l1++){
+					mc0 = _mm_loadu_pd(v+2*l1*dof+l2);
+					mc1 = _mm_loadu_pd(v+2*l1*dof+l2+2);
+					mc2 = _mm_loadu_pd(v+2*l1*dof+l2+dof);
+					mc3 = _mm_loadu_pd(v+2*l1*dof+l2+dof+2);
+					mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+					mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+				}
+			}
+			for(; l2 < dof; l2 += 2){
+				mx0 = _mm_loadu_pd(xb+l2);
+				for(l1=0; l1<dofby2-1; l1+= 2){
+					mc0 = _mm_loadu_pd(v+2*l1*dof+l2);
+					mc2 = _mm_loadu_pd(v+2*l1*dof+l2+dof);
+					mc4 = _mm_loadu_pd(v+2*l1*dof+l2+2*dof);
+					mc6 = _mm_loadu_pd(v+2*l1*dof+l2+3*dof);
+					mc0 = _mm_mul_pd(mx0,mc0);
+					mc2 = _mm_mul_pd(mx0,mc2);
+					mc4 = _mm_mul_pd(mx0,mc4);
+					mc6 = _mm_mul_pd(mx0,mc6);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+					msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6));
+				}
+				for(;l1<dofby2;l1++){
+					mc0 = _mm_loadu_pd(v+2*l1*dof+l2);
+					mc2 = _mm_loadu_pd(v+2*l1*dof+l2+dof);
+					mc0 = _mm_mul_pd(mx0,mc0);
+					mc2 = _mm_mul_pd(mx0,mc2);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+				}
+			}
+	v+= bs2;
+    }
+ if (usecprow) z = zarray + bs*ridx[i];
+//    Kernel_w_gets_w_plus_Ar_times_v(bs,ncols,work,v,z);
+   /* BLASgemv_("N",&bs,&ncols,&_DOne,v,&bs,work,&_One,&_DOne,z,&_One); */
+ //   v += n*bs2;
+	for(itemp=0;itemp<dofby2;itemp++){
+		_mm_storeu_pd(z+2*itemp,msum[itemp]);
+	 }
+    if (!usecprow){
+      z += bs;
+    }
+  }
+  ierr = VecRestoreArray(xx,&x);CHKERRQ(ierr);
+  ierr = VecRestoreArray(zz,&zarray);CHKERRQ(ierr);
+  ierr = PetscLogFlops(2.0*a->nz*bs2);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatMultAdd_SeqBAIJ_Nodd"
+PetscErrorCode MatMultAdd_SeqBAIJ_Nodd(Mat A,Vec xx,Vec yy,Vec zz)
+{
+  Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*)A->data;
+  PetscScalar    *x,*z = 0,*xb,*work,*workt,*zarray;
+  MatScalar      *v;
+  PetscErrorCode ierr;
+  PetscInt       mbs,i,*idx,*ii,bs=A->rmap->bs,j,n,bs2=a->bs2;
+  PetscInt       ncols,k,*ridx=PETSC_NULL;
+  PetscBool      usecprow=a->compressedrow.use;
+	PetscInt itemp, l1, l2, l3, l4;
+	const PetscInt dof = bs;
+	const PetscInt dofby2 = (dof+1)/2;
+	__m128d mx0, mx1, msum[dofby2], mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7;
+    __m128i xtemp = _mm_set_epi32(0,0,-1,-1);
+
+  PetscFunctionBegin;
+  ierr = VecCopy(yy,zz);CHKERRQ(ierr);
+  ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
+  ierr = VecGetArray(zz,&zarray);CHKERRQ(ierr);
+
+  idx = a->j;
+  v   = a->a;
+  if (usecprow){
+    mbs    = a->compressedrow.nrows;
+    ii     = a->compressedrow.i;
+    ridx = a->compressedrow.rindex;
+  } else {
+    mbs = a->mbs;
+    ii  = a->i;
+    z   = zarray;
+  }
+
+  if (!a->mult_work) {
+    k    = PetscMax(A->rmap->n,A->cmap->n);
+    ierr = PetscMalloc((k+1)*sizeof(PetscScalar),&a->mult_work);CHKERRQ(ierr);
+  }
+  work = a->mult_work;
+  for (i=0; i<mbs; i++) {
+    n     = ii[1] - ii[0]; ii++;
+   for(itemp=0;itemp<dofby2;itemp++){
+                                 msum[itemp] = _mm_loadu_pd(z+2*itemp);
+                         }
+    ncols = n*bs;
+    workt = work;
+    for (j=0; j<n; j++) {
+      xb = x + bs*(*idx++);
+//      for (k=0; k<bs; k++) workt[k] = xb[k];
+ //     workt += bs;
+			for(l2 = 0; l2 < dof-3; l2 += 4){
+				mx0 = _mm_loadu_pd(xb+l2);
+				mx1 = _mm_loadu_pd(xb+l2+2);
+				for(l1=0; l1<dofby2-2; l1+= 2){
+					mc0 = _mm_loadu_pd(v+2*l1*(dof-1)+l2);
+					mc1 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+2);
+					mc2 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+dof-1);
+					mc3 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+dof+1);
+					mc4 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+2*dof-2);
+					mc5 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+2*dof);
+					mc6 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+3*dof-3);
+					mc7 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+3*dof-1);
+					mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+					mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));
+					mc4 = _mm_add_pd(_mm_mul_pd(mx0,mc4),_mm_mul_pd(mx1,mc5));
+					mc6 = _mm_add_pd(_mm_mul_pd(mx0,mc6),_mm_mul_pd(mx1,mc7));
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+					msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6));
+				}
+				for(;l1<dofby2-1;l1++){
+					mc0 = _mm_loadu_pd(v+2*l1*(dof-1)+l2);
+					mc1 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+2);
+					mc2 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+dof-1);
+					mc3 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+dof+1);
+					mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+					mc2 = _mm_add_pd(_mm_mul_pd(mx0,mc2),_mm_mul_pd(mx1,mc3));
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+				}
+				for(;l1<dofby2;l1++){
+					mc0 = _mm_loadu_pd(v+2*l1*(dof-1)+l2);
+					mc1 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+2);
+					mc0 = _mm_add_pd(_mm_mul_pd(mx0,mc0),_mm_mul_pd(mx1,mc1));
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc0));
+				}
+			}
+			for(; l2 < dof-1; l2 += 2){
+				mx0 = _mm_loadu_pd(xb+l2);
+				for(l1=0; l1<dofby2-2; l1+= 2){
+					mc0 = _mm_loadu_pd(v+2*l1*(dof-1)+l2);
+					mc2 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+dof-1);
+					mc4 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+2*dof-2);
+					mc6 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+3*dof-3);
+					mc0 = _mm_mul_pd(mx0,mc0);
+					mc2 = _mm_mul_pd(mx0,mc2);
+					mc4 = _mm_mul_pd(mx0,mc4);
+					mc6 = _mm_mul_pd(mx0,mc6);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+					msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_hadd_pd(mc4,mc6));
+				}
+				for(;l1<dofby2-1;l1++){
+					mc0 = _mm_loadu_pd(v+2*l1*(dof-1)+l2);
+					mc2 = _mm_loadu_pd(v+2*l1*(dof-1)+l2+dof-1);
+					mc0 = _mm_mul_pd(mx0,mc0);
+					mc2 = _mm_mul_pd(mx0,mc2);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc2));
+				}
+				for(;l1<dofby2;l1++){
+					mc0 = _mm_loadu_pd(v+2*l1*(dof-1)+l2);
+					mc0 = _mm_mul_pd(mx0,mc0);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_hadd_pd(mc0,mc0));
+				}
+			}
+			for(; l2 < dof; l2 ++){
+				mx0 = _mm_load1_pd(xb+l2);
+				for(l1=0; l1<dofby2-2; l1+= 2){
+					mc0 = _mm_loadu_pd(v+dof*(dof-1)+2*l1);
+					mc1 = _mm_loadu_pd(v+dof*(dof-1)+2*l1+2);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));
+					msum[l1+1] = _mm_add_pd(msum[l1+1], _mm_mul_pd(mx0,mc1));
+				}
+				for(;l1<dofby2-1;l1++){
+					mc0 = _mm_loadu_pd(v+dof*(dof-1)+2*l1);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));
+				}
+				for(;l1<dofby2;l1++){
+					mc0 = _mm_loadu_pd(v+dof*(dof-1)+2*l1);
+					msum[l1] = _mm_add_pd(msum[l1], _mm_mul_pd(mx0,mc0));
+				}
+			}
+	v+= bs2;
     }
     if (usecprow) z = zarray + bs*ridx[i];
-    Kernel_w_gets_w_plus_Ar_times_v(bs,ncols,work,v,z);
+   // Kernel_w_gets_w_plus_Ar_times_v(bs,ncols,work,v,z);
     /* BLASgemv_("N",&bs,&ncols,&_DOne,v,&bs,work,&_One,&_DOne,z,&_One); */
-    v += n*bs2;
+ //   v += n*bs2;
+	for(itemp=0;itemp<dofby2-1;itemp++){
+		_mm_storeu_pd(z+2*itemp,msum[itemp]);
+	 }
+	  _mm_maskstore_pd(z+dof-1,xtemp,msum[dofby2-1]);
     if (!usecprow){
       z += bs;
     }
@@ -2723,6 +3208,7 @@ PetscErrorCode MatDiagonalScale_SeqBAIJ(Mat A,Vec ll,Vec rr)
   PetscErrorCode    ierr;
   PetscInt          i,j,k,lm,rn,M,m,n,mbs,tmp,bs,bs2,iai;
   const PetscInt    *ai,*aj;
+	PetscInt * b_a = a->block_a;
 
   PetscFunctionBegin;
   ai  = a->i;
@@ -2742,9 +3228,11 @@ PetscErrorCode MatDiagonalScale_SeqBAIJ(Mat A,Vec ll,Vec rr)
       li = l + i*bs;
       v  = aa + bs2*ai[i];
       for (j=0; j<M; j++) { /* for each block */
-        for (k=0; k<bs2; k++) {
-          (*v++) *= li[k%bs];
+        for (k=0; k<bs; k++) {
+          x = li[k];
+          for (tmp=0; tmp<bs; tmp++) v[b_a[k*bs+tmp]] *= x;
         } 
+	v += bs2; 
       }  
     }
     ierr = VecRestoreArrayRead(ll,&l);CHKERRQ(ierr);
@@ -2761,11 +3249,10 @@ PetscErrorCode MatDiagonalScale_SeqBAIJ(Mat A,Vec ll,Vec rr)
       v   = aa + bs2*iai;
       for (j=0; j<M; j++) { /* for each block */
         ri = r + bs*aj[iai+j];
-        for (k=0; k<bs; k++) {
-          x = ri[k];
-          for (tmp=0; tmp<bs; tmp++) v[tmp] *= x;
-          v += bs;
-        } 
+        for (k=0; k<bs2; k++) {
+          v[b_a[k]] *= ri[k%bs];
+        }
+          v += bs2;
       }  
     }
     ierr = VecRestoreArrayRead(rr,&r);CHKERRQ(ierr);

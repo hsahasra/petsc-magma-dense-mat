@@ -2057,8 +2057,9 @@ PetscErrorCode MatDiagonalScale_SeqBAIJ(Mat A,Vec ll,Vec rr)
       v  = aa + bs2*ai[i];
       for (j=0; j<M; j++) { /* for each block */
         for (k=0; k<bs2; k++) {
-          (*v++) *= li[k%bs];
-        } 
+          v[k] *= li[k%bs];
+        }
+	v += bs2; 
       }  
     }
     ierr = VecRestoreArrayRead(ll,&l);CHKERRQ(ierr);
@@ -2077,9 +2078,9 @@ PetscErrorCode MatDiagonalScale_SeqBAIJ(Mat A,Vec ll,Vec rr)
         ri = r + bs*aj[iai+j];
         for (k=0; k<bs; k++) {
           x = ri[k];
-          for (tmp=0; tmp<bs; tmp++) v[tmp] *= x;
-          v += bs;
+          for (tmp=0; tmp<bs; tmp++) v[k*bs+tmp] *= x;
         } 
+          v += bs2;
       }  
     }
     ierr = VecRestoreArrayRead(rr,&r);CHKERRQ(ierr);
