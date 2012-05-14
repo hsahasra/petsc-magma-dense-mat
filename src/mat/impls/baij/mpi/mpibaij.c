@@ -104,6 +104,85 @@ PetscErrorCode CreateColmap_MPIBAIJ_Private(Mat mat)
   PetscFunctionReturn(0);
 }
 
+#ifndef _VEC1
+#define  MatSetValues_SeqBAIJ_A_Private(row,col,value,addv) \
+{ \
+ \
+    brow = row/bs;  \
+    rp   = aj + ai[brow]; ap = aa + bs2*ai[brow]; \
+    rmax = aimax[brow]; nrow = ailen[brow]; \
+      bcol = col/bs; \
+      ridx = row % bs; cidx = col % bs; \
+      low = 0; high = nrow; \
+      while (high-low > 3) { \
+        t = (low+high)/2; \
+        if (rp[t] > bcol) high = t; \
+        else              low  = t; \
+      } \
+      for (_i=low; _i<high; _i++) { \
+        if (rp[_i] > bcol) break; \
+        if (rp[_i] == bcol) { \
+          bap  = ap +  bs2*_i + ab_a[bs*ridx + cidx]; \
+          if (addv == ADD_VALUES) *bap += value;  \
+          else                    *bap  = value;  \
+          goto a_noinsert; \
+        } \
+      } \
+      if (a->nonew == 1) goto a_noinsert; \
+      if (a->nonew == -1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Inserting a new nonzero (%D, %D) into matrix", row, col); \
+      MatSeqXAIJReallocateAIJ(A,a->mbs,bs2,nrow,brow,bcol,rmax,aa,ai,aj,rp,ap,aimax,a->nonew,MatScalar); \
+      N = nrow++ - 1;  \
+      /* shift up all the later entries in this row */ \
+      for (ii=N; ii>=_i; ii--) { \
+        rp[ii+1] = rp[ii]; \
+        ierr = PetscMemcpy(ap+bs2*(ii+1),ap+bs2*(ii),bs2*sizeof(MatScalar));CHKERRQ(ierr); \
+      } \
+      if (N>=_i) { ierr = PetscMemzero(ap+bs2*_i,bs2*sizeof(MatScalar));CHKERRQ(ierr); }  \
+      rp[_i]                      = bcol;  \
+      ap[bs2*_i + ab_a[bs*ridx + cidx]] = value;  \
+      a_noinsert:; \
+    ailen[brow] = nrow; \
+} 
+
+#define  MatSetValues_SeqBAIJ_B_Private(row,col,value,addv) \
+{ \
+    brow = row/bs;  \
+    rp   = bj + bi[brow]; ap = ba + bs2*bi[brow]; \
+    rmax = bimax[brow]; nrow = bilen[brow]; \
+      bcol = col/bs; \
+      ridx = row % bs; cidx = col % bs; \
+      low = 0; high = nrow; \
+      while (high-low > 3) { \
+        t = (low+high)/2; \
+        if (rp[t] > bcol) high = t; \
+        else              low  = t; \
+      } \
+      for (_i=low; _i<high; _i++) { \
+        if (rp[_i] > bcol) break; \
+        if (rp[_i] == bcol) { \
+          bap  = ap +  bs2*_i + bb_a[bs*ridx + cidx]; \
+          if (addv == ADD_VALUES) *bap += value;  \
+          else                    *bap  = value;  \
+          goto b_noinsert; \
+        } \
+      } \
+      if (b->nonew == 1) goto b_noinsert; \
+      if (b->nonew == -1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Inserting a new nonzero (%D, %D) into matrix", row, col); \
+      MatSeqXAIJReallocateAIJ(B,b->mbs,bs2,nrow,brow,bcol,rmax,ba,bi,bj,rp,ap,bimax,b->nonew,MatScalar); \
+      CHKMEMQ;\
+      N = nrow++ - 1;  \
+      /* shift up all the later entries in this row */ \
+      for (ii=N; ii>=_i; ii--) { \
+        rp[ii+1] = rp[ii]; \
+        ierr = PetscMemcpy(ap+bs2*(ii+1),ap+bs2*(ii),bs2*sizeof(MatScalar));CHKERRQ(ierr); \
+      } \
+      if (N>=_i) { ierr = PetscMemzero(ap+bs2*_i,bs2*sizeof(MatScalar));CHKERRQ(ierr);}  \
+      rp[_i]                      = bcol;  \
+      ap[bs2*_i + bb_a[bs*ridx + cidx]] = value;  \
+      b_noinsert:; \
+    bilen[brow] = nrow; \
+} 
+#else
 #define  MatSetValues_SeqBAIJ_A_Private(row,col,value,addv) \
 { \
  \
@@ -181,7 +260,7 @@ PetscErrorCode CreateColmap_MPIBAIJ_Private(Mat mat)
       b_noinsert:; \
     bilen[brow] = nrow; \
 } 
-
+#endif
 #undef __FUNCT__  
 #define __FUNCT__ "MatSetValues_MPIBAIJ"
 PetscErrorCode MatSetValues_MPIBAIJ(Mat mat,PetscInt m,const PetscInt im[],PetscInt n,const PetscInt in[],const PetscScalar v[],InsertMode addv)
@@ -200,6 +279,9 @@ PetscErrorCode MatSetValues_MPIBAIJ(Mat mat,PetscInt m,const PetscInt im[],Petsc
   Mat_SeqBAIJ    *a = (Mat_SeqBAIJ*)(A)->data; 
   PetscInt       *aimax=a->imax,*ai=a->i,*ailen=a->ilen,*aj=a->j; 
   MatScalar      *aa=a->a;
+#ifndef _VEC1
+	PetscInt * ab_a = a->block_a;
+#endif
 
   Mat            B = baij->B;
   Mat_SeqBAIJ    *b = (Mat_SeqBAIJ*)(B)->data; 
@@ -209,6 +291,9 @@ PetscErrorCode MatSetValues_MPIBAIJ(Mat mat,PetscInt m,const PetscInt im[],Petsc
   PetscInt       *rp,ii,nrow,_i,rmax,N,brow,bcol; 
   PetscInt       low,high,t,ridx,cidx,bs2=a->bs2; 
   MatScalar      *ap,*bap;
+#ifndef _VEC1
+	PetscInt * bb_a = b->block_a;
+#endif
 
   PetscFunctionBegin;
   if (v) PetscValidScalarPointer(v,6);
