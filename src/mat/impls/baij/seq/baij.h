@@ -213,7 +213,10 @@ PETSC_INTERN PetscErrorCode MatMult_SeqBAIJ_15_ver3(Mat,Vec,Vec);
 PETSC_INTERN PetscErrorCode MatMult_SeqBAIJ_15_ver4(Mat,Vec,Vec);
 
 PETSC_INTERN PetscErrorCode MatMult_SeqBAIJ_N(Mat,Vec,Vec);
-
+#ifdef _VEC2
+extern PetscErrorCode MatMult_SeqBAIJ_Nodd(Mat,Vec,Vec);
+extern PetscErrorCode MatMult_SeqBAIJ_Neven(Mat,Vec,Vec);
+#endif
 PETSC_INTERN PetscErrorCode MatMultAdd_SeqBAIJ_1(Mat,Vec,Vec,Vec);
 PETSC_INTERN PetscErrorCode MatMultAdd_SeqBAIJ_2(Mat,Vec,Vec,Vec);
 PETSC_INTERN PetscErrorCode MatMultAdd_SeqBAIJ_3(Mat,Vec,Vec,Vec);
@@ -225,6 +228,10 @@ PETSC_INTERN PetscErrorCode MatMultAdd_SeqBAIJ_N(Mat,Vec,Vec,Vec);
 PETSC_INTERN PetscErrorCode MatLoad_SeqBAIJ(Mat,PetscViewer);
 PETSC_INTERN PetscErrorCode MatSeqBAIJSetNumericFactorization_inplace(Mat,PetscBool);
 PETSC_INTERN PetscErrorCode MatSeqBAIJSetNumericFactorization(Mat,PetscBool);
+#ifdef _VEC2
+extern PetscErrorCode MatMultAdd_SeqBAIJ_Nodd(Mat,Vec,Vec,Vec);
+extern PetscErrorCode MatMultAdd_SeqBAIJ_Neven(Mat,Vec,Vec,Vec);
+#endif
 
 /*
   PetscKernel_A_gets_A_times_B_2: A = A * B with size bs=2
