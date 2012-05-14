@@ -3,6 +3,14 @@
 #define __MPIBAIJ_H
 #include <../src/mat/impls/baij/seq/baij.h>
 #include <petscctable.h>
+#include <immintrin.h>
+#define _VEC4
+#elif defined(__SSE2__) //Use 128 bit SSE intrinsics
+#include <emmintrin.h>
+#define _VEC2
+#else
+#define _VEC1
+#endif
 
 #if defined(PETSC_USE_CTABLE)
 #define PETSCTABLE PetscTable
