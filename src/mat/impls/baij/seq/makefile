@@ -1,7 +1,7 @@
 
 ALL: lib
 
-CFLAGS   = -xavx
+CFLAGS   = -xavx 
 FFLAGS   =
 CPPFLAGS =
 SOURCEC  = baij.c baij2.c baij2_sse.c baij2_avx.c baijfact.c baijfact2.c dgefa.c dgedi.c dgefa3.c \

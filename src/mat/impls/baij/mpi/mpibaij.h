@@ -4,13 +4,16 @@
 #include <../src/mat/impls/baij/seq/baij.h>
 #include <petscctable.h>
 #include <immintrin.h>
-#define _VEC4
+#define _VEC2
 #elif defined(__SSE2__) //Use 128 bit SSE intrinsics
 #include <emmintrin.h>
 #define _VEC2
 #else
 #define _VEC1
 #endif
+
+#define PetscFunctionBegin1 PetscFunctionBegin;\
+	printf("\n%s\n",__FUNCT__);
 
 #if defined(PETSC_USE_CTABLE)
 #define PETSCTABLE PetscTable
