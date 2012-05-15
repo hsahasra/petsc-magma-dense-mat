@@ -2912,6 +2912,7 @@ PetscErrorCode MatGetDiagonal_SeqBAIJ(Mat A,Vec v)
   PetscInt       i,j,k,n,row,bs,*ai,*aj,ambs,bs2;
   PetscScalar    *x,zero = 0.0;
   MatScalar      *aa,*aa_j;
+	PetscInt * b_a = a->block_a;
 
   PetscFunctionBegin;
   if (A->factortype) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix");  
@@ -2931,7 +2932,7 @@ PetscErrorCode MatGetDiagonal_SeqBAIJ(Mat A,Vec v)
       if (aj[j] == i) {
         row  = i*bs;
         aa_j = aa+j*bs2;
-        for (k=0; k<bs2; k+=(bs+1),row++) x[row] = aa_j[k];
+        for (k=0; k<bs2; k+=(bs+1),row++) x[row] = aa_j[b_a[k]];
         break;
       }
     }
