@@ -36,6 +36,7 @@ extern PetscErrorCode MatSetUpPreallocation_SeqSG(Mat);
 extern PetscErrorCode MatSetGrid_SeqSG(Mat,PetscInt, PetscInt, PetscInt);
 extern PetscErrorCode MatZeroEntries_SeqSG(Mat);
 extern PetscErrorCode MatGetDiagonal_SeqSG(Mat, Vec);
+extern PetscErrorCode MatDiagonalScale_SeqSG(Mat, Vec, Vec);
 extern PetscErrorCode MatGetRow_SeqSG(Mat , PetscInt, PetscInt *, PetscInt *[] , PetscScalar *[]);
 extern PetscErrorCode MatRestoreRow_SeqSG(Mat , PetscInt, PetscInt *, PetscInt *[] , PetscScalar *[]);
 extern PetscErrorCode MatGetRowMaxAbs_SeqSG(Mat, Vec, PetscInt[]);

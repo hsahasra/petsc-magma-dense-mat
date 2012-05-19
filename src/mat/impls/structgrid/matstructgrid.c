@@ -16,7 +16,7 @@ static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_SeqSG,MatGetRow_SeqSG,MatRestoreRow_SeqSG,MatMult_SeqSG,0,
 /*5*/0,0,0,0,0,
 /*10*/0,0,0,0,0,
-/*15*/0,0,MatGetDiagonal_SeqSG,0,0,
+/*15*/0,0,MatGetDiagonal_SeqSG,MatDiagonalScale_SeqSG,0,
 /*20*/0,0,0,MatZeroEntries_SeqSG,0,
 /*25*/0,0,0,0,MatSetUpPreallocation_SeqSG,
 /*30*/0,0,0,0,0,
@@ -582,7 +582,16 @@ Added by Deepan */
 }
 
 
+/** MatDiagonalScale
+    Added by Justin Holewinski */
+#undef __FUNCT__
+#define __FUNCT__ "MatDiagonalScale_SeqSG"
 
+PetscErrorCode MatDiagonalScale_SeqSG(Mat A, Vec ll, Vec rr) {
+  PetscFunctionBegin;
+  fprintf(stderr, "WARNING: MatDiagonalScale_SeqSG is a placeholder!\n");
+  PetscFunctionReturn(0);
+}
 
 
 /** MatGetRow_SeqSG : Returns the element corresponding to a single row in the matrix
