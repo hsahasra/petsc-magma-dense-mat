@@ -398,8 +398,8 @@ __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x,
 
   if (threadIdx.x < stpoints) {
     idx_sm[threadIdx.x] = idx[threadIdx.x];
-    printf("%d, %d\n", idx_sm[threadIdx.x], idx[threadIdx.x]);
   }
+  __syncthreads();
 
   int reg2 = blockIdx.y * lda2 + tx;
 
@@ -493,8 +493,11 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
 
 #if _DBGFLAG
   printf("m: %d  n: %d  p: %d  nos: %d  stpoints: %d  DOF: %d\n", m, n, p, nos, stpoints, DOF);
-#endif
 
+  for (unsigned i = 0; i < stpoints; ++i) {
+    printf("Stencil Point:  %d, %d, %d\n", idx[i], idy[i], idz[i]);
+  }
+#endif
 
   //----Single offset instead of using three offsets int the x,y and z direction.  
   if (stpoints==5)
