@@ -22,7 +22,7 @@
 #include "private/matimpl.h"
 #include "matstructgridgpu.h"
 
-#define _DBGFLAG 1
+#define _DBGFLAG 0
 //#define PRINT
 //block size is 1x256. 
 #define BLOCKWIDTH_X 256		
@@ -482,7 +482,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   static double temp=0;
   PetscScalar* d_x;
   PetscScalar* d_y;
-  PetscInt *d_idx, *d_idy, *d_idz;
+  PetscInt *d_linear_idx;
   int nos;
 
   int BLOCK_SIZE;
@@ -499,28 +499,34 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   }
 #endif
 
+  PetscInt *linear_idx;
+  PetscMalloc(stpoints * sizeof(PetscInt), &linear_idx);
+
+  for (unsigned i = 0; i < stpoints; ++i) {
+    linear_idx[i] = idx[i]*DOF + idy[i]*cons + idz[i]*cons1;
+  }
   //----Single offset instead of using three offsets int the x,y and z direction.  
-  if (stpoints==5)
-  {
-    idx[0]=0;
-    idx[1]=DOF;
-    idx[2]=cons;
-    idx[3]=-DOF;
-    idx[4]=-cons;
-  }
-  else if (stpoints==7)
-  {
-    idx[0]=0;
-    idx[1]=DOF;
-    idx[2]=cons;
-    idx[3]=cons1;
-    idx[4]=-DOF;
-    idx[5]=-cons;
-    idx[6]=-cons1;
-  } else {
-    printf("Bad value for stpoints\n");
-    exit(EXIT_FAILURE);
-  }
+  //if (stpoints==5)
+  //{
+  //  idx[0]=0;
+  //  idx[1]=DOF;
+  //  idx[2]=cons;
+  //  idx[3]=-DOF;
+  //  idx[4]=-cons;
+  //}
+  //else if (stpoints==7)
+  //{
+  //  idx[0]=0;
+  //  idx[1]=DOF;
+  //  idx[2]=cons;
+  //  idx[3]=cons1;
+  //  idx[4]=-DOF;
+  //  idx[5]=-cons;
+  //  idx[6]=-cons1;
+  //} else {
+  //  printf("Bad value for stpoints\n");
+  //  exit(EXIT_FAILURE);
+  //}
 
 
   //------------Printing Matrices for Debugging---------------------------------
@@ -615,20 +621,11 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   checkCUDAError("cudaMemcpy (d_y)");
 
   size_id = stpoints*sizeof(PetscInt);
-  cudaMalloc((void**)&d_idx,size_id);
+  cudaMalloc((void**)&d_linear_idx,size_id);
   checkCUDAError("cudaMalloc (d_idx)");
-  cudaMemcpy(d_idx, idx, size_id, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_linear_idx, linear_idx, size_id, cudaMemcpyHostToDevice);
   checkCUDAError("cudaMemcpy (d_idx)");
 
-  cudaMalloc((void**)&d_idy,size_id);
-  checkCUDAError("cudaMalloc (d_idy)");
-  cudaMemcpy(d_idy, idy, size_id, cudaMemcpyHostToDevice);
-  checkCUDAError("cudaMemcpy (d_idy)");
-
-  cudaMalloc((void**)&d_idz,size_id);
-  checkCUDAError("cudaMalloc (d_idz)");
-  cudaMemcpy(d_idz, idz, size_id, cudaMemcpyHostToDevice);
-  checkCUDAError("cudaMemcpy (d_idz)");
 
   //Binding X to the texture Memory
   cudaBindTexture(0, tex_x_double, d_x, size_xy);
@@ -666,7 +663,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   printf("dimGrid:  %d, %d\n", dimGrid.x, dimGrid.y);
 
   for (unsigned i = 0; i < stpoints; ++i) {
-    printf("idx[%d] = %d\n", i, idx[i]);
+    printf("linear_idx[%d] = %d\n", i, linear_idx[i]);
   }
 #endif
 
@@ -675,7 +672,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   //  MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock,shared_size>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
   //}
   //else{
-    MatMult_Kernel<<<dimGrid,dimBlock,shared_size>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos, stpoints, DOF);
+    MatMult_Kernel<<<dimGrid,dimBlock,shared_size>>>(d_coeff, d_x, d_y, d_linear_idx, m, n, p, nos, stpoints, DOF);
   //}
 
   // check if kernel execution generated and error
@@ -767,14 +764,13 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
     printf("Y[%d]: %lf\n",i,y[i]);
 #endif
 
+  PetscFree(linear_idx);
 
   //Free Device Memory
   //cudaFree(d_coeff);
   cudaFree(d_x);
   cudaFree(d_y);
-  cudaFree(d_idx);
-  cudaFree(d_idy);
-  cudaFree(d_idz);
+  cudaFree(d_linear_idx);
 
   return 0;
 }
