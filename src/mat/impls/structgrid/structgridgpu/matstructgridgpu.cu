@@ -18,7 +18,7 @@
 #include <string.h>
 #include <omp.h>
 #include "../src/mat/impls/structgrid/matstructgrid.h"
-
+#include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
 #include "private/matimpl.h"
 #include "matstructgridgpu.h"
 
@@ -185,15 +185,21 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 
   PetscFunctionBegin;
   ierr = VecSet(y,0.0); CHKERRQ(ierr);
-  ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
-  ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
+  //  ierr = VecGetArray(x, &xx); CHKERRQ(ierr);
+  //  ierr = VecGetArray(y, &yy); CHKERRQ(ierr);
+
+  Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
+  Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
+  xx = xd->devptr;
+  yy = yd->devptr;
 
   /* Call to Jeswin's version */
   ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,
       a->stpoints,&(mat->valid_GPU_matrix),a->dof);CHKERRQ(ierr);
 
-  ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
-  ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
+  yd->syncState=VEC_GPU;
+  //  ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
+  //  ierr = VecRestoreArray(y,&yy); CHKERRQ(ierr);
   ierr = PetscLogFlops(2*a->nz*a->stpoints); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -480,8 +486,8 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   static unsigned int kcalls=0;
   PetscInt size_xy, size_id; 
   static double temp=0;
-  PetscScalar* d_x;
-  PetscScalar* d_y;
+  //PetscScalar* d_x;
+  //PetscScalar* d_y;
   PetscInt *d_linear_idx;
   int nos;
 
@@ -610,7 +616,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
 
 
   size_xy = m*n*p*DOF*sizeof(PetscScalar);
-  cudaMalloc((void**)&d_x,size_xy);
+  /*  cudaMalloc((void**)&d_x,size_xy);
   checkCUDAError("cudaMalloc (d_x)");
   cudaMemcpy(d_x, x, size_xy, cudaMemcpyHostToDevice);
   checkCUDAError("cudaMemcpy (d_x)");
@@ -619,7 +625,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   checkCUDAError("cudaMalloc (d_y)");
   cudaMemcpy(d_y, y, size_xy, cudaMemcpyHostToDevice);
   checkCUDAError("cudaMemcpy (d_y)");
-
+  */
   size_id = stpoints*sizeof(PetscInt);
   cudaMalloc((void**)&d_linear_idx,size_id);
   checkCUDAError("cudaMalloc (d_idx)");
@@ -628,7 +634,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
 
 
   //Binding X to the texture Memory
-  cudaBindTexture(0, tex_x_double, d_x, size_xy);
+  cudaBindTexture(0, tex_x_double, x, size_xy);
   checkCUDAError("cudaBindTexture");
 
 #if(_DBGFLAG)
@@ -672,7 +678,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   //  MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock,shared_size>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
   //}
   //else{
-    MatMult_Kernel<<<dimGrid,dimBlock,shared_size>>>(d_coeff, d_x, d_y, d_linear_idx, m, n, p, nos, stpoints, DOF);
+    MatMult_Kernel<<<dimGrid,dimBlock,shared_size>>>(d_coeff, x, y, d_linear_idx, m, n, p, nos, stpoints, DOF);
   //}
 
   // check if kernel execution generated and error
@@ -720,8 +726,8 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
 
   //Read y from the Device Memory
 
-  cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost);
-  checkCUDAError("cudaMemcpy (d_y) OUT");
+  //  cudaMemcpy(y, d_y, size_xy, cudaMemcpyDeviceToHost);
+  // checkCUDAError("cudaMemcpy (d_y) OUT");
   /*
 	  int i;
 	  char *fn = "/homes/dlowell/cudaexprs/dcheck/outfile_SG1.txt";
@@ -768,8 +774,8 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
 
   //Free Device Memory
   //cudaFree(d_coeff);
-  cudaFree(d_x);
-  cudaFree(d_y);
+  //cudaFree(d_x);
+  //cudaFree(d_y);
   cudaFree(d_linear_idx);
 
   return 0;
