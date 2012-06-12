@@ -389,7 +389,7 @@ for(e=0;e<NUM_EVENTS;e++)
 			printf("SG AVX+Openmp Test Passed\n");
 #endif
 #ifdef GPU
-		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
+		ierr = VecAXPY(ysggpu,-1,y);CHKERRQ(ierr);
 	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
 		printf("SG-GPU Norm         = %.6f\n",normsggpu);

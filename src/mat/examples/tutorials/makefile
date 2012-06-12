@@ -1,10 +1,10 @@
-OSKI_DIR = /home/dpnkarthik/build-oski
+SKI_DIR = /home/dpnkarthik/build-oski
 OSKIINCS_DIR = ${OSKI_DIR}/include
 OSKILIBS_DIR = ${OSKI_DIR}/lib/oski
 
 OSKILIBS_STATIC = -Wl,--whole-archive `cat $(OSKILIBS_DIR)/site-modules-static.txt` -Wl,--no-whole-archive
 
-CFLAGS 	        = -openmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include 
+CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include -g
 FFLAGS	        = 
 CPPFLAGS        = 
 FPPFLAGS        =
