@@ -1,8 +1,8 @@
-/*  -------------------------------------------------------------------- 
+/*  --------------------------------------------------------------------
 
      This file extends structgrid data type to make use of GPUS. The new data type
      is structgridgpu. The implementation of the new datatype emulates the seqaijcusp
-     implementation which is an extension to aij matrix format. 
+     implementation which is an extension to aij matrix format.
      Author: Chekuri S. Choudary, RNET
  */
 
@@ -24,9 +24,9 @@
 
 #define _DBGFLAG 0
 //#define PRINT
-//block size is 1x256. 
-#define BLOCKWIDTH_X 256		
-#define BLOCKWIDTH_Y 1   
+//block size is 1x256.
+#define BLOCKWIDTH_X 256
+#define BLOCKWIDTH_Y 1
 
 
 // ----------------------------------------------------------
@@ -72,13 +72,6 @@ struct Stencilparams{
 __constant__ Stencilparams devparams;//device memory
 
 
-static double* devA;
-static PetscScalar* d_coeff;
-static double* devX;
-static double* devY;
-
-
-
 
 // ----------------------------------------------------------
 // helper function for error checking
@@ -88,10 +81,10 @@ static double* devY;
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
-    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
-    exit(EXIT_FAILURE); 
+    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) );
+    exit(EXIT_FAILURE);
   }
-} 
+}
 
 //------------------------------------------------------
 // general timer function using unix system call
@@ -106,8 +99,8 @@ double getclock(){
 
 
 /*  --------------------------------------------------------------------
-     This function destroys the matrix of type structgridgpu. It first 
-     deallocates the memory on GPU and then calls the MatDestroy_SeqSG 
+     This function destroys the matrix of type structgridgpu. It first
+     deallocates the memory on GPU and then calls the MatDestroy_SeqSG
      function.
      Author: Chekuri S. Choudary, RNET
  */
@@ -121,12 +114,19 @@ PetscErrorCode  MatDestroy_SeqSGGPU(Mat B)
   PetscErrorCode ierr;
   PetscFunctionBegin;
 
-  if (B->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED) 
+  Mat_SeqSG * a = (Mat_SeqSG *) B->data;
+
+  if (B->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
   {
-    if (devA) cudaFree(devA);
-    if (d_coeff) cudaFree(d_coeff);
-    if(devY) cudaFree(devY);
-    if(devX) cudaFree(devX);
+#if _DBGFLAG
+  	  printf("Free GPU matrix(%p)\n", a->gpuMat);
+  	  fflush(stdout);
+#endif
+    if (a->gpuMat) cudaFree(a->gpuMat);
+#if _DBGFLAG
+    printf("After free\n", a->gpuMat);
+    fflush(stdout);
+#endif
   }
 
   B->valid_GPU_matrix = PETSC_CUSP_UNALLOCATED;
@@ -150,8 +150,9 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "MatCreate_SeqSGGPU"
 PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 {
-
+#if _DBGFLAG
   printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
+#endif
 
   PetscErrorCode ierr;
   PetscFunctionBegin;
@@ -193,9 +194,12 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
   xx = xd->devptr;
   yy = yd->devptr;
 
+#if _DBGFLAG
+  printf("MatMult call (%p)\n", a);
+#endif
   /* Call to Jeswin's version */
   ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,
-      a->stpoints,&(mat->valid_GPU_matrix),a->dof);CHKERRQ(ierr);
+      a->stpoints,&(mat->valid_GPU_matrix),a->dof, &a->gpuMat);CHKERRQ(ierr);
 
   yd->syncState=VEC_GPU;
   //  ierr = VecRestoreArray(x,&xx); CHKERRQ(ierr);
@@ -206,10 +210,10 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 EXTERN_C_END
 
 
-/*  -------------------------------------------------------------------- 
-     The following is a CUDA kernel for matrix vector multiplication on 
-     the GPU. The matrix is in a custom layout that facilitates better 
-     memory accesses and vectorization. 
+/*  --------------------------------------------------------------------
+     The following is a CUDA kernel for matrix vector multiplication on
+     the GPU. The matrix is in a custom layout that facilitates better
+     memory accesses and vectorization.
      Author: Chekuri S. Choudary, RNET
  */
 /* Version with Shared memory for X only supports rectangular tiles. */
@@ -264,7 +268,7 @@ for (l=0;l<nos;l++)
 /*  #define BLOCKWIDTH 8
 #define BLOCKWIDTH_X 8
 #define BLOCKWIDTH_Y 8
-#define BLOCKWIDTH_Z 8 
+#define BLOCKWIDTH_Z 8
 
   __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x, PetscScalar* ptr_y, PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n ,PetscInt p, PetscInt nos)
 {
@@ -325,12 +329,12 @@ for (l=0;l<nos;l++)
 
 	ptr_y[tz*lda2+ ty*lda3 + tx]= y_sm[threadIdx.z*BLOCKWIDTH_X*BLOCKWIDTH_Y +threadIdx.y*BLOCKWIDTH_X + threadIdx.x];
 }
- */   
+ */
 
 
 //------------------------------------------------------------------------------------
-//   These functions are used to bind and unbind the Vector x to the texture Memory.	   
-//------------------------------------------------------------------------------------ 
+//   These functions are used to bind and unbind the Vector x to the texture Memory.
+//------------------------------------------------------------------------------------
 texture<int2, 1> tex_x_double;
 
 void unbind_x( double * x)
@@ -346,16 +350,16 @@ static __inline__ __device__ double fetch_double(texture<int2, 1> tex_x_double, 
 }
 
 //------------------------------------------------------------------------------------
-// Dynamically allocating Shared Memory size	   
-//------------------------------------------------------------------------------------ 
+// Dynamically allocating Shared Memory size
+//------------------------------------------------------------------------------------
 
 extern __shared__ PetscInt idx_sm[];
 
 //------------------------------------------------------------------------------------
 //  Below functions are SPMV kernel functions where x through the Texture Memory, offsets are accesed
-//	through the Shared Memory, Y is accessed per thread from registers. Coeff accesses are from the global Memory 
-//	but they are coalesced.  	   
-//------------------------------------------------------------------------------------ 
+//	through the Shared Memory, Y is accessed per thread from registers. Coeff accesses are from the global Memory
+//	but they are coalesced.
+//------------------------------------------------------------------------------------
 
 
 __global__ void MatMul_Kernel_tex_1_DOF(PetscScalar * ptr_coeff,
@@ -415,6 +419,12 @@ __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x,
     if ((Index >= 0) && (Index < lda1)) {
       for (i = 0; i < DOF; i++) {
         offset = (l * DOF + i) * lda1;
+        if (threadIdx.x == 0) {
+          printf("index: %d\n", offset + reg2);
+        }
+        //if ((offset + reg2) >= (m*n*p*DOF*stpoints*DOF)) {
+        //	  printf("Out of range!\n");
+        //}
         y_reg += ptr_coeff[offset + reg2]
             * fetch_double(tex_x_double, Index - (threadIdx.x % DOF) + i);
       }
@@ -474,17 +484,18 @@ __global__ void MatMul_Kernel_tex(double * ptr_coeff, double* ptr_x,
 
 //------------------------------------------------------------------------------------
 //   The function is a wrapper function which sets up the device memory, transfers
-//   data to and from the device, and calls the MatMult kernel. 
-//------------------------------------------------------------------------------------ 
+//   data to and from the device, and calls the MatMult kernel.
+//------------------------------------------------------------------------------------
 
 int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
     PetscInt *idx, PetscInt* idy, PetscInt* idz, PetscInt m, PetscInt n,
-    PetscInt p, PetscInt stpoints, PetscCUSPFlag* fp, PetscInt DOF) {
+    PetscInt p, PetscInt stpoints, PetscCUSPFlag* fp, PetscInt DOF,
+    PetscScalar** gpuMat) {
   double tbegin1, tbegin2, tend1, tend2;
-  static PetscInt size_coeff; 
+  static PetscInt size_coeff;
   double tsetup,tkernel;
   static unsigned int kcalls=0;
-  PetscInt size_xy, size_id; 
+  PetscInt size_xy, size_id;
   static double temp=0;
   //PetscScalar* d_x;
   //PetscScalar* d_y;
@@ -511,7 +522,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   for (unsigned i = 0; i < stpoints; ++i) {
     linear_idx[i] = idx[i]*DOF + idy[i]*cons + idz[i]*cons1;
   }
-  //----Single offset instead of using three offsets int the x,y and z direction.  
+  //----Single offset instead of using three offsets int the x,y and z direction.
   //if (stpoints==5)
   //{
   //  idx[0]=0;
@@ -572,7 +583,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   //------------------------------------------------------------------------------------------
 
 
-#if(_DBGFLAG) 
+#if(_DBGFLAG)
   tbegin1=getclock();
 #endif
 
@@ -581,9 +592,18 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   {
     if (*fp == PETSC_CUSP_UNALLOCATED)
     {
+#if _DBGFLAG
+    		printf("Allocate GPU matrix (%p) container (%p)\n", *gpuMat, gpuMat);
+    		fflush(stdout);
+#endif
       size_coeff=nos*m*n*p*DOF*sizeof(PetscScalar);
-      cudaMalloc((void**)&d_coeff,size_coeff);
+      cudaMalloc((void**)gpuMat,size_coeff);
       checkCUDAError("cudaMalloc (d_coeff)");
+#if _DBGFLAG
+      printf("After malloc (%p)\n", *gpuMat);
+      fflush(stdout);
+#endif
+
 
       //cudastatus0=cudaMalloc((void**)&devA,matsize);
       //if(cudastatus0!=cudaSuccess)
@@ -594,7 +614,10 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
       //	}
     }
 
-    cudaMemcpy(d_coeff, coeff, size_coeff, cudaMemcpyHostToDevice);
+#if _DBGFLAG
+    printf("- Memcpy host ptr %p and size %ld\n", coeff, size_coeff);
+#endif
+    cudaMemcpy(*gpuMat, coeff, size_coeff, cudaMemcpyHostToDevice);
     checkCUDAError("cudaMemcpy (d_coeff)");
 
     //cudastatus1=cudaMemcpy(devA,A,matsize,cudaMemcpyHostToDevice);
@@ -678,7 +701,11 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
   //  MatMul_Kernel_tex_1_DOF<<<dimGrid,dimBlock,shared_size>>>(d_coeff, d_x, d_y, d_idx, m, n, p, nos,DOF);
   //}
   //else{
-    MatMult_Kernel<<<dimGrid,dimBlock,shared_size>>>(d_coeff, x, y, d_linear_idx, m, n, p, nos, stpoints, DOF);
+  printf("nos: %d  stpoints: %d  DOF: %d\n", nos, stpoints, DOF);
+#if _DBGFLAG
+  printf("Launch stpoints: %d\n", stpoints);
+#endif
+  MatMult_Kernel<<<dimGrid,dimBlock,shared_size>>>(*gpuMat, x, y, d_linear_idx, m, n, p, nos, stpoints, DOF);
   //}
 
   // check if kernel execution generated and error
@@ -715,7 +742,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
    */
 
 
-#if(_DBGFLAG) 
+#if(_DBGFLAG)
   cudaDeviceSynchronize();
   checkCUDAError("Launch/Sync");
   tend2=getclock();
@@ -761,7 +788,7 @@ int SGCUDA_MatMult(PetscScalar* coeff, PetscScalar* x, PetscScalar* y,
     printf("Performance in Megaflops without copy time = %f\n",(2*nos*n*m*p*1.0e-6)/tkernel);
     printf("Culmative Performance in Megaflops for *%d* calls without copy time = %f\n",kcalls,(2*nos*n*m*p*1.0e-6)/(temp/(kcalls+1)));
   }
-#endif	
+#endif
   kcalls++;
 
 

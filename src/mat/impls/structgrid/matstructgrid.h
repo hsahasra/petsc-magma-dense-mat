@@ -6,11 +6,11 @@
 
 
 /*
-The following structure defines the structgrid datatype. It is a subclass 
-of generic matrix datatype and makes an implementation inheritance. 
+The following structure defines the structgrid datatype. It is a subclass
+of generic matrix datatype and makes an implementation inheritance.
 */
-typedef struct 
-{                             
+typedef struct
+{
 PetscScalar * a; 	//data
 PetscInt * idx;		//x indices
 PetscInt * idy;		//y indices
@@ -24,12 +24,14 @@ PetscInt p;		//z size
 PetscInt nz;		//number of grid elements
 
 PetscScalar * xt;
+
+PetscScalar * gpuMat;
 }Mat_SeqSG;
 
 extern PetscErrorCode MatCreate_SeqSG(Mat);
 extern PetscErrorCode MatDestroy_SeqSG(Mat);
 extern PetscErrorCode MatMult_SeqSG(Mat,Vec,Vec);
-extern PetscErrorCode MatSetValues_SeqSG(Mat, PetscInt,const PetscInt[] , PetscInt,const PetscInt[],const PetscScalar[], InsertMode); 
+extern PetscErrorCode MatSetValues_SeqSG(Mat, PetscInt,const PetscInt[] , PetscInt,const PetscInt[],const PetscScalar[], InsertMode);
 extern PetscErrorCode MatSetValuesBlocked_SeqSG(Mat, PetscInt,const PetscInt[], PetscInt,const PetscInt[],const PetscScalar[], InsertMode);
 extern PetscErrorCode MatSetStencil_SeqSG(Mat, PetscInt,const PetscInt[],const PetscInt[], PetscInt );
 extern PetscErrorCode MatSetUpPreallocation_SeqSG(Mat);
