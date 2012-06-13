@@ -179,7 +179,7 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "MatMult_SeqSGGPU"
 PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 {
-  int i;
+  int i, j;
   PetscErrorCode ierr;
   Mat_SeqSG * a = (Mat_SeqSG *) mat->data;
   PetscScalar * v = a->a, *xx,*yy;
@@ -197,6 +197,16 @@ PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y)
 #if _DBGFLAG
   printf("MatMult call (%p)\n", a);
 #endif
+  // Debug print
+  /*printf("MatMult with matrix:\n");
+  for (j = 0; j < a->stpoints*a->dof; ++j) {
+    for (i = 0; i < a->nz; ++i) {
+      int index = j*a->nz+i;
+      printf("%lf ", a->a[index]);
+    }
+    printf("\n");
+  }*/
+
   /* Call to Jeswin's version */
   ierr = SGCUDA_MatMult(v,xx,yy,a->idx,a->idy,a->idz,a->m,a->n,a->p,
       a->stpoints,&(mat->valid_GPU_matrix),a->dof, &a->gpuMat);CHKERRQ(ierr);
@@ -419,9 +429,9 @@ __global__ void MatMult_Kernel(PetscScalar * ptr_coeff, PetscScalar* ptr_x,
     if ((Index >= 0) && (Index < lda1)) {
       for (i = 0; i < DOF; i++) {
         offset = (l * DOF + i) * lda1;
-        if (threadIdx.x == 0) {
-          printf("index: %d\n", offset + reg2);
-        }
+        //if (threadIdx.x == 0) {
+        //  printf("index: %d\n", offset + reg2);
+        //}
         //if ((offset + reg2) >= (m*n*p*DOF*stpoints*DOF)) {
         //	  printf("Out of range!\n");
         //}
