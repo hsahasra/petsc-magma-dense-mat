@@ -3,7 +3,7 @@ ALL: lib
 
 LIBBASE  = libpetscksp
 DIRS     = cr bcgs bcgsl cg cgs gmres cheby rich lsqr preonly tcqmr tfqmr \
-           qcg bicg minres symmlq lcd ibcgs python broyden gcr gmres specest
+           qcg bicg minres symmlq lcd ibcgs python gcr gmres specest
 
 LOCDIR   = src/ksp/ksp/impls/
 
