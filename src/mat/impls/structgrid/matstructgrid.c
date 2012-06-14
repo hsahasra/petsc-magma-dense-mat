@@ -345,11 +345,9 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 
 	//printf("MatSetValues_SeqSG(A, %d, %d)\n", nrow, ncol);
 
-#if OLD_DEEPAN
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idx);CHKERRQ(ierr);
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idy);CHKERRQ(ierr);
 	ierr = PetscMalloc(nrow*ncol*sizeof(PetscInt),&idz);CHKERRQ(ierr);
-#endif
 
 	m = mat->m;
 	n = mat->n;
@@ -367,43 +365,7 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 //        ierr = PetscIntView(stp,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
 //        ierr = PetscIntView(dis,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
 //        ierr = PetscIntView(dof,PETSC_VIWER_STDOUT_WORLD);CHKERRQ(ierr);
-	//fflush(stdout);
-
-	int bandsize = dof * mat->nz;
-
-	int startcol[] = { 0, dof, -dof, n*dof, -n*dof, n*m*dof, -n*m*dof };
-	int l, s;
-
-	for (i = 0; i < nrow; i++) {
-		for (j = 0; j < ncol; j++)	{
-			int dataidx = 0;
-			//printf("Value - row: %d  col: %d  val: %lf\n", irow[i], icol[j], y[i*ncol+j]);
-			int r = irow[i];
-			int c = icol[j];
-			for (l = 0; l < mat->stpoints; ++l) {  // Diagonals
-				for (s = 0; s < dof; ++s) {  // Columns
-					int col = startcol[l]+s;
-					for (k = 0; k < mat->nz; ++k) {
-						//printf("(%d, %d)\n", k, col);
-						if (k == r && col == c) {
-							goto done;
-						}
-						dataidx++;
-						if (((k+1) % dof) == 0) {
-							col += dof;
-						}
-					}
-				}
-			}
-
-			done:
-			//printf("Idx: %d\n", dataidx);
-			mat->a[dataidx] = y[i*ncol+j];
-		}
-	}
-
-
-#if OLD_DEEPAN
+	fflush(stdout);
 	for(i=0;i< nrow ; i++)
 	{
 		rshift = irow[i]%dof;
@@ -427,9 +389,6 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 			idy[count] = (irow[i]/(m*dof))%n;
 			//printf("irow[%d]: %d, m: %d, n: %d, dof: %d\n",i,irow[i],m,n,dof);
 			idz[count] = (offset*p) + ((irow[i]/(m*dof*n)) %p) ;
-
-			//printf("row: %d  col: %d  idx: %d  idy: %d  idz: %d\n", irow[i], icol[j], idx[count], idy[count], idz[count]);
-
 			count ++;
 		}
 	}
@@ -447,7 +406,7 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	ierr = PetscFree(idx);CHKERRQ(ierr);
 	ierr = PetscFree(idy);CHKERRQ(ierr);
 	ierr = PetscFree(idz);CHKERRQ(ierr);
-#endif
+
 
 	//Set the flag that indicates that matrix has changed on the CPU side.
         //This flag is used while copying the matrix to GPU.
@@ -659,7 +618,6 @@ PetscErrorCode MatSetUpPreallocation_SeqSG(Mat mat)
 #endif
 	memset(a->a, 0,sizeof(PetscScalar)*a->nz*a->stpoints*a->dof);
 	mat->preallocated = PETSC_TRUE;
-
 	PetscFunctionReturn(0);
 }
 
