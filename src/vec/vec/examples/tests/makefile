@@ -7,7 +7,7 @@ LOCDIR          = src/vec/vec/examples/tests/
 EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c ex9.c ex10.c \
                 ex11.c ex12.c ex14.c ex15.c ex16.c ex17.c ex18.c ex21.c ex22.c \
                 ex23.c ex24.c ex25.c ex28.c ex29.c ex31.c ex33.c ex34.c ex35.c \
-                ex36.c ex37.c ex38.c ex39.c ex40.c
+                ex36.c ex37.c ex38.c ex39.c ex40.c ex41.c ex42.c
 EXAMPLESF       = ex17f.F ex19f.F ex20f.F ex30f.F ex32f.F
 MANSEC          = Vec
 
@@ -186,6 +186,10 @@ ex41: ex41.o  chkopts
 	-${CLINKER} -o ex41 ex41.o ${PETSC_VEC_LIB}
 	${RM} -f ex41.o
 
+ex42: ex42.o  chkopts 
+	-${CLINKER} -o ex42 ex42.o ${PETSC_VEC_LIB}
+	${RM} -f ex42.o
+
 #--------------------------------------------------------------------------
 runex1:
 	-@${MPIEXEC} -n 1  ./ex1 ; \
@@ -251,7 +255,7 @@ runex12:
 	   else echo ${PWD} ; echo "Possible problem with with ex12_1, diffs above \n========================================="; fi;\
 	   ${RM} -f ex12_1.tmp
 runex13:
-	-@${MPIEXEC}  -n 2 ./ex13 > ex13_1.tmp 2>&1;\
+	-@${MPIEXEC}  -n 4 ./ex13 > ex13_1.tmp 2>&1;\
 	   if (${DIFF} output/ex13_1.out ex13_1.tmp) then true; \
 	   else echo ${PWD} ; echo "Possible problem with with ex13_1, diffs above \n========================================="; fi;\
 	   ${RM} -f ex13_1.tmp
@@ -332,6 +336,8 @@ runex26:
 	   ${RM} -f ex26_1.tmp
 runex28:
 	-@${MPIEXEC} -n 3 ./ex28
+runex28_2:
+	-@${MPIEXEC} -n 3 ./ex28 -splitreduction_async
 runex29:
 	-@${MPIEXEC} -n 3 ./ex29 -n 126 > ex29_1.tmp 2>&1;\
 	   if (${DIFF} output/ex29_1.out ex29_1.tmp) then true; \
@@ -372,18 +378,18 @@ runex36:
 runex37:
 	-@for expl in 0 1; do \
             ${MPIEXEC} -n 1 ./ex37 -explicit_is $$expl > ex37_1.tmp 2>&1;\
-	    ${DIFF} output/ex37_1.out ex37_1.tmp || echo "Possible problem with ex37_1, diffs above \n========================================="; \
+	    ${DIFF} output/ex37_1.out ex37_1.tmp || echo  ${PWD} "\nPossible problem with ex37_1, diffs above \n========================================="; \
           done; ${RM} -f ex37_1.tmp
 
 runex37_2:
 	-@for expl in 0 1; do \
             ${MPIEXEC} -n 2 ./ex37 -explicit_is $$expl > ex37_2.tmp 2>&1;\
-	    ${DIFF} output/ex37_2.out ex37_2.tmp || echo "Possible problem with ex37_2, diffs above \n========================================="; \
+	    ${DIFF} output/ex37_2.out ex37_2.tmp || echo  ${PWD} "\nPossible problem with ex37_2, diffs above \n========================================="; \
           done; ${RM} -f ex37_2.tmp
 
 runex38:
 	-@${MPIEXEC} -n 3 ./ex38 > ex38_1.tmp 2>&1;\
-	   ${DIFF} output/ex38_1.out ex38_1.tmp || echo "Possible problem with ex38, diffs above \n========================================="; \
+	   ${DIFF} output/ex38_1.out ex38_1.tmp || echo  ${PWD} "\nPossible problem with ex38, diffs above \n========================================="; \
 	   ${RM} -f ex38_1.tmp
 
 TESTEXAMPLES_C		    = ex1.PETSc runex1 ex1.rm ex2.PETSc runex2 ex2.rm ex3.PETSc runex3 ex3.rm \
@@ -394,13 +400,13 @@ TESTEXAMPLES_C		    = ex1.PETSc runex1 ex1.rm ex2.PETSc runex2 ex2.rm ex3.PETSc 
                               ex17.rm ex21.PETSc runex21 runex21_2 ex21.rm ex25.PETSc runex25 ex25.rm ex29.PETSc \
                               runex29 ex29.rm ex34.PETSc runex34 ex34.rm ex36.PETSc runex36 ex36.rm \
                               ex37.PETSc runex37 runex37_2 ex37.rm ex38.PETSc runex38 ex38.rm
-TESTEXAMPLES_C_X11	    = ex10.PETSc runex10 ex10.rm ex22.PETSc runex22 ex22.rm ex23.PETSc runex23 ex23.rm \
-                              ex24.PETSc runex24 ex24.rm ex28.PETSc runex28 ex28.rm ex33.PETSc runex33 ex33.rm
+TESTEXAMPLES_C_X	    = ex10.PETSc runex10 ex10.rm ex22.PETSc runex22 ex22.rm ex23.PETSc runex23 ex23.rm \
+                              ex24.PETSc runex24 ex24.rm ex28.PETSc runex28 runex28_2 ex28.rm ex33.PETSc runex33 ex33.rm
 TESTEXAMPLES_FORTRAN	    = ex17f.PETSc runex17f ex17f.rm ex19f.PETSc ex19f.rm ex20f.PETSc ex20f.rm ex30f.PETSc \
                               runex30f ex30f.rm 
 TESTEXAMPLES_FORTRAN_NOCOMPLEX = ex32f.PETSc runex32f ex32f.rm
 TESTEXAMPLES_FORTRAN_MPIUNI = ex19f.PETSc runex19f ex19f.rm 
-TESTEXAMPLES_C_X11_MPIUNI   = ex2.PETSc runex2 ex2.rm ex4.PETSc ex4.rm ex6.PETSc runex6 ex6.rm ex7.PETSc runex7 \
+TESTEXAMPLES_C_X_MPIUNI   = ex2.PETSc runex2 ex2.rm ex4.PETSc ex4.rm ex6.PETSc runex6 ex6.rm ex7.PETSc runex7 \
                               ex7.rm ex8.PETSc runex8 ex8.rm ex14.PETSc ex14.rm 
 
 include ${PETSC_DIR}/conf/test

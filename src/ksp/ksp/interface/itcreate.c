@@ -2,7 +2,7 @@
 /*
      The basic KSP routines, Create, View etc. are here.
 */
-#include <private/kspimpl.h>      /*I "petscksp.h" I*/
+#include <petsc-private/kspimpl.h>      /*I "petscksp.h" I*/
 
 /* Logging support */
 PetscClassId  KSP_CLASSID;
@@ -431,6 +431,7 @@ $           set size, type, etc of mat and pmat
 @*/
 PetscErrorCode  KSPSetOperators(KSP ksp,Mat Amat,Mat Pmat,MatStructure flag)
 {
+  MatNullSpace   nullsp;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -444,6 +445,12 @@ PetscErrorCode  KSPSetOperators(KSP ksp,Mat Amat,Mat Pmat,MatStructure flag)
   if (ksp->setupstage == KSP_SETUP_NEWRHS) ksp->setupstage = KSP_SETUP_NEWMATRIX;  /* so that next solve call will call PCSetUp() on new matrix */
   if (ksp->guess) {
     ierr = KSPFischerGuessReset(ksp->guess);CHKERRQ(ierr);
+  }
+  if (Amat) {
+    ierr = MatGetNullSpace(Amat, &nullsp);CHKERRQ(ierr);
+    if (nullsp) {
+      ierr = KSPSetNullSpace(ksp, nullsp);CHKERRQ(ierr);
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -495,7 +502,7 @@ PetscErrorCode  KSPGetOperators(KSP ksp,Mat *Amat,Mat *Pmat,MatStructure *flag)
    Not collective, though the results on all processes should be the same
 
    Input Parameter:
-.  pc - the preconditioner context
+.  pc - the KSP context
 
    Output Parameters:
 +  mat - the matrix associated with the linear system was set
@@ -651,7 +658,10 @@ PetscErrorCode  KSPSetType(KSP ksp, const KSPType type)
   ierr =  PetscFListFind(KSPList,((PetscObject)ksp)->comm,type,PETSC_TRUE,(void (**)(void)) &r);CHKERRQ(ierr);
   if (!r) SETERRQ1(((PetscObject)ksp)->comm,PETSC_ERR_ARG_UNKNOWN_TYPE,"Unable to find requested KSP type %s",type);
   /* Destroy the previous private KSP context */
-  if (ksp->ops->destroy) { ierr = (*ksp->ops->destroy)(ksp);CHKERRQ(ierr); }
+  if (ksp->ops->destroy) {
+    ierr = (*ksp->ops->destroy)(ksp);CHKERRQ(ierr);
+    ksp->ops->destroy = PETSC_NULL;
+  }
   /* Reinitialize function pointers in KSPOps structure */
   ierr = PetscMemzero(ksp->ops,sizeof(struct _KSPOps));CHKERRQ(ierr);
   ksp->ops->buildsolution = KSPDefaultBuildSolution;

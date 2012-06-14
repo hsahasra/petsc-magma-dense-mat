@@ -40,6 +40,7 @@ J*/
 #define   KSPFGMRES     "fgmres" 
 #define   KSPLGMRES     "lgmres"
 #define   KSPDGMRES     "dgmres"
+#define   KSPPGMRES     "pgmres"
 #define KSPTCQMR      "tcqmr"
 #define KSPBCGS       "bcgs"
 #define KSPIBCGS        "ibcgs"
@@ -55,9 +56,7 @@ J*/
 #define KSPSYMMLQ     "symmlq"
 #define KSPLCD        "lcd"
 #define KSPPYTHON     "python"
-#define KSPBROYDEN    "broyden"
 #define KSPGCR        "gcr"
-#define KSPNGMRES     "ngmres"
 #define KSPSPECEST    "specest"
 
 /* Logging support */
@@ -176,6 +175,7 @@ extern PetscErrorCode  KSPRichardsonSetScale(KSP,PetscReal);
 extern PetscErrorCode  KSPRichardsonSetSelfScale(KSP,PetscBool );
 extern PetscErrorCode  KSPChebychevSetEigenvalues(KSP,PetscReal,PetscReal);
 extern PetscErrorCode  KSPChebychevSetEstimateEigenvalues(KSP,PetscReal,PetscReal,PetscReal,PetscReal);
+extern PetscErrorCode  KSPChebychevSetNewMatrix(KSP);
 extern PetscErrorCode  KSPComputeExtremeSingularValues(KSP,PetscReal*,PetscReal*);
 extern PetscErrorCode  KSPComputeEigenvalues(KSP,PetscInt,PetscReal*,PetscReal*,PetscInt *);
 extern PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP,PetscInt,PetscReal*,PetscReal*);
@@ -270,11 +270,14 @@ extern PetscErrorCode  KSPAddOptionsChecker(PetscErrorCode (*)(KSP));
 
 extern PetscErrorCode  KSPMonitorSingularValue(KSP,PetscInt,PetscReal,void *);
 extern PetscErrorCode  KSPMonitorDefault(KSP,PetscInt,PetscReal,void *);
-extern PetscErrorCode  KSPMonitorDefaultLSQR(KSP,PetscInt,PetscReal,void *);
+extern PetscErrorCode  KSPLSQRMonitorDefault(KSP,PetscInt,PetscReal,void *);
 extern PetscErrorCode  KSPMonitorRange(KSP,PetscInt,PetscReal,void *);
 extern PetscErrorCode  KSPMonitorTrueResidualNorm(KSP,PetscInt,PetscReal,void *);
 extern PetscErrorCode  KSPMonitorDefaultShort(KSP,PetscInt,PetscReal,void *);
 extern PetscErrorCode  KSPMonitorSolution(KSP,PetscInt,PetscReal,void *);
+extern PetscErrorCode  KSPMonitorAMS(KSP,PetscInt,PetscReal,void*);
+extern PetscErrorCode  KSPMonitorAMSCreate(KSP,const char*,void**);
+extern PetscErrorCode  KSPMonitorAMSDestroy(void**);
 extern PetscErrorCode  KSPGMRESMonitorKrylov(KSP,PetscInt,PetscReal,void *);
 
 extern PetscErrorCode  KSPUnwindPreconditioner(KSP,Vec,Vec);
@@ -612,6 +615,12 @@ extern PetscErrorCode  KSPSetDMActive(KSP,PetscBool );
 extern PetscErrorCode  KSPGetDM(KSP,DM*);
 extern PetscErrorCode  KSPSetApplicationContext(KSP,void*);
 extern PetscErrorCode  KSPGetApplicationContext(KSP,void*);
+extern PetscErrorCode KSPSetComputeOperators(KSP,PetscErrorCode(*)(KSP,Mat,Mat,MatStructure*,void*),void*);
+extern PetscErrorCode KSPSetComputeRHS(KSP,PetscErrorCode(*)(KSP,Vec,void*),void*);
+extern PetscErrorCode DMKSPSetComputeOperators(DM,PetscErrorCode(*)(KSP,Mat,Mat,MatStructure*,void*),void*);
+extern PetscErrorCode DMKSPGetComputeOperators(DM,PetscErrorCode(**)(KSP,Mat,Mat,MatStructure*,void*),void*);
+extern PetscErrorCode DMKSPSetComputeRHS(DM,PetscErrorCode(*)(KSP,Vec,void*),void*);
+extern PetscErrorCode DMKSPGetComputeRHS(DM,PetscErrorCode(**)(KSP,Vec,void*),void*);
 
 PETSC_EXTERN_CXX_END
 #endif

@@ -1,13 +1,12 @@
 #define PETSCMAT_DLL
 
-
 #include "../src/mat/impls/blockstructgrid/seq/matblockstructgrid.h"
 #include "../src/mat/impls/blockstructgrid/seq/commonfunctions.h"
 #include "petscblaslapack.h"
 #include "petscbt.h"
 #include "petscmat.h"
 #include <string.h>
-#include <immintrin.h>
+//#include <immintrin.h>
 #include "../src/mat/impls/aij/seq/aij.h"  
 
 
@@ -41,7 +40,9 @@ static struct _MatOps MatOps_Values = {
 /*115*/MatCreate_SeqBSG,0,0,0,0,
 /*120*/0,0,0,0,0,
 /*125*/0,0,0,0,0,
-/*130*/MatSetStencil_SeqBSG,MatSetGrid_SeqBSG
+/*130*/0,0,0,0,0,
+/*135*/0,0,0,0,
+/*139*/MatSetStencil_SeqBSG,MatSetGrid_SeqBSG
 };
 
 
@@ -826,7 +827,7 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 	{
 		mat->ioff[mnos+3] = (mat->m*mat->n);
 	}
-	if(mat->dof == 1)
+	/*	if(mat->dof == 1)
 		mat->multfunc = &BSG_MatMult_1;
 	else if(mat->dof == 2)
 		mat->multfunc = &BSG_MatMult_2;
@@ -838,6 +839,7 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 		mat->multfunc = &BSG_MatMult_5;
 	else if (mat->dof == 6)
 		mat->multfunc = &BSG_MatMult_6;
+	*/
 /*	else if (mat->dof == 8)
 		mat->multfunc = &BSG_MatMult_8;
 	else if (mat->dof == 10)
@@ -862,10 +864,12 @@ PetscErrorCode MatSetStencil_SeqBSG(Mat A, PetscInt dim,const PetscInt dims[],co
 		mat->multfunc = &BSG_MatMult_28;
 	else if (mat->dof == 30)
 		mat->multfunc = &BSG_MatMult_30;
-*/	else if (mat->dof%2 == 0)
+*/
+/*	else if (mat->dof%2 == 0)
 		mat->multfunc = &BSG_MatMult_Neven;
 	else
 		mat->multfunc = &BSG_MatMult_Nodd;
+*/
  	PetscFunctionReturn(0);	
 }
 

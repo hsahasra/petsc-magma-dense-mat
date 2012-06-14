@@ -5,7 +5,7 @@
 
 //#include "../src/mat/impls/structgrid/matstructgrid.h"
 
-#include "private/matimpl.h"
+#include "petsc-private/matimpl.h"
 
 
 EXTERN_C_BEGIN

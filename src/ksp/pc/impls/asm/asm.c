@@ -10,7 +10,7 @@
        n_local_true - actual number of subdomains on this processor
        n_local = maximum over all processors of n_local_true
 */
-#include <private/pcimpl.h>     /*I "petscpc.h" I*/
+#include <petsc-private/pcimpl.h>     /*I "petscpc.h" I*/
 
 typedef struct {
   PetscInt   n, n_local, n_local_true;
@@ -115,11 +115,13 @@ static PetscErrorCode PCASMPrintSubdomains(PC pc)
   for (i=0;i<osm->n_local_true;i++) {
     ierr = ISGetLocalSize(osm->is[i],&nidx);CHKERRQ(ierr);
     ierr = ISGetIndices(osm->is[i],&idx);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Subdomain with overlap\n"); CHKERRQ(ierr);
     for (j=0; j<nidx; j++) {
       ierr = PetscViewerASCIISynchronizedPrintf(viewer,"%D ",idx[j]);CHKERRQ(ierr);
     }
     ierr = ISRestoreIndices(osm->is[i],&idx);CHKERRQ(ierr);
     ierr = PetscViewerASCIISynchronizedPrintf(viewer,"\n");CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "Subdomain without overlap\n"); CHKERRQ(ierr);
     if (osm->is_local) {
       ierr = ISGetLocalSize(osm->is_local[i],&nidx);CHKERRQ(ierr);
       ierr = ISGetIndices(osm->is_local[i],&idx);CHKERRQ(ierr);
@@ -128,6 +130,9 @@ static PetscErrorCode PCASMPrintSubdomains(PC pc)
       }
       ierr = ISRestoreIndices(osm->is_local[i],&idx);CHKERRQ(ierr);
       ierr = PetscViewerASCIISynchronizedPrintf(viewer,"\n");CHKERRQ(ierr);
+    }
+    else {
+      ierr = PetscViewerASCIIPrintf(viewer, "empty\n"); CHKERRQ(ierr);
     }
   }
   ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
@@ -151,6 +156,7 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
   PC             subpc;
   const char     *prefix,*pprefix;
   Vec            vec;
+  DM             *domain_dm = PETSC_NULL;
 
   PetscFunctionBegin;
   if (!pc->setupcalled) {
@@ -160,11 +166,45 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
       if (symset && flg) { osm->type = PC_ASM_BASIC; }
     }
 
+    /* Note: if osm->n_local_true has been set, it is at least 1. */
     if (osm->n == PETSC_DECIDE && osm->n_local_true < 1) { 
-      /* no subdomains given, use one per processor */
-      osm->n_local = osm->n_local_true = 1;
-      ierr = MPI_Comm_size(((PetscObject)pc)->comm,&size);CHKERRQ(ierr);
-      osm->n = size;
+      /* no subdomains given */
+      /* try pc->dm first */
+      if(pc->dm) {
+        char      ddm_name[1024];
+        DM        ddm;
+        PetscBool flg;
+        PetscInt     num_domains, d;
+        char         **domain_names;
+        IS           *domain_is;
+        /* Allow the user to request a decomposition DM by name */
+        ierr = PetscStrncpy(ddm_name, "", 1024); CHKERRQ(ierr);
+        ierr = PetscOptionsString("-pc_asm_decomposition_dm", "Name of the DM defining the composition", "PCSetDM", ddm_name, ddm_name,1024,&flg); CHKERRQ(ierr);
+        if(flg) {
+          ierr = DMCreateDecompositionDM(pc->dm, ddm_name, &ddm); CHKERRQ(ierr);
+          if(!ddm) {
+            SETERRQ1(((PetscObject)pc)->comm, PETSC_ERR_ARG_WRONGSTATE, "Uknown DM decomposition name %s", ddm_name);
+          }
+          ierr = PetscInfo(pc,"Using decomposition DM defined using options database\n");CHKERRQ(ierr);
+          ierr = PCSetDM(pc,ddm); CHKERRQ(ierr);
+        }
+        ierr = DMCreateDecomposition(pc->dm, &num_domains, &domain_names, &domain_is, &domain_dm);    CHKERRQ(ierr);
+        if(num_domains) {
+          ierr = PCASMSetLocalSubdomains(pc, num_domains, domain_is, PETSC_NULL);CHKERRQ(ierr);
+        }
+        for(d = 0; d < num_domains; ++d) {
+          ierr = PetscFree(domain_names[d]); CHKERRQ(ierr);
+          ierr = ISDestroy(&domain_is[d]);   CHKERRQ(ierr);
+        }
+        ierr = PetscFree(domain_names);CHKERRQ(ierr);
+        ierr = PetscFree(domain_is);CHKERRQ(ierr);
+      }
+      if (osm->n == PETSC_DECIDE && osm->n_local_true < 1) {
+        /* still no subdomains; use one subdomain per processor */
+        osm->n_local = osm->n_local_true = 1;
+        ierr = MPI_Comm_size(((PetscObject)pc)->comm,&size);CHKERRQ(ierr);
+        osm->n = size;
+      }
     } else if (osm->n == PETSC_DECIDE) {
       /* determine global number of subdomains */
       PetscInt inwork[2],outwork[2];
@@ -173,7 +213,6 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
       osm->n_local = outwork[0];
       osm->n       = outwork[1];
     }
-
     if (!osm->is){ /* create the index sets */
       ierr = PCASMCreateSubdomains(pc->pmat,osm->n_local_true,&osm->is);CHKERRQ(ierr);
     }
@@ -274,6 +313,9 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
     if (!osm->ksp) {
       /* Create the local solvers */
       ierr = PetscMalloc(osm->n_local_true*sizeof(KSP *),&osm->ksp);CHKERRQ(ierr);
+      if(domain_dm) {
+        ierr = PetscInfo(pc,"Setting up ASM subproblems using the embedded DM\n");CHKERRQ(ierr);
+      }
       for (i=0; i<osm->n_local_true; i++) {
         ierr = KSPCreate(PETSC_COMM_SELF,&ksp);CHKERRQ(ierr);
         ierr = PetscLogObjectParent(pc,ksp);CHKERRQ(ierr);
@@ -283,7 +325,15 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
         ierr = PCGetOptionsPrefix(pc,&prefix);CHKERRQ(ierr);
         ierr = KSPSetOptionsPrefix(ksp,prefix);CHKERRQ(ierr);
         ierr = KSPAppendOptionsPrefix(ksp,"sub_");CHKERRQ(ierr);
+        if(domain_dm){
+          ierr = KSPSetDM(ksp, domain_dm[i]);CHKERRQ(ierr);
+          ierr = KSPSetDMActive(ksp, PETSC_FALSE);CHKERRQ(ierr);
+          ierr = DMDestroy(&domain_dm[i]); CHKERRQ(ierr);
+        }
         osm->ksp[i] = ksp;
+      }
+      if(domain_dm) {
+        ierr = PetscFree(domain_dm);CHKERRQ(ierr);
       }
     }
     scall = MAT_INITIAL_MATRIX;
@@ -727,7 +777,7 @@ PetscErrorCode  PCASMSetLocalSubdomains(PC pc,PetscInt n,IS is[],IS is_local[])
 #undef __FUNCT__  
 #define __FUNCT__ "PCASMSetTotalSubdomains"
 /*@C
-    PCASMSetTotalSubdomains - Sets the subdomains for all processor for the 
+    PCASMSetTotalSubdomains - Sets the subdomains for all processors for the 
     additive Schwarz preconditioner.  Either all or no processors in the
     PC communicator must call this routine, with the same index sets.
 
@@ -735,9 +785,9 @@ PetscErrorCode  PCASMSetLocalSubdomains(PC pc,PetscInt n,IS is[],IS is_local[])
 
     Input Parameters:
 +   pc - the preconditioner context
-.   n - the number of subdomains for all processors
-.   is - the index sets that define the subdomains for all processor
-         (or PETSC_NULL for PETSc to determine subdomains)
+.   N  - the number of subdomains for all processors
+.   is - the index sets that define the subdomains for all processors
+         (or PETSC_NULL to ask PETSc to compe up with subdomains)
 -   is_local - the index sets that define the local part of the subdomains for this processor
          (or PETSC_NULL to use the default of 1 subdomain per process)
 

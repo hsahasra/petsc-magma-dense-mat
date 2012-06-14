@@ -6,7 +6,7 @@
      pcimpl.h - private include file intended for use by all preconditioners 
 */
 
-#include <private/pcimpl.h>   /*I "petscpc.h" I*/
+#include <petsc-private/pcimpl.h>   /*I "petscpc.h" I*/
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <cusp/monitor.h>
 #undef VecType
@@ -62,7 +62,7 @@ static PetscErrorCode PCSetUp_SACUSPPoly(PC pc)
     } 
   }
   try {
-    ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRCUSP(ierr);
+    ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRQ(ierr);
     gpustruct  = (Mat_SeqAIJCUSP *)(pc->pmat->spptr);
     sa->SACUSPPoly = new cuspsaprecond(*(CUSPMATRIX*)gpustruct->mat);
   } catch(char* ex) {

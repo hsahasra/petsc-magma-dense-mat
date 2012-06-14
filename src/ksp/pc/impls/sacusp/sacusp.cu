@@ -6,7 +6,7 @@
      pcimpl.h - private include file intended for use by all preconditioners
 */
 
-#include <private/pcimpl.h>   /*I "petscpc.h" I*/
+#include <petsc-private/pcimpl.h>   /*I "petscpc.h" I*/
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <cusp/monitor.h>
 #undef VecType
@@ -71,7 +71,7 @@ static PetscErrorCode PCSetUp_SACUSP(PC pc)
     }
   }
   try {
-    ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRCUSP(ierr);
+    ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRQ(ierr);
     gpustruct  = (Mat_SeqAIJCUSP *)(pc->pmat->spptr);
     sa->SACUSP = new cuspsaprecond(*(CUSPMATRIX*)gpustruct->mat);
   } catch(char* ex) {
@@ -201,6 +201,17 @@ static PetscErrorCode PCSetFromOptions_SACUSP(PC pc)
 /* -------------------------------------------------------------------------- */
 
 
+/*MC
+     PCSACUSP  - A smoothed agglomeration algorithm that runs on the Nvidia GPU.
+
+
+    http://research.nvidia.com/sites/default/files/publications/nvr-2011-002.pdf
+
+   Level: advanced
+
+.seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PC
+
+M*/
 
 EXTERN_C_BEGIN
 #undef __FUNCT__

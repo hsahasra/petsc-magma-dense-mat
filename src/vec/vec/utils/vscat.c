@@ -5,8 +5,8 @@
   some special cases for parallel scatters.
 */
 
-#include <private/isimpl.h>              /*I "petscis.h" I*/
-#include <private/vecimpl.h>             /*I "petscvec.h" I*/
+#include <petsc-private/isimpl.h>              /*I "petscis.h" I*/
+#include <petsc-private/vecimpl.h>             /*I "petscvec.h" I*/
 
 /* Logging support */
 PetscClassId  VEC_SCATTER_CLASSID;
@@ -786,7 +786,9 @@ PetscErrorCode  VecScatterCreateEmpty(MPI_Comm comm,VecScatter *newctx)
 .  -vecscatter_packtogether - Pack all messages before sending, receive all messages before unpacking
 .  -vecscatter_alltoall     - Uses MPI all to all communication for scatter
 .  -vecscatter_window       - Use MPI 2 window operations to move data
--  -vecscatter_nopack       - Avoid packing to work vector when possible (if used with -vecscatter_alltoall then will use MPI_Alltoallw()
+.  -vecscatter_nopack       - Avoid packing to work vector when possible (if used with -vecscatter_alltoall then will use MPI_Alltoallw()
+-  -vecscatter_reproduce    - insure that the order of the communications are done the same for each scatter, this under certain circumstances
+                              will make the results of scatters deterministic when otherwise they are not (it may be slower also).
 
 $
 $                                                                                    --When packing is used--
@@ -820,6 +822,8 @@ $
    (this unfortunately requires that the same in and out arrays be used for each use, this
     is why when not using MPI_alltoallw() we always need to pack the input into the work array before sending
     and unpack upon receeving instead of using MPI datatypes to avoid the packing/unpacking).
+
+   Both ix and iy cannot be PETSC_NULL at the same time.
 
    Concepts: scatter^between vectors
    Concepts: gather^between vectors
@@ -1537,7 +1541,6 @@ PetscErrorCode  VecScatterBegin(VecScatter inctx,Vec x,Vec y,InsertMode addv,Sca
 #if defined(PETSC_USE_DEBUG)
   PetscInt      to_n,from_n;
 #endif
-
   PetscFunctionBegin;
   PetscValidHeaderSpecific(inctx,VEC_SCATTER_CLASSID,1);
   PetscValidHeaderSpecific(x,VEC_CLASSID,2);

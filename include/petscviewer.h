@@ -60,6 +60,7 @@ J*/
 #define PETSCVIEWERMATHEMATICA  "mathematica"
 #define PETSCVIEWERNETCDF       "netcdf"
 #define PETSCVIEWERHDF5         "hdf5"
+#define PETSCVIEWERVTK          "vtk"
 #define PETSCVIEWERMATLAB       "matlab"
 #define PETSCVIEWERAMS          "ams"
 
@@ -114,7 +115,6 @@ M*/
 #endif
 
 extern PetscErrorCode  PetscViewerCreate(MPI_Comm,PetscViewer*);
-PetscPolymorphicSubroutine(PetscViewerCreate,(PetscViewer *v),(PETSC_COMM_SELF,v))
 extern PetscErrorCode  PetscViewerSetFromOptions(PetscViewer);
 extern PetscErrorCode  PetscViewerASCIIOpenWithFILE(MPI_Comm,FILE*,PetscViewer*);
 
@@ -181,13 +181,16 @@ typedef enum {
   PETSC_VIEWER_ASCII_PCICE,
   PETSC_VIEWER_ASCII_PYTHON,
   PETSC_VIEWER_ASCII_FACTOR_INFO,
+  PETSC_VIEWER_ASCII_LATEX,
   PETSC_VIEWER_DRAW_BASIC,
   PETSC_VIEWER_DRAW_LG,
   PETSC_VIEWER_DRAW_CONTOUR,
   PETSC_VIEWER_DRAW_PORTS,
+  PETSC_VIEWER_VTK_VTS,
   PETSC_VIEWER_NATIVE,
   PETSC_VIEWER_NOFORMAT
   } PetscViewerFormat;
+extern const char *const PetscViewerFormats[];
 
 extern PetscErrorCode  PetscViewerSetFormat(PetscViewer,PetscViewerFormat);
 extern PetscErrorCode  PetscViewerPushFormat(PetscViewer,PetscViewerFormat);
@@ -278,6 +281,11 @@ extern PetscErrorCode  PetscViewerHDF5GetTimestep(PetscViewer,PetscInt*);
 extern PetscErrorCode  PetscViewerHDF5GetFileId(PetscViewer,hid_t*);
 extern PetscErrorCode  PetscViewerHDF5OpenGroup(PetscViewer, hid_t *, hid_t *);
 #endif
+
+typedef enum {PETSC_VTK_POINT_FIELD, PETSC_VTK_POINT_VECTOR_FIELD, PETSC_VTK_CELL_FIELD, PETSC_VTK_CELL_VECTOR_FIELD} PetscViewerVTKFieldType;
+typedef PetscErrorCode (*PetscViewerVTKWriteFunction)(PetscObject,PetscViewer);
+extern PetscErrorCode PetscViewerVTKAddField(PetscViewer,PetscObject,PetscViewerVTKWriteFunction,PetscViewerVTKFieldType,PetscObject);
+extern PetscErrorCode PetscViewerVTKOpen(MPI_Comm,const char[],PetscFileMode,PetscViewer*);
 
 /*
      These are all the default viewers that do not have 

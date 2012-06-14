@@ -417,7 +417,6 @@ static PetscErrorCode MatIncreaseOverlap_MPIAIJ_Receive(Mat C,PetscInt nrqr,Pets
   Mat            A = c->A,B = c->B;
   Mat_SeqAIJ     *a = (Mat_SeqAIJ*)A->data,*b = (Mat_SeqAIJ*)B->data;
   PetscErrorCode ierr;
-  PetscMPIInt    rank;
   PetscInt       rstart,cstart,*ai,*aj,*bi,*bj,*garray,i,j,k;
   PetscInt       row,total_sz,ct,ct1,ct2,ct3,mem_estimate,oct2,l,start,end;
   PetscInt       val,max1,max2,m,no_malloc =0,*tmp,new_estimate,ctr;
@@ -425,7 +424,6 @@ static PetscErrorCode MatIncreaseOverlap_MPIAIJ_Receive(Mat C,PetscInt nrqr,Pets
   PetscBT        xtable;
 
   PetscFunctionBegin;
-  rank   = c->rank;
   m      = C->rmap->N;
   rstart = C->rmap->rstart;
   cstart = C->cmap->rstart;
@@ -448,7 +446,7 @@ static PetscErrorCode MatIncreaseOverlap_MPIAIJ_Receive(Mat C,PetscInt nrqr,Pets
   mem_estimate = 3*((total_sz > max1 ? total_sz : max1)+1);
   ierr         = PetscMalloc(mem_estimate*sizeof(PetscInt),&xdata[0]);CHKERRQ(ierr);
   ++no_malloc;
-  ierr         = PetscBTCreate(m,xtable);CHKERRQ(ierr);
+  ierr         = PetscBTCreate(m,&xtable);CHKERRQ(ierr);
   ierr         = PetscMemzero(isz1,nrqr*sizeof(PetscInt));CHKERRQ(ierr);
   
   ct3 = 0;
@@ -525,8 +523,8 @@ static PetscErrorCode MatIncreaseOverlap_MPIAIJ_Receive(Mat C,PetscInt nrqr,Pets
     xdata[i+1]  = xdata[i] + ct2;
     isz1[i]     = ct2; /* size of each message */
   }
-  ierr = PetscBTDestroy(xtable);CHKERRQ(ierr);
-  ierr = PetscInfo4(C,"Allocated %D bytes, required %D bytes, no of mallocs = %D\n",rank,mem_estimate,ct3,no_malloc);CHKERRQ(ierr);
+  ierr = PetscBTDestroy(&xtable);CHKERRQ(ierr);
+  ierr = PetscInfo3(C,"Allocated %D bytes, required %D bytes, no of mallocs = %D\n",mem_estimate,ct3,no_malloc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }  
 /* -------------------------------------------------------------------------*/
@@ -809,9 +807,9 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
   PetscInt       **rbuf3,*req_source,**sbuf_aj,**rbuf2,max1,max2;
   PetscInt       **lens,is_no,ncols,*cols,mat_i,*mat_j,tmp2,jmax;
 #if defined (PETSC_USE_CTABLE)
-  PetscTable     *cmap,cmap_i,*rmap,rmap_i;
+  PetscTable     *cmap,cmap_i=PETSC_NULL,*rmap,rmap_i;
 #else
-  PetscInt       **cmap,*cmap_i,**rmap,*rmap_i;
+  PetscInt       **cmap,*cmap_i=PETSC_NULL,**rmap,*rmap_i;
 #endif
   const PetscInt *irow_i;
   PetscInt       ctr_j,*sbuf1_j,*sbuf_aj_i,*rbuf1_i,kmax,*lens_i;
@@ -1149,7 +1147,7 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
         icol_i = icol[i];
         cmap_i = cmap[i];
         for (j=0; j<jmax; j++) { 
-          ierr = PetscTableAdd(cmap[i],icol_i[j]+1,j+1);CHKERRQ(ierr);
+          ierr = PetscTableAdd(cmap[i],icol_i[j]+1,j+1,INSERT_VALUES);CHKERRQ(ierr);
         }
       } else {
         cmap[i] = PETSC_NULL;
@@ -1220,7 +1218,7 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
       irow_i = irow[i];
       jmax   = nrow[i];
       for (j=0; j<jmax; j++) { 
-        ierr = PetscTableAdd(rmap[i],irow_i[j]+1,j+1);CHKERRQ(ierr); 
+        ierr = PetscTableAdd(rmap[i],irow_i[j]+1,j+1,INSERT_VALUES);CHKERRQ(ierr); 
       }
     }
 #else
@@ -1534,13 +1532,9 @@ PetscErrorCode MatCreateMPIAIJFromSeqMatrices_Private(MPI_Comm comm, Mat A, Mat 
   }
   ierr = MatCreate(comm, C); CHKERRQ(ierr);
   ierr = MatSetSizes(*C,A->rmap->n, A->cmap->n, PETSC_DECIDE, PETSC_DECIDE); CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize((*C)->rmap,A->rmap->bs);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize((*C)->cmap,A->cmap->bs);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp((*C)->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp((*C)->cmap);CHKERRQ(ierr);
-  if((*C)->cmap->N != A->cmap->n + B->cmap->n) {
-    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incompatible component matrices of an MPIAIJ matrix");
-  }
+  if((*C)->cmap->N != A->cmap->n + B->cmap->n) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_PLIB, "Incompatible component matrices of an MPIAIJ matrix");
   ierr = MatSetType(*C, MATMPIAIJ); CHKERRQ(ierr);
   aij = (Mat_MPIAIJ*)((*C)->data);
   aij->A = A;

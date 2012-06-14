@@ -3,7 +3,7 @@
    This file contains routines for basic map object implementation.
 */
 
-#include <private/vecimpl.h>   /*I  "petscvec.h"   I*/
+#include <petsc-private/vecimpl.h>   /*I  "petscvec.h"   I*/
 #undef __FUNCT__  
 #define __FUNCT__ "PetscLayoutCreate"
 /*@C
@@ -22,11 +22,13 @@
        PetscLayoutSetBlockSize(PetscLayout,1);
        PetscLayoutSetSize(PetscLayout,n) or PetscLayoutSetLocalSize(PetscLayout,N);
        PetscLayoutSetUp(PetscLayout);
-       PetscLayoutGetSize(PetscLayout,PetscInt *); or PetscLayoutGetLocalSize(PetscLayout,PetscInt *;)
+       Optionally use any of the following:
+          PetscLayoutGetSize(PetscLayout,PetscInt *); or PetscLayoutGetLocalSize(PetscLayout,PetscInt *;)
+          PetscLayoutGetRange(PetscLayout,PetscInt *rstart,PetscInt *rend); or PetscLayoutGetRanges(PetscLayout,const PetscInt *range[])
        PetscLayoutDestroy(PetscLayout);
 
-      The PetscLayout object and methods are intended to be used in the PETSc Vec and Mat implementions; it is 
-      recommended they not be used in user codes unless you really gain something in their use.
+      The PetscLayout object and methods are intended to be used in the PETSc Vec and Mat implementions; it is often not needed in  
+      user codes unless you really gain something in their use.
 
     Fortran Notes: 
       Not available from Fortran
@@ -83,6 +85,9 @@ PetscErrorCode  PetscLayoutDestroy(PetscLayout *map)
     ierr = PetscFree((*map)->range);CHKERRQ(ierr);
     ierr = ISLocalToGlobalMappingDestroy(&(*map)->mapping);CHKERRQ(ierr);
     ierr = ISLocalToGlobalMappingDestroy(&(*map)->bmapping);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+    ierr = PetscThreadsLayoutDestroy(&(*map)->tmap);CHKERRQ(ierr);
+#endif
     ierr = PetscFree((*map));CHKERRQ(ierr);
   }
   *map = PETSC_NULL;
@@ -126,7 +131,7 @@ PetscErrorCode  PetscLayoutSetUp(PetscLayout map)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  if (map->bs <=0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"BlockSize not yet set");
+  if (map->bs <= 0) map->bs = 1;
   if ((map->n >= 0) && (map->N >= 0) && (map->range)) PetscFunctionReturn(0);
 
   ierr = MPI_Comm_size(map->comm, &size);CHKERRQ(ierr);
@@ -152,15 +157,15 @@ PetscErrorCode  PetscLayoutSetUp(PetscLayout map)
 }
 
 #undef __FUNCT__  
-#define __FUNCT__ "PetscLayoutCopy"
+#define __FUNCT__ "PetscLayoutDuplicate"
 /*@C
 
-    PetscLayoutCopy - creates a new PetscLayout with the same information as a given one. If the PetscLayout already exists it is destroyed first.
+    PetscLayoutDuplicate - creates a new PetscLayout with the same information as a given one. If the PetscLayout already exists it is destroyed first.
 
      Collective on PetscLayout
 
     Input Parameter:
-.     in - input PetscLayout to be copied
+.     in - input PetscLayout to be duplicated
 
     Output Parameter:
 .     out - the copy
@@ -169,13 +174,10 @@ PetscErrorCode  PetscLayoutSetUp(PetscLayout map)
 
     Notes: PetscLayoutSetUp() does not need to be called on the resulting PetscLayout
 
-    Developer Note: Unlike all other copy routines this destroys any input object and makes a new one. This routine should be fixed to have a PetscLayoutDuplicate() 
-      that ONLY creates a new one and a PetscLayoutCopy() that truely copies the data and does not delete the old object.
-
 .seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutReference()
 
 @*/
-PetscErrorCode  PetscLayoutCopy(PetscLayout in,PetscLayout *out)
+PetscErrorCode  PetscLayoutDuplicate(PetscLayout in,PetscLayout *out)
 {
   PetscMPIInt    size;
   PetscErrorCode ierr;
@@ -212,7 +214,7 @@ PetscErrorCode  PetscLayoutCopy(PetscLayout in,PetscLayout *out)
 
     If the out location already contains a PetscLayout it is destroyed
 
-.seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutCopy()
+.seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutDuplicate()
 
 @*/
 PetscErrorCode  PetscLayoutReference(PetscLayout in,PetscLayout *out)
@@ -245,7 +247,7 @@ PetscErrorCode  PetscLayoutReference(PetscLayout in,PetscLayout *out)
 
     If the ltog location already contains a PetscLayout it is destroyed
 
-.seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutCopy(), PetscLayoutSetLocalToGlobalMappingBlock()
+.seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutDuplicate(), PetscLayoutSetLocalToGlobalMappingBlock()
 
 @*/
 PetscErrorCode  PetscLayoutSetISLocalToGlobalMapping(PetscLayout in,ISLocalToGlobalMapping ltog)
@@ -278,7 +280,7 @@ PetscErrorCode  PetscLayoutSetISLocalToGlobalMapping(PetscLayout in,ISLocalToGlo
 
     If the ltog location already contains a PetscLayout it is destroyed
 
-.seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutCopy(), PetscLayoutSetLocalToGlobalMappingBlock()
+.seealso: PetscLayoutCreate(), PetscLayoutDestroy(), PetscLayoutSetUp(), PetscLayoutDuplicate(), PetscLayoutSetLocalToGlobalMappingBlock()
 
 @*/
 PetscErrorCode  PetscLayoutSetISLocalToGlobalMappingBlock(PetscLayout in,ISLocalToGlobalMapping ltog)
@@ -318,6 +320,7 @@ PetscErrorCode  PetscLayoutSetISLocalToGlobalMappingBlock(PetscLayout in,ISLocal
 PetscErrorCode  PetscLayoutSetLocalSize(PetscLayout map,PetscInt n)
 {
   PetscFunctionBegin;
+  if (map->bs > 1 && n % map->bs) SETERRQ2(map->comm,PETSC_ERR_ARG_INCOMP,"Local size %D not compatible with block size %D",n,map->bs);
   map->n = n;
   PetscFunctionReturn(0);
 }
@@ -442,6 +445,8 @@ PetscErrorCode  PetscLayoutGetSize(PetscLayout map,PetscInt *n)
 PetscErrorCode  PetscLayoutSetBlockSize(PetscLayout map,PetscInt bs)
 {
   PetscFunctionBegin;
+  if (map->n > 0 && map->n % bs) SETERRQ2(map->comm,PETSC_ERR_ARG_INCOMP,"Local size %D not compatible with block size %D",map->n,bs);
+  if (map->bs > 0 && map->bs != bs) SETERRQ2(map->comm,PETSC_ERR_ARG_INCOMP,"Cannot change block size %D to %D",map->bs,bs);
   map->bs = bs;
   PetscFunctionReturn(0);
 }

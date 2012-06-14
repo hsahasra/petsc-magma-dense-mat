@@ -6,7 +6,7 @@ FFLAGS	      =
 CPPFLAGS      =
 FPPFLAGS      =
 LOCDIR        = src/benchmarks/streams/
-EXAMPLESC     = BasicVersion.c OpenMPVersion.c SSEVersion.c
+EXAMPLESC     = BasicVersion.c OpenMPVersion.c SSEVersion.c PthreadVersion.c
 EXAMPLESF     = 
 TESTS         = BasicVersion OpenMPVersion
 MANSEC        = Sys
@@ -26,9 +26,12 @@ OpenMPVersion: OpenMPVersion.o  chkopts
 SSEVersion: SSEVersion.o chkopts
 	-${CLINKER} -o $@ $< ${PETSC_LIB}
 	${RM} -f $<
+PthreadVersion: PthreadVersion.o  chkopts 
+	-@${CLINKER} -o PthreadVersion PthreadVersion.o ${PETSC_LIB}
+	@${RM} -f PthreadVersion.o
 
 test:  BasicVersion OpenMPVersion
-	@if [ "${NP}foo" == "foo" ]; then echo "---------\n Run with make streams NP=<integer number of cores to use>"; exit 1 ; fi
+	@if [ "${NP}foo" = "foo" ]; then echo "---------"; echo " Run with make streams NP=<integer number of cores to use>"; exit 1 ; fi
 	-@echo "------------------------------------------------"
 	-@${MPIEXEC} -n 1 ./BasicVersion
 	-@echo "------------------------------------------------"

@@ -14,8 +14,6 @@
 #endif
 #include <petscbt.h>
 
-#if !defined(PETSC_WORDS_BIGENDIAN)
-
 /* --------------------------------------------------------- */
 #undef __FUNCT__  
 #define __FUNCT__ "PetscByteSwapEnum"
@@ -208,7 +206,6 @@ PetscErrorCode PetscByteSwap(void *data,PetscDataType pdtype,PetscInt count)
   PetscFunctionReturn(0);
 }
 
-#endif
 /* --------------------------------------------------------- */
 #undef __FUNCT__  
 #define __FUNCT__ "PetscBinaryRead"
@@ -315,7 +312,7 @@ PetscErrorCode  PetscBinaryRead(int fd,void *p,PetscInt n,PetscDataType type)
    it is written to the file. This is done by byte-swapping in-place 
    the second time. If the flag istemp is set to PETSC_TRUE, the second
    byte-swapping operation is not done, thus saving some computation,
-   but the buffer corrupted is corrupted.
+   but the buffer is left corrupted.
 
    Because byte-swapping may be done on the values in data it cannot be declared const
 

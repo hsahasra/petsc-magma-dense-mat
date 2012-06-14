@@ -86,6 +86,7 @@ int main(int argc,char **argv)
   ierr = MatCreate(PETSC_COMM_WORLD,&J);CHKERRQ(ierr);
   ierr = MatSetSizes(J,PETSC_DECIDE,PETSC_DECIDE,2,2);CHKERRQ(ierr);
   ierr = MatSetFromOptions(J);CHKERRQ(ierr);
+  ierr = MatSetUp(J);CHKERRQ(ierr);
 
   ierr = PetscOptionsHasName(PETSC_NULL,"-hard",&flg);CHKERRQ(ierr);
   if (!flg) {
@@ -155,7 +156,7 @@ int main(int argc,char **argv)
     ierr = VecView(r,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"number of SNES iterations = %D\n\n",its);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"number of SNES iterations = %D\n",its);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.  All PETSc objects should be destroyed when they
@@ -186,15 +187,19 @@ int main(int argc,char **argv)
    Output Parameter:
 .  f - function vector
  */
-PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx){
-  PetscErrorCode ierr;
-  PetscScalar    *xx=PETSC_NULL,*ff=PETSC_NULL;
-  AppCtx         *user = (AppCtx*)ctx;
-  Vec            xloc=user->xloc,floc=user->rloc;
-  VecScatter     scatter=user->scatter;
-  MPI_Comm       comm;
-  PetscMPIInt    size,rank;
-  PetscInt       rstart,rend;
+
+PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx)
+{
+  PetscErrorCode    ierr;
+  const PetscScalar *xx;
+  PetscScalar       *ff;
+  AppCtx            *user = (AppCtx*)ctx;
+  Vec               xloc=user->xloc,floc=user->rloc;
+  VecScatter        scatter=user->scatter;
+  MPI_Comm          comm;
+  PetscMPIInt       size,rank;
+  PetscInt          rstart,rend;
+
 
   ierr = PetscObjectGetComm((PetscObject)snes,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
@@ -211,12 +216,12 @@ PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx){
     ierr = VecScatterEnd(scatter,x,xloc,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
 
     ierr = VecGetOwnershipRange(f,&rstart,&rend);CHKERRQ(ierr);
-    ierr = VecGetArray(xloc,&xx);CHKERRQ(ierr);
+    ierr = VecGetArrayRead(xloc,&xx);CHKERRQ(ierr);
     ierr = VecGetArray(floc,&ff);CHKERRQ(ierr);
     ff[0] = xx[0]*xx[0] + xx[0]*xx[1] - 3.0;
     ff[1] = xx[0]*xx[1] + xx[1]*xx[1] - 6.0;
     ierr = VecRestoreArray(floc,&ff);CHKERRQ(ierr);
-    ierr = VecRestoreArray(xloc,&xx);CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(xloc,&xx);CHKERRQ(ierr);
 
     ierr = VecScatterBegin(scatter,floc,f,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
     ierr = VecScatterEnd(scatter,floc,f,INSERT_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
@@ -228,17 +233,16 @@ PetscErrorCode FormFunction1(SNES snes,Vec x,Vec f,void *ctx){
        - You MUST call VecRestoreArray() when you no longer need access to
          the array.
     */
-    ierr = VecGetArray(x,&xx);
-    CHKERRQ(ierr);
-    ierr = VecGetArray(f,&ff);
-    CHKERRQ(ierr);
+
+    ierr = VecGetArrayRead(x,&xx);CHKERRQ(ierr);
+    ierr = VecGetArray(f,&ff);CHKERRQ(ierr);
 
     /* Compute function */
     ff[0] = xx[0]*xx[0] + xx[0]*xx[1] - 3.0;
     ff[1] = xx[0]*xx[1] + xx[1]*xx[1] - 6.0;
 
     /* Restore vectors */
-    ierr = VecRestoreArray(x,&xx);CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(x,&xx);CHKERRQ(ierr);
     ierr = VecRestoreArray(f,&ff);CHKERRQ(ierr); 
   }
   return 0;

@@ -20,6 +20,7 @@ int main(int argc,char **args)
   KSP            ksp;
   PetscReal      soft_alpha = 1.e-3;
   MPI_Comm       wcomm;
+  PetscBool      use_coords = PETSC_FALSE;
   PetscMPIInt    npe,mype;
   PC pc;
   PetscScalar DD[8][8],DD2[8][8];
@@ -44,16 +45,27 @@ int main(int argc,char **args)
   h = 1./ne;
   /* ne*ne; number of global elements */
   ierr = PetscOptionsGetReal(PETSC_NULL,"-alpha",&soft_alpha,PETSC_NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-use_coordinates",&use_coords,PETSC_NULL); CHKERRQ(ierr);
   M = 2*(ne+1)*(ne+1); /* global number of equations */
   m = (ne+1)*(ne+1)/npe;
   if(mype==npe-1) m = (ne+1)*(ne+1) - (npe-1)*m;
   m *= 2;
   /* create stiffness matrix */
-  ierr = MatCreateMPIAIJ(wcomm,m,m,M,M,18,PETSC_NULL,6,PETSC_NULL,&Amat);CHKERRQ(ierr);
-  ierr = MatCreateMPIAIJ(wcomm,m,m,M,M,18,PETSC_NULL,6,PETSC_NULL,&Pmat);CHKERRQ(ierr);
+  ierr = MatCreate(wcomm,&Amat);CHKERRQ(ierr);
+  ierr = MatSetSizes(Amat,m,m,M,M);CHKERRQ(ierr);
+  ierr = MatSetBlockSize(Amat,2);CHKERRQ(ierr);
+  ierr = MatSetType(Amat,MATAIJ);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Amat,18,PETSC_NULL);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Amat,18,PETSC_NULL,12,PETSC_NULL);CHKERRQ(ierr);
+
+  ierr = MatCreate(wcomm,&Pmat);CHKERRQ(ierr);
+  ierr = MatSetSizes(Pmat,m,m,M,M);CHKERRQ(ierr);
+  ierr = MatSetBlockSize(Pmat,2);CHKERRQ(ierr);
+  ierr = MatSetType(Pmat,MATAIJ);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Pmat,18,PETSC_NULL);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Pmat,18,PETSC_NULL,12,PETSC_NULL);CHKERRQ(ierr);
+
   ierr = MatGetOwnershipRange(Amat,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = MatSetBlockSize(Amat,2);      CHKERRQ(ierr);
-  ierr = MatSetBlockSize(Pmat,2);      CHKERRQ(ierr);
   m = Iend - Istart;
   /* Generate vectors */
   ierr = VecCreate(wcomm,&xx);   CHKERRQ(ierr);
@@ -187,12 +199,16 @@ int main(int argc,char **args)
 
     /* Setup solver */
     ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);                    CHKERRQ(ierr);
-    ierr = KSPSetOperators( ksp, Amat, Amat, SAME_NONZERO_PATTERN ); CHKERRQ(ierr);
     ierr = KSPSetType( ksp, KSPCG );                            CHKERRQ(ierr);
     ierr = KSPGetPC( ksp, &pc );                                   CHKERRQ(ierr);
     ierr = PCSetType( pc, PCGAMG );                                CHKERRQ(ierr);
-    ierr = PCSetCoordinates( pc, 2, coords );                   CHKERRQ(ierr);
     ierr = KSPSetFromOptions( ksp );                              CHKERRQ(ierr);
+    
+    /* finish KSP/PC setup */
+    ierr = KSPSetOperators( ksp, Amat, Amat, SAME_NONZERO_PATTERN ); CHKERRQ(ierr);
+    if( use_coords ) {
+      ierr = PCSetCoordinates( pc, 2, m, coords );                   CHKERRQ(ierr);
+    }
   }
 
   if( !PETSC_TRUE ) {

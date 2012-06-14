@@ -38,6 +38,7 @@ class Configure(config.base.Configure):
     help.addArgument('PETSc', '-with-default-arch=<bool>',        nargs.ArgBool(None, 1, 'Allow using the last configured arch without setting PETSC_ARCH'))
     help.addArgument('PETSc','-with-single-library=<bool>',       nargs.ArgBool(None, 1,'Put all PETSc code into the single -lpetsc library'))
     help.addArgument('PETSc', '-with-iphone=<bool>',              nargs.ArgBool(None, 0, 'Build an iPhone version of PETSc'))
+    help.addArgument('CTetgen', '-with-ctetgen=<bool>',           nargs.ArgBool(None, 0, 'Enable CTetgen support'))
     return
 
   def setupDependencies(self, framework):
@@ -92,7 +93,7 @@ class Configure(config.base.Configure):
                                             'WindowsX', 'cxxabi','float','ieeefp','stdint','fenv','sched','pthread'])
     functions = ['access', '_access', 'clock', 'drand48', 'getcwd', '_getcwd', 'getdomainname', 'gethostname', 'getpwuid',
                  'gettimeofday', 'getwd', 'memalign', 'memmove', 'mkstemp', 'popen', 'PXFGETARG', 'rand', 'getpagesize',
-                 'readlink', 'realpath',  'sigaction', 'signal', 'sigset', 'nanosleep', 'usleep', 'sleep', '_sleep', 'socket', 
+                 'readlink', 'realpath',  'sigaction', 'signal', 'sigset', 'usleep', 'sleep', '_sleep', 'socket',
                  'times', 'gethostbyname', 'uname','snprintf','_snprintf','_fullpath','lseek','_lseek','time','fork','stricmp',
                  'strcasecmp', 'bzero', 'dlopen', 'dlsym', 'dlclose', 'dlerror',
                  '_intel_fast_memcpy','_intel_fast_memset']
@@ -213,9 +214,13 @@ class Configure(config.base.Configure):
 #-----------------------------------------------------------------------------------------------------
     if self.functions.haveFunction('gethostbyname') and self.functions.haveFunction('socket') and self.headers.haveHeader('netinet/in.h'):
       self.addDefine('USE_SOCKET_VIEWER','1')
+      if self.checkCompile('#include <sys/socket.h>','setsockopt(0,SOL_SOCKET,SO_REUSEADDR,0,0)'):
+        self.addDefine('HAVE_SO_REUSEADDR','1')
 
 #-----------------------------------------------------------------------------------------------------
     # print include and lib for makefiles
+    if self.framework.argDB['with-ctetgen']:
+      self.addDefine('HAVE_CTETGEN', 1)
     self.framework.packages.reverse()
     includes = [os.path.join(self.petscdir.dir,'include'),os.path.join(self.petscdir.dir,self.arch.arch,'include')]
     libs = []
@@ -229,7 +234,8 @@ class Configure(config.base.Configure):
       if hasattr(i,'include'):
         if not isinstance(i.include,list):
           i.include = [i.include]
-        includes.extend(i.include)
+        if not i.PACKAGE.lower() == 'valgrind':
+          includes.extend(i.include)
         self.addMakeMacro(i.PACKAGE+'_INCLUDE',self.headers.toStringNoDupes(i.include))
     if self.framework.argDB['with-single-library']:
       self.addMakeMacro('PETSC_WITH_EXTERNAL_LIB',self.libraries.toStringNoDupes(['-L'+os.path.join(self.petscdir.dir,self.arch.arch,'lib'),' -lpetsc']+libs+self.libraries.math+self.compilers.flibs+self.compilers.cxxlibs+self.compilers.LIBS.split(' '))+self.CHUD.LIBS)
@@ -388,13 +394,16 @@ class Configure(config.base.Configure):
         if x not in lst:
           lst.append(x)
     def notstandardinclude(path):
-      return path not in '/usr/include /usr/local/include'.split()
+      return path not in '/usr/include'.split() # /usr/local/include is not automatically included on FreeBSD
     def writeMacroDefinitions(fd):
       if self.mpi.usingMPIUni:
         cmakeset(fd,'PETSC_HAVE_MPIUNI')
       for pkg in self.framework.packages:
         if pkg.useddirectly:
           cmakeset(fd,'PETSC_HAVE_' + pkg.PACKAGE)
+        for pair in pkg.defines.items():
+          if pair[0].startswith('HAVE_') and pair[1]:
+            cmakeset(fd, self.framework.getFullDefineName(pkg, pair[0]), pair[1])
       for name,val in self.functions.defines.items():
         cmakeset(fd,'PETSC_'+name,val)
       for dct in [self.defines, self.libraryoptions.defines]:
@@ -415,13 +424,13 @@ class Configure(config.base.Configure):
         libs = ensurelist(lib)
         lib_paths.extend(map(libpath,libs))
         lib_libs.extend(map(cleanlib,libs))
-        uniqextend(includes,pkg.include)
       lib_paths = []
       lib_libs  = []
       includes  = []
       libvars   = []
       for pkg in self.framework.packages:
         extendby(pkg.lib)
+        uniqextend(includes,pkg.include)
       extendby(self.libraries.math)
       extendby(self.libraries.rt)
       extendby(self.compilers.flibs)
@@ -436,7 +445,8 @@ class Configure(config.base.Configure):
         libvars.append(libvar)
       fd.write('mark_as_advanced (' + ' '.join(libvars) + ')\n')
       fd.write('set (PETSC_PACKAGE_LIBS ' + ' '.join(map(cmakeexpand,libvars)) + ')\n')
-      fd.write('set (PETSC_PACKAGE_INCLUDES ' + ' '.join(map(lambda i: '"'+i+'"',filter(notstandardinclude,includes))) + ')\n')
+      includes = filter(notstandardinclude,includes)
+      fd.write('set (PETSC_PACKAGE_INCLUDES ' + ' '.join(map(lambda i: '"'+i+'"',includes)) + ')\n')
     fd = open(os.path.join(self.arch.arch,'conf','PETScConfig.cmake'), 'w')
     writeMacroDefinitions(fd)
     writeBuildFlags(fd)
@@ -468,6 +478,8 @@ class Configure(config.base.Configure):
       if self.cmakeboot_success:
         if self.framework.argDB['with-cuda']: # Our CMake build does not support CUDA at this time
           self.framework.logPrint('CMake configured successfully, but could not be used by default because --with-cuda was used\n')
+        elif hasattr(self.compilers, 'FC') and not self.setCompilers.fortranModuleOutputFlag:
+          self.framework.logPrint('CMake configured successfully, but could not be used by default because of missing fortranModuleOutputFlag\n')
         else:
           self.framework.logPrint('CMake configured successfully, using as default build\n')
           self.addMakeMacro('PETSC_BUILD_USING_CMAKE',1)
@@ -479,7 +491,7 @@ class Configure(config.base.Configure):
 
   def configurePrefetch(self):
     '''Sees if there are any prefetch functions supported'''
-    if config.setCompilers.Configure.isSolaris() or self.framework.argDB['with-iphone'] or self.framework.argDB['with-cuda']:
+    if config.setCompilers.Configure.isSolaris() or self.framework.argDB['with-iphone']:
       self.addDefine('Prefetch(a,b,c)', ' ')
       return
     self.pushLanguage(self.languages.clanguage)      
@@ -785,6 +797,15 @@ class Configure(config.base.Configure):
           self.addDefine('HAVE_'+baseName.upper(), 1)
           return
 
+  def postProcessPackages(self):
+    postPackages=[]
+    for i in self.framework.packages:
+      if hasattr(i,'postProcess'): postPackages.append(i)
+    if postPackages:
+      # prometheus needs petsc conf files. so attempt to create them early
+      self.framework.dumpConfFiles()
+      for i in postPackages: i.postProcess()
+    return
 
   def configure(self):
     if not os.path.samefile(self.petscdir.dir, os.getcwd()):
@@ -824,6 +845,7 @@ class Configure(config.base.Configure):
     self.Dump()
     self.dumpConfigInfo()
     self.dumpMachineInfo()
+    self.postProcessPackages()
     self.dumpCMakeConfig()
     self.dumpCMakeLists()
     self.cmakeBoot()

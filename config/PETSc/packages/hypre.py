@@ -3,11 +3,16 @@ import PETSc.package
 class Configure(PETSc.package.NewPackage):
   def __init__(self, framework):
     PETSc.package.NewPackage.__init__(self, framework)
-    self.download     = ['http://ftp.mcs.anl.gov/pub/petsc/externalpackages/hypre-2.7.0b.tar.gz']
+    self.download     = ['http://ftp.mcs.anl.gov/pub/petsc/externalpackages/hypre-2.8.0b.tar.gz']
     self.functions = ['HYPRE_IJMatrixCreate']
     self.includes  = ['HYPRE.h']
     self.liblist   = [['libHYPRE.a']]
     self.license   = 'https://computation.llnl.gov/casc/linear_solvers/sls_hypre.html'
+    # Per hypre users guide section 7.5 - install manually on windows for MS compilers.
+    self.worksonWindows   = 1
+    self.downloadonWindows= 0
+    self.requires32bitint = 0
+
     return
 
   def setupDependencies(self, framework):
@@ -83,6 +88,8 @@ class Configure(PETSc.package.NewPackage):
     args.append('--without-mli')
     args.append('--without-fei')
     args.append('--without-superlu')
+    if self.libraryOptions.integerSize == 64:
+      args.append('--enable-bigint')
     args = ' '.join(args)
     fd = file(os.path.join(self.packageDir,'hypre'), 'w')
     fd.write(args)

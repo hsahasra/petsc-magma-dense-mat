@@ -144,7 +144,9 @@ extern PetscErrorCode  MatGetFactorType(Mat,MatFactorType*);
 #define    MAT_FILE_CLASSID 1211216    /* used to indicate matrices in binary files */
 extern PetscClassId  MAT_CLASSID;
 extern PetscClassId  MAT_FDCOLORING_CLASSID;
+extern PetscClassId  MAT_TRANSPOSECOLORING_CLASSID;
 extern PetscClassId  MAT_PARTITIONING_CLASSID;
+extern PetscClassId  MAT_COARSEN_CLASSID;
 extern PetscClassId  MAT_NULLSPACE_CLASSID;
 extern PetscClassId  MATMFFD_CLASSID;
 
@@ -174,12 +176,9 @@ typedef enum {MAT_DO_NOT_GET_VALUES,MAT_GET_VALUES} MatGetSubMatrixOption;
 extern PetscErrorCode  MatInitializePackage(const char[]);
 
 extern PetscErrorCode  MatCreate(MPI_Comm,Mat*);
-PetscPolymorphicFunction(MatCreate,(MPI_Comm comm),(comm,&A),Mat,A)
-PetscPolymorphicFunction(MatCreate,(),(PETSC_COMM_WORLD,&A),Mat,A)
 extern PetscErrorCode  MatSetSizes(Mat,PetscInt,PetscInt,PetscInt,PetscInt);
 extern PetscErrorCode  MatSetType(Mat,const MatType);
 extern PetscErrorCode  MatSetFromOptions(Mat);
-extern PetscErrorCode  MatSetUpPreallocation(Mat);
 extern PetscErrorCode  MatRegisterAll(const char[]);
 extern PetscErrorCode  MatRegister(const char[],const char[],const char[],PetscErrorCode(*)(Mat));
 extern PetscErrorCode  MatRegisterBaseName(const char[],const char[],const char[]);
@@ -238,6 +237,7 @@ extern PetscBool  MatRegisterAllCalled;
 extern PetscFList MatList;
 extern PetscFList MatColoringList;
 extern PetscFList MatPartitioningList;
+extern PetscFList MatCoarsenList;
 
 /*E
     MatStructure - Indicates if the matrix has the same nonzero structure
@@ -251,92 +251,27 @@ E*/
 typedef enum {DIFFERENT_NONZERO_PATTERN,SUBSET_NONZERO_PATTERN,SAME_NONZERO_PATTERN,SAME_PRECONDITIONER} MatStructure;
 
 extern PetscErrorCode  MatCreateSeqDense(MPI_Comm,PetscInt,PetscInt,PetscScalar[],Mat*);
-extern PetscErrorCode  MatCreateMPIDense(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscScalar[],Mat*); 
+extern PetscErrorCode  MatCreateDense(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscScalar[],Mat*); 
 extern PetscErrorCode  MatCreateSeqAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
-PetscPolymorphicFunction(MatCreateSeqAIJ,(PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[]),(PETSC_COMM_SELF,m,n,nz,nnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqAIJ,(PetscInt m,PetscInt n,PetscInt nz),(PETSC_COMM_SELF,m,n,nz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqAIJ,(PetscInt m,PetscInt n,const PetscInt nnz[]),(PETSC_COMM_SELF,m,n,0,nnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqAIJ,(PetscInt m,PetscInt n),(PETSC_COMM_SELF,m,n,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateSeqAIJ,(PetscInt m,PetscInt n,PetscInt nz,Mat *A),(PETSC_COMM_SELF,m,n,nz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateSeqAIJ,(PetscInt m,PetscInt n,const PetscInt nnz[],Mat *A),(PETSC_COMM_SELF,m,n,0,nnz,A))
-PetscPolymorphicSubroutine(MatCreateSeqAIJ,(PetscInt m,PetscInt n,Mat *A),(PETSC_COMM_SELF,m,n,0,PETSC_NULL,A))
-extern PetscErrorCode  MatCreateMPIAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*); 
-PetscPolymorphicFunction(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,const PetscInt nnz[],PetscInt onz,const PetscInt onnz[]),(comm,m,n,M,N,nz,nnz,onz,onnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz),(comm,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[]),(comm,m,n,M,N,0,nnz,0,onz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N),(comm,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz,Mat *A),(comm,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[],Mat *A),(comm,m,n,M,N,0,nnz,0,onz,A))
-PetscPolymorphicSubroutine(MatCreateMPIAIJ,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,Mat *A),(comm,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,A))
-PetscPolymorphicFunction(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,const PetscInt nnz[],PetscInt onz,const PetscInt onnz[]),(PETSC_COMM_WORLD,m,n,M,N,nz,nnz,onz,onnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz),(PETSC_COMM_WORLD,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[]),(PETSC_COMM_WORLD,m,n,M,N,0,nnz,0,onz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N),(PETSC_COMM_WORLD,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz,Mat *A),(PETSC_COMM_WORLD,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[],Mat *A),(PETSC_COMM_WORLD,m,n,M,N,0,nnz,0,onz,A))
-PetscPolymorphicSubroutine(MatCreateMPIAIJ,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,Mat *A),(PETSC_COMM_WORLD,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,A))
+extern PetscErrorCode  MatCreateAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*); 
 extern PetscErrorCode  MatCreateMPIAIJWithArrays(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],const PetscInt[],const PetscScalar[],Mat *);
 extern PetscErrorCode  MatCreateMPIAIJWithSplitArrays(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscScalar[],PetscInt[],PetscInt[],PetscScalar[],Mat*);
 
 extern PetscErrorCode  MatCreateSeqBAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*); 
-PetscPolymorphicFunction(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[]),(PETSC_COMM_SELF,bs,m,n,nz,nnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt nz),(PETSC_COMM_SELF,bs,m,n,nz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n,const PetscInt nnz[]),(PETSC_COMM_SELF,bs,m,n,0,nnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n),(PETSC_COMM_SELF,bs,m,n,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt nz,Mat *A),(PETSC_COMM_SELF,bs,m,n,nz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n,const PetscInt nnz[],Mat *A),(PETSC_COMM_SELF,bs,m,n,0,nnz,A))
-PetscPolymorphicSubroutine(MatCreateSeqBAIJ,(PetscInt bs,PetscInt m,PetscInt n,Mat *A),(PETSC_COMM_SELF,bs,m,n,0,PETSC_NULL,A))
-extern PetscErrorCode  MatCreateMPIBAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,const PetscInt nnz[],PetscInt onz,const PetscInt onnz[]),(comm,bs,m,n,M,N,nz,nnz,onz,onnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz),(comm,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[]),(comm,bs,m,n,M,N,0,nnz,0,onz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N),(comm,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz,Mat *A),(comm,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[],Mat *A),(comm,bs,m,n,M,N,0,nnz,0,onz,A))
-PetscPolymorphicSubroutine(MatCreateMPIBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,Mat *A),(comm,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,A))
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,const PetscInt nnz[],PetscInt onz,const PetscInt onnz[]),(PETSC_COMM_WORLD,bs,m,n,M,N,nz,nnz,onz,onnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz),(PETSC_COMM_WORLD,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[]),(PETSC_COMM_WORLD,bs,m,n,M,N,0,nnz,0,onz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N),(PETSC_COMM_WORLD,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz,Mat *A),(PETSC_COMM_WORLD,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[],Mat *A),(PETSC_COMM_WORLD,bs,m,n,M,N,0,nnz,0,onz,A))
-PetscPolymorphicSubroutine(MatCreateMPIBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,Mat *A),(PETSC_COMM_WORLD,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,A))
+extern PetscErrorCode  MatCreateBAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
 extern PetscErrorCode  MatCreateMPIBAIJWithArrays(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],const PetscInt[],const PetscScalar[],Mat*);
 
 extern PetscErrorCode  MatCreateMPIAdj(MPI_Comm,PetscInt,PetscInt,PetscInt[],PetscInt[],PetscInt[],Mat*);
 extern PetscErrorCode  MatCreateSeqSBAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*); 
-PetscPolymorphicFunction(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[]),(PETSC_COMM_SELF,bs,m,n,nz,nnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt nz),(PETSC_COMM_SELF,bs,m,n,nz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n,const PetscInt nnz[]),(PETSC_COMM_SELF,bs,m,n,0,nnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n),(PETSC_COMM_SELF,bs,m,n,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt nz,Mat *A),(PETSC_COMM_SELF,bs,m,n,nz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n,const PetscInt nnz[],Mat *A),(PETSC_COMM_SELF,bs,m,n,0,nnz,A))
-PetscPolymorphicSubroutine(MatCreateSeqSBAIJ,(PetscInt bs,PetscInt m,PetscInt n,Mat *A),(PETSC_COMM_SELF,bs,m,n,0,PETSC_NULL,A))
 
-extern PetscErrorCode  MatCreateMPISBAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,const PetscInt nnz[],PetscInt onz,const PetscInt onnz[]),(comm,bs,m,n,M,N,nz,nnz,onz,onnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz),(comm,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[]),(comm,bs,m,n,M,N,0,nnz,0,onz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N),(comm,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz,Mat *A),(comm,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[],Mat *A),(comm,bs,m,n,M,N,0,nnz,0,onz,A))
-PetscPolymorphicSubroutine(MatCreateMPISBAIJ,(MPI_Comm comm,PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,Mat *A),(comm,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,A))
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,const PetscInt nnz[],PetscInt onz,const PetscInt onnz[]),(PETSC_COMM_WORLD,bs,m,n,M,N,nz,nnz,onz,onnz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz),(PETSC_COMM_WORLD,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[]),(PETSC_COMM_WORLD,bs,m,n,M,N,0,nnz,0,onz,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N),(PETSC_COMM_WORLD,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,&A),Mat,A)
-PetscPolymorphicSubroutine(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt nz,PetscInt nnz,Mat *A),(PETSC_COMM_WORLD,bs,m,n,M,N,nz,PETSC_NULL,nnz,PETSC_NULL,A))
-PetscPolymorphicSubroutine(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,const PetscInt nnz[],const PetscInt onz[],Mat *A),(PETSC_COMM_WORLD,bs,m,n,M,N,0,nnz,0,onz,A))
-PetscPolymorphicSubroutine(MatCreateMPISBAIJ,(PetscInt bs,PetscInt m,PetscInt n,PetscInt M,PetscInt N,Mat *A),(PETSC_COMM_WORLD,bs,m,n,M,N,0,PETSC_NULL,0,PETSC_NULL,A))
+extern PetscErrorCode  MatCreateSBAIJ(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
 extern PetscErrorCode  MatCreateMPISBAIJWithArrays(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],const PetscInt[],const PetscScalar[],Mat *);
 extern PetscErrorCode  MatMPISBAIJSetPreallocationCSR(Mat,PetscInt,const PetscInt[],const PetscInt[],const PetscScalar[]);
+extern PetscErrorCode  MatXAIJSetPreallocation(Mat,PetscInt,const PetscInt*,const PetscInt*,const PetscInt*,const PetscInt*);
 
 extern PetscErrorCode  MatCreateShell(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,void *,Mat*);
-PetscPolymorphicFunction(MatCreateShell,(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,void *ctx),(comm,m,n,M,N,ctx,&A),Mat,A)
-PetscPolymorphicFunction(MatCreateShell,(PetscInt m,PetscInt n,PetscInt M,PetscInt N,void *ctx),(PETSC_COMM_WORLD,m,n,M,N,ctx,&A),Mat,A)
 extern PetscErrorCode  MatCreateAdic(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,void (*)(void),Mat*);
 extern PetscErrorCode  MatCreateNormal(Mat,Mat*);
-PetscPolymorphicFunction(MatCreateNormal,(Mat mat),(mat,&A),Mat,A)
 extern PetscErrorCode  MatCreateLRC(Mat,Mat,Mat,Mat*);
 extern PetscErrorCode  MatCreateIS(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,ISLocalToGlobalMapping,Mat*);
 extern PetscErrorCode  MatCreateSeqAIJCRL(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
@@ -386,13 +321,15 @@ extern PetscErrorCode  MatSetValuesBatch(Mat,PetscInt,PetscInt,PetscInt[],const 
 
 /*S
      MatStencil - Data structure (C struct) for storing information about a single row or
-        column of a matrix as index on an associated grid.
+        column of a matrix as indexed on an associated grid.
+
+   Fortran usage is different, see MatSetValuesStencil() for details.
 
    Level: beginner
 
   Concepts: matrix; linear operator
 
-.seealso:  MatSetValuesStencil(), MatSetStencil(), MatSetValuesBlockStencil()
+.seealso:  MatSetValuesStencil(), MatSetStencil(), MatSetValuesBlockedStencil()
 S*/
 typedef struct {
   PetscInt k,j,i,c;
@@ -448,7 +385,6 @@ typedef enum {MAT_ROW_ORIENTED,MAT_NEW_NONZERO_LOCATIONS,
 extern const char *MatOptions[];
 extern PetscErrorCode  MatSetOption(Mat,MatOption,PetscBool );
 extern PetscErrorCode  MatGetType(Mat,const MatType*);
-PetscPolymorphicFunction(MatGetType,(Mat mat),(mat,&t),const MatType,t)
 
 extern PetscErrorCode  MatGetValues(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],PetscScalar[]);
 extern PetscErrorCode  MatGetRow(Mat,PetscInt,PetscInt *,const PetscInt *[],const PetscScalar*[]);
@@ -459,26 +395,21 @@ extern PetscErrorCode  MatGetColumn(Mat,PetscInt,PetscInt *,const PetscInt *[],c
 extern PetscErrorCode  MatRestoreColumn(Mat,PetscInt,PetscInt *,const PetscInt *[],const PetscScalar*[]);
 extern PetscErrorCode  MatGetColumnVector(Mat,Vec,PetscInt);
 extern PetscErrorCode  MatGetArray(Mat,PetscScalar *[]);
-PetscPolymorphicFunction(MatGetArray,(Mat mat),(mat,&a),PetscScalar*,a)
 extern PetscErrorCode  MatRestoreArray(Mat,PetscScalar *[]);
 extern PetscErrorCode  MatGetBlockSize(Mat,PetscInt *);
-PetscPolymorphicFunction(MatGetBlockSize,(Mat mat),(mat,&a),PetscInt,a)
 extern PetscErrorCode  MatSetBlockSize(Mat,PetscInt);
-
+extern PetscErrorCode MatSetNThreads(Mat,PetscInt);
+extern PetscErrorCode MatGetNThreads(Mat,PetscInt*);
 
 extern PetscErrorCode  MatMult(Mat,Vec,Vec);
 extern PetscErrorCode  MatMultDiagonalBlock(Mat,Vec,Vec);
 extern PetscErrorCode  MatMultAdd(Mat,Vec,Vec,Vec);
-PetscPolymorphicSubroutine(MatMultAdd,(Mat A,Vec x,Vec y),(A,x,y,y))
 extern PetscErrorCode  MatMultTranspose(Mat,Vec,Vec);
 extern PetscErrorCode  MatMultHermitianTranspose(Mat,Vec,Vec);
 extern PetscErrorCode  MatIsTranspose(Mat,Mat,PetscReal,PetscBool *);
-PetscPolymorphicFunction(MatIsTranspose,(Mat A,Mat B,PetscReal tol),(A,B,tol,&t),PetscBool ,t)
-PetscPolymorphicFunction(MatIsTranspose,(Mat A,Mat B),(A,B,0,&t),PetscBool ,t)
 extern PetscErrorCode  MatIsHermitianTranspose(Mat,Mat,PetscReal,PetscBool *);
 extern PetscErrorCode  MatMultTransposeAdd(Mat,Vec,Vec,Vec);
 extern PetscErrorCode  MatMultHermitianTransposeAdd(Mat,Vec,Vec,Vec);
-PetscPolymorphicSubroutine(MatMultTransposeAdd,(Mat A,Vec x,Vec y),(A,x,y,y))
 extern PetscErrorCode  MatMultConstrained(Mat,Vec,Vec);
 extern PetscErrorCode  MatMultTransposeConstrained(Mat,Vec,Vec);
 extern PetscErrorCode  MatMatSolve(Mat,Mat,Mat);
@@ -500,21 +431,14 @@ E*/
 typedef enum {MAT_DO_NOT_COPY_VALUES,MAT_COPY_VALUES,MAT_SHARE_NONZERO_PATTERN} MatDuplicateOption;
 
 extern PetscErrorCode  MatConvert(Mat,const MatType,MatReuse,Mat*);
-PetscPolymorphicFunction(MatConvert,(Mat A,const MatType t),(A,t,MAT_INITIAL_MATRIX,&a),Mat,a)
 extern PetscErrorCode  MatDuplicate(Mat,MatDuplicateOption,Mat*);
-PetscPolymorphicFunction(MatDuplicate,(Mat A,MatDuplicateOption o),(A,o,&a),Mat,a)
-PetscPolymorphicFunction(MatDuplicate,(Mat A),(A,MAT_COPY_VALUES,&a),Mat,a)
 
 
 extern PetscErrorCode  MatCopy(Mat,Mat,MatStructure);
 extern PetscErrorCode  MatView(Mat,PetscViewer);
 extern PetscErrorCode  MatIsSymmetric(Mat,PetscReal,PetscBool *);
-PetscPolymorphicFunction(MatIsSymmetric,(Mat A,PetscReal tol),(A,tol,&t),PetscBool ,t)
-PetscPolymorphicFunction(MatIsSymmetric,(Mat A),(A,0,&t),PetscBool ,t)
 extern PetscErrorCode  MatIsStructurallySymmetric(Mat,PetscBool *);
-PetscPolymorphicFunction(MatIsStructurallySymmetric,(Mat A),(A,&t),PetscBool ,t)
 extern PetscErrorCode  MatIsHermitian(Mat,PetscReal,PetscBool *);
-PetscPolymorphicFunction(MatIsHermitian,(Mat A),(A,0,&t),PetscBool ,t)
 extern PetscErrorCode  MatIsSymmetricKnown(Mat,PetscBool *,PetscBool *);
 extern PetscErrorCode  MatIsHermitianKnown(Mat,PetscBool *,PetscBool *);
 extern PetscErrorCode  MatMissingDiagonal(Mat,PetscBool  *,PetscInt *);
@@ -565,21 +489,17 @@ extern PetscErrorCode  MatGetRowMaxAbs(Mat,Vec,PetscInt[]);
 extern PetscErrorCode  MatGetRowMinAbs(Mat,Vec,PetscInt[]);
 extern PetscErrorCode  MatGetRowSum(Mat,Vec);
 extern PetscErrorCode  MatTranspose(Mat,MatReuse,Mat*);
-PetscPolymorphicFunction(MatTranspose,(Mat A),(A,MAT_INITIAL_MATRIX,&t),Mat,t)
 extern PetscErrorCode  MatHermitianTranspose(Mat,MatReuse,Mat*);
 extern PetscErrorCode  MatPermute(Mat,IS,IS,Mat *);
-PetscPolymorphicFunction(MatPermute,(Mat A,IS is1,IS is2),(A,is1,is2,&t),Mat,t)
 extern PetscErrorCode  MatDiagonalScale(Mat,Vec,Vec);
 extern PetscErrorCode  MatDiagonalSet(Mat,Vec,InsertMode);
 extern PetscErrorCode  MatEqual(Mat,Mat,PetscBool *);
-PetscPolymorphicFunction(MatEqual,(Mat A,Mat B),(A,B,&t),PetscBool ,t)
 extern PetscErrorCode  MatMultEqual(Mat,Mat,PetscInt,PetscBool *);
 extern PetscErrorCode  MatMultAddEqual(Mat,Mat,PetscInt,PetscBool *);
 extern PetscErrorCode  MatMultTransposeEqual(Mat,Mat,PetscInt,PetscBool *);
 extern PetscErrorCode  MatMultTransposeAddEqual(Mat,Mat,PetscInt,PetscBool *);
 
 extern PetscErrorCode  MatNorm(Mat,NormType,PetscReal *);
-PetscPolymorphicFunction(MatNorm,(Mat A,NormType t),(A,t,&n),PetscReal,n)
 extern PetscErrorCode  MatGetColumnNorms(Mat,NormType,PetscReal *);
 extern PetscErrorCode  MatZeroEntries(Mat);
 extern PetscErrorCode  MatZeroRows(Mat,PetscInt,const PetscInt [],PetscScalar,Vec,Vec);
@@ -609,14 +529,15 @@ extern PetscErrorCode  MatRestoreLocalSubMatrix(Mat,IS,IS,Mat*);
 extern PetscErrorCode  MatGetSeqNonzeroStructure(Mat,Mat*);
 extern PetscErrorCode  MatDestroySeqNonzeroStructure(Mat*); 
 
-extern PetscErrorCode  MatMerge(MPI_Comm,Mat,PetscInt,MatReuse,Mat*);
-extern PetscErrorCode  MatMerge_SeqsToMPI(MPI_Comm,Mat,PetscInt,PetscInt,MatReuse,Mat*);
-extern PetscErrorCode  MatMerge_SeqsToMPISymbolic(MPI_Comm,Mat,PetscInt,PetscInt,Mat*);
-extern PetscErrorCode  MatMerge_SeqsToMPINumeric(Mat,Mat); 
+extern PetscErrorCode  MatCreateMPIAIJConcatenateSeqAIJ(MPI_Comm,Mat,PetscInt,MatReuse,Mat*);
+extern PetscErrorCode  MatCreateMPIAIJConcatenateSeqAIJSymbolic(MPI_Comm,Mat,PetscInt,Mat*);
+extern PetscErrorCode  MatCreateMPIAIJConcatenateSeqAIJNumeric(MPI_Comm,Mat,PetscInt,Mat);
+extern PetscErrorCode  MatCreateMPIAIJSumSeqAIJ(MPI_Comm,Mat,PetscInt,PetscInt,MatReuse,Mat*);
+extern PetscErrorCode  MatCreateMPIAIJSumSeqAIJSymbolic(MPI_Comm,Mat,PetscInt,PetscInt,Mat*);
+extern PetscErrorCode  MatCreateMPIAIJSumSeqAIJNumeric(Mat,Mat); 
 extern PetscErrorCode  MatMPIAIJGetLocalMat(Mat,MatReuse,Mat*);
 extern PetscErrorCode  MatMPIAIJGetLocalMatCondensed(Mat,MatReuse,IS*,IS*,Mat*);
-extern PetscErrorCode  MatGetBrowsOfAcols(Mat,Mat,MatReuse,IS*,IS*,PetscInt*,Mat*);
-extern PetscErrorCode  MatGetBrowsOfAoCols(Mat,Mat,MatReuse,PetscInt**,PetscInt**,MatScalar**,Mat*);
+extern PetscErrorCode  MatGetBrowsOfAcols(Mat,Mat,MatReuse,IS*,IS*,Mat*);
 #if defined (PETSC_USE_CTABLE)
 extern PetscErrorCode  MatGetCommunicationStructs(Mat, Vec *, PetscTable *, VecScatter *);
 #else
@@ -633,10 +554,16 @@ extern PetscErrorCode  MatMatMultNumeric(Mat,Mat,Mat);
 extern PetscErrorCode  MatPtAP(Mat,Mat,MatReuse,PetscReal,Mat*);
 extern PetscErrorCode  MatPtAPSymbolic(Mat,Mat,PetscReal,Mat*);
 extern PetscErrorCode  MatPtAPNumeric(Mat,Mat,Mat);
+extern PetscErrorCode  MatRARt(Mat,Mat,MatReuse,PetscReal,Mat*);
+extern PetscErrorCode  MatRARtSymbolic(Mat,Mat,PetscReal,Mat*);
+extern PetscErrorCode  MatRARtNumeric(Mat,Mat,Mat);
 
-extern PetscErrorCode  MatMatMultTranspose(Mat,Mat,MatReuse,PetscReal,Mat*);
-extern PetscErrorCode  MatMatMultTransposeSymbolic(Mat,Mat,PetscReal,Mat*);
-extern PetscErrorCode  MatMatMultTransposeNumeric(Mat,Mat,Mat);
+extern PetscErrorCode  MatTransposeMatMult(Mat,Mat,MatReuse,PetscReal,Mat*);
+extern PetscErrorCode  MatTransposetMatMultSymbolic(Mat,Mat,PetscReal,Mat*);
+extern PetscErrorCode  MatTransposetMatMultNumeric(Mat,Mat,Mat);
+extern PetscErrorCode  MatMatTransposeMult(Mat,Mat,MatReuse,PetscReal,Mat*);
+extern PetscErrorCode  MatMatTransposeMultSymbolic(Mat,Mat,PetscReal,Mat*);
+extern PetscErrorCode  MatMatTransposeMultNumeric(Mat,Mat,Mat);
 
 extern PetscErrorCode  MatAXPY(Mat,PetscScalar,Mat,MatStructure);
 extern PetscErrorCode  MatAYPX(Mat,PetscScalar,Mat,MatStructure);
@@ -660,11 +587,10 @@ extern PetscErrorCode  MatStashGetInfo(Mat,PetscInt*,PetscInt*,PetscInt*,PetscIn
 
 extern PetscErrorCode  MatInterpolate(Mat,Vec,Vec);
 extern PetscErrorCode  MatInterpolateAdd(Mat,Vec,Vec,Vec);
-PetscPolymorphicSubroutine(MatInterpolateAdd,(Mat A,Vec x,Vec y),(A,x,y,y))
 extern PetscErrorCode  MatRestrict(Mat,Vec,Vec);
 extern PetscErrorCode  MatGetVecs(Mat,Vec*,Vec*);
 extern PetscErrorCode  MatGetRedundantMatrix(Mat,PetscInt,MPI_Comm,PetscInt,MatReuse,Mat*);
-extern PetscErrorCode  MatGetMultiProcBlock(Mat,MPI_Comm,Mat*);
+extern PetscErrorCode  MatGetMultiProcBlock(Mat,MPI_Comm,MatReuse,Mat*);
 extern PetscErrorCode  MatFindZeroDiagonals(Mat,IS*);
 
 /*MC
@@ -733,50 +659,8 @@ M*/
   PetscErrorCode _4_ierr; PetscInt __nrows = (nrows),__ctmp = (ncols),__rstart,__start,__end; \
   _4_ierr = PetscMalloc2(__nrows,PetscInt,&dnz,__nrows,PetscInt,&onz);CHKERRQ(_4_ierr); \
   _4_ierr = PetscMemzero(dnz,__nrows*sizeof(PetscInt));CHKERRQ(_4_ierr);\
-  _4_ierr = PetscMemzero(onz,__nrows*sizeof(PetscInt));CHKERRQ(_4_ierr);\
+  _4_ierr = PetscMemzero(onz,__nrows*sizeof(PetscInt));CHKERRQ(_4_ierr); __start = 0; __end = __start; \
   _4_ierr = MPI_Scan(&__ctmp,&__end,1,MPIU_INT,MPI_SUM,comm);CHKERRQ(_4_ierr); __start = __end - __ctmp;\
-  _4_ierr = MPI_Scan(&__nrows,&__rstart,1,MPIU_INT,MPI_SUM,comm);CHKERRQ(_4_ierr); __rstart = __rstart - __nrows;
-
-/*MC
-   MatPreallocateSymmetricInitialize - Begins the block of code that will count the number of nonzeros per
-       row in a matrix providing the data that one can use to correctly preallocate the matrix.
-
-   Synopsis:
-   PetscErrorCode MatPreallocateSymmetricInitialize(MPI_Comm comm, PetscInt nrows, PetscInt ncols, PetscInt *dnz, PetscInt *onz)
-
-   Collective on MPI_Comm
-
-   Input Parameters:
-+  comm - the communicator that will share the eventually allocated matrix
-.  nrows - the number of LOCAL rows in the matrix
--  ncols - the number of LOCAL columns in the matrix
-
-   Output Parameters:
-+  dnz - the array that will be passed to the matrix preallocation routines
--  ozn - the other array passed to the matrix preallocation routines
-
-
-   Level: intermediate
-
-   Notes:
-    See the <A href="../../docs/manual.pdf#nameddest=ch_performance">Hints for Performance Improvment</A> chapter in the users manual for more details.
-
-   Do not malloc or free dnz and onz, that is handled internally by these routines
-
-   This is a MACRO not a function because it has a leading { that is closed by PetscPreallocateFinalize().
-
-  Concepts: preallocation^Matrix
-
-.seealso: MatPreallocateFinalize(), MatPreallocateSet(), MatPreallocateSymmetricSet(), MatPreallocateSetLocal(),
-          MatPreallocateInitialize(), MatPreallocateSymmetricSetLocal()
-M*/
-#define MatPreallocateSymmetricInitialize(comm,nrows,ncols,dnz,onz) 0; \
-{ \
-  PetscErrorCode _4_ierr; PetscInt __nrows = (nrows),__ctmp = (ncols),__rstart,__end; \
-  _4_ierr = PetscMalloc2(__nrows,PetscInt,&dnz,__nrows,PetscInt,&onz);CHKERRQ(_4_ierr); \
-  _4_ierr = PetscMemzero(dnz,__nrows*sizeof(PetscInt));CHKERRQ(_4_ierr);\
-  _4_ierr = PetscMemzero(onz,__nrows*sizeof(PetscInt));CHKERRQ(_4_ierr);\
-  _4_ierr = MPI_Scan(&__ctmp,&__end,1,MPIU_INT,MPI_SUM,comm);CHKERRQ(_4_ierr);\
   _4_ierr = MPI_Scan(&__nrows,&__rstart,1,MPIU_INT,MPI_SUM,comm);CHKERRQ(_4_ierr); __rstart = __rstart - __nrows;
 
 /*MC
@@ -974,7 +858,7 @@ M*/
   Concepts: preallocation^Matrix
 
 .seealso: MatPreallocateInitialize(), MatPreallocateSet(), MatPreallocateSymmetricSet(), MatPreallocateSetLocal(),
-          MatPreallocateSymmetricInitialize(), MatPreallocateSymmetricSetLocal()
+          MatPreallocateSymmetricSetLocal()
 M*/
 #define MatPreallocateLocation(A,row,ncols,cols,dnz,onz) 0;if (A) {ierr = MatSetValues(A,1,&row,ncols,cols,PETSC_NULL,INSERT_VALUES);CHKERRQ(ierr);} else {ierr =  MatPreallocateSet(row,ncols,cols,dnz,onz);CHKERRQ(ierr);}
 
@@ -1005,7 +889,7 @@ M*/
   Concepts: preallocation^Matrix
 
 .seealso: MatPreallocateInitialize(), MatPreallocateSet(), MatPreallocateSymmetricSet(), MatPreallocateSetLocal(),
-          MatPreallocateSymmetricInitialize(), MatPreallocateSymmetricSetLocal()
+          MatPreallocateSymmetricSetLocal()
 M*/
 #define MatPreallocateFinalize(dnz,onz) 0;_4_ierr = PetscFree2(dnz,onz);CHKERRQ(_4_ierr);}
 
@@ -1013,7 +897,6 @@ M*/
 
 /* Routines unique to particular data structures */
 extern PetscErrorCode  MatShellGetContext(Mat,void *);
-PetscPolymorphicFunction(MatShellGetContext,(Mat A),(A,&t),void*,t)
 
 extern PetscErrorCode  MatInodeAdjustForInodes(Mat,IS*,IS*);
 extern PetscErrorCode  MatInodeGetInodeSizes(Mat,PetscInt *,PetscInt *[],PetscInt *);
@@ -1028,14 +911,10 @@ extern PetscErrorCode MatCreateSeqAIJFromTriple(MPI_Comm,PetscInt,PetscInt,Petsc
 #define MAT_SKIP_ALLOCATION -4
 
 extern PetscErrorCode  MatSeqBAIJSetPreallocation(Mat,PetscInt,PetscInt,const PetscInt[]);
-PetscPolymorphicSubroutine(MatSeqBAIJSetPreallocation,(Mat A,PetscInt bs,const PetscInt nnz[]),(A,bs,0,nnz))
 extern PetscErrorCode  MatSeqSBAIJSetPreallocation(Mat,PetscInt,PetscInt,const PetscInt[]);
-PetscPolymorphicSubroutine(MatSeqSBAIJSetPreallocation,(Mat A,PetscInt bs,const PetscInt nnz[]),(A,bs,0,nnz))
 extern PetscErrorCode  MatSeqAIJSetPreallocation(Mat,PetscInt,const PetscInt[]);
-PetscPolymorphicSubroutine(MatSeqAIJSetPreallocation,(Mat A,const PetscInt nnz[]),(A,0,nnz))
 
 extern PetscErrorCode  MatMPIBAIJSetPreallocation(Mat,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[]);
-PetscPolymorphicSubroutine(MatMPIBAIJSetPreallocation,(Mat A,PetscInt bs,const PetscInt nnz[],const PetscInt onz[]),(A,bs,0,nnz,0,onz))
 extern PetscErrorCode  MatMPISBAIJSetPreallocation(Mat,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[]);
 extern PetscErrorCode  MatMPIAIJSetPreallocation(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[]);
 extern PetscErrorCode  MatSeqAIJSetPreallocationCSR(Mat,const PetscInt [],const PetscInt [],const PetscScalar []);
@@ -1048,6 +927,7 @@ extern PetscErrorCode  MatSeqDenseSetPreallocation(Mat,PetscScalar[]);
 extern PetscErrorCode  MatMPIAIJGetSeqAIJ(Mat,Mat*,Mat*,PetscInt*[]);
 extern PetscErrorCode  MatMPIBAIJGetSeqBAIJ(Mat,Mat*,Mat*,PetscInt*[]);
 extern PetscErrorCode  MatAdicSetLocalFunction(Mat,void (*)(void));
+extern PetscErrorCode  MatMPIAdjCreateNonemptySubcommMat(Mat,Mat*);
 
 extern PetscErrorCode  MatSeqDenseSetLDA(Mat,PetscInt);
 extern PetscErrorCode  MatDenseGetLocalMatrix(Mat,Mat*);
@@ -1308,9 +1188,25 @@ extern PetscErrorCode  MatFDColoringGetFunction(MatFDColoring,PetscErrorCode (**
 extern PetscErrorCode  MatFDColoringSetParameters(MatFDColoring,PetscReal,PetscReal);
 extern PetscErrorCode  MatFDColoringSetFromOptions(MatFDColoring);
 extern PetscErrorCode  MatFDColoringApply(Mat,MatFDColoring,Vec,MatStructure*,void *);
-extern PetscErrorCode  MatFDColoringApplyTS(Mat,MatFDColoring,PetscReal,Vec,MatStructure*,void *);
 extern PetscErrorCode  MatFDColoringSetF(MatFDColoring,Vec);
 extern PetscErrorCode  MatFDColoringGetPerturbedColumns(MatFDColoring,PetscInt*,PetscInt*[]);
+
+/*S
+     MatTransposeColoring - Object for computing a sparse matrix product C=A*B^T via coloring
+
+   Level: beginner
+
+  Concepts: coloring, sparse matrix product
+
+.seealso:  MatTransposeColoringCreate()
+S*/
+typedef struct _p_MatTransposeColoring* MatTransposeColoring;
+
+extern PetscErrorCode MatTransposeColoringCreate(Mat,ISColoring,MatTransposeColoring *);
+extern PetscErrorCode MatTransColoringApplySpToDen(MatTransposeColoring,Mat,Mat);
+extern PetscErrorCode MatTransColoringApplyDenToSp(MatTransposeColoring,Mat,Mat);
+extern PetscErrorCode MatTransposeColoringDestroy(MatTransposeColoring*);
+
 /* 
     These routines are for partitioning matrices: currently used only 
   for adjacency matrix, MatCreateMPIAdj().
@@ -1333,7 +1229,7 @@ typedef struct _p_MatPartitioning* MatPartitioning;
        http://www.mcs.anl.gov/petsc/lib.a:partitioningcreate()
 
    Level: beginner
-
+dm
 .seealso: MatPartitioningCreate(), MatPartitioning
 J*/
 #define MatPartitioningType char*
@@ -1454,6 +1350,127 @@ extern PetscErrorCode MatPartitioningPTScotchSetImbalance(MatPartitioning,PetscR
 extern PetscErrorCode MatPartitioningPTScotchGetImbalance(MatPartitioning,PetscReal*);
 extern PetscErrorCode MatPartitioningPTScotchSetStrategy(MatPartitioning,MPPTScotchStrategyType);
 extern PetscErrorCode MatPartitioningPTScotchGetStrategy(MatPartitioning,MPPTScotchStrategyType*);
+
+/* 
+    These routines are for coarsening matrices: 
+*/
+
+/*S
+     MatCoarsen - Object for managing the coarsening of a graph (symmetric matrix)
+
+   Level: beginner
+
+  Concepts: coarsen
+
+.seealso:  MatCoarsenCreate), MatCoarsenType
+S*/
+typedef struct _p_MatCoarsen* MatCoarsen;
+
+/*J
+    MatCoarsenType - String with the name of a PETSc matrix coarsen or the creation function
+       with an optional dynamic library name, for example 
+       http://www.mcs.anl.gov/petsc/lib.a:coarsencreate()
+
+   Level: beginner
+dm
+.seealso: MatCoarsenCreate(), MatCoarsen
+J*/
+#define MatCoarsenType char*
+#define MATCOARSENMIS  "mis"
+#define MATCOARSENHEM  "hem"
+
+/* linked list for aggregates */
+typedef struct _PetscCDIntNd{
+  struct _PetscCDIntNd *next;
+  PetscInt   gid;
+}PetscCDIntNd;
+
+/* only used by node pool */
+typedef struct _PetscCDArrNd{
+  struct _PetscCDArrNd *next;
+  struct _PetscCDIntNd *array; 
+}PetscCDArrNd;
+
+typedef struct _PetscCoarsenData{
+  /* node pool */
+  PetscCDArrNd  pool_list;
+  PetscCDIntNd *new_node;
+  PetscInt   new_left;
+  PetscInt   chk_sz;
+  PetscCDIntNd *extra_nodes;
+  /* Array of lists */
+  PetscCDIntNd **array;
+  PetscInt size;
+  /* cache a Mat for communication data */
+  Mat mat;
+  /* cache IS of removed equations */
+  IS removedIS;
+}PetscCoarsenData;
+
+extern PetscErrorCode  MatCoarsenCreate(MPI_Comm,MatCoarsen*);
+extern PetscErrorCode  MatCoarsenSetType(MatCoarsen,const MatCoarsenType);
+extern PetscErrorCode  MatCoarsenSetAdjacency(MatCoarsen,Mat);
+extern PetscErrorCode  MatCoarsenSetGreedyOrdering(MatCoarsen,const IS);
+extern PetscErrorCode  MatCoarsenSetStrictAggs(MatCoarsen,PetscBool);
+extern PetscErrorCode  MatCoarsenSetVerbose(MatCoarsen,PetscInt);
+extern PetscErrorCode  MatCoarsenGetData( MatCoarsen, PetscCoarsenData ** );
+extern PetscErrorCode  MatCoarsenApply(MatCoarsen);
+extern PetscErrorCode  MatCoarsenDestroy(MatCoarsen*);
+
+extern PetscErrorCode  MatCoarsenRegister(const char[],const char[],const char[],PetscErrorCode (*)(MatCoarsen));
+
+/*MC
+   MatCoarsenRegisterDynamic - Adds a new sparse matrix coarsen to the 
+   matrix package. 
+
+   Synopsis:
+   PetscErrorCode MatCoarsenRegisterDynamic(const char *name_coarsen,const char *path,const char *name_create,PetscErrorCode (*routine_create)(MatCoarsen))
+
+   Not Collective
+
+   Input Parameters:
++  sname - name of coarsen (for example MATCOARSENMIS) 
+.  path - location of library where creation routine is 
+.  name - name of function that creates the coarsen type, a string
+-  function - function pointer that creates the coarsen type
+
+   Level: developer
+
+   If dynamic libraries are used, then the fourth input argument (function)
+   is ignored.
+
+   Sample usage:
+.vb
+   MatCoarsenRegisterDynamic("my_agg",/home/username/my_lib/lib/libO/solaris/mylib.a,
+               "MyAggCreate",MyAggCreate);
+.ve
+
+   Then, your aggregator can be chosen with the procedural interface via
+$     MatCoarsenSetType(agg,"my_agg")
+   or at runtime via the option
+$     -mat_coarsen_type my_agg
+
+   $PETSC_ARCH occuring in pathname will be replaced with appropriate values.
+
+.keywords: matrix, coarsen, register
+
+.seealso: MatCoarsenRegisterDestroy(), MatCoarsenRegisterAll()
+M*/
+#if defined(PETSC_USE_DYNAMIC_LIBRARIES)
+#define MatCoarsenRegisterDynamic(a,b,c,d) MatCoarsenRegister(a,b,c,0)
+#else
+#define MatCoarsenRegisterDynamic(a,b,c,d) MatCoarsenRegister(a,b,c,d)
+#endif
+
+extern PetscBool  MatCoarsenRegisterAllCalled;
+
+extern PetscErrorCode  MatCoarsenRegisterAll(const char[]);
+extern PetscErrorCode  MatCoarsenRegisterDestroy(void);
+
+extern PetscErrorCode  MatCoarsenView(MatCoarsen,PetscViewer);
+extern PetscErrorCode  MatCoarsenSetFromOptions(MatCoarsen);
+extern PetscErrorCode  MatCoarsenGetType(MatCoarsen,const MatCoarsenType*);
+
 
 extern PetscErrorCode MatMeshToVertexGraph(Mat,PetscInt,Mat*);
 extern PetscErrorCode MatMeshToCellGraph(Mat,PetscInt,Mat*);
@@ -1589,11 +1606,20 @@ typedef enum { MATOP_SET_VALUES=0,
 
 	       MATOP_GET_SUBMATRICES_PARALLEL=128,
                MATOP_SET_VALUES_BATCH=129,
+               MATOP_TRANSPOSEMATMULT=130,
+               MATOP_TRANSPOSEMATMULT_SYMBOLIC=131,
+               MATOP_TRANSPOSEMATMULT_NUMERIC=132,
+               MATOP_TRANSPOSECOLORING_CREATE=133,
+               MATOP_TRANSCOLORING_APPLY_SPTODEN=134,
+               MATOP_TRANSCOLORING_APPLY_DENTOSP=135,
+               MATOP_RARt=136,
+               MATOP_RARt_SYMBOLIC=137,
+               MATOP_RARt_NUMERIC=138,
 /* two new operations specific for struct grid representation */
 /* Sets the stencil displacement points for a 3 - d grid. Currently only start stencil is supported */
-	       MATOP_SET_STENCIL=130,
+	       MATOP_SET_STENCIL=139,
 /* Sets the 3d physical Grid information onto the matrix representation */
-               MATOP_SET_GRID=131
+               MATOP_SET_GRID=140
 
              } MatOperation;
 extern PetscErrorCode  MatHasOperation(Mat,MatOperation,PetscBool *);
@@ -1613,6 +1639,7 @@ extern PetscErrorCode  MatShellSetContext(Mat,void*);
 
 extern PetscErrorCode  MatMPIBAIJSetHashTableFactor(Mat,PetscReal);
 extern PetscErrorCode  MatISGetLocalMat(Mat,Mat*);
+extern PetscErrorCode  MatISSetLocalMat(Mat,Mat);
 
 /*S
      MatNullSpace - Object that removes a null space from a vector, i.e.
@@ -1633,10 +1660,14 @@ extern PetscErrorCode  MatNullSpaceCreate(MPI_Comm,PetscBool ,PetscInt,const Vec
 extern PetscErrorCode  MatNullSpaceSetFunction(MatNullSpace,PetscErrorCode (*)(MatNullSpace,Vec,void*),void*);
 extern PetscErrorCode  MatNullSpaceDestroy(MatNullSpace*);
 extern PetscErrorCode  MatNullSpaceRemove(MatNullSpace,Vec,Vec*);
+extern PetscErrorCode  MatGetNullSpace(Mat, MatNullSpace *);
 extern PetscErrorCode  MatSetNullSpace(Mat,MatNullSpace);
 extern PetscErrorCode  MatSetNearNullSpace(Mat,MatNullSpace);
+extern PetscErrorCode  MatGetNearNullSpace(Mat,MatNullSpace*);
 extern PetscErrorCode  MatNullSpaceTest(MatNullSpace,Mat,PetscBool  *);
 extern PetscErrorCode  MatNullSpaceView(MatNullSpace,PetscViewer);
+extern PetscErrorCode MatNullSpaceGetVecs(MatNullSpace,PetscBool*,PetscInt*,const Vec**);
+extern PetscErrorCode MatNullSpaceCreateRigidBody(Vec,MatNullSpace*);
 
 extern PetscErrorCode  MatReorderingSeqSBAIJ(Mat,IS);
 extern PetscErrorCode  MatMPISBAIJSetHashTableFactor(Mat,PetscReal);
@@ -1762,7 +1793,7 @@ extern PetscErrorCode  MatSuperluSetILUDropTol(Mat,PetscReal);
 
 #if defined(PETSC_HAVE_CUSP)
 extern PetscErrorCode  MatCreateSeqAIJCUSP(MPI_Comm,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
-extern PetscErrorCode  MatCreateMPIAIJCUSP(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+extern PetscErrorCode  MatCreateAIJCUSP(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
 #endif
 
 /* 
@@ -1776,6 +1807,8 @@ extern PetscErrorCode MatGetVecsFFTW(Mat,Vec*,Vec*,Vec*);
 
 extern PetscErrorCode MatCreateNest(MPI_Comm,PetscInt,const IS[],PetscInt,const IS[],const Mat[],Mat*);
 extern PetscErrorCode MatNestGetSize(Mat,PetscInt*,PetscInt*);
+extern PetscErrorCode MatNestGetISs(Mat,IS[],IS[]);
+extern PetscErrorCode MatNestGetLocalISs(Mat,IS[],IS[]);
 extern PetscErrorCode MatNestGetSubMats(Mat,PetscInt*,PetscInt*,Mat***);
 extern PetscErrorCode MatNestGetSubMat(Mat,PetscInt,PetscInt,Mat*);
 extern PetscErrorCode MatNestSetVecType(Mat,const VecType);

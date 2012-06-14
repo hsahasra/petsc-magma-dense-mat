@@ -1,5 +1,4 @@
-
-static char help[] = "-Laplacian u = b as a  \n\n";
+static const char help[] = "-Laplacian u = b as a nonlinear problem.\n\n";
 
 /*T
    Concepts: SNES^parallel Bratu example
@@ -14,7 +13,7 @@ T*/
 
     Richardson
       Nonlinear:
-        -snes_rtol 1.e-12 -snes_monitor -snes_type nrichardson -snes_ls_monitor
+        -snes_rtol 1.e-12 -snes_monitor -snes_type nrichardson -snes_linesearch_monitor
 
       Linear:
         -snes_rtol 1.e-12 -snes_monitor -ksp_rtol 1.e-12  -ksp_monitor -ksp_type richardson -pc_type none -ksp_richardson_self_scale -info
@@ -28,7 +27,7 @@ T*/
 
     CG
        Nonlinear:
-            -snes_rtol 1.e-12 -snes_monitor  -snes_type ncg -snes_ls_monitor
+            -snes_rtol 1.e-12 -snes_monitor  -snes_type ncg -snes_linesearch_monitor
 
        Linear:
              -snes_rtol 1.e-12 -snes_monitor  -ksp_type cg -ksp_monitor -ksp_rtol 1.e-12 -pc_type none
@@ -156,7 +155,7 @@ PetscErrorCode MyDMComputeFunction(DM dm,Vec x,Vec F)
   PetscFunctionBegin;
   ierr = DMGetApplicationContext(dm,&J);CHKERRQ(ierr);
   if (!J) {
-    ierr = DMGetMatrix(dm,MATAIJ,&J);CHKERRQ(ierr);
+    ierr = DMCreateMatrix(dm,MATAIJ,&J);CHKERRQ(ierr);
     ierr = PetscObjectCompose((PetscObject)J,"DM",(PetscObject)PETSC_NULL);CHKERRQ(ierr);
     ierr = FormMatrix(dm,J);CHKERRQ(ierr);
     ierr = DMSetApplicationContext(dm,J);CHKERRQ(ierr);

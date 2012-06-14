@@ -57,7 +57,7 @@ PetscErrorCode  ISDifference(IS is1,IS is2,IS *isout)
   } else {
     imin = imax = 0;
   }
-  ierr = PetscBTCreate(imax-imin,mask);CHKERRQ(ierr);
+  ierr = PetscBTCreate(imax-imin,&mask);CHKERRQ(ierr);
   /* Put the values from is1 */
   for (i=0; i<n1; i++) {
     if (i1[i] < 0) continue;
@@ -88,7 +88,7 @@ PetscErrorCode  ISDifference(IS is1,IS is2,IS *isout)
   ierr = PetscObjectGetComm((PetscObject)is1,&comm);CHKERRQ(ierr);
   ierr = ISCreateGeneral(comm,nout,iout,PETSC_OWN_POINTER,isout);CHKERRQ(ierr);
 
-  ierr = PetscBTDestroy(mask);CHKERRQ(ierr);
+  ierr = PetscBTDestroy(&mask);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -275,7 +275,7 @@ PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
   }
   ierr = PetscMalloc((n1+n2)*sizeof(PetscInt),&iout);CHKERRQ(ierr);
   nout = 0;
-  ierr = PetscBTCreate(imax-imin,mask);CHKERRQ(ierr);
+  ierr = PetscBTCreate(imax-imin,&mask);CHKERRQ(ierr);
   /* Put the values from is1 */
   for (i=0; i<n1; i++) {
     if (i1[i] < 0) continue;
@@ -297,7 +297,7 @@ PetscErrorCode ISExpand(IS is1,IS is2,IS *isout)
   ierr = PetscObjectGetComm((PetscObject)is1,&comm);CHKERRQ(ierr);
   ierr = ISCreateGeneral(comm,nout,iout,PETSC_OWN_POINTER,isout);CHKERRQ(ierr);
 
-  ierr = PetscBTDestroy(mask);CHKERRQ(ierr);
+  ierr = PetscBTDestroy(&mask);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -382,19 +382,23 @@ PetscErrorCode ISConcatenate(MPI_Comm comm, PetscInt len, const IS islist[], IS 
 + indis   -  IS of the indices found on the IS list
 - coloris -  IS of colors
 
-  Note: 
-+ The global colors assigned to the ISs of the local input list might not correspond to the
+  Level: advanced
+
+  Notes:
+  The global colors assigned to the ISs of the local input list might not correspond to the
   local numbers of the ISs on that list, but the two *orderings* are the same: the global 
   colors assigned to the ISs on the local list form a strictly increasing sequence.
-. The ISs on the input list can belong to subcommunicators of comm, and the subcommunicators 
-  on the input IS list are assumed to be in a "deadlock-free" order:
-- Local lists of PetscObjects (or their subcommes) on a comm are "deadlock-free" if subcomm1 
+
+  The ISs on the input list can belong to subcommunicators of comm, and the subcommunicators 
+  on the input IS list are assumed to be in a "deadlock-free" order.
+
+  Local lists of PetscObjects (or their subcommes) on a comm are "deadlock-free" if subcomm1 
   preceeds subcomm2 on any local list, then it preceeds subcomm2 on all ranks.
   Equivalently, the local numbers of the subcomms on each local list are drawn from some global 
   numbering. This is ensured, for example, by ISColoringToList().
 
 .seealso ISColoringToList()
- @*/
+@*/
 #undef  __FUNCT__
 #define __FUNCT__ "ISListToColoring"
 PetscErrorCode ISListToColoring(MPI_Comm comm, PetscInt listlen, IS islist[], IS *indis, IS *coloris) 
@@ -464,6 +468,8 @@ PetscErrorCode ISListToColoring(MPI_Comm comm, PetscInt listlen, IS islist[], IS
   Note: 
 + indis and coloris must be of the same length and have congruent communicators.  
 - The resulting ISs have subcommunicators in a "deadlock-free" order (see ISListToColoring()).
+
+  Level: advanced
 
 .seealso ISListToColoring()
  @*/
@@ -541,7 +547,7 @@ PetscErrorCode ISColoringToList(IS indis, IS coloris, PetscInt *listlen, IS **is
       ierr = MPI_Allreduce(&color,&subsize,1,MPI_INT,MPI_SUM,comm); CHKERRQ(ierr);
       
       if(subsize == 1) subcomm = PETSC_COMM_SELF;
-      else if(subsize == size) subcomm = PETSC_COMM_WORLD;
+      else if(subsize == size) subcomm = comm;
       else {
         /* a proper communicator is necessary, so we create it. */
         ierr = MPI_Comm_split(comm, color, rank, &subcomm); CHKERRQ(ierr);

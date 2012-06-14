@@ -5,8 +5,8 @@
   much of anything.
 */
 
-#include <private/matimpl.h>        /*I "petscmat.h" I*/
-#include <private/vecimpl.h>  
+#include <petsc-private/matimpl.h>        /*I "petscmat.h" I*/
+#include <petsc-private/vecimpl.h>  
 
 typedef struct {
   PetscErrorCode (*destroy)(Mat);
@@ -170,7 +170,7 @@ static PetscErrorCode MatShellShiftAndScale(Mat A,Vec X,Vec Y)
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatShellGetContext"
-/*@C
+/*@
     MatShellGetContext - Returns the user-provided context associated with a shell matrix.
 
     Not Collective
@@ -373,18 +373,6 @@ PetscErrorCode MatAssemblyEnd_Shell(Mat Y,MatAssemblyType t)
 
 extern PetscErrorCode MatConvert_Shell(Mat, const MatType,MatReuse,Mat*);
 
-#undef __FUNCT__  
-#define __FUNCT__ "MatSetBlockSize_Shell"
-PetscErrorCode MatSetBlockSize_Shell(Mat A,PetscInt bs)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscLayoutSetBlockSize(A->rmap,bs);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize(A->cmap,bs);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 static struct _MatOps MatOps_Values = {0,
        0,
        0,
@@ -434,7 +422,7 @@ static struct _MatOps MatOps_Values = {0,
        MatShift_Shell,
        0,
        0,
-/*49*/ MatSetBlockSize_Shell,
+/*49*/ 0,
        0,
        0,
        0,
@@ -506,8 +494,6 @@ PetscErrorCode  MatCreate_Shell(Mat A)
   ierr = PetscNewLog(A,Mat_Shell,&b);CHKERRQ(ierr);
   A->data = (void*)b;
 
-  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
 
@@ -597,9 +583,9 @@ PetscErrorCode  MatCreateShell(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,Pe
   PetscFunctionBegin;
   ierr = MatCreate(comm,A);CHKERRQ(ierr);
   ierr = MatSetSizes(*A,m,n,M,N);CHKERRQ(ierr);
-  
   ierr = MatSetType(*A,MATSHELL);CHKERRQ(ierr);
   ierr = MatShellSetContext(*A,ctx);CHKERRQ(ierr);
+  ierr = MatSetUp(*A);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -662,7 +648,7 @@ $      ierr = MatShellSetOperation(A,MATOP_MULT,(void(*)(void))usermult);
     <OPERATION> is the name (in all capital letters) of the
     user interface routine (e.g., MatMult() -> MATOP_MULT).
 
-    All user-provided functions should have the same calling
+    All user-provided functions (execept for MATOP_DESTROY) should have the same calling
     sequence as the usual matrix interface routines, since they
     are intended to be accessed via the usual matrix interface
     routines, e.g., 

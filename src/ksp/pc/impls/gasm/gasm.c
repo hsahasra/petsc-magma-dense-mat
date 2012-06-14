@@ -8,7 +8,7 @@
        n    - actual number of subdomains on this processor
        nmax - maximum number of subdomains per processor
 */
-#include <private/pcimpl.h>     /*I "petscpc.h" I*/
+#include <petsc-private/pcimpl.h>     /*I "petscpc.h" I*/
 
 typedef struct {
   PetscInt   N,n,nmax;
@@ -210,6 +210,7 @@ static PetscErrorCode PCSetUp_GASM(PC pc)
   Vec            x,y;
   PetscScalar    *gxarray, *gyarray;
   PetscInt       gfirst, glast;
+  DM             *domain_dm = PETSC_NULL;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_size(((PetscObject)pc)->comm,&size);CHKERRQ(ierr);
@@ -221,11 +222,44 @@ static PetscErrorCode PCSetUp_GASM(PC pc)
       if (symset && flg) { osm->type = PC_GASM_BASIC; }
     }
 
+    /* Note: if osm->n has been set, it is at least 1. */
     if (osm->N == PETSC_DECIDE && osm->n < 1) { 
-      /* no subdomains given, use one per processor */
-      osm->nmax = osm->n = 1;
-      ierr = MPI_Comm_size(((PetscObject)pc)->comm,&size);CHKERRQ(ierr);
-      osm->N = size;
+      /* no subdomains given */
+      /* try pc->dm first */
+      if(pc->dm) {
+        char      ddm_name[1024];
+        DM        ddm;
+        PetscBool flg;
+        PetscInt     num_domains, d;
+        char         **domain_names;
+        IS           *domain_is;
+        /* Allow the user to request a decomposition DM by name */
+        ierr = PetscStrncpy(ddm_name, "", 1024); CHKERRQ(ierr);
+        ierr = PetscOptionsString("-pc_asm_decomposition_dm", "Name of the DM defining the composition", "PCSetDM", ddm_name, ddm_name,1024,&flg); CHKERRQ(ierr);
+        if(flg) {
+          ierr = DMCreateDecompositionDM(pc->dm, ddm_name, &ddm); CHKERRQ(ierr);
+          if(!ddm) {
+            SETERRQ1(((PetscObject)pc)->comm, PETSC_ERR_ARG_WRONGSTATE, "Uknown DM decomposition name %s", ddm_name);
+          }
+          ierr = PetscInfo(pc,"Using decomposition DM defined using options database\n");CHKERRQ(ierr);
+          ierr = PCSetDM(pc,ddm); CHKERRQ(ierr);
+        }
+        ierr = DMCreateDecomposition(pc->dm, &num_domains, &domain_names, &domain_is, &domain_dm);    CHKERRQ(ierr);
+        if(num_domains) {
+          ierr = PCGASMSetLocalSubdomains(pc, num_domains, domain_is, PETSC_NULL);CHKERRQ(ierr);
+        }
+        for(d = 0; d < num_domains; ++d) {
+          ierr = PetscFree(domain_names[d]); CHKERRQ(ierr);
+          ierr = ISDestroy(&domain_is[d]);   CHKERRQ(ierr);
+        }
+        ierr = PetscFree(domain_names);CHKERRQ(ierr);
+        ierr = PetscFree(domain_is);CHKERRQ(ierr);
+      }
+      if (osm->N == PETSC_DECIDE && osm->n < 1) { /* still no subdomains; use one per processor */
+        osm->nmax = osm->n = 1;
+        ierr = MPI_Comm_size(((PetscObject)pc)->comm,&size);CHKERRQ(ierr);
+        osm->N = size;
+      }
     } else if (osm->N == PETSC_DECIDE) {
       PetscInt inwork[2], outwork[2];
       /* determine global number of subdomains and the max number of local subdomains */
@@ -349,8 +383,8 @@ static PetscErrorCode PCSetUp_GASM(PC pc)
       PetscInt dN;
       ierr = ISGetLocalSize(osm->is[i],&dn);CHKERRQ(ierr);
       ierr = ISGetSize(osm->is[i],&dN);CHKERRQ(ierr);
-      ierr = VecCreateMPIWithArray(((PetscObject)(osm->is[i]))->comm,dn,dN,gxarray+ddn,&osm->x[i]);CHKERRQ(ierr); 
-      ierr = VecCreateMPIWithArray(((PetscObject)(osm->is[i]))->comm,dn,dN,gyarray+ddn,&osm->y[i]);CHKERRQ(ierr);
+      ierr = VecCreateMPIWithArray(((PetscObject)(osm->is[i]))->comm,1,dn,dN,gxarray+ddn,&osm->x[i]);CHKERRQ(ierr); 
+      ierr = VecCreateMPIWithArray(((PetscObject)(osm->is[i]))->comm,1,dn,dN,gyarray+ddn,&osm->y[i]);CHKERRQ(ierr);
     }
     ierr = VecRestoreArray(osm->gx, &gxarray);CHKERRQ(ierr);
     ierr = VecRestoreArray(osm->gy, &gyarray);CHKERRQ(ierr);
@@ -533,7 +567,11 @@ static PetscErrorCode PCReset_GASM(PC pc)
   
   ierr = VecScatterDestroy(&osm->grestriction);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&osm->gprolongation);CHKERRQ(ierr);
-  if (osm->is) {ierr = PCGASMDestroySubdomains(osm->n,osm->is,osm->is_local);CHKERRQ(ierr); osm->is = 0;}
+  if (osm->is) {
+    ierr = PCGASMDestroySubdomains(osm->n,osm->is,osm->is_local);CHKERRQ(ierr); 
+    osm->is = 0;
+    osm->is_local = 0;
+  }
   ierr = ISDestroy(&osm->gis);CHKERRQ(ierr);
   ierr = ISDestroy(&osm->gis_local);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -600,7 +638,7 @@ PetscErrorCode  PCGASMSetLocalSubdomains_GASM(PC pc,PetscInt n,IS is[],IS is_loc
   PetscInt       i;
 
   PetscFunctionBegin;
-  if (n < 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Each process must have 1 or more blocks, n = %D",n);
+  if (n < 1) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Each process must have 1 or more subdomains, n = %D",n);
   if (pc->setupcalled && (n != osm->n || is)) SETERRQ(((PetscObject)pc)->comm,PETSC_ERR_ARG_WRONGSTATE,"PCGASMSetLocalSubdomains() should be called before calling PCSetUp().");
 
   if (!pc->setupcalled) {

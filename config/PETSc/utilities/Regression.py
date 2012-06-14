@@ -26,7 +26,7 @@ class Configure(config.base.Configure):
     self.datafilespath = framework.require('PETSc.utilities.dataFilesPath', self)
     self.compilers     = framework.require('config.compilers', self)
     self.mpi           = framework.require('config.packages.MPI', self)
-    self.x11           = framework.require('PETSc.packages.X11', self)        
+    self.x             = framework.require('PETSc.packages.X', self)        
     return
 
   def configureRegression(self):
@@ -35,13 +35,13 @@ class Configure(config.base.Configure):
     rjobs = []    # Jobs can only be run with real numbers; i.e. NOT  complex
     ejobs = []    # Jobs that require an external package install (also cannot work with complex)
     if self.mpi.usingMPIUni:
-      jobs.append('C_X11_MPIUni')
+      jobs.append('C_X_MPIUni')
       if hasattr(self.compilers, 'FC'):
         jobs.append('Fortran_MPIUni')
     else:
       jobs.append('C')
-      if self.x11.found:
-        jobs.append('C_X11')
+      if self.x.found:
+        jobs.append('C_X')
       if hasattr(self.compilers, 'FC'):
         jobs.append('Fortran')
         if self.compilers.fortranIsF90:
@@ -63,7 +63,7 @@ class Configure(config.base.Configure):
       # Note: do these tests only for non-complex builds
       if self.scalartypes.scalartype.lower() != 'complex':
         for i in self.framework.packages:
-          if not i.name.upper() in ['SOWING','C2HTML','BLASLAPACK','MPI','SCALAPACK','BLACS','PTHREAD','CUDA','THRUST','VALGRIND']:
+          if not i.name.upper() in ['SOWING','C2HTML','BLASLAPACK','MPI','SCALAPACK','BLACS','PTHREAD','CUDA','THRUST','VALGRIND','NUMDIFF']:
             ejobs.append(i.name.upper())
 
     self.addMakeMacro('TEST_RUNS',' '.join(jobs)+' '+' '.join(ejobs)+' '+' '.join(rjobs))

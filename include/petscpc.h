@@ -82,6 +82,7 @@ J*/
 #define PCSACUSPPOLY      "sacusppoly"
 #define PCBICGSTABCUSP    "bicgstabcusp"
 #define PCAINVCUSP        "ainvcusp"
+#define PCBDDC            "bddc"
 
 /* Logging support */
 extern PetscClassId  PC_CLASSID;
@@ -242,7 +243,7 @@ extern PetscErrorCode  PCShellSetDestroy(PC,PetscErrorCode (*)(PC));
 extern PetscErrorCode  PCShellGetContext(PC,void**);
 extern PetscErrorCode  PCShellSetContext(PC,void*);
 extern PetscErrorCode  PCShellSetName(PC,const char[]);
-extern PetscErrorCode  PCShellGetName(PC,char*[]);
+extern PetscErrorCode  PCShellGetName(PC,const char*[]);
 
 extern PetscErrorCode  PCFactorSetZeroPivot(PC,PetscReal);
 
@@ -275,15 +276,17 @@ extern PetscErrorCode  PCASMSetSortIndices(PC,PetscBool );
 /*E
     PCASMType - Type of additive Schwarz method to use
 
-$  PC_ASM_BASIC - symmetric version where residuals from the ghost points are used
-$                 and computed values in ghost regions are added together. Classical
-$                 standard additive Schwarz
-$  PC_ASM_RESTRICT - residuals from ghost points are used but computed values in ghost
-$                    region are discarded. Default
-$  PC_ASM_INTERPOLATE - residuals from ghost points are not used, computed values in ghost
-$                       region are added back in
-$  PC_ASM_NONE - ghost point residuals are not used, computed ghost values are discarded
-$                not very good.                
+$  PC_ASM_BASIC        - Symmetric version where residuals from the ghost points are used
+$                        and computed values in ghost regions are added together. 
+$                        Classical standard additive Schwarz.
+$  PC_ASM_RESTRICT     - Residuals from ghost points are used but computed values in ghost
+$                        region are discarded. 
+$                        Default.
+$  PC_ASM_INTERPOLATE  - Residuals from ghost points are not used, computed values in ghost
+$                        region are added back in.
+$  PC_ASM_NONE         - Residuals from ghost points are not used, computed ghost values are 
+$                        discarded.
+$                        Not very good.
 
    Level: beginner
 
@@ -302,15 +305,17 @@ extern PetscErrorCode  PCASMGetLocalSubmatrices(PC,PetscInt*,Mat*[]);
 /*E
     PCGASMType - Type of generalized additive Schwarz method to use (differs from ASM in allowing multiple processors per domain)
 
-$  PC_GASM_BASIC - symmetric version where residuals from the ghost points are used
-$                 and computed values in ghost regions are added together. Classical
-$                 standard additive Schwarz
-$  PC_GASM_RESTRICT - residuals from ghost points are used but computed values in ghost
-$                    region are discarded. Default
-$  PC_GASM_INTERPOLATE - residuals from ghost points are not used, computed values in ghost
-$                       region are added back in
-$  PC_GASM_NONE - ghost point residuals are not used, computed ghost values are discarded
-$                not very good.                
+$  PC_GASM_BASIC       - Symmetric version where residuals from the ghost points are used
+$                        and computed values in ghost regions are added together. 
+$                        Classical standard additive Schwarz.
+$  PC_GASM_RESTRICT    - Residuals from ghost points are used but computed values in ghost
+$                        region are discarded. 
+$                        Default.
+$  PC_GASM_INTERPOLATE - Residuals from ghost points are not used, computed values in ghost
+$                        region are added back in.
+$  PC_GASM_NONE        - Residuals from ghost points are not used, computed ghost values are 
+$                        discarded.
+$                        Not very good.
 
    Level: beginner
 
@@ -374,7 +379,7 @@ extern PetscErrorCode  PCHYPREGetType(PC,const char*[]);
 extern PetscErrorCode  PCBJacobiGetLocalBlocks(PC,PetscInt*,const PetscInt*[]);
 extern PetscErrorCode  PCBJacobiGetTotalBlocks(PC,PetscInt*,const PetscInt*[]);
 
-extern PetscErrorCode  PCFieldSplitSetFields(PC,const char[],PetscInt,const PetscInt*);
+extern PetscErrorCode  PCFieldSplitSetFields(PC,const char[],PetscInt,const PetscInt*,const PetscInt*);
 extern PetscErrorCode  PCFieldSplitSetType(PC,PCCompositeType);
 extern PetscErrorCode  PCFieldSplitSetBlockSize(PC,PetscInt);
 extern PetscErrorCode  PCFieldSplitSetIS(PC,const char[],IS);
@@ -390,13 +395,29 @@ E*/
 typedef enum {PC_FIELDSPLIT_SCHUR_PRE_SELF,PC_FIELDSPLIT_SCHUR_PRE_DIAG,PC_FIELDSPLIT_SCHUR_PRE_USER} PCFieldSplitSchurPreType;
 extern const char *const PCFieldSplitSchurPreTypes[];
 
+/*E
+    PCFieldSplitSchurFactType - determines which off-diagonal parts of the approximate block factorization to use
+
+    Level: intermediate
+
+.seealso: PCFieldSplitSetSchurFactType()
+E*/
+typedef enum {
+  PC_FIELDSPLIT_SCHUR_FACT_DIAG,
+  PC_FIELDSPLIT_SCHUR_FACT_LOWER,
+  PC_FIELDSPLIT_SCHUR_FACT_UPPER,
+  PC_FIELDSPLIT_SCHUR_FACT_FULL
+} PCFieldSplitSchurFactType;
+extern const char *const PCFieldSplitSchurFactTypes[];
+
 extern PetscErrorCode  PCFieldSplitSchurPrecondition(PC,PCFieldSplitSchurPreType,Mat);
+extern PetscErrorCode  PCFieldSplitSetSchurFactType(PC,PCFieldSplitSchurFactType);
 extern PetscErrorCode  PCFieldSplitGetSchurBlocks(PC,Mat*,Mat*,Mat*,Mat*);
 
 extern PetscErrorCode  PCGalerkinSetRestriction(PC,Mat);
 extern PetscErrorCode  PCGalerkinSetInterpolation(PC,Mat);
 
-extern PetscErrorCode  PCSetCoordinates(PC,PetscInt,PetscReal*);
+extern PetscErrorCode  PCSetCoordinates(PC,PetscInt,PetscInt,PetscReal*);
 extern PetscErrorCode  PCSASetVectors(PC,PetscInt,PetscReal *);
 
 extern PetscErrorCode  PCPythonSetType(PC,const char[]);
@@ -442,10 +463,27 @@ extern PetscErrorCode PCPARMSSetNonsymPerm(PC pc,PetscBool nonsym);
 extern PetscErrorCode PCPARMSSetFill(PC pc,PetscInt lfil0,PetscInt lfil1,PetscInt lfil2);
 
 extern PetscErrorCode PCGAMGSetProcEqLim(PC,PetscInt);
-extern PetscErrorCode PCGAMGAvoidRepartitioning(PC,PetscBool);
+extern PetscErrorCode PCGAMGSetRepartitioning(PC,PetscBool);
+extern PetscErrorCode PCGAMGSetUseASMAggs(PC,PetscBool);
 extern PetscErrorCode PCGAMGSetSolverType(PC,char[],PetscInt);
 extern PetscErrorCode PCGAMGSetThreshold(PC,PetscReal);
+extern PetscErrorCode PCGAMGSetCoarseEqLim(PC,PetscInt);
+extern PetscErrorCode PCGAMGSetNlevels(PC,PetscInt);
+#define PCGAMGType char*
+extern PetscErrorCode PCGAMGSetType( PC,const PCGAMGType );
+extern PetscErrorCode PCGAMGSetNSmooths(PC pc, PetscInt n);
+extern PetscErrorCode PCGAMGSetSymGraph(PC pc, PetscBool n);
+extern PetscErrorCode PCGAMGSetSquareGraph(PC,PetscBool);
 
+#if defined(PETSC_HAVE_PCBDDC)
+/* Enum defining how to treat the coarse problem */
+typedef enum {SEQUENTIAL_BDDC,REPLICATED_BDDC,PARALLEL_BDDC,MULTILEVEL_BDDC} CoarseProblemType;
+extern PetscErrorCode PCBDDCSetDirichletBoundaries(PC,IS);
+extern PetscErrorCode PCBDDCSetNeumannBoundaries(PC,IS);
+extern PetscErrorCode PCBDDCGetNeumannBoundaries(PC,IS*);
+extern PetscErrorCode PCBDDCSetCoarseProblemType(PC,CoarseProblemType);
+extern PetscErrorCode PCBDDCSetDofsSplitting(PC,PetscInt,IS[]);
+#endif
 
 PETSC_EXTERN_CXX_END
 

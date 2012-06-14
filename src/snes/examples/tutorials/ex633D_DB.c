@@ -9,8 +9,8 @@ Runtime options include:\n\
 -theta_c <theta_c>\n\n";
 
 /*
-./ex633D_DB -ksp_type fgmres -snes_vi_monitor -snes_atol 1.e-11 -snes_converged_reason -ksp_converged_reason -snes_ls_monitor -VG 10000000  -pc_type mg -pc_mg_galerkin -log_summary -dt .000001 -mg_coarse_pc_type svd  -ksp_monitor_true_residual -ksp_rtol 1.e-9 -snes_ls basic -T .0020 -P_casc .0005 -snes_monitor_solution -da_refine 1
-./ex633D_DB -ksp_type fgmres -snes_vi_monitor -snes_atol 1.e-11 -snes_converged_reason -ksp_converged_reason -snes_ls_monitor -VG 10000000  -pc_type mg -pc_mg_galerkin -log_summary  -da_refine 1
+./ex633D_DB -ksp_type fgmres -snes_vi_monitor -snes_atol 1.e-11 -snes_converged_reason -ksp_converged_reason -snes_linesearch_monitor -VG 10000000  -pc_type mg -pc_mg_galerkin -log_summary -dt .000001 -mg_coarse_pc_type svd  -ksp_monitor_true_residual -ksp_rtol 1.e-9 -snes_linesearch_type basic -T .0020 -P_casc .0005 -snes_monitor_solution -da_refine 1
+./ex633D_DB -ksp_type fgmres -snes_vi_monitor -snes_atol 1.e-11 -snes_converged_reason -ksp_converged_reason -snes_linesearch_monitor -VG 10000000  -pc_type mg -pc_mg_galerkin -log_summary  -da_refine 1
 
  */
 
@@ -122,9 +122,9 @@ int main(int argc, char **argv)
   ierr = VecDuplicate(user.wv,&user.work4);CHKERRQ(ierr);
 	
   // Get Jacobian matrix structure from the da for the entire thing, da1 
-  ierr = DMGetMatrix(user.da1,MATAIJ,&user.M);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da1,MATAIJ,&user.M);CHKERRQ(ierr);
   // Get the (usual) mass matrix structure from da2 
-  ierr = DMGetMatrix(user.da2,MATAIJ,&user.M_0);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da2,MATAIJ,&user.M_0);CHKERRQ(ierr);
 	
   ierr = SetInitialGuess(x,&user);CHKERRQ(ierr);
 	
@@ -140,11 +140,10 @@ int main(int argc, char **argv)
   ierr = SNESSetFunction(snes,r,FormFunction,(void*)&user);CHKERRQ(ierr);
   ierr = SNESSetJacobian(snes,J,J,FormJacobian,(void*)&user);CHKERRQ(ierr);
 
-  ierr = SNESSetType(snes,SNESVI);CHKERRQ(ierr);
-  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = SetVariableBounds(user.da1,xl,xu);CHKERRQ(ierr);
   //ierr = SNESVISetRedundancyCheck(snes,(PetscErrorCode (*)(SNES,IS,IS*,void*))CheckRedundancy,user.da1_clone);CHKERRQ(ierr);
   ierr = SNESVISetVariableBounds(snes,xl,xu);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   	
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"file_out",FILE_MODE_WRITE,&view_out);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"file_p",FILE_MODE_WRITE,&view_p);CHKERRQ(ierr);

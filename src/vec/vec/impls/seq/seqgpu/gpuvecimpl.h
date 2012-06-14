@@ -5,7 +5,7 @@
 #include <petscsys.h>
 #include <petscvec.h>
 #include <petscconf.h>
-#include <private/vecimpl.h>
+#include <petsc-private/vecimpl.h>
 #include <../src/vec/vec/impls/dvecimpl.h>
 
 EXTERN_C_BEGIN

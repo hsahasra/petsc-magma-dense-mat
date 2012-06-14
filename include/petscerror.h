@@ -205,6 +205,7 @@ M*/
 #define SETERRQ5(comm,n,s,a1,a2,a3,a4,a5)       return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s,a1,a2,a3,a4,a5)
 #define SETERRQ6(comm,n,s,a1,a2,a3,a4,a5,a6)    return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s,a1,a2,a3,a4,a5,a6)
 #define SETERRQ7(comm,n,s,a1,a2,a3,a4,a5,a6,a7) return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s,a1,a2,a3,a4,a5,a6,a7)
+#define SETERRQ8(comm,n,s,a1,a2,a3,a4,a5,a6,a7,a8) return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s,a1,a2,a3,a4,a5,a6,a7,a8)
 #define SETERRABORT(comm,n,s)     do {PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s);MPI_Abort(comm,n);} while (0)
 
 /*MC
@@ -305,12 +306,6 @@ M*/
 
 #define CHKMEMA PetscMallocValidate(__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__)
 
-#if defined(PETSC_UNDERSCORE_CHKERR)
-extern  PetscErrorCode __gierr;
-#define _   __gierr = 
-#define ___  CHKERRQ(__gierr);
-#endif
-
 #else /* PETSC_USE_ERRORCHECKING */
 
 /* 
@@ -324,6 +319,8 @@ extern  PetscErrorCode __gierr;
 #define SETERRQ4(c,n,s,a1,a2,a3,a4) 
 #define SETERRQ5(c,n,s,a1,a2,a3,a4,a5) 
 #define SETERRQ6(c,n,s,a1,a2,a3,a4,a5,a6) 
+#define SETERRQ7(c,n,s,a1,a2,a3,a4,a5,a6,a7) 
+#define SETERRQ8(c,n,s,a1,a2,a3,a4,a5,a6,a7,a8) 
 #define SETERRABORT(comm,n,s) 
 
 #define CHKERRQ(n)     ;
@@ -334,11 +331,6 @@ extern  PetscErrorCode __gierr;
 #ifdef PETSC_CLANGUAGE_CXX
 #define CHKERRXX(n) ;
 #endif
-
-#if !defined(PETSC_SKIP_UNDERSCORE_CHKERR)
-#define _   
-#define ___  
-#endif 
 
 #endif /* PETSC_USE_ERRORCHECKING */
 
@@ -358,10 +350,6 @@ typedef enum {PETSC_ERROR_INITIAL=0,PETSC_ERROR_REPEAT=1,PETSC_ERROR_IN_CXX = 2}
 extern PetscErrorCode  PetscErrorPrintfInitialize(void);
 extern PetscErrorCode  PetscErrorMessage(int,const char*[],char **);
 extern PetscErrorCode  PetscTraceBackErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-#if defined(PETSC_CLANGUAGE_CXX) && !defined(PETSC_USE_EXTERN_CXX)
-#include <sstream>
-extern PetscErrorCode  PetscTraceBackErrorHandlerCxx(MPI_Comm,int,const char *,const char *,const char *,PetscErrorCode,PetscErrorType,const char*,void*);
-#endif
 extern PetscErrorCode  PetscIgnoreErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
 extern PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
 extern PetscErrorCode  PetscMPIAbortErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
@@ -377,11 +365,13 @@ extern PetscErrorCode  PetscPopSignalHandler(void);
 
 typedef enum {PETSC_FP_TRAP_OFF=0,PETSC_FP_TRAP_ON=1} PetscFPTrap;
 extern PetscErrorCode   PetscSetFPTrap(PetscFPTrap);
+extern PetscErrorCode PetscFPTrapPush(PetscFPTrap);
+extern PetscErrorCode PetscFPTrapPop(void);
 
 /*
       Allows the code to build a stack frame as it runs
 */
-/*#if !defined(PETSC_USE_DEBUG) && !defined(PETSC_USE_PTHREAD)*/
+
 
 
 #define PETSCSTACKSIZE 64
@@ -394,7 +384,11 @@ typedef struct  {
         int currentsize;
 } PetscStack;
 
-extern  PetscStack *petscstack;
+#if defined(PETSC_PTHREAD_LOCAL)
+extern  PETSC_PTHREAD_LOCAL PetscStack *petscstack;
+#else
+extern PetscStack *petscstack;
+#endif
 extern PetscErrorCode   PetscStackCopy(PetscStack*,PetscStack*);
 extern PetscErrorCode   PetscStackPrint(PetscStack*,FILE* fp);
 

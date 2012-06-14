@@ -43,7 +43,7 @@ PetscErrorCode  ISCompressIndicesGeneral(PetscInt n,PetscInt nkeys,PetscInt bs,P
   ierr = PetscTableCreate(Nkbs,Nbs,&gid1_lid1);CHKERRQ(ierr);
 #else
   ierr = PetscMalloc(Nbs*sizeof(PetscInt),&nidx);CHKERRQ(ierr); 
-  ierr = PetscBTCreate(Nbs,table);CHKERRQ(ierr);
+  ierr = PetscBTCreate(Nbs,&table);CHKERRQ(ierr);
 #endif
   for (i=0; i<imax; i++) {
     isz  = 0;
@@ -59,7 +59,7 @@ PetscErrorCode  ISCompressIndicesGeneral(PetscInt n,PetscInt nkeys,PetscInt bs,P
 #if defined (PETSC_USE_CTABLE)
       ierr = PetscTableFind(gid1_lid1,ival+1,&tt);CHKERRQ(ierr);
       if (!tt) {
-	ierr = PetscTableAdd(gid1_lid1,ival+1,isz+1);CHKERRQ(ierr);
+	ierr = PetscTableAdd(gid1_lid1,ival+1,isz+1,INSERT_VALUES);CHKERRQ(ierr);
         isz++;
       }
 #else
@@ -88,7 +88,7 @@ PetscErrorCode  ISCompressIndicesGeneral(PetscInt n,PetscInt nkeys,PetscInt bs,P
 #if defined (PETSC_USE_CTABLE)
   ierr = PetscTableDestroy(&gid1_lid1);CHKERRQ(ierr);
 #else
-  ierr = PetscBTDestroy(table);CHKERRQ(ierr);
+  ierr = PetscBTDestroy(&table);CHKERRQ(ierr);
   ierr = PetscFree(nidx);CHKERRQ(ierr);
 #endif
   PetscFunctionReturn(0);

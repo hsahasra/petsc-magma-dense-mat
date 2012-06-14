@@ -1,7 +1,7 @@
 
 ALL: lib
 
-DIRS     = seq mpi
+DIRS     = seq #mpi
 
 LOCDIR   = src/mat/impls/blockstructgrid/
 

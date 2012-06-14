@@ -184,11 +184,11 @@ rather than having PETSc internally allocate the array space.
 \sindex{vectors, user-supplied arrays} 
 Such vectors can be created with the routines
 \begin{tabbing}
-  VecCreateSeqWithArray(PETSC\_COMM\_SELF,int n,PetscScalar *array,Vec *V);
+  VecCreateSeqWithArray(PETSC\_COMM\_SELF,int bs,int n,PetscScalar *array,Vec *V);
 \end{tabbing}
 and  
 \begin{tabbing}
-  VecCreateMPIWithArray(MPI\_Comm comm,int n,int N,PetscScalar *array,Vec *vv);
+  VecCreateMPIWithArray(MPI\_Comm comm,int bs,int n,int N,PetscScalar *array,Vec *vv);
 \end{tabbing}
 Note that here one must provide the value \trl{n}, it cannot be PETSC\_DECIDE and
 the user is responsible for providing enough space in the array; {\em n*sizeof(PetscScalar)}.
@@ -712,13 +712,30 @@ scalar problem in two dimensions one could do
 \begin{tabbing}
    PetscScalar **f,**u;\\
    ...\\
-  DMDAVecGetArray(DM da,Vec local,(void*)\&u);\\
-  DMDAVecGetArray(DM da,Vec global,(void*)\&f);\\
+  DMDAVecGetArray(DM da,Vec local,\&u);\\
+  DMDAVecGetArray(DM da,Vec global,\&f);\\
    ...\\
       f[i][j] = u[i][j] - ...\\
    ...\\
-  DMDAVecRestoreArray(DM da,Vec local,(void*)\&u);\\
-  DMDAVecRestoreArray(DM da,Vec global,(void*)\&f);
+  DMDAVecRestoreArray(DM da,Vec local,\&u);\\
+  DMDAVecRestoreArray(DM da,Vec global,\&f);
+\end{tabbing}
+The recommended approach for multi-component PDEs is to declare a struct representing the fields defined at each node of the grid, e.g.
+\begin{tabbing}
+  typedef struct \{ \\
+    PetscScalar u,v,omega,temperature; \\
+  \} Node;
+\end{tabbing}
+and write residual evaluation using
+\begin{tabbing}
+  Node **f,**u;\\
+  DMDAVecGetArray(DM da,Vec local,\&u);\\
+  DMDAVecGetArray(DM da,Vec global,\&f);\\
+   ...\\
+      f[i][j].omega = ...\\
+   ...\\
+  DMDAVecRestoreArray(DM da,Vec local,\&u);\\
+  DMDAVecRestoreArray(DM da,Vec global,\&f);
 \end{tabbing}
 See \trl{${PETSC_DIR}/src/snes/examples/tutorials/ex5.c} for a 
 complete example and see \trl{${PETSC_DIR}/src/snes/examples/tutorials/ex19.c} for an
@@ -772,7 +789,7 @@ added using the local numbering. This is done by first calling
 \end{tabbing}
 followed by 
 \begin{tabbing}
-  VecSetLocalToGlobalMapping(Mat A,ISLocalToGlobalMapping map);\\
+  VecSetLocalToGlobalMapping(Vec v,ISLocalToGlobalMapping map);\\
   MatSetLocalToGlobalMapping(Mat A,ISLocalToGlobalMapping map);
 \end{tabbing}
 Now entries may be added to the vector and matrix using the local numbering
@@ -917,7 +934,7 @@ To perform a conventional gather operation, the user simply makes
  the destination index set, 
 \trl{iy}, be a stride index set with a stride of one.  Similarly, a 
 conventional scatter can be done with an initial (sending) index set 
-consisting of a stride.  The scatter rotines are collective operations
+consisting of a stride.  The scatter routines are collective operations
 (i.e. all processes that own 
 a parallel vector {\em must} call the scatter routines). When scattering from a 
 parallel vector to sequential vectors, each process has its own sequential 
@@ -1400,7 +1417,7 @@ PETSC\_DECIDE.
 If PETSC\_DECIDE is not used for the arguments
 \trl{m} and \trl{n}, then the user must ensure that they are chosen to be
 compatible with the vectors. To do this, one first considers the matrix-vector product 
-$y = A x$. The \trl{m} that is used in the matrix creation routine MatCreateMPIAIJ()
+$y = A x$. The \trl{m} that is used in the matrix creation routine MatCreateAIJ()
 must match the local size used in the vector creation routine VecCreateMPI() for \trl{y}.
 Likewise, the \trl{n} used must match that used as the local size in 
 VecCreateMPI() for \trl{x}. 
@@ -1416,7 +1433,7 @@ to be its local rows and the corresponding columns (a square submatrix);
 each process's off-diagonal portion encompasses the remainder of the
 local matrix (a rectangular submatrix).  
 The rank in the MPI communicator determines the absolute ordering of the
-blocks.  That is, the process with rank 0 in the communicator given to  MatCreateMPIAIJ() contains the top rows of the matrix; the i$^{th}$ process
+blocks.  That is, the process with rank 0 in the communicator given to  MatCreateAIJ() contains the top rows of the matrix; the i$^{th}$ process
 in that communicator contains the i$^{th}$ block of the matrix.
 
 \subsubsection{Preallocation of Memory for Parallel AIJ Sparse Matrices}
@@ -1545,7 +1562,7 @@ wish to allocate their own storage space).  Most users should merely
 set \trl{data} to PETSC\_NULL for PETSc to control matrix memory allocation.
 To create a parallel, dense matrix, \trl{A}, the user should call
 \begin{tabbing}
-  MatCreateMPIDense(MPI\_Comm comm,int m,int n,int M,int N,PetscScalar *data,Mat *A)
+  MatCreateDense(MPI\_Comm comm,int m,int n,int M,int N,PetscScalar *data,Mat *A)
 \end{tabbing}
 The arguments \trl{m}, \trl{n}, 
 \trl{M}, and \trl{N}, indicate the number of local rows and columns and
@@ -1780,7 +1797,7 @@ previously existed, space will be allocated for the new entries.
 To prevent the allocation of additional memory and simply discard those 
 new entries, one can use the option
 \begin{tabbing}
-  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC\_TRUE);
+  MatSetOption(Mat A,MAT\_NEW\_NONZERO\_LOCATIONS,PETSC\_FALSE);
 \end{tabbing}
 Once the matrix has been assembled, one can factor it numerically
 without repeating the ordering or the symbolic factorization. 
@@ -1823,7 +1840,7 @@ same positions and the matrix retains the same nonzero structure, the user
 can call MatZeroRows() in the first iteration. Then, before generating 
 the matrix in the second iteration the user should call
 \begin{tabbing}
-  MatSetOption(Mat A,MAT\_NO\_NEW\_NONZERO\_LOCATIONS,PETSC\_TRUE);
+  MatSetOption(Mat A,MAT\_NEW\_NONZERO\_LOCATIONS,PETSC\_FALSE);
 \end{tabbing}
 From that point,
 no new values will be inserted into those (boundary) rows of 
@@ -3157,7 +3174,7 @@ A_{{10}_{10}}   & A_{{11}_{10}} & A_{{10}_{11}} & A_{{11}_{11}} & ...\\
 \end{array} \right).
 \]
 Note that for interlaced storage the number of rows/columns of each
-block must be the same size. Matrices obtained with DMGetMatrix()
+block must be the same size. Matrices obtained with DMCreateMatrix()
 where the DM is a a DMDA are always stored interlaced.
 Block matrices can also be stored using the MATNEST format which holds separate assembled blocks.
 Each of these nested matrices is itself distributed in parallel.
@@ -3362,7 +3379,7 @@ I   & 0 \\
 \]
 Where $\hat{S} = A_{11} - A_{10} ksp(A_{00},Ap_{00}) A_{01}$ is the approximate Schur complement. By default $\hat{S}p$ is $Ap_{11}.$ 
 
-There are several variants of the Schur complement preconditioner obtained by dropping some of the terms, these can be obtained with \trl{-pc_fieldsplit_schur_factorization_type <diag,lower,upper,full>} or NOTE WE NEED TO ADD A FUNCTIONAL INTERFACE. Note that the \trl{diag} form uses the preconditioner
+There are several variants of the Schur complement preconditioner obtained by dropping some of the terms, these can be obtained with \trl{-pc_fieldsplit_schur_fact_type <diag,lower,upper,full>} or the function PCFieldSplitSetSchurFactType(). Note that the \trl{diag} form uses the preconditioner
 \[
 \left( \begin{array}{cc}
 ksp(A_{00},Ap_{00})   & 0 \\
@@ -4120,7 +4137,7 @@ Matrix           & Assemble matrix with user-defined & to access the PC, then us
 
 \medskip
 $ ^* $ Use either the generic MatCreate() or a format-specific variant
-   such as MatCreateMPIAIJ().\\
+   such as MatCreateAIJ().\\
 $ ^\dagger $ Set user-defined matrix formation routine with SNESSetJacobian().
 \medskip
 \caption{Jacobian Options}
@@ -4248,10 +4265,10 @@ These parameters may be set from the options database with
 Note that although MatGetColoring() works for parallel matrices, the routine currently uses a sequential algorithm.
 Extensions may be forthcoming.
 However, if one can compute the coloring \trl{iscoloring} some other way, the routine MatFDColoringCreate() is scalable.
-An example of this for 2D distributed arrays is given below that uses the utility routine DMGetColoring().
+An example of this for 2D distributed arrays is given below that uses the utility routine DMCreateColoring().
 
 \begin{tabbing}
-   DMGetColoring(da,IS\_COLORING\_GHOSTED,\&iscoloring);\\
+   DMCreateColoring(da,IS\_COLORING\_GHOSTED,\&iscoloring);\\
    MatFDColoringCreate(J,iscoloring,\&fdcoloring); \\
    MatFDColoringSetFromOptions(fdcoloring);\\
    ISColoringDestroy(\&iscoloring);
@@ -4485,9 +4502,14 @@ user must create a MATSHELL matrix. Again, note the similarity
 to SNESSetJacobian().
 \end{itemize}
 
-Similar to SNESDefaultComputeJacobianColor() is the
-routine TSDefaultComputeJacobianColor() and TSDefaultComputeJacobian() that 
-corresponds to SNESDefaultComputeJacobian().
+To configure TS to use coloring, create a MatFDColoring, register the function
+\begin{tabbing}
+  MatFDColoringSetFunction(matfdcoloring,(PetscErrorCode(*)(void))SNESTSFormFunction,ts);
+\end{tabbing}
+obtain the snes using TSGetSNES(), and set the Jacobian routine
+\begin{tabbing}
+  SNESSetJacobian(snes,A,B,SNESDefaultComputeJacobianColor,matfdcoloring);
+\end{tabbing}
 \sindex{coloring with TS}
 
 \subsection{Solving Differential Algebraic Equations}
@@ -5415,7 +5437,7 @@ application codes and tips for accurate profiling.
 \sindex{profiling} \sindex{logging} \sindex{timing} 
 
 If an application code and the PETSc libraries have been configured with
-\trl{--with-debugging=1}, the default,
+\trl{--with-log=1}, the default,
 then various kinds of profiling of code between calls to PetscInitialize() and PetscFinalize() can be 
 activated at runtime.  The profiling options include the following:
 \findex{-log_summary} \findex{-info}
@@ -6074,11 +6096,11 @@ at a time can significantly enhance performance.
 Since the process of dynamic memory allocation for sparse matrices is
 inherently very expensive, accurate preallocation of memory is crucial
 for efficient sparse matrix assembly.  One should use the matrix creation
-routines for particular data structures, such as MatCreateSeqAIJ() and MatCreateMPIAIJ() for compressed, sparse
+routines for particular data structures, such as MatCreateSeqAIJ() and MatCreateAIJ() for compressed, sparse
 row formats, instead of the generic MatCreate() routine.  For
 problems with multiple degrees of freedom per node, the block,
 compressed, sparse row formats, created by MatCreateSeqBAIJ()
-and MatCreateMPIBAIJ(), can significantly enhance performance.
+and MatCreateBAIJ(), can significantly enhance performance.
 Section~\ref{sec_matsparse} includes extensive details and
 examples regarding preallocation.
 

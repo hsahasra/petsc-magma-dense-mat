@@ -130,38 +130,35 @@ runex19:
 	   ${RM} -f ex19_1.tmp
 runex20:
 	-@${MPIEXEC} -n 1 ./ex20 > ex20_1.tmp 2>&1;   \
-	   ${DIFF} output/ex20_1.out ex20_1.tmp || echo "Possible problem with ex20_1, diffs above \n========================================="; \
+	   ${DIFF} output/ex20_1.out ex20_1.tmp || echo ${PWD} "\nPossible problem with ex20_1, diffs above \n========================================="; \
 	   ${RM} -f ex20_1.tmp
 runex20_2:
 	-@${MPIEXEC} -n 1 ./ex20 -cl -prefix_push cl_ -zero 10 -prefix_push a_ -one 11 -prefix_push bb_ -two 12 -prefix_pop -three 13 -prefix_push cc_ -prefix_push ddd_ -four 14 -prefix_pop -prefix_pop -prefix_pop -five 15 -prefix_pop > ex20_2.tmp 2>&1;   \
-	   ${DIFF} output/ex20_2.out ex20_2.tmp || echo "Possible problem with ex20_2, diffs above \n========================================="; \
+	   ${DIFF} output/ex20_2.out ex20_2.tmp || echo  ${PWD} "\nPossible problem with ex20_2, diffs above \n========================================="; \
 	   ${RM} -f ex20_2.tmp
 runex20_3:
 	-@${MPIEXEC} -n 1 ./ex20 -str > ex20_3.tmp 2>&1;   \
-	   ${DIFF} output/ex20_3.out ex20_3.tmp || echo "Possible problem with ex20_3, diffs above \n========================================="; \
+	   ${DIFF} output/ex20_3.out ex20_3.tmp || echo  ${PWD} "\nPossible problem with ex20_3, diffs above \n========================================="; \
 	   ${RM} -f ex20_3.tmp
 runex22:
 	-@${MPIEXEC} -n 1 ./ex22 > ex22.tmp 2>&1;   \
-	   ${DIFF} output/ex22.out ex22.tmp || echo "Possible problem with ex22, diffs above \n========================================="; \
+	   ${DIFF} output/ex22.out ex22.tmp || echo  ${PWD} "\nPossible problem with ex22, diffs above \n========================================="; \
 	   ${RM} -f ex22.tmp
 runex23:
 	-@${MPIEXEC} -n 1 ./ex23 -options_file_yaml ex23options > ex23.tmp 2>&1;   \
-	   ${DIFF} output/ex23.out ex23.tmp || echo "Possible problem with ex23, diffs above \n========================================="; \
+	   ${DIFF} output/ex23.out ex23.tmp || echo  ${PWD} "\nPossible problem with ex23, diffs above \n========================================="; \
 	   ${RM} -f ex23.tmp
-runex24:
-	-@${MPIEXEC} -n 1 ./ex24 -regress output/ex24_1.out
-	-@${MPIEXEC} -n 2 ./ex24 -regress output/ex24_1.out
 
 
 TESTEXAMPLES_C		       = ex19.PETSc runex19 ex19.rm \
                                  ex20.PETSc runex20 runex20_2 runex20_3 ex20.rm  ex21.PETSc ex21.rm \
-                                 ex22.PETSc runex22 ex22.rm ex24.PETSc runex24 ex24.rm
-TESTEXAMPLES_C_X11	       = ex1.PETSc runex1 ex1.rm ex2.PETSc runex2 ex2.rm ex3.PETSc runex3 ex3.rm 
+                                 ex22.PETSc runex22 ex22.rm ex24.PETSc ex24.rm
+TESTEXAMPLES_C_X	       = ex1.PETSc runex1 ex1.rm ex2.PETSc runex2 ex2.rm ex3.PETSc runex3 ex3.rm 
 TESTEXAMPLES_FORTRAN	       = ex5f.PETSc ex5f.rm ex6f.PETSc ex6f.rm ex17f.PETSc ex17f.rm
 TESTEXAMPLES_FORTRAN_NOCOMPLEX = ex1f.PETSc runex1f ex1f.rm
 TESTEXAMPLES_FORTRAN_COMPLEX   = ex1f.PETSc runex1f ex1f.rm
 TESTEXAMPLES_FORTRAN_MPIUNI    = ex5f.PETSc ex5f.rm ex6f.PETSc ex6f.rm
-TESTEXAMPLES_C_X11_MPIUNI      = ex1.PETSc ex1.rm ex2.PETSc ex2.rm ex3.PETSc ex3.rm
+TESTEXAMPLES_C_X_MPIUNI      = ex1.PETSc ex1.rm ex2.PETSc ex2.rm ex3.PETSc ex3.rm
 TESTEXAMPLES_13		       = ex9.PETSc ex9.rm ex10.PETSc ex10.rm ex11.PETSc ex11.rm ex12.PETSc ex12.rm \
                                  ex14.PETSc ex14.rm
 

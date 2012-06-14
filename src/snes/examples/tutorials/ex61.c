@@ -9,16 +9,16 @@ Runtime options include:\n\
 -theta_c <theta_c>\n\n";
 
 /*
- ./ex61 -ksp_type gmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 3  -T 0.1   -ksp_monitor_true_residual -pc_type lu -pc_factor_mat_solver_package superlu -snes_converged_reason -ksp_converged_reason  -ksp_rtol 1.e-9  -snes_ls_monitor -VG 10 -draw_fields 1,3,4 -snes_ls basic
+ ./ex61 -ksp_type gmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 3  -T 0.1   -ksp_monitor_true_residual -pc_type lu -pc_factor_mat_solver_package superlu -snes_converged_reason -ksp_converged_reason  -ksp_rtol 1.e-9  -snes_linesearch_monitor -VG 10 -draw_fields 1,3,4 -snes_linesearch_type basic
 
-./ex61 -ksp_type gmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 4 -T 0.1   -ksp_monitor_true_residual -pc_type sor -snes_converged_reason -ksp_converged_reason  -ksp_rtol 1.e-9  -snes_ls_monitor -VG 10 -draw_fields 1,3,4 -snes_ls basic
+./ex61 -ksp_type gmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 4 -T 0.1   -ksp_monitor_true_residual -pc_type sor -snes_converged_reason -ksp_converged_reason  -ksp_rtol 1.e-9  -snes_linesearch_monitor -VG 10 -draw_fields 1,3,4 -snes_linesearch_type basic
 
-./ex61 -ksp_type fgmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 5 -T 0.1   -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason  -ksp_rtol 1.e-9  -snes_ls_monitor -VG 10 -draw_fields 1,3,4 -snes_ls basic -pc_type mg -pc_mg_galerkin
+./ex61 -ksp_type fgmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 5 -T 0.1   -ksp_monitor_true_residual -snes_converged_reason -ksp_converged_reason  -ksp_rtol 1.e-9  -snes_linesearch_monitor -VG 10 -draw_fields 1,3,4 -snes_linesearch_type basic -pc_type mg -pc_mg_galerkin
 
-./ex61 -ksp_type fgmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 5 -snes_converged_reason -ksp_converged_reason   -snes_ls_monitor -VG 1 -draw_fields 1,3,4  -pc_type mg -pc_mg_galerkin -log_summary -dt .0000000000001 -mg_coarse_pc_type svd  -ksp_monitor_true_residual -ksp_rtol 1.e-9
+./ex61 -ksp_type fgmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 5 -snes_converged_reason -ksp_converged_reason   -snes_linesearch_monitor -VG 1 -draw_fields 1,3,4  -pc_type mg -pc_mg_galerkin -log_summary -dt .0000000000001 -mg_coarse_pc_type svd  -ksp_monitor_true_residual -ksp_rtol 1.e-9
 
 Movie version
-./ex61 -ksp_type fgmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 6 -snes_converged_reason -ksp_converged_reason   -snes_ls_monitor -VG 10 -draw_fields 1,3,4  -pc_type mg -pc_mg_galerkin -log_summary -dt .000001 -mg_coarse_pc_type redundant -mg_coarse_redundant_pc_type svd  -ksp_monitor_true_residual -ksp_rtol 1.e-9 -snes_ls basic -T .0020 
+./ex61 -ksp_type fgmres -snes_vi_monitor   -snes_atol 1.e-11  -da_refine 6 -snes_converged_reason -ksp_converged_reason   -snes_linesearch_monitor -VG 10 -draw_fields 1,3,4  -pc_type mg -pc_mg_galerkin -log_summary -dt .000001 -mg_coarse_pc_type redundant -mg_coarse_redundant_pc_type svd  -ksp_monitor_true_residual -ksp_rtol 1.e-9 -snes_linesearch_type basic -T .0020 
 
  */
 
@@ -168,9 +168,9 @@ int main(int argc, char **argv)
 
 
   /* Get Jacobian matrix structure from the da for the entire thing, da1 */
-  ierr = DMGetMatrix(user.da1,MATAIJ,&user.M);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da1,MATAIJ,&user.M);CHKERRQ(ierr);
   /* Get the (usual) mass matrix structure from da2 */
-  ierr = DMGetMatrix(user.da2,MATAIJ,&user.M_0);CHKERRQ(ierr);
+  ierr = DMCreateMatrix(user.da2,MATAIJ,&user.M_0);CHKERRQ(ierr);
   ierr = SetInitialGuess(x,&user);CHKERRQ(ierr);
   /* twodomain modeling */
   if (user.domain) {
@@ -195,12 +195,10 @@ int main(int argc, char **argv)
   ierr = SNESSetJacobian(snes,J,J,FormJacobian,(void*)&user);CHKERRQ(ierr);
  
 
-  ierr = SNESSetType(snes,SNESVI);CHKERRQ(ierr);
-  ierr = SNESSetTolerances(snes,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,100,PETSC_DEFAULT);CHKERRQ(ierr);
-
-  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = SetVariableBounds(user.da1,xl,xu);CHKERRQ(ierr);
   ierr = SNESVISetVariableBounds(snes,xl,xu);CHKERRQ(ierr);
+  ierr = SNESSetTolerances(snes,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,100,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   
   /*  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"file_rand",FILE_MODE_WRITE,&view_rand);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"file_mat2",FILE_MODE_WRITE,&view_mat);CHKERRQ(ierr);
