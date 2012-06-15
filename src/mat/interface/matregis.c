@@ -57,7 +57,7 @@ extern PetscErrorCode MatCreate_SeqBSG(Mat);
 extern PetscErrorCode MatCreate_MPIBSG(Mat);
 
 /*The following two functions are declared to enable dynamic registration
-  of new datatypes structgrid and structgridgpu. 
+  of new datatypes structgrid and structgridgpu.
   AUTHOR: Chekuri S. Choudary
 */
 
@@ -67,15 +67,15 @@ extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
 
 
 EXTERN_C_END
-  
+
 /*
-    This is used by MatSetType() to make sure that at least one 
+    This is used by MatSetType() to make sure that at least one
     MatRegisterAll() is called. In general, if there is more than one
     DLL, then MatRegisterAll() may be called several times.
 */
 extern PetscBool  MatRegisterAllCalled;
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatRegisterAll"
 /*@C
   MatRegisterAll - Registers all of the matrix types in PETSc
@@ -161,10 +161,11 @@ PetscErrorCode  MatRegisterAll(const char path[])
  ierr = MatRegisterDynamic(MATBLOCKSTRUCTGRID,     path,"MatCreate_SeqBSG",MatCreate_SeqBSG);CHKERRQ(ierr);
  //ierr = MatRegisterDynamic(MATMPIBSG,     path,"MatCreate_MPIBSG",MatCreate_MPIBSG);CHKERRQ(ierr);
  ierr = MatRegisterDynamic(MATSTRUCTGRID,     path,"MatCreate_SeqSG",MatCreate_SeqSG);CHKERRQ(ierr);
- ierr = MatRegisterDynamic(MATSTRUCTGRIDGPU,     path,"MatCreate_SeqSGGPU",MatCreate_SeqSGGPU);CHKERRQ(ierr);
 
- 
- 
+ ierr = MatRegisterDynamic(MATSEQSGGPU,     path,"MatCreate_SeqSGGPU",MatCreate_SeqSGGPU);CHKERRQ(ierr);
+
+
+
  PetscFunctionReturn(0);
 }
 

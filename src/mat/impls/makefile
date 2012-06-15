@@ -1,7 +1,7 @@
 
 ALL: lib
 
-DIRS     = dense aij shell baij adj maij is sbaij adic normal lrc scatter blockmat composite cufft mffd transpose python submat localref nest fft ij structgrid blockstructgrid
+DIRS     = dense aij shell baij adj maij is sbaij adic normal lrc scatter blockmat composite cufft mffd transpose python submat localref nest fft ij structgrid blockstructgrid sggpu
 
 LOCDIR   = src/mat/impls/
 
