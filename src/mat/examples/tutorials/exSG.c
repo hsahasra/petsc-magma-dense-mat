@@ -154,6 +154,7 @@ int e;
 	MatSetType(matsggpu,MATSEQSGGPU);
 	MatSetType(matgpu,MATSEQAIJCUSP);
         MatSetUp(matgpu);
+        MatSetUp(matsggpu);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set stencils for Structgrid -matsg
@@ -163,7 +164,7 @@ int e;
 	MatSetUpPreallocation_SeqSG(matsg);
 #ifdef GPU
 	ierr   = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
-	MatSetUpPreallocation_SeqSG(matsggpu);
+	//MatSetUpPreallocation_SeqSG(matsggpu);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices

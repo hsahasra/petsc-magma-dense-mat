@@ -92,6 +92,9 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
   A->same_nonzero= PETSC_FALSE;
   A->spptr = 0;
 
+  // Set object type
+  ierr = PetscObjectChangeTypeName((PetscObject)A, MATSEQSGGPU); CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 EXTERN_C_END
