@@ -141,34 +141,35 @@ int e;
   	ierr = MatCreate(PETSC_COMM_WORLD,&mat);CHKERRQ(ierr);
   	ierr = MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,nz,nz);CHKERRQ(ierr);
   	MatSetType(mat,MATSEQAIJ);
-	//MatSeqAIJSetPreallocation(mat,nos,PETSC_NULL);
+	MatSeqAIJSetPreallocation(mat,nos,PETSC_NULL);
   	
-	ierr = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
+	ierr   = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
+  	ierr   = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
 	MatSetType(matsg,MATSTRUCTGRID);
 #ifdef GPU 
-	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
-  	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
-  	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
+	ierr   = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
+  	ierr   = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
+  	ierr   = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
+  	ierr   = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
 	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
 	MatSetType(matgpu,MATSEQAIJCUSP);
+        MatSetUp(matgpu);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set stencils for Structgrid -matsg
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	starts = malloc(sizeof(PetscInt)*dim);
-  	ierr = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
+  	ierr   = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
 	MatSetUpPreallocation_SeqSG(matsg);
 #ifdef GPU
-	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
+	ierr   = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
 	MatSetUpPreallocation_SeqSG(matsggpu);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-//  	ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
-	ierr = VecSetRandom(x,PETSC_NULL);
+//  	ierr   = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
+	ierr   = VecSetRandom(x,PETSC_NULL);
 
 	cols = malloc(sizeof(PetscInt)*dof);
 	vals = malloc(sizeof(PetscScalar)*dof);

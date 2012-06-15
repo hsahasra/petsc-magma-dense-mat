@@ -18,13 +18,9 @@
 #include <string.h>
 #include <omp.h>
 #include "../src/mat/impls/structgrid/matstructgrid.h"
-<<<<<<< /home/holewins/research/petsc-sggpu/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.cu
 #include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
-#include "private/matimpl.h"
-=======
-
 #include "petsc-private/matimpl.h"
->>>>>>> /tmp/matstructgridgpu.cu~other.s1EH21
+
 #include "matstructgridgpu.h"
 
 #define _DBGFLAG 0
@@ -155,14 +151,9 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "MatCreate_SeqSGGPU"
 PetscErrorCode  MatCreate_SeqSGGPU(Mat B)
 {
-<<<<<<< /home/holewins/research/petsc-sggpu/petsc-rnet/src/mat/impls/structgrid/structgridgpu/matstructgridgpu.cu
 #if _DBGFLAG
   printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
 #endif
-=======
-
-  printf("Call to MatCreate_SeqSGGPU(Mat B)\n");
->>>>>>> /tmp/matstructgridgpu.cu~other.s1EH21
 
   PetscErrorCode ierr;
   PetscFunctionBegin;
