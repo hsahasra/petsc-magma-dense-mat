@@ -5921,7 +5921,7 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_15_NaturalOrdering(Mat B,Mat A,const M
 			ppv[itemp*bs+jtemp] = pv[b_a[jtemp*bs+itemp]];
 		}
 	}
-	Kernel_A_gets_A_times_B(bs,pc,ppv,mwork);
+	PetscKernel_A_gets_A_times_B(bs,pc,ppv,mwork);
 	/*ierr = Kernel_A_gets_A_times_B_15(pc,pv,mwork);CHKERRQ(ierr);*/
 	pj = b->j + bdiag[row+1]+1; /* begining of U(row,:) */
         pv = b->a + bs2*(bdiag[row+1]+1); 
@@ -5933,7 +5933,7 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_15_NaturalOrdering(Mat B,Mat A,const M
 			}
 		}
           vv   = rtmp + bs2*pj[j];
-          Kernel_A_gets_A_minus_B_times_C(bs,vv,pc,ppv);
+          PetscKernel_A_gets_A_minus_B_times_C(bs,vv,pc,ppv);
 	  /* ierr = Kernel_A_gets_A_minus_B_times_C_15(vv,pc,pv);CHKERRQ(ierr); */
 	  pv  += bs2;          
         }
@@ -5960,7 +5960,7 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_15_NaturalOrdering(Mat B,Mat A,const M
     pj   = b->j + bdiag[i];
     ierr = PetscMemcpy(ppv,rtmp+bs2*pj[0],bs2*sizeof(MatScalar));CHKERRQ(ierr);
     /* Kernel_A_gets_inverse_A(bs,pv,pivots,work); */
-    ierr = Kernel_A_gets_inverse_A_15(ppv,ipvt,work,info->shiftamount);CHKERRQ(ierr); 
+    ierr = PetscKernel_A_gets_inverse_A_15(ppv,ipvt,work,info->shiftamount);CHKERRQ(ierr); 
 	for(itemp = 0; itemp < bs; itemp++){
 		for(jtemp = 0; jtemp < bs; jtemp++){
 			pv[b_a[jtemp*bs+itemp]] = ppv[itemp*bs+jtemp];
