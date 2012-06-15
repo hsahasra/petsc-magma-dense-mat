@@ -19,7 +19,7 @@
 #include <omp.h>
 #include "../src/mat/impls/structgrid/matstructgrid.h"
 #include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
-#include "private/matimpl.h"
+
 #include "matstructgridgpu.h"
 
 #define _DBGFLAG 0
