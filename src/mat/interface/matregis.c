@@ -61,7 +61,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_Elemental(Mat);
 extern PetscErrorCode MatCreate_MPIBSG(Mat);
 
 /*The following two functions are declared to enable dynamic registration
-  of new datatypes structgrid and structgridgpu. 
+  of new datatypes structgrid and structgridgpu.
   AUTHOR: Chekuri S. Choudary
 */
 
@@ -177,8 +177,8 @@ PetscErrorCode  MatRegisterAll(void)
  ierr = MatRegister(MATSTRUCTGRID,     MatCreate_SeqSG);CHKERRQ(ierr);
  ierr = MatRegister(MATSTRUCTGRIDGPU,     MatCreate_SeqSGGPU);CHKERRQ(ierr);
 
- 
- 
+
+
  PetscFunctionReturn(0);
 }
 

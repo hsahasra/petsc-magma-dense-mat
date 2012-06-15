@@ -143,8 +143,8 @@
 #define MATMPIBSG		'mpibsg'
 
 
-/* Two new datatypes are being added namely, structgrid and 
-   structgridgpu. These datatypes use a special format for 
+/* Two new datatypes are being added namely, structgrid and
+   structgridgpu. These datatypes use a special format for
    storing the  matrix created in structured grid problems.
    This new layout facilitaties rapid vectorization and SIMD
    parallelism.
@@ -152,7 +152,8 @@
 */
 
 #define MATSTRUCTGRID          'structgrid'
-#define MATSTRUCTGRIDGPU       'structgridgpu' 
+#define MATSEQSGGPU            'seqsggpu'
+
 !
 ! GPU Storage Formats for CUSP and CUSPARSE
 !

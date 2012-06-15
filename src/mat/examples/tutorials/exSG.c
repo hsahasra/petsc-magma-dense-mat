@@ -151,7 +151,7 @@ int e;
   	ierr   = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
   	ierr   = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
   	ierr   = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
-	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
+	MatSetType(matsggpu,MATSEQSGGPU);
 	MatSetType(matgpu,MATSEQAIJCUSP);
         MatSetUp(matgpu);
 #endif

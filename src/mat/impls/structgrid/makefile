@@ -11,7 +11,7 @@ OBJSF    =
 LIBBASE  = libpetscmat
 DIRS     = 
 MANSEC   = Mat
-DIRS     = structgridgpu
+DIRS     =
 LOCDIR   = src/mat/impls/structgrid
 
 include ${PETSC_DIR}/conf/variables
