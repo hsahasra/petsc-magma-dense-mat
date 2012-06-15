@@ -6,6 +6,7 @@
 #include "sggpu.h"
 
 #include <stdio.h>
+#include <cuda.h>
 
 
 // Debugging flags
@@ -67,13 +68,26 @@ EXTERN_C_BEGIN
 #define __FUNCT__ "MatCreate_SeqSGGPU"
 PetscErrorCode MatCreate_SeqSGGPU(Mat A)
 {
+  Mat_SeqSGGPU * mat;
+  PetscErrorCode ierr;
+  PetscMPIInt size;
+
   PetscFunctionBegin;
 
 #if _TRACE
   printf("[SeqSGGPU] MatCreate_SeqSGGPU\n");
 #endif
 
-  A->data = 0;
+  ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
+  if (size > 1)
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
+
+  // Create internal matrix structure
+  ierr = PetscMalloc(sizeof(Mat_SeqSGGPU), &mat); CHKERRQ(ierr);
+  memset(mat, 0, sizeof(Mat_SeqSGGPU));
+
+  // Fill out PETSc matrix structure
+  A->data = mat;
   memcpy(A->ops, &MatOps_Values, sizeof(struct _MatOps));
   A->same_nonzero= PETSC_FALSE;
   A->spptr = 0;
@@ -87,6 +101,7 @@ EXTERN_C_END
 #define __FUNCT__ "MatDestroy_SeqSGGPU"
 PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
 {
+  Mat_SeqSGGPU * mat;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -94,6 +109,16 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
 #if _TRACE
   printf("[SeqSGGPU] MatDestroy_SeqSGGPU\n");
 #endif
+
+  mat = (Mat_SeqSGGPU*)A->data;
+
+  if (mat->hostData) {
+    ierr = PetscFree(mat->hostData); CHKERRQ(ierr);
+  }
+  if (mat->deviceData) {
+    cudaFree(mat->deviceData);
+  }
+  PetscFree(mat); CHKERRQ(ierr);
 
   ierr = PetscObjectChangeTypeName((PetscObject)A, 0); CHKERRQ(ierr);
   PetscFunctionReturn(0);
