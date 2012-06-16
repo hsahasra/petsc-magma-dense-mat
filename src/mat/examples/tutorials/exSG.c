@@ -379,11 +379,11 @@ for(e=0;e<NUM_EVENTS;e++)
 		else 
 			printf("SG AVX Test Passed\n");
   	
-//		ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//		ierr   = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #ifdef OMP
-		ierr = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
-//		ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-	 	ierr = VecNorm(ysgomp,NORM_2,&normsgomp); 
+		ierr   = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
+//		ierr   = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	 	ierr   = VecNorm(ysgomp,NORM_2,&normsgomp); 
 		printf("SG(AVX+OPENMP) Norm = %.6f\n",normsgomp);
 		if(normsgomp > normdiff)
 			printf("SG AVX+Openmp Test Failed\n");
@@ -391,8 +391,9 @@ for(e=0;e<NUM_EVENTS;e++)
 			printf("SG AVX+Openmp Test Passed\n");
 #endif
 #ifdef GPU
-		ierr = VecAXPY(ysggpu,-1,ygpu);CHKERRQ(ierr);
-	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
+		ierr   = VecAXPY(ysggpu,-1,y);CHKERRQ(ierr);
+                //ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	 	ierr   = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
 		printf("SG-GPU Norm         = %.6f\n",normsggpu);
 
