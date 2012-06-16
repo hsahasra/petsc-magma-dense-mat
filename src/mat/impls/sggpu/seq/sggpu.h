@@ -4,6 +4,9 @@
 
 #include "petsc-private/matimpl.h"
 
+#include <map>
+#include <vector>
+
 // External decls
 EXTERN_C_BEGIN
 extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
@@ -20,6 +23,9 @@ typedef struct {
   PetscInt      p;          //< Grid size (z)
 
   PetscScalar * deviceData; //< Device data
+
+  std::map<int, int> * diag_starts;
+  std::vector<int> * diagonals;
 } Mat_SeqSGGPU;
 
 #endif
