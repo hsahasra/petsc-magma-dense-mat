@@ -141,36 +141,34 @@ int e;
   	ierr = MatCreate(PETSC_COMM_WORLD,&mat);CHKERRQ(ierr);
   	ierr = MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,nz,nz);CHKERRQ(ierr);
   	MatSetType(mat,MATSEQAIJ);
-	MatSeqAIJSetPreallocation(mat,nos,PETSC_NULL);
+	//MatSeqAIJSetPreallocation(mat,nos,PETSC_NULL);
   	
-	ierr   = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
-  	ierr   = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
+	ierr = MatCreate(PETSC_COMM_WORLD,&matsg);CHKERRQ(ierr);
+  	ierr = MatSetSizes(matsg,nz,nz,nz,nz);CHKERRQ(ierr);
 	MatSetType(matsg,MATSTRUCTGRID);
 #ifdef GPU 
-	ierr   = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
-  	ierr   = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
-  	ierr   = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
-  	ierr   = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
-	MatSetType(matsggpu,MATSEQSGGPU);
+	ierr = MatCreate(PETSC_COMM_WORLD,&matsggpu);CHKERRQ(ierr);
+  	ierr = MatSetSizes(matsggpu,nz,nz,nz,nz);CHKERRQ(ierr);
+  	ierr = MatCreate(PETSC_COMM_WORLD,&matgpu);CHKERRQ(ierr);
+  	ierr = MatSetSizes(matgpu,nz,nz,nz,nz);CHKERRQ(ierr);
+	MatSetType(matsggpu,MATSTRUCTGRIDGPU);
 	MatSetType(matgpu,MATSEQAIJCUSP);
-        MatSetUp(matgpu);
-        MatSetUp(matsggpu);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set stencils for Structgrid -matsg
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   	starts = malloc(sizeof(PetscInt)*dim);
-  	ierr   = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
+  	ierr = MatSetStencil(matsg,dim,dims,starts,dof);CHKERRQ(ierr);
 	MatSetUpPreallocation_SeqSG(matsg);
 #ifdef GPU
-	ierr   = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
-	//MatSetUpPreallocation_SeqSG(matsggpu);
+	ierr = MatSetStencil(matsggpu,dim,dims,starts,dof);CHKERRQ(ierr);
+	MatSetUpPreallocation_SeqSG(matsggpu);
 #endif
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      Set values into input vector and matrices
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-//  	ierr   = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
-	ierr   = VecSetRandom(x,PETSC_NULL);
+//  	ierr = VecSet(x,1.0);CHKERRQ(ierr);//this can be modified such that x holds random values
+	ierr = VecSetRandom(x,PETSC_NULL);
 
 	cols = malloc(sizeof(PetscInt)*dof);
 	vals = malloc(sizeof(PetscScalar)*dof);
@@ -379,11 +377,11 @@ for(e=0;e<NUM_EVENTS;e++)
 		else 
 			printf("SG AVX Test Passed\n");
   	
-//		ierr   = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//		ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #ifdef OMP
-		ierr   = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
-//		ierr   = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-	 	ierr   = VecNorm(ysgomp,NORM_2,&normsgomp); 
+		ierr = VecAXPY(ysgomp,-1,y);CHKERRQ(ierr);
+//		ierr = VecView(ysgomp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	 	ierr = VecNorm(ysgomp,NORM_2,&normsgomp); 
 		printf("SG(AVX+OPENMP) Norm = %.6f\n",normsgomp);
 		if(normsgomp > normdiff)
 			printf("SG AVX+Openmp Test Failed\n");
@@ -391,9 +389,8 @@ for(e=0;e<NUM_EVENTS;e++)
 			printf("SG AVX+Openmp Test Passed\n");
 #endif
 #ifdef GPU
-		ierr   = VecAXPY(ysggpu,-1,y);CHKERRQ(ierr);
-                //ierr = VecView(ysggpu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-	 	ierr   = VecNorm(ysggpu,NORM_2,&normsggpu); 
+		ierr = VecAXPY(ysggpu,-1,y);CHKERRQ(ierr);
+	 	ierr = VecNorm(ysggpu,NORM_2,&normsggpu); 
 		
 		printf("SG-GPU Norm         = %.6f\n",normsggpu);
 
