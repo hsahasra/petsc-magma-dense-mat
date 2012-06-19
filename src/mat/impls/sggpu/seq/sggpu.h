@@ -6,6 +6,7 @@
 
 #include <map>
 #include <vector>
+#include <cuda.h>
 
 // External decls
 EXTERN_C_BEGIN
@@ -22,10 +23,14 @@ typedef struct {
   PetscInt      n;          //< Grid size (y)
   PetscInt      p;          //< Grid size (z)
 
+  PetscInt      non_zeros;  //< Count of non-zero entries
+
   PetscScalar * deviceData; //< Device data
 
   std::map<int, int> * diag_starts;
   std::vector<int> * diagonals;
+
+  cudaStream_t stream;
 } Mat_SeqSGGPU;
 
 #endif

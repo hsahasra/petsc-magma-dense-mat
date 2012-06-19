@@ -10,15 +10,18 @@
 
 #include <stdio.h>
 #include <cuda.h>
+#include <sys/time.h>
 
 // C++ library headers
 #include <map>
 
 // Debugging flags
 #define _TRACE 0
+#define _TIME 1
+#define _CSV_OUT 0
 
 // Hard-coded block size
-#define BLOCKWIDTH_X 256
+#define BLOCKWIDTH_X 512
 #define BLOCKWIDTH_Y 1
 
 // Prototypes
@@ -52,6 +55,15 @@ void checkCudaError(cudaError_t err) {
   }
 }
 
+//------------------------------------------------------
+// general timer function using unix system call
+// dlowell ANL-MCS
+//------------------------------------------------------
+double getclock() {
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  return (tp.tv_sec + tp.tv_usec*1.0e-6);
+}
 
 //===-- CUDA Device Code -------------------------------------------------===//
 
@@ -63,12 +75,18 @@ static __inline__ __device__ double fetch_double(texture<int2, 1> tex, int i)
   return __hiloint2double(v.y, v.x);
 }
 
+extern __shared__ int shared_diagonals[];
 
 __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat_size, PetscInt num_diags, int * diagonals, PetscInt dof) {
-  int idx = blockDim.x * blockIdx.x + threadIdx.x;
+  int idx = blockDim.x * blockIdx.x * 4 + threadIdx.x * 4;
 
   if (idx >= mat_size)
     return;
+
+  if (threadIdx.x < num_diags) {
+    shared_diagonals[threadIdx.x] = diagonals[threadIdx.x];
+  }
+  __syncthreads();
 
 #if _TRACE
   if (threadIdx.x == 0) {
@@ -81,12 +99,31 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
 #endif
 
   int diag_size = mat_size * dof;
-  PetscScalar yval = 0.0;
 
+  PetscScalar yval0 = 0.0;
+  PetscScalar yval1 = 0.0;
+  PetscScalar yval2 = 0.0;
+  PetscScalar yval3 = 0.0;
+
+  int idx0 = idx;
+  int idx1 = idx + 1;
+  int idx2 = idx + 2;
+  int idx3 = idx + 3;
+
+  #pragma unroll 4
   for (int i = 0; i < num_diags; ++i) {
-    int d = diagonals[i];
-    int offset = diag_size * i + idx;
-    int block = (idx / dof + d) * dof;
+    //int d = shared_diagonals[i];
+    int d = 0;
+    int offset0 = diag_size * i + idx0;
+    int block0 = (idx0 / dof + d) * dof;
+    int offset1 = diag_size * i + idx1;
+    int block1 = (idx1 / dof + d) * dof;
+    int offset2 = diag_size * i + idx2;
+    int block2 = (idx2 / dof + d) * dof;
+    int offset3 = diag_size * i + idx3;
+    int block3 = (idx3 / dof + d) * dof;
+
+    #pragma unroll 6
     for (int j = 0; j < dof; ++j) {
       // Get coefficient
 #if _TRACE
@@ -95,7 +132,10 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
       }
 #endif
 
-      PetscScalar aval = coeff[offset + mat_size*j];
+      PetscScalar aval0 = coeff[offset0 + mat_size*j];
+      PetscScalar aval1 = coeff[offset1 + mat_size*j];
+      PetscScalar aval2 = coeff[offset2 + mat_size*j];
+      PetscScalar aval3 = coeff[offset3 + mat_size*j];
 
 #if _TRACE
       if (threadIdx.x == 0) {
@@ -104,7 +144,10 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
 #endif
 
       // Get x value
-      int this_block = block + j;
+      int this_block0 = block0 + j;
+      int this_block1 = block1 + j;
+      int this_block2 = block2 + j;
+      int this_block3 = block3 + j;
 
 #if _TRACE
       if (threadIdx.x == 0) {
@@ -112,8 +155,20 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
       }
 #endif
 
-      bool in_bounds = this_block >= 0 && this_block < mat_size;
-      PetscScalar xval = in_bounds ? fetch_double(vector_x, this_block) : 0.0;
+      /*bool in_bounds0 = this_block0 >= 0 && this_block0 < mat_size;
+      bool in_bounds1 = this_block1 >= 0 && this_block1 < mat_size;
+      bool in_bounds2 = this_block2 >= 0 && this_block2 < mat_size;
+      bool in_bounds3 = this_block3 >= 0 && this_block3 < mat_size;
+
+      PetscScalar xval0 = in_bounds0 ? fetch_double(vector_x, this_block0) : 0.0;
+      PetscScalar xval1 = in_bounds1 ? fetch_double(vector_x, this_block1) : 0.0;
+      PetscScalar xval2 = in_bounds2 ? fetch_double(vector_x, this_block2) : 0.0;
+      PetscScalar xval3 = in_bounds3 ? fetch_double(vector_x, this_block3) : 0.0;*/
+
+      PetscScalar xval0 = fetch_double(vector_x, this_block0);
+      PetscScalar xval1 = fetch_double(vector_x, this_block1);
+      PetscScalar xval2 = fetch_double(vector_x, this_block2);
+      PetscScalar xval3 = fetch_double(vector_x, this_block3);
 
 #if _TRACE
       if (threadIdx.x == 0) {
@@ -121,11 +176,17 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
       }
 #endif
 
-      yval += aval * xval;
+      yval0 += aval0 * xval0;
+      yval1 += aval1 * xval1;
+      yval2 += aval2 * xval2;
+      yval3 += aval3 * xval3;
     }
   }
 
-  y[idx] = yval;
+  y[idx0] = yval0;
+  y[idx1] = yval1;
+  y[idx2] = yval2;
+  y[idx3] = yval3;
 }
 
 //===-- Host Code --------------------------------------------------------===//
@@ -190,6 +251,8 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
   mat->diag_starts = new std::map<int, int>();
   mat->diagonals = new std::vector<int>();
 
+  checkCudaError(cudaStreamCreate(&mat->stream));
+
   // Fill out PETSc matrix structure
   A->data = mat;
   memcpy(A->ops, &MatOps_Values, sizeof(struct _MatOps));
@@ -231,6 +294,7 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
   if (mat->diagonals) {
     delete mat->diagonals;
   }
+  checkCudaError(cudaStreamDestroy(mat->stream));
   PetscFree(mat); CHKERRQ(ierr);
 
   ierr = PetscObjectChangeTypeName((PetscObject)A, 0); CHKERRQ(ierr);
@@ -307,7 +371,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 
   checkCudaError(cudaMalloc(&deviceX, mat_size * sizeof(PetscScalar)));
   checkCudaError(cudaMalloc(&deviceY, mat_size * sizeof(PetscScalar)));
-  checkCudaError(cudaMemcpy(deviceX, hostX, mat_size * sizeof(PetscScalar), cudaMemcpyHostToDevice));
+  checkCudaError(cudaMemcpyAsync(deviceX, hostX, mat_size * sizeof(PetscScalar), cudaMemcpyHostToDevice, mat->stream));
 
   // Bind X to device texture
   checkCudaError(cudaBindTexture(0, vector_x, deviceX, mat_size * sizeof(PetscScalar)));
@@ -324,17 +388,41 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 #endif
 
   checkCudaError(cudaMalloc(&device_diagonals, sizeof(int) * mat->diagonals->size()));
-  checkCudaError(cudaMemcpy(device_diagonals, &(*mat->diagonals)[0], sizeof(int) * mat->diagonals->size(), cudaMemcpyHostToDevice));
+  checkCudaError(cudaMemcpyAsync(device_diagonals, &(*mat->diagonals)[0], sizeof(int) * mat->diagonals->size(), cudaMemcpyHostToDevice, mat->stream));
 
   // Invoke
   dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
-  dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X), 1);
+  dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X / 4.0), 1);
 
-  MatMultKernel<<<grid, block>>>(mat->deviceData, deviceY, mat_size, mat->diagonals->size(), device_diagonals, mat->dof);
-  cudaThreadSynchronize();
-  checkCudaError(cudaGetLastError());
+  int shared_size = mat->diagonals->size() * sizeof(int);
 
-  checkCudaError(cudaMemcpy(hostY, deviceY, mat_size * sizeof(PetscScalar), cudaMemcpyDeviceToHost));
+  //cudaFuncSetCacheConfig(MatMultKernel, cudaFuncCachePreferL1);
+
+
+#if _TIME
+  double start, end;
+  start = getclock();
+#endif
+  MatMultKernel<<<grid, block, shared_size, mat->stream>>>(mat->deviceData, deviceY, mat_size, mat->diagonals->size(), device_diagonals, mat->dof);
+#if _TIME
+  checkCudaError(cudaStreamSynchronize(mat->stream));
+  end = getclock();
+  double elapsed = end - start;
+  double gflops = (2.0 * mat->non_zeros / elapsed / 1e9);
+
+  double nos = ((mat->p == 1 ? 2 : 3) * 2 + 1) * (2*mat->dof - 1);
+  double nz = mat->m * mat->n * mat->p * mat->dof;
+  double alt_gflops = (2.0 * nos * nz) / ((end - start)*1024*1024*1024);
+
+#if _CSV_OUT
+  fprintf(stderr, "%d,%d,%d,%d,%lf,%lf,\n", mat->m, mat->n, mat->p, mat->dof, elapsed, gflops);
+#endif
+  printf("SGGPU Kernel Time:           %lf sec\n", elapsed);
+  printf("SGGPU Kernel GFlop/s:        %lf\n", gflops);
+  printf("SGGPU Kernel GFlop/s (alt):  %lf\n", alt_gflops);
+#endif
+
+  checkCudaError(cudaMemcpyAsync(hostY, deviceY, mat_size * sizeof(PetscScalar), cudaMemcpyDeviceToHost, mat->stream));
 
   // Cleanup
   cudaFree(device_diagonals);
@@ -423,6 +511,8 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
         mat->hostData[diag_offset] = y[i * ncol + j];
       else
         mat->hostData[diag_offset] += y[i * ncol + j];
+
+      mat->non_zeros++;
     }
   }
 
@@ -616,6 +706,8 @@ PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type)
 
   // Copy data to device
   checkCudaError(cudaMemcpy(mat->deviceData, mat->hostData, sizeof(PetscScalar) * size, cudaMemcpyHostToDevice));
+
+  checkCudaError(cudaThreadSynchronize());
 
   PetscFunctionReturn(0);
 }
