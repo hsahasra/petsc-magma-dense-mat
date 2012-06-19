@@ -31,6 +31,10 @@ typedef struct {
   std::vector<int> * diagonals;
 
   cudaStream_t stream;
+
+  PetscScalar * deviceX;      //< Device pointer to X
+  PetscScalar * deviceY;      //< Device pointer to y
+  int         * deviceDiags;  //< Device pointer to diagonals specifier
 } Mat_SeqSGGPU;
 
 #endif
