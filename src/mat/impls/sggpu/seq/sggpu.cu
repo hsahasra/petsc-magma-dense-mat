@@ -112,8 +112,7 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
 
   #pragma unroll 4
   for (int i = 0; i < num_diags; ++i) {
-    //int d = shared_diagonals[i];
-    int d = 0;
+    int d = shared_diagonals[i];
     int offset0 = diag_size * i + idx0;
     int block0 = (idx0 / dof + d) * dof;
     int offset1 = diag_size * i + idx1;
