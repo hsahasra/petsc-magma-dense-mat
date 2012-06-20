@@ -6,7 +6,10 @@
 #include "sggpu.h"
 
 // Direct access to seqgpu vector type
-#include "../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h"
+//#include "../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h"
+
+// Interop with CUSP vector
+#include "../src/vec/vec/impls/seq/seqcusp/cuspvecimpl.h"
 
 #include <stdio.h>
 #include <cuda.h>
@@ -78,7 +81,7 @@ static __inline__ __device__ double fetch_double(texture<int2, 1> tex, int i)
 extern __shared__ int shared_diagonals[];
 
 __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat_size, PetscInt num_diags, int * diagonals, PetscInt dof) {
-  int idx = blockDim.x * blockIdx.x * 1 + threadIdx.x * 1;
+  int idx = blockDim.x * blockIdx.x * 4 + threadIdx.x * 1;
 
   if (idx >= mat_size)
     return;
@@ -88,104 +91,62 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
   }
   __syncthreads();
 
-#if _TRACE
-  if (threadIdx.x == 0) {
-    printf("Diagonals:\n");
-    for (int i = 0; i < num_diags; ++i) {
-      printf("- %d\n", diagonals[i]);
-    }
-    printf("Foo: %d\n", -42);
-  }
-#endif
-
   int diag_size = mat_size * dof;
 
   PetscScalar yval0 = 0.0;
-  //PetscScalar yval1 = 0.0;
-  //PetscScalar yval2 = 0.0;
-  //PetscScalar yval3 = 0.0;
+  PetscScalar yval1 = 0.0;
+  PetscScalar yval2 = 0.0;
+  PetscScalar yval3 = 0.0;
 
   int idx0 = idx;
-  //int idx1 = idx + 1;
-  //int idx2 = idx + 2;
-  //int idx3 = idx + 3;
+  int idx1 = idx + 1 * blockDim.x;
+  int idx2 = idx + 2 * blockDim.x;
+  int idx3 = idx + 3 * blockDim.x;
 
-  #pragma unroll 4
+  //#pragma unroll 4
   for (int i = 0; i < num_diags; ++i) {
     int d = shared_diagonals[i];
-    int offset0 = diag_size * i + idx0;
-    int block0 = (idx0 / dof + d) * dof;
-    //int offset1 = diag_size * i + idx1;
-    //int block1 = (idx1 / dof + d) * dof;
-    //int offset2 = diag_size * i + idx2;
-    //int block2 = (idx2 / dof + d) * dof;
-    //int offset3 = diag_size * i + idx3;
-    //int block3 = (idx3 / dof + d) * dof;
 
-    #pragma unroll 6
+    int offset0 = diag_size * i + idx0;    
+    int block0 = (idx0 / dof + d) * dof;
+    int offset1 = diag_size * i + idx1;
+    int block1 = (idx1 / dof + d) * dof;
+    int offset2 = diag_size * i + idx2;
+    int block2 = (idx2 / dof + d) * dof;
+    int offset3 = diag_size * i + idx3;
+    int block3 = (idx3 / dof + d) * dof;
+
+    //#pragma unroll 6
     for (int j = 0; j < dof; ++j) {
       // Get coefficient
-#if _TRACE
-      if (threadIdx.x == 0) {
-        printf("diag: %d  offset: %d  index: %d\n", d, offset, offset + mat_size*j);
-      }
-#endif
 
       PetscScalar aval0 = coeff[offset0 + mat_size*j];
-      //PetscScalar aval1 = coeff[offset1 + mat_size*j];
-      //PetscScalar aval2 = coeff[offset2 + mat_size*j];
-      //PetscScalar aval3 = coeff[offset3 + mat_size*j];
-
-#if _TRACE
-      if (threadIdx.x == 0) {
-        printf("aval: %lf\n", aval);
-      }
-#endif
+      PetscScalar aval1 = coeff[offset1 + mat_size*j];
+      PetscScalar aval2 = coeff[offset2 + mat_size*j];
+      PetscScalar aval3 = coeff[offset3 + mat_size*j];
 
       // Get x value
       int this_block0 = block0 + j;
-      //int this_block1 = block1 + j;
-      //int this_block2 = block2 + j;
-      //int this_block3 = block3 + j;
-
-#if _TRACE
-      if (threadIdx.x == 0) {
-        printf("this_block: %d\n", this_block);
-      }
-#endif
-
-      /*bool in_bounds0 = this_block0 >= 0 && this_block0 < mat_size;
-      bool in_bounds1 = this_block1 >= 0 && this_block1 < mat_size;
-      bool in_bounds2 = this_block2 >= 0 && this_block2 < mat_size;
-      bool in_bounds3 = this_block3 >= 0 && this_block3 < mat_size;
-
-      PetscScalar xval0 = in_bounds0 ? fetch_double(vector_x, this_block0) : 0.0;
-      PetscScalar xval1 = in_bounds1 ? fetch_double(vector_x, this_block1) : 0.0;
-      PetscScalar xval2 = in_bounds2 ? fetch_double(vector_x, this_block2) : 0.0;
-      PetscScalar xval3 = in_bounds3 ? fetch_double(vector_x, this_block3) : 0.0;*/
+      int this_block1 = block1 + j;
+      int this_block2 = block2 + j;
+      int this_block3 = block3 + j;
 
       PetscScalar xval0 = fetch_double(vector_x, this_block0);
-      //PetscScalar xval1 = fetch_double(vector_x, this_block1);
-      //PetscScalar xval2 = fetch_double(vector_x, this_block2);
-      //PetscScalar xval3 = fetch_double(vector_x, this_block3);
-
-#if _TRACE
-      if (threadIdx.x == 0) {
-        printf("xval: %lf\n", xval);
-      }
-#endif
+      PetscScalar xval1 = fetch_double(vector_x, this_block1);
+      PetscScalar xval2 = fetch_double(vector_x, this_block2);
+      PetscScalar xval3 = fetch_double(vector_x, this_block3);
 
       yval0 += aval0 * xval0;
-      //yval1 += aval1 * xval1;
-      //yval2 += aval2 * xval2;
-      //yval3 += aval3 * xval3;
+      yval1 += aval1 * xval1;
+      yval2 += aval2 * xval2;
+      yval3 += aval3 * xval3;
     }
   }
 
   y[idx0] = yval0;
-  //y[idx1] = yval1;
-  //y[idx2] = yval2;
-  //y[idx3] = yval3;
+  y[idx1] = yval1;
+  y[idx2] = yval2;
+  y[idx3] = yval3;
 }
 
 //===-- Host Code --------------------------------------------------------===//
@@ -368,19 +329,27 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     exit(EXIT_FAILURE);
   }*/
 
-  PetscScalar * hostX;
-  PetscScalar * hostY;
+  //PetscScalar * hostX;
+  //PetscScalar * hostY;
 
   int mat_size = mat->m * mat->n * mat->p * mat->dof;
 
-  ierr = VecGetArray(x, &hostX); CHKERRQ(ierr);
-  ierr = VecGetArray(y, &hostY); CHKERRQ(ierr);
+  //ierr = VecGetArray(x, &hostX); CHKERRQ(ierr);
+  //ierr = VecGetArray(y, &hostY); CHKERRQ(ierr);
 
-  checkCudaError(cudaMemcpyAsync(mat->deviceX, hostX, mat_size * sizeof(PetscScalar), cudaMemcpyHostToDevice, mat->stream));
+  //checkCudaError(cudaMemcpyAsync(mat->deviceX, hostX, mat_size * sizeof(PetscScalar), cudaMemcpyHostToDevice, mat->stream));
 
+  CUSPARRAY * xgpu;
+  CUSPARRAY * ygpu;
+
+  ierr = VecCUSPGetArrayWrite(y, &ygpu); CHKERRQ(ierr);
+  ierr = VecCUSPGetArrayRead(x, &xgpu); CHKERRQ(ierr);
+
+  PetscScalar * devX = thrust::raw_pointer_cast(&(*xgpu)[0]);
+  PetscScalar * devY = thrust::raw_pointer_cast(&(*ygpu)[0]);
 
   // Bind X to device texture
-  checkCudaError(cudaBindTexture(0, vector_x, mat->deviceX, mat_size * sizeof(PetscScalar)));
+  checkCudaError(cudaBindTexture(0, vector_x, devX, mat_size * sizeof(PetscScalar)));
 
 #if _TRACE
   printf("Host diagonals:\n");
@@ -391,7 +360,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 
   // Invoke
   dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
-  dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X / 1.0), 1);
+  dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X / 4.0), 1);
 
   int shared_size = mat->diagonals->size() * sizeof(int);
 
@@ -402,7 +371,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   double start, end;
   start = getclock();
 #endif
-  MatMultKernel<<<grid, block, shared_size, mat->stream>>>(mat->deviceData, mat->deviceY, mat_size, mat->diagonals->size(), mat->deviceDiags, mat->dof);
+  MatMultKernel<<<grid, block, shared_size, mat->stream>>>(mat->deviceData, devY, mat_size, mat->diagonals->size(), mat->deviceDiags, mat->dof);
 #if _TIME
   checkCudaError(cudaStreamSynchronize(mat->stream));
   end = getclock();
@@ -421,10 +390,15 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   printf("SGGPU Kernel GFlop/s (alt):  %lf\n", alt_gflops);
 #endif
 
-  checkCudaError(cudaMemcpyAsync(hostY, mat->deviceY, mat_size * sizeof(PetscScalar), cudaMemcpyDeviceToHost, mat->stream));
+  //checkCudaError(cudaMemcpyAsync(hostY, mat->deviceY, mat_size * sizeof(PetscScalar), cudaMemcpyDeviceToHost, mat->stream));
 
   // Cleanup
   cudaUnbindTexture(vector_x);
+
+  ierr = VecCUSPRestoreArrayRead(x, &xgpu); CHKERRQ(ierr);
+  ierr = VecCUSPRestoreArrayWrite(y, &ygpu); CHKERRQ(ierr);
+
+  ierr = WaitForGPU() ; CHKERRCUSP(ierr);
 
   PetscFunctionReturn(0);
 }
