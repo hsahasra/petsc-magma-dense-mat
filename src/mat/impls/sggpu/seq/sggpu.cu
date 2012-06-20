@@ -24,7 +24,7 @@
 #define _CSV_OUT 0
 
 // Hard-coded block size
-#define BLOCKWIDTH_X 512
+#define BLOCKWIDTH_X 128
 #define BLOCKWIDTH_Y 1
 
 // Prototypes
@@ -78,75 +78,36 @@ static __inline__ __device__ double fetch_double(texture<int2, 1> tex, int i)
   return __hiloint2double(v.y, v.x);
 }
 
-extern __shared__ int shared_diagonals[];
-
 __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat_size, PetscInt num_diags, int * diagonals, PetscInt dof) {
-  int idx = blockDim.x * blockIdx.x * 4 + threadIdx.x * 1;
+  int idx = blockDim.x * blockIdx.x * 1 + threadIdx.x * 1;
 
   if (idx >= mat_size)
     return;
 
-  if (threadIdx.x < num_diags) {
-    shared_diagonals[threadIdx.x] = diagonals[threadIdx.x];
-  }
-  __syncthreads();
-
   int diag_size = mat_size * dof;
 
   PetscScalar yval0 = 0.0;
-  PetscScalar yval1 = 0.0;
-  PetscScalar yval2 = 0.0;
-  PetscScalar yval3 = 0.0;
-
   int idx0 = idx;
-  int idx1 = idx + 1 * blockDim.x;
-  int idx2 = idx + 2 * blockDim.x;
-  int idx3 = idx + 3 * blockDim.x;
 
   //#pragma unroll 4
   for (int i = 0; i < num_diags; ++i) {
-    int d = shared_diagonals[i];
+    int d = diagonals[i];
 
     int offset0 = diag_size * i + idx0;    
     int block0 = (idx0 / dof + d) * dof;
-    int offset1 = diag_size * i + idx1;
-    int block1 = (idx1 / dof + d) * dof;
-    int offset2 = diag_size * i + idx2;
-    int block2 = (idx2 / dof + d) * dof;
-    int offset3 = diag_size * i + idx3;
-    int block3 = (idx3 / dof + d) * dof;
 
-    //#pragma unroll 6
+    //#pragma unroll 12
     for (int j = 0; j < dof; ++j) {
       // Get coefficient
-
       PetscScalar aval0 = coeff[offset0 + mat_size*j];
-      PetscScalar aval1 = coeff[offset1 + mat_size*j];
-      PetscScalar aval2 = coeff[offset2 + mat_size*j];
-      PetscScalar aval3 = coeff[offset3 + mat_size*j];
-
-      // Get x value
-      int this_block0 = block0 + j;
-      int this_block1 = block1 + j;
-      int this_block2 = block2 + j;
-      int this_block3 = block3 + j;
-
-      PetscScalar xval0 = fetch_double(vector_x, this_block0);
-      PetscScalar xval1 = fetch_double(vector_x, this_block1);
-      PetscScalar xval2 = fetch_double(vector_x, this_block2);
-      PetscScalar xval3 = fetch_double(vector_x, this_block3);
+      // Get X value
+      PetscScalar xval0 = fetch_double(vector_x, block0 + j);
 
       yval0 += aval0 * xval0;
-      yval1 += aval1 * xval1;
-      yval2 += aval2 * xval2;
-      yval3 += aval3 * xval3;
     }
   }
 
   y[idx0] = yval0;
-  y[idx1] = yval1;
-  y[idx2] = yval2;
-  y[idx3] = yval3;
 }
 
 //===-- Host Code --------------------------------------------------------===//
@@ -360,9 +321,10 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 
   // Invoke
   dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
-  dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X / 4.0), 1);
+  dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X / 1.0), 1);
 
-  int shared_size = mat->diagonals->size() * sizeof(int);
+  //int shared_size = mat->diagonals->size() * sizeof(int);
+  int shared_size = 0;
 
   //cudaFuncSetCacheConfig(MatMultKernel, cudaFuncCachePreferL1);
 
