@@ -93,7 +93,7 @@ __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat
   for (int i = 0; i < num_diags; ++i) {
     int d = diagonals[i];
 
-    int offset0 = diag_size * i + idx0;    
+    int offset0 = diag_size * i + idx0;
     int block0 = (idx0 / dof + d) * dof;
 
     //#pragma unroll 12
@@ -413,6 +413,7 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
       std::map<int, int>::iterator I = diag_starts.find(diag);
       int diag_offset = 0;
       if (I == diag_starts.end()) {
+        printf("WARNING: malloc() in MatSetValues\n");
         // The diagonal does not yet exist, so add a new diagonal
         int num_diags = diag_starts.size() + 1;
         int size = num_diags * mat->m * mat->n * mat->p * mat->dof * mat->dof;
@@ -482,6 +483,7 @@ PetscErrorCode MatSetStencil_SeqSGGPU(Mat A, PetscInt dim, const PetscInt dims[]
   }
 
   mat->dof = dof;
+  mat->dim = dim;
 
 #if _TRACE
   printf("- m: %d  n: %d  p: %d  dof: %d\n", mat->m, mat->n, mat->p, mat->dof);
@@ -500,10 +502,45 @@ PetscErrorCode MatSetStencil_SeqSGGPU(Mat A, PetscInt dim, const PetscInt dims[]
 #define __FUNCT__ "MatSetUpPreallocation_SeqSGGPU"
 PetscErrorCode MatSetUpPreallocation_SeqSGGPU(Mat A)
 {
+  Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
 #if _TRACE
   printf("[SeqSGGPU] MatSetUpPreallocation_SeqSGGPU\n");
 #endif
+
+  if (mat->m == 0 || mat->n == 0 || mat->p == 0 || mat->dof == 0) {
+    printf("MatSetPreallocation_SeqSGGPU called without valid m, n, p, and dof!");
+    exit(0);
+  }
+
+  // Determine how many diagonals we should pre-allocate
+  int num_diags = (2*mat->dim+1);
+  int diag_size = mat->m * mat->n * mat->p * mat->dof * mat->dof;
+  int size = num_diags * diag_size;
+
+  ierr = PetscMalloc(size * sizeof(PetscScalar), &mat->hostData); CHKERRQ(ierr);
+  memset(mat->hostData, 0, size * sizeof(PetscScalar));
+
+  (*mat->diag_starts)[0]  = 0 * diag_size;
+  (*mat->diagonals).push_back(0);
+  (*mat->diag_starts)[1]  = 1 * diag_size;
+  (*mat->diagonals).push_back(1);
+  (*mat->diag_starts)[-1] = 2 * diag_size;
+  (*mat->diagonals).push_back(-1);
+  if (mat->dim > 1) {
+    (*mat->diag_starts)[mat->m] = 3 * diag_size;
+    (*mat->diagonals).push_back(mat->m);
+    (*mat->diag_starts)[-mat->m] = 4 * diag_size;
+    (*mat->diagonals).push_back(-mat->m);
+  }
+  if (mat->dim > 2) {
+    (*mat->diag_starts)[mat->m*mat->n] = 5 * diag_size;
+    (*mat->diagonals).push_back(mat->m*mat->n);
+    (*mat->diag_starts)[-mat->m*mat->n] = 6 * diag_size;
+    (*mat->diagonals).push_back(-mat->m*mat->n);
+  }
 
   A->preallocated = PETSC_TRUE;
 
