@@ -22,6 +22,7 @@ typedef struct {
   PetscInt      m;          //< Grid size (x)
   PetscInt      n;          //< Grid size (y)
   PetscInt      p;          //< Grid size (z)
+  PetscInt      dim;        //< Dimensionality
 
   PetscInt      non_zeros;  //< Count of non-zero entries
 
