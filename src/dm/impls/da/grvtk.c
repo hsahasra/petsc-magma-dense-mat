@@ -160,7 +160,7 @@ static PetscErrorCode DMDAVTKWriteAll_VTS(DM da,PetscViewer viewer)
         const char *fieldname;
         ierr = DMDAGetFieldName(da,i,&fieldname);CHKERRQ(ierr);
         if (!fieldname) {
-          ierr = PetscSNPrintf(buf,sizeof buf,"Unnamed%D",i);CHKERRQ(ierr);
+          ierr = PetscSNPrintf(buf,sizeof(buf),"Unnamed%D",i);CHKERRQ(ierr);
           fieldname = buf;
         }
         ierr = PetscFPrintf(comm,fp,"        <DataArray type=\"%s\" Name=\"%s%s\" NumberOfComponents=\"1\" format=\"appended\" offset=\"%D\" />\n",precision,vecname,fieldname,boffset);CHKERRQ(ierr);
@@ -194,7 +194,7 @@ static PetscErrorCode DMDAVTKWriteAll_VTS(DM da,PetscViewer viewer)
 
     {                           /* Write the coordinates */
       Vec Coords;
-      ierr = DMDAGetCoordinates(da,&Coords);CHKERRQ(ierr);
+      ierr = DMGetCoordinates(da,&Coords);CHKERRQ(ierr);
       if (Coords) {
         const PetscScalar *coords;
         ierr = VecGetArrayRead(Coords,&coords);CHKERRQ(ierr);
@@ -309,7 +309,7 @@ PetscErrorCode DMDAVTKWriteAll(PetscObject odm,PetscViewer viewer)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,2);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERVTK,&isvtk);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERVTK,&isvtk);CHKERRQ(ierr);
   if (!isvtk) SETERRQ1(((PetscObject)viewer)->comm,PETSC_ERR_ARG_INCOMP,"Cannot use viewer type %s",((PetscObject)viewer)->type_name);
   switch (viewer->format) {
   case PETSC_VIEWER_VTK_VTS:

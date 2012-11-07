@@ -70,7 +70,7 @@ static PetscErrorCode PCView_SupportGraph(PC pc,PetscViewer viewer)
   PetscBool       iascii;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"  SupportGraph: maxCong = %f\n",sg->maxCong);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  SupportGraph: tol = %f\n",sg->tol);CHKERRQ(ierr);
@@ -119,7 +119,7 @@ static PetscErrorCode PCSetUp_SupportGraph(PC pc)
   */
 
   PetscFunctionBegin;
-  if(!pc->setupcalled) {
+  if (!pc->setupcalled) {
     ierr = MatIsSymmetric(pc->pmat, 1.0e-9, &isSym);CHKERRQ(ierr);
     if (!isSym) SETERRQ(((PetscObject)pc)->comm,PETSC_ERR_ARG_WRONG,"matrix must be symmetric");
     /* note that maxCong is being updated */

@@ -2,23 +2,23 @@
 #include <petsc-private/matimpl.h>     /*I       "petscmat.h"   I*/
 
 EXTERN_C_BEGIN
-extern PetscErrorCode  MatGetOrdering_Natural(Mat,const MatOrderingType,IS*,IS*);
-extern PetscErrorCode  MatGetOrdering_ND(Mat,const MatOrderingType,IS*,IS*);
-extern PetscErrorCode  MatGetOrdering_1WD(Mat,const MatOrderingType,IS*,IS*);
-extern PetscErrorCode  MatGetOrdering_QMD(Mat,const MatOrderingType,IS*,IS*);
-extern PetscErrorCode  MatGetOrdering_RCM(Mat,const MatOrderingType,IS*,IS*);
-extern PetscErrorCode  MatGetOrdering_RowLength(Mat,const MatOrderingType,IS*,IS*);
-extern PetscErrorCode  MatGetOrdering_DSC(Mat,const MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_Natural(Mat,MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_ND(Mat,MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_1WD(Mat,MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_QMD(Mat,MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_RCM(Mat,MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_RowLength(Mat,MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_DSC(Mat,MatOrderingType,IS*,IS*);
 #if defined(PETSC_HAVE_UMFPACK)
-extern PetscErrorCode  MatGetOrdering_AMD(Mat,const MatOrderingType,IS*,IS*);
+extern PetscErrorCode  MatGetOrdering_AMD(Mat,MatOrderingType,IS*,IS*);
 #endif
 
 EXTERN_C_END
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatOrderingRegisterAll"
 /*@C
-  MatOrderingRegisterAll - Registers all of the matrix 
+  MatOrderingRegisterAll - Registers all of the matrix
   reordering routines in PETSc.
 
   Not Collective
@@ -26,8 +26,8 @@ EXTERN_C_END
   Level: developer
 
   Adding new methods:
-  To add a new method to the registry. Copy this routine and 
-  modify it to incorporate a call to MatReorderRegister() for 
+  To add a new method to the registry. Copy this routine and
+  modify it to incorporate a call to MatReorderRegister() for
   the new method, after the current list.
 
   Restricting the choices: To prevent all of the methods from being

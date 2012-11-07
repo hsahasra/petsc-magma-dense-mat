@@ -6,10 +6,10 @@
 /*
      Checks if J^T F = 0 which implies we've found a local minimum of the norm of the function,
     || F(u) ||_2 but not a zero, F(u) = 0. In the case when one cannot compute J^T F we use the fact that
-    0 = (J^T F)^T W = F^T J W iff W not in the null space of J. Thanks for Jorge More 
+    0 = (J^T F)^T W = F^T J W iff W not in the null space of J. Thanks for Jorge More
     for this trick. One assumes that the probability that W is in the null space of J is very, very small.
-*/ 
-#undef __FUNCT__  
+*/
+#undef __FUNCT__
 #define __FUNCT__ "SNESLSCheckLocalMin_Private"
 PetscErrorCode SNESLSCheckLocalMin_Private(SNES snes,Mat A,Vec F,Vec W,PetscReal fnorm,PetscBool  *ismin)
 {
@@ -45,9 +45,9 @@ PetscErrorCode SNESLSCheckLocalMin_Private(SNES snes,Mat A,Vec F,Vec W,PetscReal
 }
 
 /*
-     Checks if J^T(F - J*X) = 0 
-*/ 
-#undef __FUNCT__  
+     Checks if J^T(F - J*X) = 0
+*/
+#undef __FUNCT__
 #define __FUNCT__ "SNESLSCheckResidual_Private"
 PetscErrorCode SNESLSCheckResidual_Private(SNES snes,Mat A,Vec F,Vec X,Vec W1,Vec W2)
 {
@@ -72,11 +72,11 @@ PetscErrorCode SNESLSCheckResidual_Private(SNES snes,Mat A,Vec F,Vec X,Vec W1,Ve
   PetscFunctionReturn(0);
 }
 
-/*  -------------------------------------------------------------------- 
+/*  --------------------------------------------------------------------
 
      This file implements a truncated Newton method with a line search,
-     for solving a system of nonlinear equations, using the KSP, Vec, 
-     and Mat interfaces for linear solvers, vectors, and matrices, 
+     for solving a system of nonlinear equations, using the KSP, Vec,
+     and Mat interfaces for linear solvers, vectors, and matrices,
      respectively.
 
      The following basic routines are required for each nonlinear solver:
@@ -88,8 +88,8 @@ PetscErrorCode SNESLSCheckResidual_Private(SNES snes,Mat A,Vec F,Vec X,Vec W1,Ve
      we use _LS (e.g., SNESCreate_LS, SNESSolve_LS) for solving
      systems of nonlinear equations with a line search (LS) method.
      These routines are actually called via the common user interface
-     routines SNESCreate(), SNESSetFromOptions(), SNESSolve(), and 
-     SNESDestroy(), so the application code interface remains identical 
+     routines SNESCreate(), SNESSetFromOptions(), SNESSolve(), and
+     SNESDestroy(), so the application code interface remains identical
      for all nonlinear solvers.
 
      Another key routine is:
@@ -106,7 +106,7 @@ PetscErrorCode SNESLSCheckResidual_Private(SNES snes,Mat A,Vec F,Vec X,Vec W1,Ve
 
      The various types of solvers (preconditioners, Krylov subspace methods,
      nonlinear solvers, timesteppers) are all organized similarly, so the
-     above description applies to these categories also.  
+     above description applies to these categories also.
 
     -------------------------------------------------------------------- */
 /*
@@ -137,10 +137,11 @@ PetscErrorCode SNESSolve_LS(SNES snes)
   PetscBool          lssucceed;
   MatStructure       flg = DIFFERENT_NONZERO_PATTERN;
   PetscReal          fnorm,gnorm,xnorm,ynorm;
-  Vec                Y,X,F,G,W;
+  Vec                Y,X,F,G,W,FPC;
   KSPConvergedReason kspreason;
   PetscBool          domainerror;
   SNESLineSearch    linesearch;
+  SNESConvergedReason reason;
 
   PetscFunctionBegin;
   snes->numFailures            = 0;
@@ -218,6 +219,21 @@ PetscErrorCode SNESSolve_LS(SNES snes)
     }
 
 
+    /* apply the nonlinear preconditioner if it's right preconditioned */
+    if (snes->pc && snes->pcside == PC_RIGHT) {
+      //ierr = SNESSetInitialFunction(snes->pc, F);CHKERRQ(ierr);
+      //ierr = SNESSetInitialFunctionNorm(snes->pc, fnorm);CHKERRQ(ierr);
+      ierr = SNESSolve(snes->pc, snes->vec_rhs, X);CHKERRQ(ierr);
+      ierr = SNESGetConvergedReason(snes->pc,&reason);CHKERRQ(ierr);
+      if (reason < 0  && reason != SNES_DIVERGED_MAX_IT) {
+        snes->reason = SNES_DIVERGED_INNER;
+        PetscFunctionReturn(0);
+      }
+      ierr = SNESGetFunction(snes->pc, &FPC, PETSC_NULL, PETSC_NULL);CHKERRQ(ierr);
+      ierr = VecCopy(FPC, F);CHKERRQ(ierr);
+      ierr = SNESGetFunctionNorm(snes->pc, &fnorm);CHKERRQ(ierr);
+    }
+
 
     /* Solve J Y = F, where J is Jacobian matrix */
     ierr = SNESComputeJacobian(snes,X,&snes->jacobian,&snes->jacobian_pre,&flg);CHKERRQ(ierr);
@@ -273,10 +289,14 @@ PetscErrorCode SNESSolve_LS(SNES snes)
       PetscFunctionReturn(0);
     }
     if (!lssucceed) {
+      if (snes->stol*xnorm > ynorm) {
+        snes->reason = SNES_CONVERGED_SNORM_RELATIVE;
+        PetscFunctionReturn(0);
+      }
       if (++snes->numFailures >= snes->maxFailures) {
         PetscBool  ismin;
         snes->reason = SNES_DIVERGED_LINE_SEARCH;
-        ierr = SNESLSCheckLocalMin_Private(snes,snes->jacobian,F,X,fnorm,&ismin);CHKERRQ(ierr);
+        ierr = SNESLSCheckLocalMin_Private(snes,snes->jacobian,F,W,fnorm,&ismin);CHKERRQ(ierr);
         if (ismin) snes->reason = SNES_DIVERGED_LOCAL_MIN;
         break;
       }
@@ -288,14 +308,13 @@ PetscErrorCode SNESSolve_LS(SNES snes)
     ierr = PetscObjectGrantAccess(snes);CHKERRQ(ierr);
     SNESLogConvHistory(snes,snes->norm,lits);
     ierr = SNESMonitor(snes,snes->iter,snes->norm);CHKERRQ(ierr);
-    /* Test for convergence, xnorm = || X || */
-    if (snes->ops->converged != SNESSkipConverged) { ierr = VecNorm(X,NORM_2,&xnorm);CHKERRQ(ierr); }
+    /* Test for convergence */
     ierr = (*snes->ops->converged)(snes,snes->iter,xnorm,ynorm,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
     if (snes->reason) break;
   }
   if (i == maxits) {
     ierr = PetscInfo1(snes,"Maximum number of iterations has been reached: %D\n",maxits);CHKERRQ(ierr);
-    if(!snes->reason) snes->reason = SNES_DIVERGED_MAX_IT;
+    if (!snes->reason) snes->reason = SNES_DIVERGED_MAX_IT;
   }
   PetscFunctionReturn(0);
 }
@@ -315,7 +334,7 @@ PetscErrorCode SNESSolve_LS(SNES snes)
    SNESSetUp(), since these actions will automatically occur during
    the call to SNESSolve().
  */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESSetUp_LS"
 PetscErrorCode SNESSetUp_LS(SNES snes)
 {
@@ -369,7 +388,7 @@ PetscErrorCode SNESDestroy_LS(SNES snes)
 
    Application Interface Routine: SNESView()
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESView_LS"
 static PetscErrorCode SNESView_LS(SNES snes,PetscViewer viewer)
 {
@@ -377,7 +396,7 @@ static PetscErrorCode SNESView_LS(SNES snes,PetscViewer viewer)
   PetscBool      iascii;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
   }
   PetscFunctionReturn(0);
@@ -392,7 +411,7 @@ static PetscErrorCode SNESView_LS(SNES snes,PetscViewer viewer)
 
    Application Interface Routine: SNESSetFromOptions()
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESSetFromOptions_LS"
 static PetscErrorCode SNESSetFromOptions_LS(SNES snes)
 {
@@ -415,27 +434,25 @@ static PetscErrorCode SNESSetFromOptions_LS(SNES snes)
       SNESLS - Newton based nonlinear solver that uses a line search
 
    Options Database:
-+   -snes_linesearch [bt,basic] - Selects line search
-.   -snes_linesearch_order[quadratic,cubic] - Selects the order of the line search for bt
-.   -snes_linesearch_norms<true> - Turns on/off computation of the norms for basic
-.   -snes_linesearch_alpha<alpha> - Sets alpha used in determining if reduction in function norm is sufficient
-.   -snes_linesearch_maxstep<maxstep> - Sets the maximum stepsize the line search will use (if the 2-norm(y) > maxstep then scale y to be y = (maxstep/2-norm(y)) *y)
-.   -snes_linesearch_minlambda<minlambda>  - Sets the minimum lambda the line search will use  minlambda / max_i ( y[i]/x[i] )
++   -snes_linesearch_type <bt> - bt,basic.  Select line search type
+.   -snes_linesearch_order <3> - 2, 3. Selects the order of the line search for bt
+.   -snes_linesearch_norms <true> - Turns on/off computation of the norms for basic linesearch
+.   -snes_linesearch_alpha <alpha> - Sets alpha used in determining if reduction in function norm is sufficient
+.   -snes_linesearch_maxstep <maxstep> - Sets the maximum stepsize the line search will use (if the 2-norm(y) > maxstep then scale y to be y = (maxstep/2-norm(y)) *y)
+.   -snes_linesearch_minlambda <minlambda>  - Sets the minimum lambda the line search will tolerate
 .   -snes_linesearch_monitor - print information about progress of line searches
 -   -snes_linesearch_damping - damping factor used for basic line search
-
 
     Notes: This is the default nonlinear solver in SNES
 
    Level: beginner
 
-.seealso:  SNESCreate(), SNES, SNESSetType(), SNESTR, SNESLineSearchSet(), 
-           SNESLineSearchSetPostCheck(), SNESLineSearchNo(), SNESLineSearchCubic(), SNESLineSearchQuadratic(), 
-          SNESLineSearchSet(), SNESLineSearchNoNorms(), SNESLineSearchSetPreCheck(), SNESLineSearchSetParams(), SNESLineSearchGetParams()
+.seealso:  SNESCreate(), SNES, SNESSetType(), SNESTR, SNESQN, SNESLineSearchSetType(), SNESLineSearchSetOrder()
+           SNESLineSearchSetPostCheck(), SNESLineSearchSetPreCheck() SNESLineSearchSetComputeNorms()
 
 M*/
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESCreate_LS"
 PetscErrorCode  SNESCreate_LS(SNES snes)
 {

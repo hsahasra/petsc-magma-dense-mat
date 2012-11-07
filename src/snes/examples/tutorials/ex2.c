@@ -8,7 +8,7 @@ This example employs a user-defined monitoring routine.\n\n";
    Processors: 1
 T*/
 
-/* 
+/*
    Include "petscdraw.h" so that we can use PETSc drawing routines.
    Include "petscsnes.h" so that we can use SNES solvers.  Note that this
    file automatically includes:
@@ -21,7 +21,7 @@ T*/
 
 #include <petscsnes.h>
 
-/* 
+/*
    User-defined routines
 */
 extern PetscErrorCode FormJacobian(SNES,Vec,Mat*,Mat*,MatStructure*,void*);
@@ -52,7 +52,7 @@ int main(int argc,char **argv)
 
   PetscInitialize(&argc,&argv,(char *)0,help);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
-  if (size != 1) SETERRQ(PETSC_COMM_SELF,1,"This is a uniprocessor example only!");
+  if (size != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"This is a uniprocessor example only!");
   ierr = PetscOptionsGetInt(PETSC_NULL,"-n",&n,PETSC_NULL);CHKERRQ(ierr);
   h = 1.0/(n-1);
 
@@ -73,9 +73,9 @@ int main(int argc,char **argv)
   ierr = VecSetFromOptions(x);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&r);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&F);CHKERRQ(ierr);
-  ierr = VecDuplicate(x,&U);CHKERRQ(ierr); 
+  ierr = VecDuplicate(x,&U);CHKERRQ(ierr);
 
-  /* 
+  /*
      Set function evaluation routine and vector
   */
   ierr = SNESSetFunction(snes,r,FormFunction,(void*)F);CHKERRQ(ierr);
@@ -90,12 +90,12 @@ int main(int argc,char **argv)
   ierr = MatSetFromOptions(J);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(J,3,PETSC_NULL);CHKERRQ(ierr);
 
-  /* 
+  /*
      Set Jacobian matrix data structure and default Jacobian evaluation
      routine. User can override with:
      -snes_fd : default finite differencing approximation of Jacobian
      -snes_mf : matrix-free Newton-Krylov method with no preconditioning
-                (unless user explicitly sets preconditioner) 
+                (unless user explicitly sets preconditioner)
      -snes_mf_operator : form preconditioning matrix as set by the user,
                          but use matrix-free approx for Jacobian-vector
                          products within Newton-Krylov method
@@ -107,11 +107,11 @@ int main(int argc,char **argv)
      Customize nonlinear solver; set runtime options
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-  /* 
+  /*
      Set an optional user-defined monitoring routine
   */
   ierr = PetscViewerDrawOpen(PETSC_COMM_WORLD,0,0,0,0,400,400,&monP.viewer);CHKERRQ(ierr);
-  ierr = SNESMonitorSet(snes,Monitor,&monP,0);CHKERRQ(ierr); 
+  ierr = SNESMonitorSet(snes,Monitor,&monP,0);CHKERRQ(ierr);
 
   /*
      Set names for some vectors to facilitate monitoring (optional)
@@ -119,13 +119,13 @@ int main(int argc,char **argv)
   ierr = PetscObjectSetName((PetscObject)x,"Approximate Solution");CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)U,"Exact Solution");CHKERRQ(ierr);
 
-  /* 
+  /*
      Set SNES/KSP/KSP/PC runtime options, e.g.,
          -snes_view -snes_monitor -ksp_type <ksp> -pc_type <pc>
   */
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
 
-  /* 
+  /*
      Print parameters used for convergence testing (optional) ... just
      to demonstrate this routine; this information is also printed with
      the option -snes_view
@@ -165,7 +165,7 @@ int main(int argc,char **argv)
      Check solution and clean up
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-  /* 
+  /*
      Check the error
   */
   ierr = VecAXPY(x,none,U);CHKERRQ(ierr);
@@ -204,7 +204,7 @@ PetscErrorCode FormInitialGuess(Vec x)
 /* ------------------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "FormFunction"
-/* 
+/*
    FormFunction - Evaluates nonlinear function, F(x).
 
    Input Parameters:
@@ -224,10 +224,11 @@ PetscErrorCode FormInitialGuess(Vec x)
 
 PetscErrorCode FormFunction(SNES snes,Vec x,Vec f,void *ctx)
 {
-   Vec            g = (Vec)ctx;
-   PetscScalar    *xx,*ff,*gg,d;
-   PetscErrorCode ierr;
-   PetscInt       i,n;
+   Vec               g = (Vec)ctx;
+   const PetscScalar *xx,*gg;
+   PetscScalar       *ff,d;
+   PetscErrorCode    ierr;
+   PetscInt          i,n;
 
   /*
      Get pointers to vector data.
@@ -236,9 +237,9 @@ PetscErrorCode FormFunction(SNES snes,Vec x,Vec f,void *ctx)
        - You MUST call VecRestoreArray() when you no longer need access to
          the array.
   */
-   ierr = VecGetArray(x,&xx);CHKERRQ(ierr);
+   ierr = VecGetArrayRead(x,&xx);CHKERRQ(ierr);
    ierr = VecGetArray(f,&ff);CHKERRQ(ierr);
-   ierr = VecGetArray(g,&gg);CHKERRQ(ierr);
+   ierr = VecGetArrayRead(g,&gg);CHKERRQ(ierr);
 
   /*
      Compute function
@@ -254,9 +255,9 @@ PetscErrorCode FormFunction(SNES snes,Vec x,Vec f,void *ctx)
   /*
      Restore vectors
   */
-  ierr = VecRestoreArray(x,&xx);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(x,&xx);CHKERRQ(ierr);
   ierr = VecRestoreArray(f,&ff);CHKERRQ(ierr);
-  ierr = VecRestoreArray(g,&gg);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(g,&gg);CHKERRQ(ierr);
   return 0;
 }
 /* ------------------------------------------------------------------- */
@@ -278,14 +279,15 @@ PetscErrorCode FormFunction(SNES snes,Vec x,Vec f,void *ctx)
 
 PetscErrorCode FormJacobian(SNES snes,Vec x,Mat *jac,Mat *B,MatStructure*flag,void *dummy)
 {
-  PetscScalar    *xx,A[3],d;
-  PetscErrorCode ierr;
-  PetscInt       i,n,j[3];
+  const PetscScalar *xx;
+  PetscScalar       A[3],d;
+  PetscErrorCode    ierr;
+  PetscInt          i,n,j[3];
 
   /*
      Get pointer to vector data
   */
-  ierr = VecGetArray(x,&xx);CHKERRQ(ierr);
+  ierr = VecGetArrayRead(x,&xx);CHKERRQ(ierr);
 
   /*
      Compute Jacobian entries and insert into matrix.
@@ -299,7 +301,7 @@ PetscErrorCode FormJacobian(SNES snes,Vec x,Mat *jac,Mat *B,MatStructure*flag,vo
      Interior grid points
   */
   for (i=1; i<n-1; i++) {
-    j[0] = i - 1; j[1] = i; j[2] = i + 1; 
+    j[0] = i - 1; j[1] = i; j[2] = i + 1;
     A[0] = A[2] = d; A[1] = -2.0*d + 2.0*xx[i];
     ierr = MatSetValues(*jac,1,&i,3,j,A,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -307,22 +309,25 @@ PetscErrorCode FormJacobian(SNES snes,Vec x,Mat *jac,Mat *B,MatStructure*flag,vo
   /*
      Boundary points
   */
-  i = 0;   A[0] = 1.0; 
+  i = 0;   A[0] = 1.0;
   ierr = MatSetValues(*jac,1,&i,1,&i,A,INSERT_VALUES);CHKERRQ(ierr);
-  i = n-1; A[0] = 1.0; 
+  i = n-1; A[0] = 1.0;
   ierr = MatSetValues(*jac,1,&i,1,&i,A,INSERT_VALUES);CHKERRQ(ierr);
 
   /*
      Restore vector
   */
-  ierr = VecRestoreArray(x,&xx);CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(x,&xx);CHKERRQ(ierr);
 
   /*
      Assemble matrix
   */
   ierr = MatAssemblyBegin(*jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(*jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
+  if (*jac != *B){
+    ierr = MatAssemblyBegin(*jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(*jac,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  }
   return 0;
 }
 /* ------------------------------------------------------------------- */
@@ -336,7 +341,7 @@ PetscErrorCode FormJacobian(SNES snes,Vec x,Mat *jac,Mat *B,MatStructure*flag,vo
    snes - the SNES context
    its - iteration number
    norm - 2-norm function value (may be estimated)
-   ctx - optional user-defined context for private data for the 
+   ctx - optional user-defined context for private data for the
          monitor routine, as set by SNESMonitorSet()
 
    Note:

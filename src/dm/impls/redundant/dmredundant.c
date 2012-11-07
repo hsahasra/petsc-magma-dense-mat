@@ -10,7 +10,7 @@ typedef struct  {
 
 #undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_Redundant"
-static PetscErrorCode DMCreateMatrix_Redundant(DM dm,const MatType mtype,Mat *J)
+static PetscErrorCode DMCreateMatrix_Redundant(DM dm,MatType mtype,Mat *J)
 {
   DM_Redundant           *red = (DM_Redundant*)dm->data;
   PetscErrorCode         ierr;
@@ -56,6 +56,8 @@ static PetscErrorCode DMDestroy_Redundant(DM dm)
   PetscFunctionBegin;
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)dm,"DMRedundantSetSize_C","",PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)dm,"DMRedundantGetSize_C","",PETSC_NULL);CHKERRQ(ierr);
+  /* This was originally freed in DMDestroy(), but that prevents reference counting of backend objects */
+  ierr = PetscFree(dm->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -86,8 +88,8 @@ static PetscErrorCode DMCreateGlobalVector_Redundant(DM dm,Vec *gvec)
 #define __FUNCT__ "DMCreateLocalVector_Redundant"
 static PetscErrorCode DMCreateLocalVector_Redundant(DM dm,Vec *lvec)
 {
-  PetscErrorCode         ierr;
-  DM_Redundant           *red = (DM_Redundant*)dm->data;
+  PetscErrorCode ierr;
+  DM_Redundant   *red = (DM_Redundant*)dm->data;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
@@ -217,7 +219,7 @@ static PetscErrorCode DMView_Redundant(DM dm,PetscViewer viewer)
   PetscBool      iascii;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"redundant: rank=%D N=%D\n",red->rank,red->N);CHKERRQ(ierr);
   }
@@ -226,11 +228,11 @@ static PetscErrorCode DMView_Redundant(DM dm,PetscViewer viewer)
 
 #undef __FUNCT__
 #define __FUNCT__ "DMCreateColoring_Redundant"
-static PetscErrorCode DMCreateColoring_Redundant(DM dm,ISColoringType ctype,const MatType mtype,ISColoring *coloring)
+static PetscErrorCode DMCreateColoring_Redundant(DM dm,ISColoringType ctype,MatType mtype,ISColoring *coloring)
 {
-  DM_Redundant   *red = (DM_Redundant*)dm->data;
-  PetscErrorCode ierr;
-  PetscInt i,nloc;
+  DM_Redundant    *red = (DM_Redundant*)dm->data;
+  PetscErrorCode  ierr;
+  PetscInt        i,nloc;
   ISColoringValue *colors;
 
   PetscFunctionBegin;
@@ -255,8 +257,8 @@ static PetscErrorCode DMCreateColoring_Redundant(DM dm,ISColoringType ctype,cons
 static PetscErrorCode DMRefine_Redundant(DM dmc,MPI_Comm comm,DM *dmf)
 {
   PetscErrorCode ierr;
-  PetscMPIInt flag;
-  DM_Redundant *redc = (DM_Redundant*)dmc->data;
+  PetscMPIInt    flag;
+  DM_Redundant   *redc = (DM_Redundant*)dmc->data;
 
   PetscFunctionBegin;
   if (comm == MPI_COMM_NULL) comm = ((PetscObject)dmc)->comm;
@@ -271,8 +273,8 @@ static PetscErrorCode DMRefine_Redundant(DM dmc,MPI_Comm comm,DM *dmf)
 static PetscErrorCode DMCoarsen_Redundant(DM dmf,MPI_Comm comm,DM *dmc)
 {
   PetscErrorCode ierr;
-  PetscMPIInt flag;
-  DM_Redundant *redf = (DM_Redundant*)dmf->data;
+  PetscMPIInt    flag;
+  DM_Redundant   *redf = (DM_Redundant*)dmf->data;
 
   PetscFunctionBegin;
   if (comm == MPI_COMM_NULL) comm = ((PetscObject)dmf)->comm;
@@ -398,6 +400,20 @@ PetscErrorCode DMRedundantGetSize_Redundant(DM dm,PetscInt *rank,PetscInt *N)
 }
 EXTERN_C_END
 
+/*MC
+   DMREDUNDANT = "redundant" - A DM object that is used to manage data for a small set of dense globally coupled variables.
+         In the global representation of the vector the variables are all stored on a single MPI process (all the other MPI processes have
+         no variables) in the local representation all the variables are stored on ALL the MPI processes (because they are all needed for each
+         processes local computations).
+
+         This DM is generally used inside a DMCOMPOSITE object. For example, it may be used to store continuation parameters for a bifurcation problem.
+
+
+  Level: intermediate
+
+.seealso: DMType, DMCOMPOSITE, DMCreateRedundant(), DMCreate(), DMRedundantSetSize(), DMRedundantGetSize()
+M*/
+
 EXTERN_C_BEGIN
 #undef __FUNCT__
 #define __FUNCT__ "DMCreate_Redundant"
@@ -415,7 +431,7 @@ PetscErrorCode DMCreate_Redundant(DM dm)
   dm->ops->view               = DMView_Redundant;
   dm->ops->createglobalvector = DMCreateGlobalVector_Redundant;
   dm->ops->createlocalvector  = DMCreateLocalVector_Redundant;
-  dm->ops->creatematrix          = DMCreateMatrix_Redundant;
+  dm->ops->creatematrix       = DMCreateMatrix_Redundant;
   dm->ops->destroy            = DMDestroy_Redundant;
   dm->ops->globaltolocalbegin = DMGlobalToLocalBegin_Redundant;
   dm->ops->globaltolocalend   = DMGlobalToLocalEnd_Redundant;
@@ -423,9 +439,9 @@ PetscErrorCode DMCreate_Redundant(DM dm)
   dm->ops->localtoglobalend   = DMLocalToGlobalEnd_Redundant;
   dm->ops->refine             = DMRefine_Redundant;
   dm->ops->coarsen            = DMCoarsen_Redundant;
-  dm->ops->createinterpolation   = DMCreateInterpolation_Redundant;
+  dm->ops->createinterpolation= DMCreateInterpolation_Redundant;
   dm->ops->getcoloring        = DMCreateColoring_Redundant;
-  ierr = PetscStrallocpy(VECSTANDARD,&dm->vectype);CHKERRQ(ierr);
+  ierr = PetscStrallocpy(VECSTANDARD,(char**)&dm->vectype);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)dm,"DMRedundantSetSize_C","DMRedundantSetSize_Redundant",DMRedundantSetSize_Redundant);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)dm,"DMRedundantGetSize_C","DMRedundantGetSize_Redundant",DMRedundantGetSize_Redundant);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -449,7 +465,7 @@ EXTERN_C_END
 
     Level: advanced
 
-.seealso DMDestroy(), DMCreateGlobalVector(), DMCreateMatrix(), DMCompositeAddDM()
+.seealso DMDestroy(), DMCreateGlobalVector(), DMCreateMatrix(), DMCompositeAddDM(), DMREDUNDANT, DMSetType(), DMRedundantSetSize(), DMRedundantGetSize()
 
 @*/
 PetscErrorCode DMRedundantCreate(MPI_Comm comm,PetscInt rank,PetscInt N,DM *dm)

@@ -4,8 +4,8 @@
 */
 #include <../src/sys/draw/drawimpl.h>  /*I "petscdraw.h" I*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawStringSetSize" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawStringSetSize"
 /*@
    PetscDrawStringSetSize - Sets the size for character text.
 
@@ -33,7 +33,7 @@ PetscErrorCode  PetscDrawStringSetSize(PetscDraw draw,PetscReal width,PetscReal 
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  ierr = PetscTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isnull);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
   if (draw->ops->stringsetsize) {
     ierr = (*draw->ops->stringsetsize)(draw,width,height);CHKERRQ(ierr);

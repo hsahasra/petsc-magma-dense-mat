@@ -16,7 +16,7 @@ int main(int argc,char **args)
   PetscInt       imin[M],imax[M],imaxabs[M],indices[N],row;
   PetscScalar    values[N];
   PetscErrorCode ierr;
-  const MatType  type;
+  MatType        type;
   PetscMPIInt    size;
   PetscBool      doTest=PETSC_TRUE;
 
@@ -27,7 +27,7 @@ int main(int argc,char **args)
   ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,M,N);CHKERRQ(ierr);
   ierr = MatSetFromOptions(A);CHKERRQ(ierr);
   ierr = MatSetUp(A);CHKERRQ(ierr);
-  row  = 0; 
+  row  = 0;
   indices[0] = 0; indices[1] = 1; indices[2] = 2; indices[3] = 3; indices[4] = 4; indices[5] = 5;
   values[0] = -1.0; values[1] = 0.0; values[2] = 1.0; values[3] = 3.0; values[4] = 4.0; values[5] = -5.0;
   ierr = MatSetValues(A,1,&row,6,indices,values,INSERT_VALUES);CHKERRQ(ierr);
@@ -68,7 +68,7 @@ int main(int argc,char **args)
     ierr = MatGetType(A,&type);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"\nMatrix type: %s\n",type);
     /* AIJ */
-    ierr = PetscTypeCompare((PetscObject)A,MATMPIAIJ,&doTest);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)A,MATMPIAIJ,&doTest);CHKERRQ(ierr);
     if (doTest){
       ierr = MatGetRowMaxAbs(A,maxabs,PETSC_NULL);CHKERRQ(ierr);
       ierr = MatGetRowMaxAbs(A,maxabs,imaxabs);CHKERRQ(ierr);
@@ -76,7 +76,7 @@ int main(int argc,char **args)
       ierr = VecView(maxabs,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     }
     /* BAIJ */
-    ierr = PetscTypeCompare((PetscObject)A,MATMPIBAIJ,&doTest);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)A,MATMPIBAIJ,&doTest);CHKERRQ(ierr);
     if (doTest){
       ierr = MatGetRowMaxAbs(A,maxabs,PETSC_NULL);CHKERRQ(ierr);
       ierr = MatGetRowMaxAbs(A,maxabs,imaxabs);CHKERRQ(ierr);
@@ -107,7 +107,7 @@ int main(int argc,char **args)
   ierr = VecDestroy(&min);CHKERRQ(ierr);
   ierr = VecDestroy(&max);CHKERRQ(ierr);
   ierr = VecDestroy(&maxabs);CHKERRQ(ierr);
-  ierr = MatDestroy(&A);CHKERRQ(ierr); 
+  ierr = MatDestroy(&A);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return 0;
 }

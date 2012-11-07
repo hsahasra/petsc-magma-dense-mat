@@ -13,8 +13,8 @@ extern PetscErrorCode  PCCreate_Shell(PC);
 extern PetscErrorCode  PCCreate_MG(PC);
 extern PetscErrorCode  PCCreate_Eisenstat(PC);
 extern PetscErrorCode  PCCreate_ICC(PC);
-extern PetscErrorCode  PCCreate_ASM(PC); 
-extern PetscErrorCode  PCCreate_GASM(PC); 
+extern PetscErrorCode  PCCreate_ASM(PC);
+extern PetscErrorCode  PCCreate_GASM(PC);
 extern PetscErrorCode  PCCreate_KSP(PC);
 extern PetscErrorCode  PCCreate_Composite(PC);
 extern PetscErrorCode  PCCreate_Redundant(PC);
@@ -49,9 +49,6 @@ extern PetscErrorCode  PCCreate_SysPFMG(PC);
 #if !defined(PETSC_USE_COMPLEX)
 extern PetscErrorCode  PCCreate_TFS(PC);
 #endif
-#if defined(PETSC_HAVE_PROMETHEUS)
-extern PetscErrorCode  PCCreate_Prometheus(PC);
-#endif
 #if defined(PETSC_HAVE_CUSP_SMOOTHED_AGGREGATION) && defined(PETSC_HAVE_CUSP)
 extern PetscErrorCode  PCCreate_SACUSP(PC);
 extern PetscErrorCode  PCCreate_SACUSPPoly(PC);
@@ -67,7 +64,7 @@ extern PetscErrorCode  PCCreate_BDDC(PC);
 
 EXTERN_C_END
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCRegisterAll"
 /*@C
    PCRegisterAll - Registers all of the preconditioners in the PC package.
@@ -135,9 +132,6 @@ PetscErrorCode  PCRegisterAll(const char path[])
 #endif
 #if !defined(PETSC_USE_COMPLEX)
   ierr = PCRegisterDynamic(PCTFS          ,path,"PCCreate_TFS",PCCreate_TFS);CHKERRQ(ierr);
-#endif
-#if defined(PETSC_HAVE_PROMETHEUS)
-  ierr = PCRegisterDynamic(PCPROMETHEUS   ,path,"PCCreate_Prometheus",PCCreate_Prometheus);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_CUSP_SMOOTHED_AGGREGATION) && defined(PETSC_HAVE_CUSP)
   ierr = PCRegisterDynamic(PCSACUSP       ,path,"PCCreate_SACUSP",PCCreate_SACUSP);CHKERRQ(ierr);

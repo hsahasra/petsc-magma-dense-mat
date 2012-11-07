@@ -1,6 +1,4 @@
 
-/* Program usage:  ./ex16 [-help] [all PETSc options] */
-
 static char help[] = "Solves the van der Pol equation.\n\
 Input parameters include:\n";
 
@@ -72,7 +70,7 @@ Input parameters include:\n";
 
 Notes:
      RHSFunction has an imex split with -u_2/(u_2^2-1) as part of Ifunc (as
-     described above, and RHSFunction2 has the split with that as part of 
+     described above, and RHSFunction2 has the split with that as part of
      the RHS, choosing RHS or RHS2 also chooses the corresponding IJacobian
      or IJacobian2.
 
@@ -237,7 +235,7 @@ static PetscErrorCode RegisterMyARK2(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "Monitor"
 /* Monitor timesteps and use interpolation to output at integer multiples of 0.1 */
 static PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal t,Vec X,void *ctx)
@@ -312,7 +310,7 @@ int main(int argc,char **argv)
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSBEULER);CHKERRQ(ierr);
-  if(rhs2 == PETSC_FALSE){
+  if (rhs2 == PETSC_FALSE){
     ierr = TSSetRHSFunction(ts,PETSC_NULL,RHSFunction,&user);CHKERRQ(ierr);
     ierr = TSSetIFunction(ts,PETSC_NULL,IFunction,&user);CHKERRQ(ierr);
     ierr = TSSetIJacobian(ts,A,A,IJacobian,&user);CHKERRQ(ierr);

@@ -4,10 +4,9 @@
 
 ALL: lib 
 
-CFLAGS    = ${MATHEMATICA_INCLUDE} ${PLAPACK_INCLUDE}
+CFLAGS    = ${MATHEMATICA_INCLUDE} 
 SOURCEC   = mathematica.c
 SOURCEH   = mathematica.h
-OBJSC     = ${SOURCEC:.c=.o}
 MANSEC    = Viewer
 LIBBASE   = libpetscsys
 DIRS      = 

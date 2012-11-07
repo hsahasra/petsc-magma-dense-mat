@@ -1,5 +1,6 @@
+static char help[] = "Test file for the PCFactorSetShiftType()\n";
 /*
- * Test file for the PCFactorSetShiftTypem() routine or -pc_factor_shift_type POSITIVE_DEFINITE option.
+ * Test file for the PCFactorSetShiftType() routine or -pc_factor_shift_type POSITIVE_DEFINITE option.
  * The test matrix is the example from Kershaw's paper [J.Comp.Phys 1978]
  * of a positive definite matrix for which ILU(0) will give a negative pivot.
  * This means that the CG method will break down; the Manteuffel shift
@@ -20,19 +21,19 @@
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  KSP                solver; 
-  PC                 prec; 
+  KSP                solver;
+  PC                 prec;
   Mat                A,M;
   Vec                X,B,D;
   MPI_Comm           comm;
-  PetscScalar        v; 
+  PetscScalar        v;
   KSPConvergedReason reason;
   PetscInt           i,j,its;
   PetscErrorCode     ierr;
 
-  ierr = PetscInitialize(&argc,&argv,0,0);CHKERRQ(ierr);
+  ierr = PetscInitialize(&argc,&argv,0,help);CHKERRQ(ierr);
   comm = MPI_COMM_SELF;
-  
+
   /*
    * Construct the Kershaw matrix
    * and a suitable rhs / initial guess

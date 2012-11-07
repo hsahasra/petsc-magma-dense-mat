@@ -4,7 +4,7 @@
 PetscFList AOList                       = PETSC_NULL;
 PetscBool  AORegisterAllCalled          = PETSC_FALSE;
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AOSetType"
 /*@C
   AOSetType - Builds an application ordering for a particular implementation.
@@ -26,7 +26,7 @@ PetscBool  AORegisterAllCalled          = PETSC_FALSE;
 .keywords: ao, set, type
 .seealso: AOGetType(), AOCreate()
 @*/
-PetscErrorCode  AOSetType(AO ao, const AOType method)
+PetscErrorCode  AOSetType(AO ao, AOType method)
 {
   PetscErrorCode (*r)(AO);
   PetscBool      match;
@@ -34,7 +34,7 @@ PetscErrorCode  AOSetType(AO ao, const AOType method)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(ao, AO_CLASSID,1);
-  ierr = PetscTypeCompare((PetscObject)ao, method, &match);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)ao, method, &match);CHKERRQ(ierr);
   if (match) PetscFunctionReturn(0);
 
   if (!AORegisterAllCalled) {ierr = AORegisterAll(PETSC_NULL);CHKERRQ(ierr);}
@@ -44,12 +44,12 @@ PetscErrorCode  AOSetType(AO ao, const AOType method)
     ierr = (*ao->ops->destroy)(ao);CHKERRQ(ierr);
     ao->ops->destroy = PETSC_NULL;
   }
-  
+
   ierr = (*r)(ao);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AOGetType"
 /*@C
   AOGetType - Gets the AO type name (as a string) from the AO.
@@ -67,7 +67,7 @@ PetscErrorCode  AOSetType(AO ao, const AOType method)
 .keywords: ao, get, type, name
 .seealso: AOSetType(), AOCreate()
 @*/
-PetscErrorCode  AOGetType(AO ao, const AOType *type)
+PetscErrorCode  AOGetType(AO ao, AOType *type)
 {
   PetscErrorCode ierr;
 
@@ -84,7 +84,7 @@ PetscErrorCode  AOGetType(AO ao, const AOType *type)
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AORegister"
 /*@C
   AORegister - See AORegisterDynamic()
@@ -106,7 +106,7 @@ PetscErrorCode  AORegister(const char sname[], const char path[], const char nam
 
 
 /*--------------------------------------------------------------------------------------------------------------------*/
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AORegisterDestroy"
 /*@C
    AORegisterDestroy - Frees the list of AO methods that were registered by AORegister()/AORegisterDynamic().

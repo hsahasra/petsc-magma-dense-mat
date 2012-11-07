@@ -37,8 +37,7 @@ class Configure(config.base.Configure):
     help.addArgument('Windows','-with-windows-graphics=<bool>',   nargs.ArgBool(None, 1,'Enable check for Windows Graphics'))
     help.addArgument('PETSc', '-with-default-arch=<bool>',        nargs.ArgBool(None, 1, 'Allow using the last configured arch without setting PETSC_ARCH'))
     help.addArgument('PETSc','-with-single-library=<bool>',       nargs.ArgBool(None, 1,'Put all PETSc code into the single -lpetsc library'))
-    help.addArgument('PETSc', '-with-iphone=<bool>',              nargs.ArgBool(None, 0, 'Build an iPhone version of PETSc'))
-    help.addArgument('CTetgen', '-with-ctetgen=<bool>',           nargs.ArgBool(None, 0, 'Enable CTetgen support'))
+    help.addArgument('PETSc', '-with-ios=<bool>',              nargs.ArgBool(None, 0, 'Build an iPhone/iPad version of PETSc library'))
     return
 
   def setupDependencies(self, framework):
@@ -54,6 +53,7 @@ class Configure(config.base.Configure):
     self.headers       = framework.require('config.headers',           self)
     self.functions     = framework.require('config.functions',         self)
     self.libraries     = framework.require('config.libraries',         self)
+    self.atomics       = framework.require('config.atomics',           self)
     if os.path.isdir(os.path.join('config', 'PETSc')):
       for d in ['utilities', 'packages']:
         for utility in os.listdir(os.path.join('config', 'PETSc', d)):
@@ -86,7 +86,7 @@ class Configure(config.base.Configure):
     self.libraries.headerPrefix  = self.headerPrefix
     self.blaslapack.headerPrefix = self.headerPrefix
     self.mpi.headerPrefix        = self.headerPrefix
-    headersC = map(lambda name: name+'.h', ['dos', 'endian', 'fcntl', 'float', 'io', 'limits', 'malloc', 'pwd', 'search', 'strings',
+    headersC = map(lambda name: name+'.h', ['setjmp','dos', 'endian', 'fcntl', 'float', 'io', 'limits', 'malloc', 'pwd', 'search', 'strings',
                                             'unistd', 'sys/sysinfo', 'machine/endian', 'sys/param', 'sys/procfs', 'sys/resource',
                                             'sys/systeminfo', 'sys/times', 'sys/utsname','string', 'stdlib','memory',
                                             'sys/socket','sys/wait','netinet/in','netdb','Direct','time','Ws2tcpip','sys/types',
@@ -219,8 +219,6 @@ class Configure(config.base.Configure):
 
 #-----------------------------------------------------------------------------------------------------
     # print include and lib for makefiles
-    if self.framework.argDB['with-ctetgen']:
-      self.addDefine('HAVE_CTETGEN', 1)
     self.framework.packages.reverse()
     includes = [os.path.join(self.petscdir.dir,'include'),os.path.join(self.petscdir.dir,self.arch.arch,'include')]
     libs = []
@@ -234,8 +232,7 @@ class Configure(config.base.Configure):
       if hasattr(i,'include'):
         if not isinstance(i.include,list):
           i.include = [i.include]
-        if not i.PACKAGE.lower() == 'valgrind':
-          includes.extend(i.include)
+        includes.extend(i.include)
         self.addMakeMacro(i.PACKAGE+'_INCLUDE',self.headers.toStringNoDupes(i.include))
     if self.framework.argDB['with-single-library']:
       self.addMakeMacro('PETSC_WITH_EXTERNAL_LIB',self.libraries.toStringNoDupes(['-L'+os.path.join(self.petscdir.dir,self.arch.arch,'lib'),' -lpetsc']+libs+self.libraries.math+self.compilers.flibs+self.compilers.cxxlibs+self.compilers.LIBS.split(' '))+self.CHUD.LIBS)
@@ -417,6 +414,10 @@ class Configure(config.base.Configure):
         cmakeset(fd,'PETSC_HAVE_FORTRAN')
         if self.compilers.fortranIsF90:
           cmakeset(fd,'PETSC_USING_F90')
+        if self.compilers.fortranIsF2003:
+          cmakeset(fd,'PETSC_USING_F2003')
+      if hasattr(self.compilers, 'CXX'):
+        cmakeset(fd,'PETSC_HAVE_CXX')
       if self.sharedlibraries.useShared:
         cmakeset(fd,'BUILD_SHARED_LIBS')
     def writeBuildFlags(fd):
@@ -478,7 +479,7 @@ class Configure(config.base.Configure):
       if self.cmakeboot_success:
         if self.framework.argDB['with-cuda']: # Our CMake build does not support CUDA at this time
           self.framework.logPrint('CMake configured successfully, but could not be used by default because --with-cuda was used\n')
-        elif hasattr(self.compilers, 'FC') and not self.setCompilers.fortranModuleOutputFlag:
+        elif hasattr(self.compilers, 'FC') and self.compilers.fortranIsF90 and not self.setCompilers.fortranModuleOutputFlag:
           self.framework.logPrint('CMake configured successfully, but could not be used by default because of missing fortranModuleOutputFlag\n')
         else:
           self.framework.logPrint('CMake configured successfully, using as default build\n')
@@ -491,7 +492,7 @@ class Configure(config.base.Configure):
 
   def configurePrefetch(self):
     '''Sees if there are any prefetch functions supported'''
-    if config.setCompilers.Configure.isSolaris() or self.framework.argDB['with-iphone']:
+    if config.setCompilers.Configure.isSolaris() or self.framework.argDB['with-ios']:
       self.addDefine('Prefetch(a,b,c)', ' ')
       return
     self.pushLanguage(self.languages.clanguage)      
@@ -547,10 +548,12 @@ class Configure(config.base.Configure):
 
   def configureFeatureTestMacros(self):
     '''Checks if certain feature test macros are support'''
-    if self.checkCompile('#define _POSIX_C_SOURCE 200112L\n#include <stdlib.h>',''):
+    if self.checkCompile('#define _POSIX_C_SOURCE 200112L\n#include <sysctl.h>',''):
        self.addDefine('_POSIX_C_SOURCE_200112L', '1')
     if self.checkCompile('#define _BSD_SOURCE\n#include<stdlib.h>',''):
        self.addDefine('_BSD_SOURCE', '1')
+    if self.checkCompile('#define _GNU_SOURCE\n#include <sched.h>','cpu_set_t mset;\nCPU_ZERO(&mset);'):
+       self.addDefine('_GNU_SOURCE', '1')
 
   def configureAtoll(self):
     '''Checks if atoll exists'''
@@ -559,11 +562,11 @@ class Configure(config.base.Configure):
 
   def configureUnused(self):
     '''Sees if __attribute((unused)) is supported'''
-    if self.framework.argDB['with-iphone'] or self.framework.argDB['with-cuda']:
+    if self.framework.argDB['with-ios']:
       self.addDefine('UNUSED', ' ')
       return
     self.pushLanguage(self.languages.clanguage)      
-    if self.checkLink('__attribute((unused)) static int myfunc(void){ return 1;}', 'int i = myfunc();\ntypedef void* atype;\n__attribute((unused))  atype a;\n'):
+    if self.checkLink('__attribute((unused)) static int myfunc(__attribute((unused)) void *name){ return 1;}', 'int i = 0;\nint j = myfunc(&i);\ntypedef void* atype;\n__attribute((unused))  atype a;\n'):
       self.addDefine('UNUSED', '__attribute((unused))')
     else:
       self.addDefine('UNUSED', ' ')
@@ -802,7 +805,7 @@ class Configure(config.base.Configure):
     for i in self.framework.packages:
       if hasattr(i,'postProcess'): postPackages.append(i)
     if postPackages:
-      # prometheus needs petsc conf files. so attempt to create them early
+      # ctetgen needs petsc conf files. so attempt to create them early
       self.framework.dumpConfFiles()
       for i in postPackages: i.postProcess()
     return

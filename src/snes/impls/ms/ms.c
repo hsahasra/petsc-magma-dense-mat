@@ -1,6 +1,6 @@
 #include <petsc-private/snesimpl.h>   /*I "petscsnes.h" I*/
 
-static const SNESMSType SNESMSDefault = SNESMSM62;
+static SNESMSType SNESMSDefault = SNESMSM62;
 static PetscBool SNESMSRegisterAllCalled;
 static PetscBool SNESMSPackageInitialized;
 
@@ -206,7 +206,7 @@ PetscErrorCode SNESMSFinalizePackage(void)
 
 .seealso: SNESMS
 @*/
-PetscErrorCode SNESMSRegister(const SNESMSType name,PetscInt nstages,PetscInt nregisters,PetscReal stability,const PetscReal gamma[],const PetscReal delta[],const PetscReal betasub[])
+PetscErrorCode SNESMSRegister(SNESMSType name,PetscInt nstages,PetscInt nregisters,PetscReal stability,const PetscReal gamma[],const PetscReal delta[],const PetscReal betasub[])
 {
   PetscErrorCode ierr;
   SNESMSTableauLink link;
@@ -262,7 +262,7 @@ static PetscErrorCode SNESMSStep_3Sstar(SNES snes,Vec X,Vec F)
   ierr = VecCopy(X,S3);CHKERRQ(ierr);
   for (i=0; i<nstages; i++) {
     Vec Ss[4] = {S1,S2,S3,Y};
-    PetscScalar scoeff[4] = {gamma[0*nstages+i]-1.0,gamma[1*nstages+i],gamma[2*nstages+i],-betasub[i]*ms->damping};
+    PetscScalar scoeff[4] = {gamma[0*nstages+i]-(PetscReal)1.0,gamma[1*nstages+i],gamma[2*nstages+i],-betasub[i]*ms->damping};
     ierr = VecAXPY(S2,delta[i],S1);CHKERRQ(ierr);
     if (i>0) {
       ierr = SNESComputeFunction(snes,S1,F);CHKERRQ(ierr);
@@ -414,7 +414,7 @@ static PetscErrorCode SNESView_MS(SNES snes,PetscViewer viewer)
   SNES_MS          *ms = (SNES_MS*)snes->data;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
   if (iascii) {
     SNESMSTableau tab = ms->tableau;
     ierr = PetscViewerASCIIPrintf(viewer,"  multi-stage method type: %s\n",tab?tab->name:"not yet set");CHKERRQ(ierr);
@@ -438,7 +438,7 @@ static PetscErrorCode SNESSetFromOptions_MS(SNES snes)
     const char **namelist;
     char mstype[256];
 
-    ierr = PetscStrncpy(mstype,SNESMSDefault,sizeof mstype);CHKERRQ(ierr);
+    ierr = PetscStrncpy(mstype,SNESMSDefault,sizeof(mstype));CHKERRQ(ierr);
     for (link=SNESMSTableauList,count=0; link; link=link->next,count++) ;
     ierr = PetscMalloc(count*sizeof(char*),&namelist);CHKERRQ(ierr);
     for (link=SNESMSTableauList,count=0; link; link=link->next,count++) namelist[count] = link->tab.name;
@@ -496,13 +496,13 @@ EXTERN_C_END
 
 .seealso: SNESMSGetType(), SNESMS
 @*/
-PetscErrorCode SNESMSSetType(SNES snes,const SNESMSType rostype)
+PetscErrorCode SNESMSSetType(SNES snes,SNESMSType rostype)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
-  ierr = PetscTryMethod(snes,"SNESMSSetType_C",(SNES,const SNESMSType),(snes,rostype));CHKERRQ(ierr);
+  ierr = PetscTryMethod(snes,"SNESMSSetType_C",(SNES,SNESMSType),(snes,rostype));CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -517,7 +517,7 @@ PetscErrorCode SNESMSSetType(SNES snes,const SNESMSType rostype)
 
       Notes:
       These multistage methods are explicit Runge-Kutta methods that are often used as smoothers for
-      FAS multigrid for transport problems. In the linear case, these are equivalent to polynomial smoothers (such as Chebychev).
+      FAS multigrid for transport problems. In the linear case, these are equivalent to polynomial smoothers (such as Chebyshev).
 
       Multi-stage smoothers should usually be preconditioned by point-block Jacobi to ensure proper scaling and to normalize the wave speeds.
 
@@ -533,7 +533,7 @@ PetscErrorCode SNESMSSetType(SNES snes,const SNESMSType rostype)
 
       Level: beginner
 
-.seealso:  SNESCreate(), SNES, SNESSetType(), SNESMS, SNESFAS, KSPCHEBYCHEV
+.seealso:  SNESCreate(), SNES, SNESSetType(), SNESMS, SNESFAS, KSPCHEBYSHEV
 
 M*/
 EXTERN_C_BEGIN

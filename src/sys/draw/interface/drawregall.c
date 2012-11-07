@@ -8,14 +8,20 @@ EXTERN_C_BEGIN
 #if defined(PETSC_HAVE_X)
 extern PetscErrorCode PetscDrawCreate_X(PetscDraw);
 #endif
+#if defined(PETSC_HAVE_GLUT)
+extern PetscErrorCode PetscDrawCreate_GLUT(PetscDraw);
+#endif
+#if defined(PETSC_HAVE_OPENGLES)
+extern PetscErrorCode PetscDrawCreate_OpenGLES(PetscDraw);
+#endif
 extern PetscErrorCode PetscDrawCreate_Null(PetscDraw);
 #if defined(PETSC_USE_WINDOWS_GRAPHICS)
 extern PetscErrorCode PetscDrawCreate_Win32(PetscDraw);
 #endif
 EXTERN_C_END
-  
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawRegisterAll" 
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawRegisterAll"
 /*@C
   PetscDrawRegisterAll - Registers all of the graphics methods in the PetscDraw package.
 
@@ -30,7 +36,13 @@ PetscErrorCode  PetscDrawRegisterAll(const char *path)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  
+
+#if defined(PETSC_HAVE_OPENGLES)
+  ierr = PetscDrawRegisterDynamic(PETSC_DRAW_OPENGLES,  path,"PetscDrawCreate_OpenGLES",  PetscDrawCreate_OpenGLES);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_GLUT)
+  ierr = PetscDrawRegisterDynamic(PETSC_DRAW_GLUT,  path,"PetscDrawCreate_GLUT",  PetscDrawCreate_GLUT);CHKERRQ(ierr);
+#endif
 #if defined(PETSC_HAVE_X)
   ierr = PetscDrawRegisterDynamic(PETSC_DRAW_X,     path,"PetscDrawCreate_X",     PetscDrawCreate_X);CHKERRQ(ierr);
 #elif defined(PETSC_USE_WINDOWS_GRAPHICS)

@@ -1,4 +1,6 @@
 
+static char help[] = "Each process opens the file and reads its part. Not scalable do not copy\n";
+
 #define USE_FAST_MAT_SET_VALUES
 
 #include <petscsys.h>
@@ -7,7 +9,7 @@
 #if defined(USE_FAST_MAT_SET_VALUES)
 #include <../src/mat/impls/aij/mpi/mpiaij.h>
 #define MatSetValues MatSetValues_MPIAIJ
-#else 
+#else
 #include <petscmat.h>
 #endif
 
@@ -19,7 +21,7 @@
 
     petsc-maint@mcs.anl.gov
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "Mat_Parallel_Load"
 int Mat_Parallel_Load(MPI_Comm comm,const char *name,Mat *newmat)
 {
@@ -53,7 +55,7 @@ int Mat_Parallel_Load(MPI_Comm comm,const char *name,Mat *newmat)
   if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not matrix object");
   ierr = MPI_Allreduce(header+2,&N,1,MPI_INT,MPI_SUM,comm);CHKERRQ(ierr);
   if (N != size*header[2]) SETERRQ(PETSC_COMM_SELF,1,"All files must have matrices with the same number of total columns");
-    
+
   /* number of rows in matrix is sum of rows in all files */
   m = header[1]; N = header[2];
   ierr = MPI_Allreduce(&m,&M,1,MPI_INT,MPI_SUM,comm);CHKERRQ(ierr);
@@ -65,8 +67,8 @@ int Mat_Parallel_Load(MPI_Comm comm,const char *name,Mat *newmat)
   for (i=2; i<=size; i++) {
     rowners[i] += rowners[i-1];
   }
-  rstart = rowners[rank]; 
-  rend   = rowners[rank+1]; 
+  rstart = rowners[rank];
+  rend   = rowners[rank+1];
   ierr = PetscFree(rowners);CHKERRQ(ierr);
 
   /* determine column ownership if matrix is not square */
@@ -150,7 +152,7 @@ int main(int argc,char **args)
   char           name[1024];
   PetscBool      flg;
 
-  PetscInitialize(&argc,&args,0,0);
+  PetscInitialize(&argc,&args,0,help);
   ierr = PetscOptionsGetString(PETSC_NULL,"-f",name,1024,&flg);CHKERRQ(ierr);
   if (!flg) SETERRQ(PETSC_COMM_SELF,1,"Must pass in filename with -f option");
   ierr = Mat_Parallel_Load(PETSC_COMM_WORLD,name,&A);CHKERRQ(ierr);

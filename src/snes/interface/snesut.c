@@ -1,10 +1,11 @@
 
 #include <petsc-private/snesimpl.h>       /*I   "petscsnes.h"   I*/
+#include <petscblaslapack.h>
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorSolution"
 /*@C
-   SNESMonitorSolution - Monitors progress of the SNES solvers by calling 
+   SNESMonitorSolution - Monitors progress of the SNES solvers by calling
    VecView() for the approximate solution at each iteration.
 
    Collective on SNES
@@ -39,10 +40,10 @@ PetscErrorCode  SNESMonitorSolution(SNES snes,PetscInt its,PetscReal fgnorm,void
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorResidual"
 /*@C
-   SNESMonitorResidual - Monitors progress of the SNES solvers by calling 
+   SNESMonitorResidual - Monitors progress of the SNES solvers by calling
    VecView() for the residual at each iteration.
 
    Collective on SNES
@@ -77,10 +78,10 @@ PetscErrorCode  SNESMonitorResidual(SNES snes,PetscInt its,PetscReal fgnorm,void
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorSolutionUpdate"
 /*@C
-   SNESMonitorSolutionUpdate - Monitors progress of the SNES solvers by calling 
+   SNESMonitorSolutionUpdate - Monitors progress of the SNES solvers by calling
    VecView() for the UPDATE to the solution at each iteration.
 
    Collective on SNES
@@ -115,7 +116,7 @@ PetscErrorCode  SNESMonitorSolutionUpdate(SNES snes,PetscInt its,PetscReal fgnor
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorDefault"
 /*@C
    SNESMonitorDefault - Monitors progress of the SNES solvers (default).
@@ -149,7 +150,69 @@ PetscErrorCode  SNESMonitorDefault(SNES snes,PetscInt its,PetscReal fgnorm,void 
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
+#define __FUNCT__ "SNESMonitorJacUpdateSpectrum"
+PetscErrorCode SNESMonitorJacUpdateSpectrum(SNES snes,PetscInt it,PetscReal fnorm,void *ctx)
+{
+#if defined(PETSC_MISSING_LAPACK_GEEV)
+  SETERRQ(((PetscObject)snes)->comm,PETSC_ERR_SUP,"GEEV - Lapack routine is unavailable\nNot able to provide eigen values.");
+#elif defined(PETSC_HAVE_ESSL)
+  SETERRQ(((PetscObject)snes)->comm,PETSC_ERR_SUP,"GEEV - No support for ESSL Lapack Routines");
+#else
+  Vec            X;
+  Mat            J,dJ,dJdense;
+  PetscErrorCode ierr;
+  PetscErrorCode (*func)(SNES,Vec,Mat*,Mat*,MatStructure*,void*);
+  PetscInt       n,i;
+  PetscBLASInt   nb,lwork;
+  PetscReal      *eigr,*eigi;
+  MatStructure   flg = DIFFERENT_NONZERO_PATTERN;
+  PetscScalar    *work;
+  PetscScalar    *a;
+
+  PetscFunctionBegin;
+  if (it == 0) PetscFunctionReturn(0);
+  /* create the difference between the current update and the current jacobian */
+  ierr = SNESGetSolution(snes,&X);CHKERRQ(ierr);
+  ierr = SNESGetJacobian(snes,&J,PETSC_NULL,&func,PETSC_NULL);CHKERRQ(ierr);
+  ierr = MatDuplicate(J,MAT_COPY_VALUES,&dJ);CHKERRQ(ierr);
+  ierr = SNESComputeJacobian(snes,X,&dJ,&dJ,&flg);CHKERRQ(ierr);
+  ierr = MatAXPY(dJ,-1.0,J,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  /* compute the spectrum directly */
+  ierr = MatConvert(dJ,MATSEQDENSE,MAT_INITIAL_MATRIX,&dJdense);CHKERRQ(ierr);
+  ierr = MatGetSize(dJ,&n,PETSC_NULL);CHKERRQ(ierr);
+  nb    = PetscBLASIntCast(n);
+  lwork = 3*nb;
+  ierr = PetscMalloc(n*sizeof(PetscReal),&eigr);CHKERRQ(ierr);
+  ierr = PetscMalloc(n*sizeof(PetscReal),&eigi);CHKERRQ(ierr);
+  ierr = PetscMalloc(lwork*sizeof(PetscScalar),&work);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(dJdense,&a);CHKERRQ(ierr);
+#if !defined(PETSC_USE_COMPLEX)
+  {
+    PetscBLASInt lierr;
+    ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
+    LAPACKgeev_("N","N",&nb,a,&nb,eigr,eigi,PETSC_NULL,&nb,PETSC_NULL,&nb,work,&lwork,&lierr);
+    if (lierr) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"geev() error %d",lierr);
+    ierr = PetscFPTrapPop();CHKERRQ(ierr);
+  }
+#else
+  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Not coded for complex");
+#endif
+  PetscPrintf(((PetscObject)snes)->comm,"Eigenvalues of J_%d - J_%d:\n",it,it-1);CHKERRQ(ierr);
+  for (i=0;i<n;i++) {
+    PetscPrintf(((PetscObject)snes)->comm,"%5d: %20.5g + %20.5gi\n",i,eigr[i],eigi[i]);CHKERRQ(ierr);
+  }
+  ierr = MatDenseRestoreArray(dJdense,&a);CHKERRQ(ierr);
+  ierr = MatDestroy(&dJ);CHKERRQ(ierr);
+  ierr = MatDestroy(&dJdense);CHKERRQ(ierr);
+  ierr = PetscFree(eigr);CHKERRQ(ierr);
+  ierr = PetscFree(eigi);CHKERRQ(ierr);
+  ierr = PetscFree(work);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+#endif
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorRange_Private"
 PetscErrorCode  SNESMonitorRange_Private(SNES snes,PetscInt it,PetscReal *per)
 {
@@ -167,7 +230,7 @@ PetscErrorCode  SNESMonitorRange_Private(SNES snes,PetscInt it,PetscReal *per)
   ierr = VecGetArray(resid,&r);CHKERRQ(ierr);
   pwork = 0.0;
   for (i=0; i<n; i++) {
-    pwork += (PetscAbsScalar(r[i]) > .20*rmax); 
+    pwork += (PetscAbsScalar(r[i]) > .20*rmax);
   }
   ierr = MPI_Allreduce(&pwork,per,1,MPIU_REAL,MPIU_SUM,((PetscObject)snes)->comm);CHKERRQ(ierr);
   ierr = VecRestoreArray(resid,&r);CHKERRQ(ierr);
@@ -175,7 +238,7 @@ PetscErrorCode  SNESMonitorRange_Private(SNES snes,PetscInt it,PetscReal *per)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorRange"
 /*@C
    SNESMonitorRange - Prints the percentage of residual elements that are more then 10 percent of the maximum value.
@@ -185,8 +248,8 @@ PetscErrorCode  SNESMonitorRange_Private(SNES snes,PetscInt it,PetscReal *per)
    Input Parameters:
 +  snes   - iterative context
 .  it    - iteration number
-.  rnorm - 2-norm (preconditioned) residual value (may be estimated).  
--  dummy - unused monitor context 
+.  rnorm - 2-norm (preconditioned) residual value (may be estimated).
+-  dummy - unused monitor context
 
    Options Database Key:
 .  -snes_monitor_range - Activates SNESMonitorRange()
@@ -222,7 +285,7 @@ typedef struct {
   PetscReal   *history;
 } SNESMonitorRatioContext;
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorRatio"
 /*@C
    SNESMonitorRatio - Monitors progress of the SNES solvers by printing the ratio
@@ -265,7 +328,7 @@ PetscErrorCode  SNESMonitorRatio(SNES snes,PetscInt its,PetscReal fgnorm,void *d
 /*
    If the we set the history monitor space then we must destroy it
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorRatioDestroy"
 PetscErrorCode SNESMonitorRatioDestroy(void **ct)
 {
@@ -279,10 +342,10 @@ PetscErrorCode SNESMonitorRatioDestroy(void **ct)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorSetRatio"
 /*@C
-   SNESMonitorSetRatio - Sets SNES to use a monitor that prints the 
+   SNESMonitorSetRatio - Sets SNES to use a monitor that prints the
    ratio of the function norm at each iteration.
 
    Collective on SNES
@@ -307,7 +370,7 @@ PetscErrorCode  SNESMonitorSetRatio(SNES snes,PetscViewer viewer)
   if (!viewer) {
     ierr = PetscViewerASCIIOpen(((PetscObject)snes)->comm,"stdout",&viewer);CHKERRQ(ierr);
     ierr = PetscObjectReference((PetscObject)viewer);CHKERRQ(ierr);
-  } 
+  }
   ierr = PetscNewLog(snes,SNESMonitorRatioContext,&ctx);
   ierr = SNESGetConvergenceHistory(snes,&history,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
   if (!history) {
@@ -320,13 +383,13 @@ PetscErrorCode  SNESMonitorSetRatio(SNES snes,PetscViewer viewer)
 }
 
 /* ---------------------------------------------------------------- */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESMonitorDefaultShort"
 /*
      Default (short) SNES Monitor, same as SNESMonitorDefault() except
   it prints fewer digits of the residual as the residual gets smaller.
-  This is because the later digits are meaningless and are often 
-  different on different machines; by using this routine different 
+  This is because the later digits are meaningless and are often
+  different on different machines; by using this routine different
   machines will usually generate the same output.
 */
 PetscErrorCode  SNESMonitorDefaultShort(SNES snes,PetscInt its,PetscReal fgnorm,void *dummy)
@@ -347,9 +410,9 @@ PetscErrorCode  SNESMonitorDefaultShort(SNES snes,PetscInt its,PetscReal fgnorm,
   PetscFunctionReturn(0);
 }
 /* ---------------------------------------------------------------- */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESDefaultConverged"
-/*@C 
+/*@C
    SNESDefaultConverged - Convergence test of the solvers for
    systems of nonlinear equations (default).
 
@@ -359,7 +422,7 @@ PetscErrorCode  SNESMonitorDefaultShort(SNES snes,PetscInt its,PetscReal fgnorm,
 +  snes - the SNES context
 .  it - the iteration (0 indicates before any Newton steps)
 .  xnorm - 2-norm of current iterate
-.  snorm - 2-norm of current step 
+.  snorm - 2-norm of current step
 .  fnorm - 2-norm of function at current iterate
 -  dummy - unused context
 
@@ -393,14 +456,14 @@ PetscErrorCode  SNESDefaultConverged(SNES snes,PetscInt it,PetscReal xnorm,Petsc
   PetscFunctionBegin;
   PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
   PetscValidPointer(reason,6);
-  
+
   *reason = SNES_CONVERGED_ITERATING;
 
   if (!it) {
     /* set parameter for default relative tolerance convergence test */
     snes->ttol = fnorm*snes->rtol;
   }
-  if (fnorm != fnorm) {
+  if (PetscIsInfOrNanReal(fnorm)) {
     ierr = PetscInfo(snes,"Failed to converged, function norm is NaN\n");CHKERRQ(ierr);
     *reason = SNES_DIVERGED_FNORM_NAN;
   } else if (fnorm < snes->abstol) {
@@ -423,9 +486,9 @@ PetscErrorCode  SNESDefaultConverged(SNES snes,PetscInt it,PetscReal xnorm,Petsc
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESSkipConverged"
-/*@C 
+/*@C
    SNESSkipConverged - Convergence test for SNES that NEVER returns as
    converged, UNLESS the maximum number of iteration have been reached.
 
@@ -435,7 +498,7 @@ PetscErrorCode  SNESDefaultConverged(SNES snes,PetscInt it,PetscReal xnorm,Petsc
 +  snes - the SNES context
 .  it - the iteration (0 indicates before any Newton steps)
 .  xnorm - 2-norm of current iterate
-.  snorm - 2-norm of current step 
+.  snorm - 2-norm of current step
 .  fnorm - 2-norm of function at current iterate
 -  dummy - unused context
 
@@ -444,7 +507,7 @@ PetscErrorCode  SNESDefaultConverged(SNES snes,PetscInt it,PetscReal xnorm,Petsc
 
    Notes:
    Convergence is then declared after a fixed number of iterations have been used.
-                    
+
    Level: advanced
 
 .keywords: SNES, nonlinear, skip, converged, convergence
@@ -464,7 +527,7 @@ PetscErrorCode  SNESSkipConverged(SNES snes,PetscInt it,PetscReal xnorm,PetscRea
   if (fnorm != fnorm) {
     ierr = PetscInfo(snes,"Failed to converged, function norm is NaN\n");CHKERRQ(ierr);
     *reason = SNES_DIVERGED_FNORM_NAN;
-  } else if(it == snes->max_its) {
+  } else if (it == snes->max_its) {
     *reason = SNES_CONVERGED_ITS;
   }
   PetscFunctionReturn(0);

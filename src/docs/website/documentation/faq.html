@@ -26,7 +26,7 @@
           <a href="../documentation/index.html">Documentation</a>
           <ul>
             <li><a href="index.html">Manual pages and Users Manual</a></li>
-            <li><a href="referencing.html">Referencing PETSc</a></li>
+            <li><a href="referencing.html">Citing PETSc</a></li>
             <li><a href="tutorials/index.html">Tutorials</a></li>
             <li><a href="installation.html">Installation</a> </li>
             <li><a href="ams.html">AMS</a></li>
@@ -108,6 +108,7 @@
         <li><a href="#makefiles">Can I use my own makefiles or rules for compiling code, rather than PETSc's?</a></li>
         <li><a href="#cmake">Can I use CMake to build my own project that depends on PETSc?</a></li>
         <li><a href="#carriagereturns">How can I put carriage returns in PetscPrintf() statements from Fortran?</a></li>
+        <li><a href="#cxxmethod">How can I implement callbacks using C++ class methods?</a></li>
         <li><a href="#functionjacobian">Everyone knows that when you code Newton's method you should compute the function and its Jacobian at the same time. How can one do this in PETSc?</a></li>
         <li><a href="#conditionnumber">How can I determine the condition number of a matrix?</a></li>
         <li><a href="#invertmatrix">How can I compute the inverse of a PETSc matrix?</a></li>
@@ -131,10 +132,10 @@
         <li><a href="#mg-log">How do I know the amount of time spent on each level of the solver in multigrid (PCType of PCMG) -pc_type mg.</a></li>
         <li><a href="#datafiles">Where do I get the input matrices for the examples?</a></li>
         <li><a href="#info">When I dump some matrices and vectors to binary, I seem to be generating some empty files with .info extensions. What's the deal with these?</a></li>
-        <li><a href="#slowerparallel">Why is my parallel <b>solver slower</b> than the sequential solver?</a></li>
+        <li><a href="#slowerparallel">Why is my parallel <b>solver slower</b> than the sequential solver, or I have poor speed-up?</a></li>
         <li><a href="#singleprecision">When using PETSc in single precision mode (--with-precision=single when running ./configure) are the operations done in single or double precision?</a></li>
-        <li><a href="#newton">Why is Newton's method (SNES) not converging?</a></li>
-        <li><a href="#kspdiverged">Why is the linear solver (KSP) not converging?</a></li>
+        <li><a href="#newton">Why is Newton's method (SNES) not converging, or converges slowly?</a></li>
+        <li><a href="#kspdiverged">Why is the linear solver (KSP) not converging, or converges slowly?</a></li>
       </ul>
 
       <h4><a href="#debugging">Debugging</a></h4>
@@ -144,12 +145,13 @@
         <li><a href="#start_in_debugger-doesnotwork">How do I debug if -start_in_debugger does not work on my machine?</a></li>
         <li><a href="#debug-hang">How can I see where my code is hanging?</a></li>
         <li><a href="#debug-inspect">How can I inspect Vec and Mat values when in the debugger?</a></li>
+        <li><a href="#debug-fp">How can I find the cause of floating point exceptions like not-a-number (NaN) or infinity?</a></li>
         <li><a href="#libimf">Error while loading shared libraries: libimf.so: cannot open shared object file: No such file or directory.</a></li>
         <li><a href="#objecttypenotset">What does Object Type not set: Argument # n mean?</a></li>
         <li><a href="#split">What does Error detected in PetscSplitOwnership() about "sum of local lengths ...": mean?</a></li>
         <li><a href="#valgrind">What does Corrupt argument or Caught signal or SEQV or segmentation violation or bus error mean? Can I use valgrind to debug memory corruption issues?</a></li>
         <li><a href="#zeropivot">What does Detected zero pivot in LU factorization mean?</a></li>
-        <li><a href="#xwindows">You create Draw windows or ViewerDraw windows or use options -ksp_monitor or_draw -snes_monitor_draw and the program seems to run OK but windows never open.</a></li>
+        <li><a href="#xwindows">You create Draw windows or ViewerDraw windows or use options -ksp_monitor or_draw -snes_monitor_lg_residualnorm and the program seems to run OK but windows never open.</a></li>
         <li><a href="#memory">The program seems to use more and more memory as it runs, even though you don't think you are allocating more memory.</a></li>
         <li><a href="#key">When calling MatPartitioningApply() you get a message <code>Error! Key 16615 not found</code></a></li>
         <li><a href="#gmres">With GMRES At restart the second residual norm printed does not match the first </a></li>
@@ -371,7 +373,7 @@
         command. In different runs the order at which values arrive at a given
         process (via MPI) can be in a different order, thus the order in which some
         floating point arithmetic operations are performed will be different. Since
-        floating point arithmetic arithmetic is not commutative the computed
+        floating point arithmetic arithmetic is not associative, the computed
         quantity may be (slightly) different. Over a run the many slight
         differences in the inner products and norms will effect all the computed
         results. It is important to realize that none of the computed answers are
@@ -906,6 +908,12 @@ PetscErrorCode mypetscvfprintf(FILE *fd, const char format[], va_list Argp) {
         'some string'//char(10)//'another string on the next line'
       </p>
 
+      <h3><a name="cxxmethod">How can I implement callbacks using C++ class methods?</a></h3>
+
+      <p>
+        Declare the class method <tt>static</tt>. Static methods do not have a <tt>this</tt> pointer, but the <tt>void*</tt> context parameter will usually be cast to a pointer to the class where it can serve the same function. Note that all PETSc callbacks return <tt>PetscErrorCode</tt>.
+      </p>
+
       <h3><a name="functionjacobian">Everyone knows that when you code Newton's method you should compute the function and its Jacobian at the same time. How can one do this in PETSc?</a></h3>
 
       <p>
@@ -1260,7 +1268,7 @@ PETSC_COMM_WORLD = NewComm;
       to call PetscViewerBinarySkipInfo() before PetscViewerFileSetName(). In
       other words you cannot use PetscViewerBinaryOpen() directly.
 
-      <h3><a name="slowerparallel">Why is my parallel solver slower than my sequential solver?</a></h3>
+      <h3><a name="slowerparallel">Why is my parallel solver slower than my sequential solver, or I have poor speed-up?</a></h3>
 
       This can happen for many reasons:
 
@@ -1306,7 +1314,7 @@ PETSC_COMM_WORLD = NewComm;
       a bit of a mystery what decisions get made sometimes. There may be compiler
       flags in some circumstances that can affect this.
 
-      <h3><a name="newton">Why is Newton's method (SNES) not converging?</a></h3>
+      <h3><a name="newton">Why is Newton's method (SNES) not converging, or converges slowly?</a></h3>
 
       Newton's method may not converge for many reasons, here are some of the most common.
 
@@ -1402,7 +1410,7 @@ PETSC_COMM_WORLD = NewComm;
 
         <li>
           Change the units (nondimensionalization), boundary condition scaling,
-          or formulation so that the Jacobian is better conditioned.
+          or formulation so that the Jacobian is better conditioned. See <a href="http://en.wikipedia.org/wiki/Buckingham_π_theorem">http://en.wikipedia.org/wiki/Buckingham_π_theorem</a>
         </li>
 
         <li>
@@ -1430,7 +1438,7 @@ PETSC_COMM_WORLD = NewComm;
         </li>
       </ul>
 
-      <h3><a name="kspdiverged">Why is the linear solver (KSP) not converging?</a></h3>
+      <h3><a name="kspdiverged">Why is the linear solver (KSP) not converging, or converges slowly?</a></h3>
 
       <p>
         Always run with <code>-ksp_converged_reason -ksp_monitor_true_residual</code>
@@ -1600,6 +1608,15 @@ PETSC_COMM_WORLD = NewComm;
         to add more.
       </p>
 
+      <h3><a name="debug-fp">How can I find the cause of floating point exceptions like not-a-number (NaN) or infinity?</a></h3>
+      <p>
+        The best way to locate floating point exceptions is to use a debugger.
+        On supported architectures (including Linux and glibc-based systems), just run in a debugger and pass -fp_trap to the PETSc application.
+        This will activate signaling exceptions and the debugger will break on the line that first divides by zero or otherwise generates an exceptions.
+        Without a debugger, running with -fp_trap in debug mode will only identify the function in which the error occurred, but not the line or the type of exception.
+        If -fp_trap is not supported on your architecture, consult the documentation for your debugger since there is likely a way to have it catch exceptions.
+      </p>
+
       <h3><a name="libimf">Error while loading shared libraries: libimf.so: cannot open shared object file: No such file or directory.</a></h3>
 
       <p>
@@ -1708,7 +1725,7 @@ source /opt/intel/idb/10.1.012/bin/idbvars.sh
         an error in the code that generates the matrix.
       </p>
 
-      <h3><a name="xwindows">You create <code>Draw</code> windows or <code>ViewerDraw</code> windows or use options <code>-ksp_monitor_draw</code> or <code>-snes_monitor_draw</code> and the program seems to run OK but windows never open.</a></h3>
+      <h3><a name="xwindows">You create <code>Draw</code> windows or <code>ViewerDraw</code> windows or use options <code>-ksp_monitor_lg_residualnorm</code> or <code>-snes_monitor_lg_residualnorm</code> and the program seems to run OK but windows never open.</a></h3>
 
       The libraries were compiled without support for X windows. Make sure that
       ./configure was run with the option <code>--with-x</code>

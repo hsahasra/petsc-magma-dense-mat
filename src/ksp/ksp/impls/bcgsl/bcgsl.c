@@ -1,4 +1,3 @@
-
 /*
  * Implementation of BiCGstab(L) the paper by D.R. Fokkema,
  * "Enhanced implementation of BiCGStab(L) for solving linear systems
@@ -7,7 +6,7 @@
  *
  * This has not been completely cleaned up into PETSc style.
  *
- * All the BLAS and LAPACK calls below should be removed and replaced with 
+ * All the BLAS and LAPACK calls below should be removed and replaced with
  * loops and the macros for block solvers converted from LINPACK; there is no way
  * calls to BLAS/LAPACK make sense for size 2, 3, 4, etc.
  */
@@ -144,12 +143,12 @@ static PetscErrorCode  KSPSolve_BCGSL(KSP ksp)
     }
 
     /* Polynomial part */
-    for(i = 0; i <= bcgsl->ell; ++i) {
+    for (i = 0; i <= bcgsl->ell; ++i) {
       ierr = VecMDot(VVR[i], i+1, VVR, &MZa[i*ldMZ]);CHKERRQ(ierr);
     }
     /* Symmetrize MZa */
-    for(i = 0; i <= bcgsl->ell; ++i) {
-      for(j = i+1; j <= bcgsl->ell; ++j) {
+    for (i = 0; i <= bcgsl->ell; ++i) {
+      for (j = i+1; j <= bcgsl->ell; ++j) {
         MZa[i*ldMZ+j] = MZa[j*ldMZ+i] = PetscConj(MZa[j*ldMZ+i]);
       }
     }
@@ -160,7 +159,11 @@ static PetscErrorCode  KSPSolve_BCGSL(KSP ksp)
       PetscBLASInt ione = 1,bell = PetscBLASIntCast(bcgsl->ell);
 
       AY0c[0] = -1;
+#if defined(PETSC_MISSING_LAPACK_POTRF)
+  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"POTRF - Lapack routine is unavailable.");
+#else
       LAPACKpotrf_("Lower", &bell, &MZa[1+ldMZ], &ldMZ, &bierr);
+#endif
       if (ierr!=0) {
         ksp->reason = KSP_DIVERGED_BREAKDOWN;
         PetscFunctionReturn(0);
@@ -172,7 +175,11 @@ static PetscErrorCode  KSPSolve_BCGSL(KSP ksp)
       PetscScalar aone = 1.0, azero = 0.0;
       PetscBLASInt neqs = PetscBLASIntCast(bcgsl->ell-1);
 
+#if defined(PETSC_MISSING_LAPACK_POTRF)
+  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"POTRF - Lapack routine is unavailable.");
+#else
       LAPACKpotrf_("Lower", &neqs, &MZa[1+ldMZ], &ldMZ, &bierr);
+#endif
       if (ierr!=0) {
         ksp->reason = KSP_DIVERGED_BREAKDOWN;
         PetscFunctionReturn(0);
@@ -404,8 +411,8 @@ PetscErrorCode KSPView_BCGSL(KSP ksp, PetscViewer viewer)
   PetscBool       isascii, isstring;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer, PETSCVIEWERSTRING, &isstring);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERSTRING, &isstring);CHKERRQ(ierr);
 
   if (isascii) {
     ierr = PetscViewerASCIIPrintf(viewer, "  BCGSL: Ell = %D\n", bcgsl->ell);CHKERRQ(ierr);

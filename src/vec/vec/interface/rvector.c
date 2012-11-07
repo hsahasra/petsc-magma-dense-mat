@@ -7,11 +7,11 @@
 static PetscInt VecGetSubVectorSavedStateId = -1;
 
 #define PetscCheckSameSizeVec(x,y) \
-  if ((x)->map->N != (y)->map->N) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incompatible vector global lengths"); \
-  if ((x)->map->n != (y)->map->n) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incompatible vector local lengths");
+  if ((x)->map->N != (y)->map->N) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incompatible vector global lengths %d != %d", (x)->map->N, (y)->map->N); \
+  if ((x)->map->n != (y)->map->n) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Incompatible vector local lengths %d != %d", (x)->map->n, (y)->map->n);
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecMaxPointwiseDivide"
 /*@
    VecMaxPointwiseDivide - Computes the maximum of the componentwise division max = max_i abs(x_i/y_i).
@@ -36,9 +36,9 @@ PetscErrorCode  VecMaxPointwiseDivide(Vec x,Vec y,PetscReal *max)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(x,VEC_CLASSID,1); 
+  PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   PetscValidHeaderSpecific(y,VEC_CLASSID,2);
-  PetscValidDoublePointer(max,3);
+  PetscValidRealPointer(max,3);
   PetscValidType(x,1);
   PetscValidType(y,2);
   PetscCheckSameTypeAndComm(x,1,y,2);
@@ -48,7 +48,7 @@ PetscErrorCode  VecMaxPointwiseDivide(Vec x,Vec y,PetscReal *max)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecDot"
 /*@
    VecDot - Computes the vector dot product.
@@ -67,9 +67,9 @@ $    interprocessor latency
 $    work load inbalance that causes certain processes to arrive much earlier than others
 
    Notes for Users of Complex Numbers:
-   For complex vectors, VecDot() computes 
+   For complex vectors, VecDot() computes
 $     val = (x,y) = y^H x,
-   where y^H denotes the conjugate transpose of y. Note that this corresponds to the usual "mathematicians" complex 
+   where y^H denotes the conjugate transpose of y. Note that this corresponds to the usual "mathematicians" complex
    inner product where the SECOND argument gets the complex conjugate. Since the BLASdot() complex conjugates the first
    first argument we call the BLASdot() with the arguments reversed.
 
@@ -89,7 +89,7 @@ PetscErrorCode  VecDot(Vec x,Vec y,PetscScalar *val)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(x,VEC_CLASSID,1); 
+  PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   PetscValidHeaderSpecific(y,VEC_CLASSID,2);
   PetscValidScalarPointer(val,3);
   PetscValidType(x,1);
@@ -104,7 +104,7 @@ PetscErrorCode  VecDot(Vec x,Vec y,PetscScalar *val)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecNorm"
 /*@
    VecNorm  - Computes the vector norm.
@@ -118,7 +118,7 @@ PetscErrorCode  VecDot(Vec x,Vec y,PetscScalar *val)
           in a two element array.
 
    Output Parameter:
-.  val - the norm 
+.  val - the norm
 
    Notes:
 $     NORM_1 denotes sum_i |x_i|
@@ -134,8 +134,8 @@ $    work load inbalance that causes certain processes to arrive much earlier th
 
    Compile Option:
    PETSC_HAVE_SLOW_BLAS_NORM2 will cause a C (loop unrolled) version of the norm to be used, rather
- than the BLAS. This should probably only be used when one is using the FORTRAN BLAS routines 
- (as opposed to vendor provided) because the FORTRAN BLAS NRM2() routine is very slow. 
+ than the BLAS. This should probably only be used when one is using the FORTRAN BLAS routines
+ (as opposed to vendor provided) because the FORTRAN BLAS NRM2() routine is very slow.
 
    Concepts: norm
    Concepts: vector^norm
@@ -144,14 +144,14 @@ $    work load inbalance that causes certain processes to arrive much earlier th
           VecNormBegin(), VecNormEnd()
 
 @*/
-PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)  
+PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)
 {
   PetscBool      flg;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
-  PetscValidDoublePointer(val,3);
+  PetscValidRealPointer(val,3);
   PetscValidType(x,1);
   if (((PetscObject)x)->precision != sizeof(PetscScalar)) SETERRQ(((PetscObject)x)->comm,PETSC_ERR_SUP,"Wrong precision of input argument");
 
@@ -162,7 +162,6 @@ PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)
     ierr = PetscObjectComposedDataGetReal((PetscObject)x,NormIds[type],*val,flg);CHKERRQ(ierr);
     if (flg) PetscFunctionReturn(0);
   }
-
   ierr = PetscLogEventBarrierBegin(VEC_NormBarrier,x,0,0,0,((PetscObject)x)->comm);CHKERRQ(ierr);
   ierr = (*x->ops->norm)(x,type,val);CHKERRQ(ierr);
   ierr = PetscLogEventBarrierEnd(VEC_NormBarrier,x,0,0,0,((PetscObject)x)->comm);CHKERRQ(ierr);
@@ -174,7 +173,7 @@ PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecNormAvailable"
 /*@
    VecNormAvailable  - Returns the vector norm if it is already known.
@@ -189,7 +188,7 @@ PetscErrorCode  VecNorm(Vec x,NormType type,PetscReal *val)
 
    Output Parameter:
 +  available - PETSC_TRUE if the val returned is valid
--  val - the norm 
+-  val - the norm
 
    Notes:
 $     NORM_1 denotes sum_i |x_i|
@@ -205,8 +204,8 @@ $    work load inbalance that causes certain processes to arrive much earlier th
 
    Compile Option:
    PETSC_HAVE_SLOW_BLAS_NORM2 will cause a C (loop unrolled) version of the norm to be used, rather
- than the BLAS. This should probably only be used when one is using the FORTRAN BLAS routines 
- (as opposed to vendor provided) because the FORTRAN BLAS NRM2() routine is very slow. 
+ than the BLAS. This should probably only be used when one is using the FORTRAN BLAS routines
+ (as opposed to vendor provided) because the FORTRAN BLAS NRM2() routine is very slow.
 
    Concepts: norm
    Concepts: vector^norm
@@ -215,13 +214,13 @@ $    work load inbalance that causes certain processes to arrive much earlier th
           VecNormBegin(), VecNormEnd()
 
 @*/
-PetscErrorCode  VecNormAvailable(Vec x,NormType type,PetscBool  *available,PetscReal *val)  
+PetscErrorCode  VecNormAvailable(Vec x,NormType type,PetscBool  *available,PetscReal *val)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
-  PetscValidDoublePointer(val,3);
+  PetscValidRealPointer(val,3);
   PetscValidType(x,1);
 
   *available = PETSC_FALSE;
@@ -231,10 +230,10 @@ PetscErrorCode  VecNormAvailable(Vec x,NormType type,PetscBool  *available,Petsc
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecNormalize"
 /*@
-   VecNormalize - Normalizes a vector by 2-norm. 
+   VecNormalize - Normalizes a vector by 2-norm.
 
    Collective on Vec
 
@@ -272,7 +271,7 @@ PetscErrorCode  VecNormalize(Vec x,PetscReal *val)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecMax"
 /*@C
    VecMax - Determines the maximum vector component and its location.
@@ -311,7 +310,7 @@ PetscErrorCode  VecMax(Vec x,PetscInt *p,PetscReal *val)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecMin"
 /*@
    VecMin - Determines the minimum vector component and its location.
@@ -351,7 +350,7 @@ PetscErrorCode  VecMin(Vec x,PetscInt *p,PetscReal *val)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecTDot"
 /*@
    VecTDot - Computes an indefinite vector dot product. That is, this
@@ -382,7 +381,7 @@ $     val = (x,y) = y^H x,
 
 .seealso: VecDot(), VecMTDot()
 @*/
-PetscErrorCode  VecTDot(Vec x,Vec y,PetscScalar *val) 
+PetscErrorCode  VecTDot(Vec x,Vec y,PetscScalar *val)
 {
   PetscErrorCode ierr;
 
@@ -401,10 +400,10 @@ PetscErrorCode  VecTDot(Vec x,Vec y,PetscScalar *val)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecScale"
 /*@
-   VecScale - Scales a vector. 
+   VecScale - Scales a vector.
 
    Not collective on Vec
 
@@ -416,7 +415,7 @@ PetscErrorCode  VecTDot(Vec x,Vec y,PetscScalar *val)
 .  x - the scaled vector
 
    Note:
-   For a vector with n components, VecScale() computes 
+   For a vector with n components, VecScale() computes
 $      x[i] = alpha * x[i], for i=1,...,n.
 
    Level: intermediate
@@ -455,10 +454,10 @@ PetscErrorCode  VecScale (Vec x, PetscScalar alpha)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecSet"
 /*@
-   VecSet - Sets all components of a vector to a single scalar value. 
+   VecSet - Sets all components of a vector to a single scalar value.
 
    Logically Collective on Vec
 
@@ -476,7 +475,7 @@ $     x[i] = alpha, for i=1,...,n,
    scalar value, alpha.  Use the more general routine
    VecSetValues() to set different vector entries.
 
-   You CANNOT call this after you have called VecSetValues() but before you call 
+   You CANNOT call this after you have called VecSetValues() but before you call
    VecAssemblyBegin/End().
 
    Level: beginner
@@ -486,7 +485,7 @@ $     x[i] = alpha, for i=1,...,n,
    Concepts: vector^setting to constant
 
 @*/
-PetscErrorCode  VecSet(Vec x,PetscScalar alpha) 
+PetscErrorCode  VecSet(Vec x,PetscScalar alpha)
 {
   PetscReal      val;
   PetscErrorCode ierr;
@@ -510,13 +509,13 @@ PetscErrorCode  VecSet(Vec x,PetscScalar alpha)
   ierr = PetscObjectComposedDataSetReal((PetscObject)x,NormIds[NORM_2],val);CHKERRQ(ierr);
   ierr = PetscObjectComposedDataSetReal((PetscObject)x,NormIds[NORM_FROBENIUS],val);CHKERRQ(ierr);
   PetscFunctionReturn(0);
-} 
+}
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecAXPY"
 /*@
-   VecAXPY - Computes y = alpha x + y. 
+   VecAXPY - Computes y = alpha x + y.
 
    Logically Collective on Vec
 
@@ -555,12 +554,12 @@ PetscErrorCode  VecAXPY(Vec y,PetscScalar alpha,Vec x)
   ierr = PetscLogEventEnd(VEC_AXPY,x,y,0,0);CHKERRQ(ierr);
   ierr = PetscObjectStateIncrease((PetscObject)y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
-} 
+}
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecAXPBY"
 /*@
-   VecAXPBY - Computes y = alpha x + beta y. 
+   VecAXPBY - Computes y = alpha x + beta y.
 
    Logically Collective on Vec
 
@@ -573,7 +572,7 @@ PetscErrorCode  VecAXPY(Vec y,PetscScalar alpha,Vec x)
 
    Level: intermediate
 
-   Notes: x and y MUST be different vectors 
+   Notes: x and y MUST be different vectors
 
    Concepts: BLAS
    Concepts: vector^BLAS
@@ -600,9 +599,9 @@ PetscErrorCode  VecAXPBY(Vec y,PetscScalar alpha,PetscScalar beta,Vec x)
   ierr = PetscLogEventEnd(VEC_AXPY,x,y,0,0);CHKERRQ(ierr);
   ierr = PetscObjectStateIncrease((PetscObject)y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
-} 
+}
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecAXPBYPCZ"
 /*@
    VecAXPBYPCZ - Computes z = alpha x + beta y + gamma z
@@ -618,7 +617,7 @@ PetscErrorCode  VecAXPBY(Vec y,PetscScalar alpha,PetscScalar beta,Vec x)
 
    Level: intermediate
 
-   Notes: x, y and z must be different vectors 
+   Notes: x, y and z must be different vectors
 
    Developer Note:   alpha = 1 or gamma = 1 or gamma = 0.0 are handled as special cases
 
@@ -653,9 +652,9 @@ PetscErrorCode  VecAXPBYPCZ(Vec z,PetscScalar alpha,PetscScalar beta,PetscScalar
   ierr = PetscLogEventEnd(VEC_AXPBYPCZ,x,y,z,0);CHKERRQ(ierr);
   ierr = PetscObjectStateIncrease((PetscObject)z);CHKERRQ(ierr);
   PetscFunctionReturn(0);
-} 
+}
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecAYPX"
 /*@
    VecAYPX - Computes y = x + alpha y.
@@ -683,7 +682,7 @@ PetscErrorCode  VecAYPX(Vec y,PetscScalar alpha,Vec x)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(x,VEC_CLASSID,3); 
+  PetscValidHeaderSpecific(x,VEC_CLASSID,3);
   PetscValidHeaderSpecific(y,VEC_CLASSID,1);
   PetscValidType(x,3);
   PetscValidType(y,1);
@@ -695,10 +694,10 @@ PetscErrorCode  VecAYPX(Vec y,PetscScalar alpha,Vec x)
   ierr = PetscLogEventEnd(VEC_AYPX,x,y,0,0);CHKERRQ(ierr);
   ierr = PetscObjectStateIncrease((PetscObject)y);CHKERRQ(ierr);
   PetscFunctionReturn(0);
-} 
+}
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecWAXPY"
 /*@
    VecWAXPY - Computes w = alpha x + y.
@@ -727,12 +726,12 @@ PetscErrorCode  VecWAXPY(Vec w,PetscScalar alpha,Vec x,Vec y)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(w,VEC_CLASSID,1);
-  PetscValidHeaderSpecific(x,VEC_CLASSID,3); 
+  PetscValidHeaderSpecific(x,VEC_CLASSID,3);
   PetscValidHeaderSpecific(y,VEC_CLASSID,4);
   PetscValidType(w,1);
   PetscValidType(x,3);
   PetscValidType(y,4);
-  PetscCheckSameTypeAndComm(x,3,y,4); 
+  PetscCheckSameTypeAndComm(x,3,y,4);
   PetscCheckSameTypeAndComm(y,4,w,1);
   PetscCheckSameSizeVec(x,y);
   PetscCheckSameSizeVec(x,w);
@@ -748,10 +747,10 @@ PetscErrorCode  VecWAXPY(Vec w,PetscScalar alpha,Vec x,Vec y)
 }
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecSetValues"
 /*@
-   VecSetValues - Inserts or adds values into certain locations of a vector. 
+   VecSetValues - Inserts or adds values into certain locations of a vector.
 
    Not Collective
 
@@ -764,20 +763,20 @@ PetscErrorCode  VecWAXPY(Vec w,PetscScalar alpha,Vec x,Vec y)
    ADD_VALUES adds values to any existing entries, and
    INSERT_VALUES replaces existing entries with new values
 
-   Notes: 
+   Notes:
    VecSetValues() sets x[ix[i]] = y[i], for i=0,...,ni-1.
 
-   Calls to VecSetValues() with the INSERT_VALUES and ADD_VALUES 
+   Calls to VecSetValues() with the INSERT_VALUES and ADD_VALUES
    options cannot be mixed without intervening calls to the assembly
    routines.
 
-   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd() 
+   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd()
    MUST be called after all calls to VecSetValues() have been completed.
 
    VecSetValues() uses 0-based indices in Fortran as well as in C.
 
-   If you call VecSetOption(x, VEC_IGNORE_NEGATIVE_INDICES,PETSC_TRUE), 
-   negative indices may be passed in ix. These rows are 
+   If you call VecSetOption(x, VEC_IGNORE_NEGATIVE_INDICES,PETSC_TRUE),
+   negative indices may be passed in ix. These rows are
    simply ignored. This allows easily inserting element load matrices
    with homogeneous Dirchlet boundary conditions that you don't want represented
    in the vector.
@@ -789,7 +788,7 @@ PetscErrorCode  VecWAXPY(Vec w,PetscScalar alpha,Vec x,Vec y)
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValuesLocal(),
            VecSetValue(), VecSetValuesBlocked(), InsertMode, INSERT_VALUES, ADD_VALUES, VecGetValues()
 @*/
-PetscErrorCode  VecSetValues(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora) 
+PetscErrorCode  VecSetValues(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora)
 {
   PetscErrorCode ierr;
 
@@ -805,14 +804,14 @@ PetscErrorCode  VecSetValues(Vec x,PetscInt ni,const PetscInt ix[],const PetscSc
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecGetValues"
 /*@
-   VecGetValues - Gets values from certain locations of a vector. Currently 
+   VecGetValues - Gets values from certain locations of a vector. Currently
           can only get values on the same processor
 
     Not Collective
- 
+
    Input Parameters:
 +  x - vector to get values from
 .  ni - number of elements to get
@@ -821,7 +820,7 @@ PetscErrorCode  VecSetValues(Vec x,PetscInt ni,const PetscInt ix[],const PetscSc
    Output Parameter:
 .   y - array of values
 
-   Notes: 
+   Notes:
    The user provides the allocated array y; it is NOT allocated in this routine
 
    VecGetValues() gets y[i] = x[ix[i]], for i=0,...,ni-1.
@@ -854,10 +853,10 @@ PetscErrorCode  VecGetValues(Vec x,PetscInt ni,const PetscInt ix[],PetscScalar y
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecSetValuesBlocked"
 /*@
-   VecSetValuesBlocked - Inserts or adds blocks of values into certain locations of a vector. 
+   VecSetValuesBlocked - Inserts or adds blocks of values into certain locations of a vector.
 
    Not Collective
 
@@ -870,20 +869,20 @@ PetscErrorCode  VecGetValues(Vec x,PetscInt ni,const PetscInt ix[],PetscScalar y
    ADD_VALUES adds values to any existing entries, and
    INSERT_VALUES replaces existing entries with new values
 
-   Notes: 
-   VecSetValuesBlocked() sets x[bs*ix[i]+j] = y[bs*i+j], 
+   Notes:
+   VecSetValuesBlocked() sets x[bs*ix[i]+j] = y[bs*i+j],
    for j=0,...,bs, for i=0,...,ni-1. where bs was set with VecSetBlockSize().
 
-   Calls to VecSetValuesBlocked() with the INSERT_VALUES and ADD_VALUES 
+   Calls to VecSetValuesBlocked() with the INSERT_VALUES and ADD_VALUES
    options cannot be mixed without intervening calls to the assembly
    routines.
 
-   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd() 
+   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd()
    MUST be called after all calls to VecSetValuesBlocked() have been completed.
 
    VecSetValuesBlocked() uses 0-based indices in Fortran as well as in C.
 
-   Negative indices may be passed in ix, these rows are 
+   Negative indices may be passed in ix, these rows are
    simply ignored. This allows easily inserting element load matrices
    with homogeneous Dirchlet boundary conditions that you don't want represented
    in the vector.
@@ -895,7 +894,7 @@ PetscErrorCode  VecGetValues(Vec x,PetscInt ni,const PetscInt ix[],PetscScalar y
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValuesBlockedLocal(),
            VecSetValues()
 @*/
-PetscErrorCode  VecSetValuesBlocked(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora) 
+PetscErrorCode  VecSetValuesBlocked(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora)
 {
   PetscErrorCode ierr;
 
@@ -912,11 +911,11 @@ PetscErrorCode  VecSetValuesBlocked(Vec x,PetscInt ni,const PetscInt ix[],const 
 }
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecSetValuesLocal"
 /*@
    VecSetValuesLocal - Inserts or adds values into certain locations of a vector,
-   using a local ordering of the nodes. 
+   using a local ordering of the nodes.
 
    Not Collective
 
@@ -931,14 +930,14 @@ PetscErrorCode  VecSetValuesBlocked(Vec x,PetscInt ni,const PetscInt ix[],const 
 
    Level: intermediate
 
-   Notes: 
+   Notes:
    VecSetValuesLocal() sets x[ix[i]] = y[i], for i=0,...,ni-1.
 
-   Calls to VecSetValues() with the INSERT_VALUES and ADD_VALUES 
+   Calls to VecSetValues() with the INSERT_VALUES and ADD_VALUES
    options cannot be mixed without intervening calls to the assembly
    routines.
 
-   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd() 
+   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd()
    MUST be called after all calls to VecSetValuesLocal() have been completed.
 
    VecSetValuesLocal() uses 0-based indices in Fortran as well as in C.
@@ -948,7 +947,7 @@ PetscErrorCode  VecSetValuesBlocked(Vec x,PetscInt ni,const PetscInt ix[],const 
 .seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValues(), VecSetLocalToGlobalMapping(),
            VecSetValuesBlockedLocal()
 @*/
-PetscErrorCode  VecSetValuesLocal(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora) 
+PetscErrorCode  VecSetValuesLocal(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora)
 {
   PetscErrorCode ierr;
   PetscInt       lixp[128],*lix = lixp;
@@ -978,11 +977,11 @@ PetscErrorCode  VecSetValuesLocal(Vec x,PetscInt ni,const PetscInt ix[],const Pe
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecSetValuesBlockedLocal"
 /*@
    VecSetValuesBlockedLocal - Inserts or adds values into certain locations of a vector,
-   using a local ordering of the nodes. 
+   using a local ordering of the nodes.
 
    Not Collective
 
@@ -997,15 +996,15 @@ PetscErrorCode  VecSetValuesLocal(Vec x,PetscInt ni,const PetscInt ix[],const Pe
 
    Level: intermediate
 
-   Notes: 
-   VecSetValuesBlockedLocal() sets x[bs*ix[i]+j] = y[bs*i+j], 
+   Notes:
+   VecSetValuesBlockedLocal() sets x[bs*ix[i]+j] = y[bs*i+j],
    for j=0,..bs-1, for i=0,...,ni-1, where bs has been set with VecSetBlockSize().
 
-   Calls to VecSetValuesBlockedLocal() with the INSERT_VALUES and ADD_VALUES 
+   Calls to VecSetValuesBlockedLocal() with the INSERT_VALUES and ADD_VALUES
    options cannot be mixed without intervening calls to the assembly
    routines.
 
-   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd() 
+   These values may be cached, so VecAssemblyBegin() and VecAssemblyEnd()
    MUST be called after all calls to VecSetValuesBlockedLocal() have been completed.
 
    VecSetValuesBlockedLocal() uses 0-based indices in Fortran as well as in C.
@@ -1013,10 +1012,10 @@ PetscErrorCode  VecSetValuesLocal(Vec x,PetscInt ni,const PetscInt ix[],const Pe
 
    Concepts: vector^setting values blocked with local numbering
 
-.seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValues(), VecSetValuesBlocked(), 
+.seealso:  VecAssemblyBegin(), VecAssemblyEnd(), VecSetValues(), VecSetValuesBlocked(),
            VecSetLocalToGlobalMappingBlock()
 @*/
-PetscErrorCode  VecSetValuesBlockedLocal(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora) 
+PetscErrorCode  VecSetValuesBlockedLocal(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora)
 {
   PetscErrorCode ierr;
   PetscInt       lixp[128],*lix = lixp;
@@ -1042,10 +1041,10 @@ PetscErrorCode  VecSetValuesBlockedLocal(Vec x,PetscInt ni,const PetscInt ix[],c
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecMTDot"
 /*@
-   VecMTDot - Computes indefinite vector multiple dot products. 
+   VecMTDot - Computes indefinite vector multiple dot products.
    That is, it does NOT use the complex conjugate.
 
    Collective on Vec
@@ -1094,23 +1093,23 @@ PetscErrorCode  VecMTDot(Vec x,PetscInt nv,const Vec y[],PetscScalar val[])
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecMDot"
 /*@
-   VecMDot - Computes vector multiple dot products. 
+   VecMDot - Computes vector multiple dot products.
 
    Collective on Vec
 
    Input Parameters:
 +  x - one vector
 .  nv - number of vectors
--  y - array of vectors. 
+-  y - array of vectors.
 
    Output Parameter:
 .  val - array of the dot products (does not allocate the array)
 
    Notes for Users of Complex Numbers:
-   For complex vectors, VecMDot() computes 
+   For complex vectors, VecMDot() computes
 $     val = (x,y) = y^H x,
    where y^H denotes the conjugate transpose of y.
 
@@ -1131,7 +1130,7 @@ PetscErrorCode  VecMDot(Vec x,PetscInt nv,const Vec y[],PetscScalar val[])
   PetscInt       i;
 
   PetscFunctionBegin;
-  PetscValidHeaderSpecific(x,VEC_CLASSID,1); 
+  PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   if (!nv) PetscFunctionReturn(0);
   if (nv < 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Number of vectors (given %D) cannot be negative",nv);
   PetscValidPointer(y,3);
@@ -1151,7 +1150,7 @@ PetscErrorCode  VecMDot(Vec x,PetscInt nv,const Vec y[],PetscScalar val[])
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecMAXPY"
 /*@
    VecMAXPY - Computes y = y + sum alpha[j] x[j]
@@ -1199,7 +1198,7 @@ PetscErrorCode  VecMAXPY(Vec y,PetscInt nv,const PetscScalar alpha[],Vec x[])
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecGetSubVector"
 /*@
    VecGetSubVector - Gets a vector representing part of another vector
@@ -1277,7 +1276,7 @@ PetscErrorCode  VecGetSubVector(Vec X,IS is,Vec *Y)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRestoreSubVector"
 /*@
    VecRestoreSubVector - Restores a subvector extracted using VecGetSubVector()
@@ -1324,12 +1323,12 @@ PetscErrorCode  VecRestoreSubVector(Vec X,IS is,Vec *Y)
 }
 
 /*MC
-   VecGetArray - Returns a pointer to a contiguous array that contains this 
+   VecGetArray - Returns a pointer to a contiguous array that contains this
    processor's portion of the vector data. For the standard PETSc
    vectors, VecGetArray() returns a pointer to the local data array and
    does not use any copies. If the underlying vector data is not stored
    in a contiquous array this routine will copy the data to a contiquous
-   array and return a pointer to that. You MUST call VecRestoreArray() 
+   array and return a pointer to that. You MUST call VecRestoreArray()
    when you no longer need access to the array.
 
    Synopsis:
@@ -1358,7 +1357,7 @@ $      ...... other code
 $       call VecRestoreArray(x,x_array,i_x,ierr)
    For Fortran 90 see VecGetArrayF90()
 
-   See the Fortran chapter of the users manual and 
+   See the Fortran chapter of the users manual and
    petsc/src/snes/examples/tutorials/ex5f.F for details.
 
    Level: beginner
@@ -1369,8 +1368,8 @@ $       call VecRestoreArray(x,x_array,i_x,ierr)
 M*/
 
 
-#undef __FUNCT__  
-#define __FUNCT__ "VecGetArrays" 
+#undef __FUNCT__
+#define __FUNCT__ "VecGetArrays"
 /*@C
    VecGetArrays - Returns a pointer to the arrays in a set of vectors
    that were created by a call to VecDuplicateVecs().  You MUST call
@@ -1411,7 +1410,7 @@ PetscErrorCode  VecGetArrays(const Vec x[],PetscInt n,PetscScalar **a[])
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRestoreArrays"
 /*@C
    VecRestoreArrays - Restores a group of vectors after VecGetArrays()
@@ -1427,7 +1426,7 @@ PetscErrorCode  VecGetArrays(const Vec x[],PetscInt n,PetscScalar **a[])
    Notes:
    For regular PETSc vectors this routine does not involve any copies. For
    any special vectors that do not store local vector data in a contiguous
-   array, this routine will copy the data back into the underlying 
+   array, this routine will copy the data back into the underlying
    vector data structure from the arrays obtained with VecGetArrays().
 
    Fortran Note:
@@ -1448,7 +1447,7 @@ PetscErrorCode  VecRestoreArrays(const Vec x[],PetscInt n,PetscScalar **a[])
   PetscValidHeaderSpecific(*x,VEC_CLASSID,1);
   PetscValidPointer(a,3);
 
-  for(i=0;i<n;++i) {
+  for (i=0;i<n;++i) {
     ierr = VecRestoreArray(x[i],&q[i]);CHKERRQ(ierr);
  }
   ierr = PetscFree(q);CHKERRQ(ierr);
@@ -1472,11 +1471,11 @@ PetscErrorCode  VecRestoreArrays(const Vec x[],PetscInt n,PetscScalar **a[])
    Notes:
    For regular PETSc vectors this routine does not involve any copies. For
    any special vectors that do not store local vector data in a contiguous
-   array, this routine will copy the data back into the underlying 
+   array, this routine will copy the data back into the underlying
    vector data structure from the array obtained with VecGetArray().
 
    This routine actually zeros out the a pointer. This is to prevent accidental
-   us of the array after it has been restored. If you pass null for a it will 
+   us of the array after it has been restored. If you pass null for a it will
    not zero the array pointer a.
 
    Fortran Note:
@@ -1493,14 +1492,14 @@ $
 $      ...... other code
 $       call VecRestoreArray(x,x_array,i_x,ierr)
 
-   See the Fortran chapter of the users manual and 
+   See the Fortran chapter of the users manual and
    petsc/src/snes/examples/tutorials/ex5f.F for details.
    For Fortran 90 see VecRestoreArrayF90()
 
 .seealso: VecGetArray(), VecRestoreArrays(), VecRestoreArrayF90(), VecPlaceArray(), VecRestoreArray2d()
 M*/
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecPlaceArray"
 /*@
    VecPlaceArray - Allows one to replace the array in a vector with an
@@ -1536,8 +1535,7 @@ PetscErrorCode  VecPlaceArray(Vec vec,const PetscScalar array[])
   PetscFunctionReturn(0);
 }
 
-
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecReplaceArray"
 /*@C
    VecReplaceArray - Allows one to replace the array in a vector with an
@@ -1555,7 +1553,7 @@ PetscErrorCode  VecPlaceArray(Vec vec,const PetscScalar array[])
    with the old array.
 
    The memory passed in MUST be obtained with PetscMalloc() and CANNOT be
-   freed by the user. It will be freed when the vector is destroy. 
+   freed by the user. It will be freed when the vector is destroy.
 
    Not supported from Fortran
 
@@ -1595,7 +1593,7 @@ PetscErrorCode  VecReplaceArray(Vec vec,const PetscScalar array[])
 +   y - Fortran90 pointer to the array of vectors
 -   ierr - error code
 
-    Example of Usage: 
+    Example of Usage:
 .vb
     Vec x
     Vec, pointer :: y(:)
@@ -1634,7 +1632,7 @@ M*/
     Output Parameter:
 .   ierr - error code
 
-    Example of Usage: 
+    Example of Usage:
 .vb
     PetscScalar, pointer :: xx_v(:)
     ....
@@ -1642,7 +1640,7 @@ M*/
     a = xx_v(3)
     call VecRestoreArrayF90(x,xx_v,ierr)
 .ve
-   
+
     Level: beginner
 
 .seealso:  VecGetArrayF90(), VecGetArray(), VecRestoreArray(), UsingFortran
@@ -1676,13 +1674,13 @@ M*/
 /*MC
     VecGetArrayF90 - Accesses a vector array from Fortran90. For default PETSc
     vectors, VecGetArrayF90() returns a pointer to the local data array. Otherwise,
-    this routine is implementation dependent. You MUST call VecRestoreArrayF90() 
+    this routine is implementation dependent. You MUST call VecRestoreArrayF90()
     when you no longer need access to the array.
 
     Synopsis:
     VecGetArrayF90(Vec x,{Scalar, pointer :: xx_v(:)},integer ierr)
 
-    Not Collective 
+    Not Collective
 
     Input Parameter:
 .   x - vector
@@ -1691,7 +1689,7 @@ M*/
 +   xx_v - the Fortran90 pointer to the array
 -   ierr - error code
 
-    Example of Usage: 
+    Example of Usage:
 .vb
     PetscScalar, pointer :: xx_v(:)
     ....
@@ -1707,11 +1705,11 @@ M*/
 M*/
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecGetArray2d"
 /*@C
-   VecGetArray2d - Returns a pointer to a 2d contiguous array that contains this 
-   processor's portion of the vector data.  You MUST call VecRestoreArray2d() 
+   VecGetArray2d - Returns a pointer to a 2d contiguous array that contains this
+   processor's portion of the vector data.  You MUST call VecRestoreArray2d()
    when you no longer need access to the array.
 
    Not Collective
@@ -1733,7 +1731,7 @@ M*/
    obtained from the corner indices obtained from DMDAGetGhostCorners() while for
    DMCreateGlobalVector() they are the corner indices from DMDAGetCorners(). In both cases
    the arguments from DMDAGet[Ghost]Corners() are reversed in the call to VecGetArray2d().
-   
+
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
 
    Concepts: vector^accessing local values as 2d array
@@ -1762,7 +1760,7 @@ PetscErrorCode  VecGetArray2d(Vec x,PetscInt m,PetscInt n,PetscInt mstart,PetscI
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRestoreArray2d"
 /*@C
    VecRestoreArray2d - Restores a vector after VecGetArray2d() has been called.
@@ -1782,10 +1780,10 @@ PetscErrorCode  VecGetArray2d(Vec x,PetscInt m,PetscInt n,PetscInt mstart,PetscI
    Notes:
    For regular PETSc vectors this routine does not involve any copies. For
    any special vectors that do not store local vector data in a contiguous
-   array, this routine will copy the data back into the underlying 
+   array, this routine will copy the data back into the underlying
    vector data structure from the array obtained with VecGetArray().
 
-   This routine actually zeros out the a pointer. 
+   This routine actually zeros out the a pointer.
 
 .seealso: VecGetArray(), VecRestoreArray(), VecRestoreArrays(), VecRestoreArrayF90(), VecPlaceArray(),
           VecGetArray2d(), VecGetArray3d(), VecRestoreArray3d(), DMDAVecGetArray(), DMDAVecRestoreArray()
@@ -1806,11 +1804,11 @@ PetscErrorCode  VecRestoreArray2d(Vec x,PetscInt m,PetscInt n,PetscInt mstart,Pe
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecGetArray1d"
 /*@C
-   VecGetArray1d - Returns a pointer to a 1d contiguous array that contains this 
-   processor's portion of the vector data.  You MUST call VecRestoreArray1d() 
+   VecGetArray1d - Returns a pointer to a 1d contiguous array that contains this
+   processor's portion of the vector data.  You MUST call VecRestoreArray1d()
    when you no longer need access to the array.
 
    Not Collective
@@ -1828,8 +1826,8 @@ PetscErrorCode  VecRestoreArray2d(Vec x,PetscInt m,PetscInt n,PetscInt mstart,Pe
   Notes:
    For a vector obtained from DMCreateLocalVector() mstart are likely
    obtained from the corner indices obtained from DMDAGetGhostCorners() while for
-   DMCreateGlobalVector() they are the corner indices from DMDAGetCorners(). 
-   
+   DMCreateGlobalVector() they are the corner indices from DMDAGetCorners().
+
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
 
 .seealso: VecGetArray(), VecRestoreArray(), VecGetArrays(), VecGetArrayF90(), VecPlaceArray(),
@@ -1852,7 +1850,7 @@ PetscErrorCode  VecGetArray1d(Vec x,PetscInt m,PetscInt mstart,PetscScalar *a[])
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRestoreArray1d"
 /*@C
    VecRestoreArray1d - Restores a vector after VecGetArray1d() has been called.
@@ -1870,10 +1868,10 @@ PetscErrorCode  VecGetArray1d(Vec x,PetscInt m,PetscInt mstart,PetscScalar *a[])
    Notes:
    For regular PETSc vectors this routine does not involve any copies. For
    any special vectors that do not store local vector data in a contiguous
-   array, this routine will copy the data back into the underlying 
+   array, this routine will copy the data back into the underlying
    vector data structure from the array obtained with VecGetArray1d().
 
-   This routine actually zeros out the a pointer. 
+   This routine actually zeros out the a pointer.
 
    Concepts: vector^accessing local values as 1d array
 
@@ -1893,11 +1891,11 @@ PetscErrorCode  VecRestoreArray1d(Vec x,PetscInt m,PetscInt mstart,PetscScalar *
 }
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecGetArray3d"
 /*@C
-   VecGetArray3d - Returns a pointer to a 3d contiguous array that contains this 
-   processor's portion of the vector data.  You MUST call VecRestoreArray3d() 
+   VecGetArray3d - Returns a pointer to a 3d contiguous array that contains this
+   processor's portion of the vector data.  You MUST call VecRestoreArray3d()
    when you no longer need access to the array.
 
    Not Collective
@@ -1921,7 +1919,7 @@ PetscErrorCode  VecRestoreArray1d(Vec x,PetscInt m,PetscInt mstart,PetscScalar *
    obtained from the corner indices obtained from DMDAGetGhostCorners() while for
    DMCreateGlobalVector() they are the corner indices from DMDAGetCorners(). In both cases
    the arguments from DMDAGet[Ghost]Corners() are reversed in the call to VecGetArray3d().
-   
+
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
 
    Concepts: vector^accessing local values as 3d array
@@ -1956,7 +1954,7 @@ PetscErrorCode  VecGetArray3d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscInt ms
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRestoreArray3d"
 /*@C
    VecRestoreArray3d - Restores a vector after VecGetArray3d() has been called.
@@ -1978,10 +1976,10 @@ PetscErrorCode  VecGetArray3d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscInt ms
    Notes:
    For regular PETSc vectors this routine does not involve any copies. For
    any special vectors that do not store local vector data in a contiguous
-   array, this routine will copy the data back into the underlying 
+   array, this routine will copy the data back into the underlying
    vector data structure from the array obtained with VecGetArray().
 
-   This routine actually zeros out the a pointer. 
+   This routine actually zeros out the a pointer.
 
 .seealso: VecGetArray(), VecRestoreArray(), VecRestoreArrays(), VecRestoreArrayF90(), VecPlaceArray(),
           VecGetArray2d(), VecGetArray3d(), VecRestoreArray3d(), DMDAVecGetArray(), DMDAVecRestoreArray()
@@ -2002,11 +2000,11 @@ PetscErrorCode  VecRestoreArray3d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscIn
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecGetArray4d"
 /*@C
-   VecGetArray4d - Returns a pointer to a 4d contiguous array that contains this 
-   processor's portion of the vector data.  You MUST call VecRestoreArray4d() 
+   VecGetArray4d - Returns a pointer to a 4d contiguous array that contains this
+   processor's portion of the vector data.  You MUST call VecRestoreArray4d()
    when you no longer need access to the array.
 
    Not Collective
@@ -2032,7 +2030,7 @@ PetscErrorCode  VecRestoreArray3d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscIn
    obtained from the corner indices obtained from DMDAGetGhostCorners() while for
    DMCreateGlobalVector() they are the corner indices from DMDAGetCorners(). In both cases
    the arguments from DMDAGet[Ghost}Corners() are reversed in the call to VecGetArray3d().
-   
+
    For standard PETSc vectors this is an inexpensive call; it does not copy the vector values.
 
    Concepts: vector^accessing local values as 3d array
@@ -2075,7 +2073,7 @@ PetscErrorCode  VecGetArray4d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscInt q,
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRestoreArray4d"
 /*@C
    VecRestoreArray4d - Restores a vector after VecGetArray3d() has been called.
@@ -2099,10 +2097,10 @@ PetscErrorCode  VecGetArray4d(Vec x,PetscInt m,PetscInt n,PetscInt p,PetscInt q,
    Notes:
    For regular PETSc vectors this routine does not involve any copies. For
    any special vectors that do not store local vector data in a contiguous
-   array, this routine will copy the data back into the underlying 
+   array, this routine will copy the data back into the underlying
    vector data structure from the array obtained with VecGetArray().
 
-   This routine actually zeros out the a pointer. 
+   This routine actually zeros out the a pointer.
 
 .seealso: VecGetArray(), VecRestoreArray(), VecRestoreArrays(), VecRestoreArrayF90(), VecPlaceArray(),
           VecGetArray2d(), VecGetArray3d(), VecRestoreArray3d(), DMDAVecGetArray(), DMDAVecRestoreArray()

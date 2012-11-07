@@ -1,18 +1,18 @@
-static const char help[] = "Test DMCreateInjection for mapping coordinates in 3D";
+static const char help[] = "Test DMCreateInjection() for mapping coordinates in 3D";
 
 #include <petscvec.h>
 #include <petscmat.h>
 #include <petscdmda.h>
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "test1_DAInjection3d"
 PetscErrorCode test1_DAInjection3d( PetscInt mx, PetscInt my, PetscInt mz )
 {
-  PetscErrorCode ierr;
-  DM dac,daf;
-  PetscViewer vv;
-  Vec ac,af;
-  PetscInt periodicity;
+  PetscErrorCode   ierr;
+  DM               dac,daf;
+  PetscViewer      vv;
+  Vec              ac,af;
+  PetscInt         periodicity;
   DMDABoundaryType bx,by,bz;
 
   PetscFunctionBegin;
@@ -51,11 +51,11 @@ PetscErrorCode test1_DAInjection3d( PetscInt mx, PetscInt my, PetscInt mz )
     Mat        interp;
     PetscReal  norm;
 
-    ierr = DMDAGetCoordinateDA(dac,&cdac);CHKERRQ(ierr);
-    ierr = DMDAGetCoordinateDA(daf,&cdaf);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(dac,&cdac);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(daf,&cdaf);CHKERRQ(ierr);
 
-    ierr = DMDAGetCoordinates(dac,&coordsc);CHKERRQ(ierr);
-    ierr = DMDAGetCoordinates(daf,&coordsf);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(dac,&coordsc);CHKERRQ(ierr);
+    ierr = DMGetCoordinates(daf,&coordsf);CHKERRQ(ierr);
 
     ierr = DMCreateInjection(cdac,cdaf,&inject);CHKERRQ(ierr);
 
@@ -100,14 +100,14 @@ PetscErrorCode test1_DAInjection3d( PetscInt mx, PetscInt my, PetscInt mz )
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
   PetscErrorCode ierr;
   PetscInt mx,my,mz;
 
-  ierr = PetscInitialize(&argc,&argv,0,0);
+  ierr = PetscInitialize(&argc,&argv,0,help);
   mx = 2;
   my = 2;
   mz = 2;

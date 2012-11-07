@@ -1,14 +1,14 @@
 
-/* 
+/*
    Code for manipulating distributed regular 1d arrays in parallel.
-   This file was created by Peter Mell   6/30/95    
+   This file was created by Peter Mell   6/30/95
 */
 
 #include <petsc-private/daimpl.h>     /*I  "petscdmda.h"   I*/
 
-const char *DMDABoundaryTypes[] = {"BOUNDARY_NONE","BOUNDARY_GHOSTED","BOUNDARY_PERIODIC","DMDA_",0};
+const char *const DMDABoundaryTypes[] = {"BOUNDARY_NONE","BOUNDARY_GHOSTED","BOUNDARY_PERIODIC","DMDA_",0};
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMView_DA_1d"
 PetscErrorCode DMView_DA_1d(DM da,PetscViewer viewer)
 {
@@ -23,11 +23,11 @@ PetscErrorCode DMView_DA_1d(DM da,PetscViewer viewer)
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(((PetscObject)da)->comm,&rank);CHKERRQ(ierr);
 
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERMATLAB,&ismatlab);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERMATLAB,&ismatlab);CHKERRQ(ierr);
 #endif
   if (iascii) {
     PetscViewerFormat format;
@@ -61,7 +61,7 @@ PetscErrorCode DMView_DA_1d(DM da,PetscViewer viewer)
     if (!rank) {
       PetscInt xmin_tmp;
       ymin = 0.0; ymax = 0.3;
-      
+
       /* ADIC doesn't like doubles in a for loop */
       for (xmin_tmp =0; xmin_tmp < dd->M; xmin_tmp++) {
          ierr = PetscDrawLine(draw,(double)xmin_tmp,ymin,(double)xmin_tmp,ymax,PETSC_DRAW_BLACK);CHKERRQ(ierr);
@@ -101,7 +101,7 @@ PetscErrorCode DMView_DA_1d(DM da,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMView_DA_Private"
 /*
     Processes command line options to determine if/how a DMDA
@@ -114,7 +114,7 @@ PetscErrorCode DMView_DA_Private(DM da)
   PetscViewer    view;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsBegin(((PetscObject)da)->comm,((PetscObject)da)->prefix,"DMDA viewing options","DMDA");CHKERRQ(ierr); 
+  ierr = PetscOptionsBegin(((PetscObject)da)->comm,((PetscObject)da)->prefix,"DMDA viewing options","DMDA");CHKERRQ(ierr);
     ierr = PetscOptionsBool("-da_view","Print information about the DMDA's distribution","DMView",PETSC_FALSE,&flg1,PETSC_NULL);CHKERRQ(ierr);
     if (flg1) {
       ierr = PetscViewerASCIIGetStdout(((PetscObject)da)->comm,&view);CHKERRQ(ierr);
@@ -127,25 +127,27 @@ PetscErrorCode DMView_DA_Private(DM da)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMSetUp_DA_1D"
 PetscErrorCode  DMSetUp_DA_1D(DM da)
 {
-  DM_DA                  *dd = (DM_DA*)da->data;
-  const PetscInt         M     = dd->M;
-  const PetscInt         dof   = dd->w;
-  const PetscInt         s     = dd->s;
-  const PetscInt         sDist = s*dof;  /* absolute stencil distance */
-  const PetscInt         *lx    = dd->lx;
-  const DMDABoundaryType bx  = dd->bx;
-  MPI_Comm               comm;
-  Vec                    local, global;
-  VecScatter             ltog, gtol;
-  IS                     to, from;
-  PetscBool              flg1 = PETSC_FALSE, flg2 = PETSC_FALSE;
-  PetscMPIInt            rank, size;
-  PetscInt               i,*idx,nn,left,xs,xe,x,Xs,Xe,start,end,m,IXs,IXe;
-  PetscErrorCode         ierr;
+  DM_DA            *dd = (DM_DA*)da->data;
+  const PetscInt   M     = dd->M;
+  const PetscInt   dof   = dd->w;
+  const PetscInt   s     = dd->s;
+  const PetscInt   o     = dd->overlap;
+  const PetscInt   sDist = s*dof;  /* absolute stencil distance */
+  const PetscInt   oDist = o*dof;
+  const PetscInt   *lx    = dd->lx;
+  DMDABoundaryType bx  = dd->bx;
+  MPI_Comm         comm;
+  Vec              local, global;
+  VecScatter       ltog, gtol;
+  IS               to, from;
+  PetscBool        flg1 = PETSC_FALSE, flg2 = PETSC_FALSE;
+  PetscMPIInt      rank, size;
+  PetscInt         i,*idx,nn,left,xs,xe,x,Xs,Xe,start,end,m,IXs,IXe;
+  PetscErrorCode   ierr;
 
   PetscFunctionBegin;
   if (dof < 1) SETERRQ1(((PetscObject)da)->comm,PETSC_ERR_ARG_OUTOFRANGE,"Must have 1 or more degrees of freedom per node: %D",dof);
@@ -167,9 +169,9 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
     if ((M-1) < s) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Array is too small for stencil! %D %D",M-1,s);
   }
 
-  /* 
-     Determine locally owned region 
-     xs is the first local node number, x is the number of local nodes 
+  /*
+     Determine locally owned region
+     xs is the first local node number, x is the number of local nodes
   */
   if (!lx) {
     ierr = PetscMalloc(m*sizeof(PetscInt), &dd->lx);CHKERRQ(ierr);
@@ -209,28 +211,42 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
    check if the scatter requires more than one process neighbor or wraps around
    the domain more than once
   */
-  if ((x < s) & ((M > 1) | (bx == DMDA_BOUNDARY_PERIODIC))) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Local x-width of domain x %D is smaller than stencil width s %D",x,s);
+  if ((x < s+o) & ((M > 1) | (bx == DMDA_BOUNDARY_PERIODIC))) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Local x-width of domain x %D is smaller than stencil width s %D",x,s+o);
 
   /* From now on x,xs,xe,Xs,Xe are the exact location in the array */
   x  *= dof;
   xs *= dof;
   xe  = xs + x;
 
-  /* determine ghost region */
-  if (bx) {
-    Xs = xs - sDist;
-    Xe = xe + sDist;
+  /* determine ghost region (Xs) and region scattered into (IXs)  */
+  if (xs-sDist-oDist > 0) {
+    Xs = xs - sDist - oDist;
+    IXs = xs - sDist - oDist;
   } else {
-    if ((xs-sDist) >= 0)     Xs = xs-sDist;  else Xs = 0;
-    if ((xe+sDist) <= M*dof) Xe = xe+sDist;  else Xe = M*dof;
+    if (bx) {
+      Xs = xs - sDist;
+    } else {
+      Xs = 0;
+    }
+    IXs = 0;
+  }
+  if (xe+sDist+oDist <= M*dof) {
+    Xe = xe + sDist + oDist;
+    IXe = xe + sDist + oDist;
+  } else {
+    if (bx) {
+      Xe = xe + sDist;
+    } else {
+      Xe = M*dof;
+    }
+    IXe = M*dof;
   }
 
   if (bx == DMDA_BOUNDARY_PERIODIC) {
-    IXs = xs - sDist;
-    IXe = xe + sDist;
-  } else {
-    if ((xs-sDist) >= 0)     IXs = xs-sDist;  else IXs = 0;
-    if ((xe+sDist) <= M*dof) IXe = xe+sDist;  else IXe = M*dof;
+    Xs = xs - sDist - oDist;
+    Xe = xe + sDist + oDist;
+    IXs = xs - sDist - oDist;
+    IXe = xe + sDist + oDist;
   }
 
   /* allocate the base parallel and sequential vectors */
@@ -253,31 +269,31 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
   /* global to local must retrieve ghost points */
   ierr = ISCreateStride(comm,(IXe-IXs),IXs-Xs,1,&to);CHKERRQ(ierr);
 
-  ierr = PetscMalloc((x+2*sDist)*sizeof(PetscInt),&idx);CHKERRQ(ierr);  
-  ierr = PetscLogObjectMemory(da,(x+2*sDist)*sizeof(PetscInt));CHKERRQ(ierr);
+  ierr = PetscMalloc((x+2*(sDist+oDist))*sizeof(PetscInt),&idx);CHKERRQ(ierr);
+  ierr = PetscLogObjectMemory(da,(x+2*(sDist+oDist))*sizeof(PetscInt));CHKERRQ(ierr);
 
   for (i=0; i<IXs-Xs; i++) {idx[i] = -1; } /* prepend with -1s if needed for ghosted case*/
 
   nn = IXs-Xs;
   if (bx == DMDA_BOUNDARY_PERIODIC) { /* Handle all cases with wrap first */
-    for (i=0; i<sDist; i++) {  /* Left ghost points */
-      if ((xs-sDist+i)>=0) { idx[nn++] = xs-sDist+i;}
-      else                 { idx[nn++] = M*dof+(xs-sDist+i);}
+    for (i=0; i<sDist+oDist; i++) {  /* Left ghost points */
+      if ((xs-sDist-oDist+i)>=0) { idx[nn++] = xs-sDist-oDist+i;}
+      else                 { idx[nn++] = M*dof+(xs-sDist-oDist+i);}
     }
 
     for (i=0; i<x; i++) { idx [nn++] = xs + i;}  /* Non-ghost points */
 
-    for (i=0; i<sDist; i++) { /* Right ghost points */
+    for (i=0; i<sDist+oDist; i++) { /* Right ghost points */
       if ((xe+i)<M*dof) { idx [nn++] =  xe+i; }
       else              { idx [nn++] = (xe+i) - M*dof;}
     }
   } else {      /* Now do all cases with no wrapping */
-    if (sDist <= xs) {for (i=0; i<sDist; i++) {idx[nn++] = xs - sDist + i;}}
-    else             {for (i=0; i<xs;    i++) {idx[nn++] = i;}}
+    if (0 <= xs-sDist-oDist) {for (i=0; i<sDist+oDist; i++) {idx[nn++] = xs - sDist - oDist + i;}}
+    else               {for (i=0; i<xs;    i++) {idx[nn++] = i;}}
 
     for (i=0; i<x; i++) { idx [nn++] = xs + i;}
 
-    if ((xe+sDist)<=M*dof) {for (i=0;  i<sDist;   i++) {idx[nn++]=xe+i;}}
+    if ((xe+sDist+oDist)<=M*dof) {for (i=0;  i<sDist+oDist;   i++) {idx[nn++]=xe+i;}}
     else                   {for (i=xe; i<(M*dof); i++) {idx[nn++]=i;}}
   }
 
@@ -299,7 +315,7 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
   dd->base      = xs;
   da->ops->view = DMView_DA_1d;
 
-  /* 
+  /*
      Set the local to global ordering in the global vector, this allows use
      of VecSetValuesLocal().
   */
@@ -316,23 +332,23 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
 }
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDACreate1d"
 /*@C
-   DMDACreate1d - Creates an object that will manage the communication of  one-dimensional 
+   DMDACreate1d - Creates an object that will manage the communication of  one-dimensional
    regular array data that is distributed across some processors.
 
    Collective on MPI_Comm
 
    Input Parameters:
 +  comm - MPI communicator
-.  bx - type of ghost cells at the boundary the array should have, if any. Use 
+.  bx - type of ghost cells at the boundary the array should have, if any. Use
           DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_GHOSTED, or DMDA_BOUNDARY_PERIODIC.
-.  M - global dimension of the array (use -M to indicate that it may be set to a different value 
+.  M - global dimension of the array (use -M to indicate that it may be set to a different value
             from the command line with -da_grid_x <M>)
 .  dof - number of degrees of freedom per node
 .  s - stencil width
--  lx - array containing number of nodes in the X direction on each processor, 
+-  lx - array containing number of nodes in the X direction on each processor,
         or PETSC_NULL. If non-null, must be of length as the number of processes in the MPI_Comm.
 
    Output Parameter:
@@ -341,7 +357,7 @@ PetscErrorCode  DMSetUp_DA_1D(DM da)
    Options Database Key:
 +  -da_view - Calls DMView() at the conclusion of DMDACreate1d()
 .  -da_grid_x <nx> - number of grid points in x direction; can set if M < 0
-.  -da_refine_x <rx> - refinement factor 
+.  -da_refine_x <rx> - refinement factor
 -  -da_refine <n> - refine the DMDA n times before creating it, if M < 0
 
    Level: beginner

@@ -4,8 +4,8 @@
 */
 #include <../src/sys/draw/drawimpl.h>  /*I "petscdraw.h" I*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawGetMouseButton" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawGetMouseButton"
 /*@
     PetscDrawGetMouseButton - Returns location of mouse and which button was
     pressed. Waits for button to be pressed.
@@ -35,15 +35,15 @@ PetscErrorCode  PetscDrawGetMouseButton(PetscDraw draw,PetscDrawButton *button,P
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
   *button = PETSC_BUTTON_NONE;
-  ierr = PetscTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isnull);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
   if (!draw->ops->getmousebutton) PetscFunctionReturn(0);
   ierr = (*draw->ops->getmousebutton)(draw,button,x_user,y_user,x_phys,y_phys);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawSynchronizedGetMouseButton" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawSynchronizedGetMouseButton"
 /*@
     PetscDrawSynchronizedGetMouseButton - Returns location of mouse and which button was
     pressed. Waits for button to be pressed.
@@ -81,7 +81,7 @@ PetscErrorCode  PetscDrawSynchronizedGetMouseButton(PetscDraw draw,PetscDrawButt
   if (y_user) bcast[1] = *y_user;
   if (x_phys) bcast[2] = *x_phys;
   if (y_phys) bcast[3] = *y_phys;
-  ierr = MPI_Bcast(bcast,4,MPIU_REAL,0,((PetscObject)draw)->comm);CHKERRQ(ierr);  
+  ierr = MPI_Bcast(bcast,4,MPIU_REAL,0,((PetscObject)draw)->comm);CHKERRQ(ierr);
   if (x_user) *x_user = bcast[0];
   if (y_user) *y_user = bcast[1];
   if (x_phys) *x_phys = bcast[2];

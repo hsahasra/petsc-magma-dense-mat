@@ -4,12 +4,13 @@ FFLAGS	        =
 CPPFLAGS        =
 FPPFLAGS        =
 LOCDIR          = src/ts/examples/tutorials/
-EXAMPLESC       = ex1.c ex2.c util2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c \
+EXAMPLESC       = ex1.c ex2.c ex3.c ex4.c ex5.c ex6.c ex7.c ex8.c \
                 ex9.c ex10.c ex12.c ex13.c ex14.c ex15.c ex16.c ex17.c \
                 ex18.c ex19.c ex20.c ex21.c ex22.c ex23.c ex24.c ex25.c ex26.c
 EXAMPLESF       = ex1f.F ex2f.F ex22f.F # ex22f_mf.F90
 EXAMPLESFH      = ex2f.h
 MANSEC          = TS
+DIRS            = phasefield advection-diffusion-reaction
 
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
@@ -22,13 +23,13 @@ ex1f: ex1f.o  chkopts
 	-${FLINKER} -o ex1f ex1f.o  ${PETSC_TS_LIB}
 	${RM} ex1f.o
 
-ex2: ex2.o util2.o chkopts
-	-${CLINKER} -o ex2 ex2.o util2.o ${PETSC_TS_LIB}
-	${RM} ex2.o util2.o
+ex2: ex2.o chkopts
+	-${CLINKER} -o ex2 ex2.o ${PETSC_TS_LIB}
+	${RM} ex2.o
 
-ex2f: ex2f.o util2.o chkopts
-	-${FLINKER} -o ex2f ex2f.o util2.o  ${PETSC_TS_LIB}
-	${RM} ex2f.o util2.o
+ex2f: ex2f.o chkopts
+	-${FLINKER} -o ex2f ex2f.o ${PETSC_TS_LIB}
+	${RM} ex2f.o
 
 ex3: ex3.o  chkopts
 	-${CLINKER} -o ex3 ex3.o  ${PETSC_TS_LIB}
@@ -105,19 +106,19 @@ ex20: ex20.o  chkopts
 	-${CLINKER} -o ex20 ex20.o  ${PETSC_TS_LIB}
 	${RM} ex20.o
 
-ex21: ex21.o util2.o chkopts
-	-${CLINKER} -o ex21 ex21.o util2.o ${PETSC_TS_LIB}
-	${RM} ex21.o util2.o
+ex21: ex21.o  chkopts
+	-${CLINKER} -o ex21 ex21.o  ${PETSC_TS_LIB}
+	${RM} ex21.o 
 
 ex22: ex22.o chkopts
 	-${CLINKER} -o ex22 ex22.o ${PETSC_TS_LIB}
 	${RM} ex22.o
 
-ex22f: ex22f.o util2.o chkopts
+ex22f: ex22f.o  chkopts
 	-${FLINKER} -o ex22f ex22f.o ${PETSC_TS_LIB}
 	${RM} ex22f.o
 
-ex22f_mf: ex22f_mf.o util2.o chkopts
+ex22f_mf: ex22f_mf.o  chkopts
 	-${FLINKER} -o ex22f_mf ex22f_mf.o ${PETSC_TS_LIB}
 	${RM} ex22f_mf.o
 
@@ -136,6 +137,14 @@ ex25: ex25.o chkopts
 ex26: ex26.o chkopts
 	-${CLINKER} -o ex26 ex26.o ${PETSC_TS_LIB}
 	${RM} ex26.o
+
+ex26aspin: ex26aspin.o chkopts
+	-${CLINKER} -o ex26aspin ex26aspin.o ${PETSC_TS_LIB}
+	${RM} ex26aspin.o
+
+ex27: ex27.o chkopts
+	-${CLINKER} -o ex27 ex27.o ${PETSC_TS_LIB}
+	${RM} ex27.o
 
 #---------------------------------------------------------------------------------
 runex1:
@@ -319,7 +328,7 @@ runex17_2:
 	   ${RM} -f ex17_2.tmp
 
 runex22:
-	-@${MPIEXEC} -n 1 ./ex22 -da_grid_x 200 -ts_monitor_solution -ts_arkimex_type 4 -ts_adapt_type none -snes_linesearch_type basic > ex22_1.tmp 2>&1; \
+	-@${MPIEXEC} -n 1 ./ex22 -da_grid_x 200 -ts_monitor_solution -ts_arkimex_type 4 -ts_adapt_type none > ex22_1.tmp 2>&1; \
 	   ${DIFF} output/ex22_1.out ex22_1.tmp || echo  ${PWD} "\nPossible problem with ex22_1, diffs above \n=========================================";  \
 	   ${RM} -f ex22_1.tmp
 runex22_2:
@@ -354,6 +363,9 @@ runex26:
 	-@${MPIEXEC} -n 1 ./ex26 -da_grid_x 20 -da_grid_y 20 -lidvelocity 100 -grashof 1e3 -ts_max_steps 100 -ts_rtol 1e-3 -ts_atol 1e-3 -ts_type rosw -ts_rosw_type ra3pw -ts_monitor -ts_monitor_solution_vtk 'foo-%03D.vts' > ex26_1.tmp 2>&1; \
 	   ${DIFF} output/ex26_1.out ex26_1.tmp || echo  ${PWD} "\nPossible problem with ex26_1, diffs above \n=========================================";  \
 	   ${RM} -f ex26_1.tmp
+
+runex26aspin:
+	-@${MPIEXEC} -n 4 ./ex26aspin -da_refine 3 -ts_max_steps 1 -ts_rtol 1e-3 -ts_atol 1e-3 -ts_type beuler -ts_monitor -snes_monitor -snes_mf -ksp_monitor -overlap 2
 
 
 TESTEXAMPLES_C		  = ex1.PETSc runex1 runex1_2 ex1.rm ex2.PETSc runex2 ex2.rm ex3.PETSc runex3 runex3_2 ex3.rm \

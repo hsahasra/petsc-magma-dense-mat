@@ -1,8 +1,8 @@
 
 #include <petscsys.h>           /*I "petscsys.h" I*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscMPIAbortErrorHandler" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscMPIAbortErrorHandler"
 /*@C
    PetscMPIAbortErrorHandler - Calls MPI_abort() and exits.
 
@@ -22,8 +22,8 @@
    Level: developer
 
    Notes:
-   Most users need not directly employ this routine and the other error 
-   handlers, but can instead use the simplified interface SETERRQ, which has 
+   Most users need not directly employ this routine and the other error
+   handlers, but can instead use the simplified interface SETERRQ, which has
    the calling sequence
 $     SETERRQ(comm,n,p,mess)
 
@@ -34,12 +34,12 @@ $     SETERRQ(comm,n,p,mess)
 
    Concepts: error handler^stopping
 
-.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(), 
+.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(),
            PetscAbortErrorHandler(), PetscTraceBackErrorHandler()
  @*/
 PetscErrorCode  PetscMPIAbortErrorHandler(MPI_Comm comm,int line,const char *fun,const char *file,const char *dir,PetscErrorCode n,PetscErrorType p,const char *mess,void *ctx)
 {
-  PetscBool      flg1 = PETSC_FALSE,flg2 = PETSC_FALSE;
+  PetscBool      flg1 = PETSC_FALSE,flg2 = PETSC_FALSE,flg3 = PETSC_FALSE;
   PetscLogDouble mem,rss;
 
   PetscFunctionBegin;
@@ -53,7 +53,8 @@ PetscErrorCode  PetscMPIAbortErrorHandler(MPI_Comm comm,int line,const char *fun
     PetscMallocGetCurrentUsage(&mem); PetscMemoryGetCurrentUsage(&rss);
     PetscOptionsGetBool(PETSC_NULL,"-malloc_dump",&flg1,PETSC_NULL);
     PetscOptionsGetBool(PETSC_NULL,"-malloc_log",&flg2,PETSC_NULL);
-    if (flg2) {
+    PetscOptionsHasName(PETSC_NULL,"-malloc_log_threshold",&flg3);
+    if (flg2 || flg3) {
       PetscMallocDumpLog(stdout);
     } else {
       (*PetscErrorPrintf)("Memory allocated %.0f Memory used by process %.0f\n",mem,rss);

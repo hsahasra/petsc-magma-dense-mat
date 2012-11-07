@@ -2,10 +2,11 @@
 /* gennd.f -- translated by f2c (version 19931217).*/
 
 #include <petscsys.h>
+#include <../src/mat/order/order.h>
 
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKrevrse" 
-PetscErrorCode SPARSEPACKrevrse(PetscInt *n,PetscInt *perm)
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKrevrse"
+PetscErrorCode SPARSEPACKrevrse(const PetscInt *n,PetscInt *perm)
 {
     /* System generated locals */
     PetscInt i__1;
@@ -54,16 +55,15 @@ PetscErrorCode SPARSEPACKrevrse(PetscInt *n,PetscInt *perm)
 /*       FNDSEP, REVRSE.*/
 /*****************************************************************/
 
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKgennd" 
-PetscErrorCode SPARSEPACKgennd(PetscInt *neqns,PetscInt *xadj,PetscInt *adjncy,PetscInt *mask,PetscInt *perm,PetscInt *xls,PetscInt *ls)
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKgennd"
+PetscErrorCode SPARSEPACKgennd(const PetscInt *neqns,const PetscInt *xadj,const PetscInt *adjncy,PetscInt *mask,PetscInt *perm,PetscInt *xls,PetscInt *ls)
 {
     /* System generated locals */
     PetscInt i__1;
 
     /* Local variables */
     PetscInt nsep,root,i;
-    extern PetscErrorCode SPARSEPACKfndsep(PetscInt*,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *);
     PetscInt num;
 
     PetscFunctionBegin;

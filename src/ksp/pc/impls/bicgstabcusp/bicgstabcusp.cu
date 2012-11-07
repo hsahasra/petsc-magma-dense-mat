@@ -9,9 +9,7 @@
 #include <petsc-private/pcimpl.h>   /*I "petscpc.h" I*/
 #include <../src/mat/impls/aij/seq/aij.h>
 #include <cusp/monitor.h>
-#undef VecType
 #include <cusp/krylov/bicgstab.h>
-#define VecType char*
 #include <../src/vec/vec/impls/dvecimpl.h>
 #include <../src/mat/impls/aij/seq/seqcusp/cuspmatimpl.h>
 
@@ -119,7 +117,7 @@ static PetscErrorCode PCSetUp_BiCGStabCUSP(PC pc)
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)pc->pmat,MATSEQAIJCUSP,&flg);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)pc->pmat,MATSEQAIJCUSP,&flg);CHKERRQ(ierr);
   if (!flg) SETERRQ(((PetscObject)pc)->comm,PETSC_ERR_SUP,"Currently only handles CUSP matrices");
   try{
     ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRQ(ierr);
@@ -154,8 +152,8 @@ static PetscErrorCode PCApply_BiCGStabCUSP(PC pc,Vec x,Vec y)
   CUSPARRAY       *xarray,*yarray;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)x,VECSEQCUSP,&flg1);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)y,VECSEQCUSP,&flg2);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQCUSP,&flg1);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)y,VECSEQCUSP,&flg2);CHKERRQ(ierr);
   if (!(flg1 && flg2)) SETERRQ(((PetscObject)pc)->comm,PETSC_ERR_SUP, "Currently only handles CUSP vectors");
   if (!bicg->mat) {
     ierr = PCSetUp_BiCGStabCUSP(pc);CHKERRQ(ierr);
@@ -164,9 +162,9 @@ static PetscErrorCode PCApply_BiCGStabCUSP(PC pc,Vec x,Vec y)
   ierr = VecCUSPGetArrayRead(x,&xarray);CHKERRQ(ierr);
   ierr = VecCUSPGetArrayWrite(y,&yarray);CHKERRQ(ierr);
   try {
-    cusp::default_monitor<PetscScalar> monitor(*xarray,bicg->maxits,bicg->rtol);
+    cusp::default_monitor<PetscReal> monitor(*xarray,bicg->maxits,bicg->rtol);
     if (bicg->monitorverbose){
-      cusp::verbose_monitor<PetscScalar> verbosemonitor(*xarray,bicg->maxits,bicg->rtol);
+      cusp::verbose_monitor<PetscReal> verbosemonitor(*xarray,bicg->maxits,bicg->rtol);
       cusp::krylov::bicgstab(*bicg->mat,*yarray,*xarray,verbosemonitor);
     } else {
       cusp::krylov::bicgstab(*bicg->mat,*yarray,*xarray,monitor);

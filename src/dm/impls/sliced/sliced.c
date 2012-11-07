@@ -13,9 +13,9 @@ typedef struct  {
   DMSlicedBlockFills *dfill,*ofill;
 } DM_Sliced;
 
-#undef __FUNCT__  
-#define __FUNCT__ "DMCreateMatrix_Sliced" 
-PetscErrorCode  DMCreateMatrix_Sliced(DM dm, const MatType mtype,Mat *J)
+#undef __FUNCT__
+#define __FUNCT__ "DMCreateMatrix_Sliced"
+PetscErrorCode  DMCreateMatrix_Sliced(DM dm, MatType mtype,Mat *J)
 {
   PetscErrorCode         ierr;
   PetscInt               *globals,*sd_nnz,*so_nnz,rstart,bs,i;
@@ -78,7 +78,7 @@ PetscErrorCode  DMCreateMatrix_Sliced(DM dm, const MatType mtype,Mat *J)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMSlicedSetGhosts"
 /*@C
     DMSlicedSetGhosts - Sets the global indices of other processes elements that will
@@ -114,7 +114,7 @@ PetscErrorCode  DMSlicedSetGhosts(DM dm,PetscInt bs,PetscInt nlocal,PetscInt Ngh
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMSlicedSetPreallocation"
 /*@C
     DMSlicedSetPreallocation - sets the matrix memory preallocation for matrices computed by DMSliced
@@ -127,7 +127,7 @@ PetscErrorCode  DMSlicedSetGhosts(DM dm,PetscInt bs,PetscInt nlocal,PetscInt Ngh
            submatrix  (same for all local rows)
 .    d_nnz - array containing the number of block nonzeros in the various block rows
            of the in diagonal portion of the local (possibly different for each block
-           row) or PETSC_NULL.  
+           row) or PETSC_NULL.
 .    o_nz  - number of block nonzeros per block row in the off-diagonal portion of local
            submatrix (same for all local rows).
 -    o_nnz - array containing the number of nonzeros in the various block rows of the
@@ -157,7 +157,7 @@ PetscErrorCode  DMSlicedSetPreallocation(DM dm,PetscInt d_nz,const PetscInt d_nn
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMSlicedSetBlockFills_Private"
 static PetscErrorCode DMSlicedSetBlockFills_Private(PetscInt bs,const PetscInt *fill,DMSlicedBlockFills **inf)
 {
@@ -184,7 +184,7 @@ static PetscErrorCode DMSlicedSetBlockFills_Private(PetscInt bs,const PetscInt *
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMSlicedSetBlockFills"
 /*@C
     DMSlicedSetBlockFills - Sets the fill pattern in each block for a multi-component problem
@@ -217,9 +217,9 @@ PetscErrorCode  DMSlicedSetBlockFills(DM dm,const PetscInt *dfill,const PetscInt
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDestroy_Sliced"
-PetscErrorCode  DMDestroy_Sliced(DM dm)
+static PetscErrorCode  DMDestroy_Sliced(DM dm)
 {
   PetscErrorCode ierr;
   DM_Sliced      *slice = (DM_Sliced*)dm->data;
@@ -228,12 +228,14 @@ PetscErrorCode  DMDestroy_Sliced(DM dm)
   ierr = PetscFree(slice->ghosts);CHKERRQ(ierr);
   if (slice->dfill) {ierr = PetscFree3(slice->dfill,slice->dfill->i,slice->dfill->j);CHKERRQ(ierr);}
   if (slice->ofill) {ierr = PetscFree3(slice->ofill,slice->ofill->i,slice->ofill->j);CHKERRQ(ierr);}
+  /* This was originally freed in DMDestroy(), but that prevents reference counting of backend objects */
+  ierr = PetscFree(slice);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMCreateGlobalVector_Sliced"
-PetscErrorCode  DMCreateGlobalVector_Sliced(DM dm,Vec *gvec)
+static PetscErrorCode  DMCreateGlobalVector_Sliced(DM dm,Vec *gvec)
 {
   PetscErrorCode     ierr;
   DM_Sliced          *slice = (DM_Sliced*)dm->data;
@@ -247,8 +249,47 @@ PetscErrorCode  DMCreateGlobalVector_Sliced(DM dm,Vec *gvec)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "DMGlobalToLocalBegin_Sliced"
+static PetscErrorCode  DMGlobalToLocalBegin_Sliced(DM da,Vec g,InsertMode mode,Vec l)
+{
+  PetscErrorCode ierr;
+  PetscBool      flg;
+
+  PetscFunctionBegin;
+  ierr = VecGhostIsLocalForm(g,l,&flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(((PetscObject)da)->comm,PETSC_ERR_ARG_WRONG,"Local vector is not local form of global vector");
+  ierr = VecGhostUpdateEnd(g,mode,SCATTER_FORWARD);CHKERRQ(ierr);
+  ierr = VecGhostUpdateBegin(g,mode,SCATTER_FORWARD);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "DMGlobalToLocalEnd_Sliced"
+static PetscErrorCode  DMGlobalToLocalEnd_Sliced(DM da,Vec g,InsertMode mode,Vec l)
+{
+  PetscErrorCode ierr;
+  PetscBool      flg;
+
+  PetscFunctionBegin;
+  ierr = VecGhostIsLocalForm(g,l,&flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(((PetscObject)da)->comm,PETSC_ERR_ARG_WRONG,"Local vector is not local form of global vector");
+  ierr = VecGhostUpdateEnd(g,mode,SCATTER_FORWARD);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*MC
+   DMSLICED = "sliced" - A DM object that is used to manage data for a general graph. Uses VecCreateGhost() ghosted vectors for storing the fields
+
+   See DMCreateSliced() for details.
+
+  Level: intermediate
+
+.seealso: DMType, DMCOMPOSITE, DMCreateSliced(), DMCreate()
+M*/
+
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMCreate_Sliced"
 PetscErrorCode  DMCreate_Sliced(DM p)
 {
@@ -261,13 +302,15 @@ PetscErrorCode  DMCreate_Sliced(DM p)
 
   ierr = PetscObjectChangeTypeName((PetscObject)p,DMSLICED);CHKERRQ(ierr);
   p->ops->createglobalvector = DMCreateGlobalVector_Sliced;
-  p->ops->creatematrix          = DMCreateMatrix_Sliced;
+  p->ops->creatematrix       = DMCreateMatrix_Sliced;
+  p->ops->globaltolocalbegin = DMGlobalToLocalBegin_Sliced;
+  p->ops->globaltolocalend   = DMGlobalToLocalEnd_Sliced;
   p->ops->destroy            = DMDestroy_Sliced;
   PetscFunctionReturn(0);
 }
 EXTERN_C_END
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMSlicedCreate"
 /*@C
     DMSlicedCreate - Creates a DM object, used to manage data for a unstructured problem
@@ -275,17 +318,31 @@ EXTERN_C_END
     Collective on MPI_Comm
 
     Input Parameter:
-.   comm - the processors that will share the global vector
++   comm - the processors that will share the global vector
+.   bs - the block size
+.   nlocal - number of vector entries on this process
+.   Nghosts - number of ghost points needed on this process
+.   ghosts - global indices of all ghost points for this process
+.   d_nnz - matrix preallocation information representing coupling within this process
+-   o_nnz - matrix preallocation information representing coupling between this process and other processes
 
     Output Parameters:
 .   slice - the slice object
 
+    Notes:
+        This DM does not support DMCreateLocalVector(), DMGlobalToLocalBegin(), and DMGlobalToLocalEnd() instead one directly uses
+        VecGhostGetLocalForm() and VecGhostRestoreLocalForm() to access the local representation and VecGhostUpdateBegin() and VecGhostUpdateEnd() to update
+        the ghost points.
+
+        One can use DMGlobalToLocalBegin(), and DMGlobalToLocalEnd() instead of VecGhostUpdateBegin() and VecGhostUpdateEnd().
+
     Level: advanced
 
-.seealso DMDestroy(), DMCreateGlobalVector()
+.seealso DMDestroy(), DMCreateGlobalVector(), DMSetType(), DMSLICED, DMSlicedSetGhosts(), DMSlicedSetPreallocation(), VecGhostUpdateBegin(), VecGhostUpdateEnd(),
+         VecGhostGetLocalForm(), VecGhostRestoreLocalForm()
 
 @*/
-PetscErrorCode  DMSlicedCreate(MPI_Comm comm,DM *dm)
+PetscErrorCode  DMSlicedCreate(MPI_Comm comm,PetscInt bs,PetscInt nlocal,PetscInt Nghosts,const PetscInt ghosts[], const PetscInt d_nnz[],const PetscInt o_nnz[],DM *dm)
 {
   PetscErrorCode ierr;
 
@@ -293,24 +350,10 @@ PetscErrorCode  DMSlicedCreate(MPI_Comm comm,DM *dm)
   PetscValidPointer(dm,2);
   ierr = DMCreate(comm,dm);CHKERRQ(ierr);
   ierr = DMSetType(*dm,DMSLICED);CHKERRQ(ierr);
+  ierr = DMSlicedSetGhosts(*dm,bs,nlocal,Nghosts,ghosts);CHKERRQ(ierr);
+  if (d_nnz) {
+    ierr = DMSlicedSetPreallocation(*dm,0, d_nnz,0,o_nnz);CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
 
-/* Explanation of the missing functions for DMDA-style handling of the local vector:
-
-   DMSlicedCreateLocalVector()
-   DMSlicedGlobalToLocalBegin()
-   DMSlicedGlobalToLocalEnd()
-
- There is no way to get the global form from a local form, so DMSlicedCreateLocalVector() is a memory leak without
- external accounting for the global vector.  Also, DMSliced intends the user to work with the VecGhost interface since the
- ghosts are already ordered after the owned entries.  Contrast this to a DMDA where the local vector has a special
- ordering described by the structured grid, hence it cannot share memory with the global form.  For this reason, users
- of DMSliced should work with the global vector and use
-
-   VecGhostGetLocalForm(), VecGhostRestoreLocalForm()
-   VecGhostUpdateBegin(), VecGhostUpdateEnd()
-
- rather than the missing DMDA-style functions.  This is conceptually simpler and offers better performance than is
- possible with the DMDA-style interface.
-*/

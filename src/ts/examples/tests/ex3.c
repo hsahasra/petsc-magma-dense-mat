@@ -16,8 +16,8 @@ Input arguments are\n\
 /* special variable - max size of all arrays  */
 #define num_z 60
 
-/* 
-   User-defined application context - contains data needed by the 
+/*
+   User-defined application context - contains data needed by the
    application-provided call-back routines.
 */
 typedef struct{
@@ -56,12 +56,12 @@ int main(int argc,char **argv)
   Vec            init_sol; /* ts solution vector */
   PetscMPIInt    size;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   if (size != 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"This is a uniprocessor example only");
 
   ierr = PetscOptionsHasName(PETSC_NULL,"-debug",&appctx.debug);CHKERRQ(ierr);
-  ierr = PetscOptionsHasName(PETSC_NULL,"-useAlhs",&appctx.useAlhs);CHKERRQ(ierr); 
+  ierr = PetscOptionsHasName(PETSC_NULL,"-useAlhs",&appctx.useAlhs);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-nphase",&nphase,PETSC_NULL);CHKERRQ(ierr);
   if (nphase > 3) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"nphase must be an integer between 1 and 3");
 
@@ -110,8 +110,8 @@ int main(int argc,char **argv)
 
   /* set intial guess */
   /*------------------*/
-  for(i=0; i<nz-2; i++){
-    val = exact(z[i+1], 0.0); 
+  for (i=0; i<nz-2; i++){
+    val = exact(z[i+1], 0.0);
     ierr = VecSetValue(init_sol,i,(PetscScalar)val,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(init_sol);
@@ -145,10 +145,10 @@ int main(int argc,char **argv)
 
 #ifdef PETSC_HAVE_SUNDIALS
   {
-    const TSType   type;
-    PetscBool      sundialstype=PETSC_FALSE;
+    TSType    type;
+    PetscBool sundialstype=PETSC_FALSE;
     ierr = TSGetType(ts,&type);CHKERRQ(ierr);
-    ierr = PetscTypeCompare((PetscObject)ts,TSSUNDIALS,&sundialstype);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)ts,TSSUNDIALS,&sundialstype);CHKERRQ(ierr);
     if (sundialstype && appctx.useAlhs) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Cannot use Alhs formulation for TSSUNDIALS type");
   }
 #endif
@@ -186,7 +186,7 @@ int main(int argc,char **argv)
 }
 
 /*------------------------------------------------------------------------
-  Set exact solution 
+  Set exact solution
   u(z,t) = sin(6*PI*z)*exp(-36.*PI*PI*t) + 3.*sin(2*PI*z)*exp(-4.*PI*PI*t)
 --------------------------------------------------------------------------*/
 PetscScalar exact(PetscScalar z,PetscReal t)
@@ -202,7 +202,7 @@ PetscScalar exact(PetscScalar z,PetscReal t)
 #undef __FUNCT__
 #define __FUNCT__ "Monitor"
 /*
-   Monitor - User-provided routine to monitor the solution computed at 
+   Monitor - User-provided routine to monitor the solution computed at
    each timestep.  This example plots the solution and computes the
    error in two different norms.
 
@@ -213,8 +213,8 @@ PetscScalar exact(PetscScalar z,PetscReal t)
    time   - the current time
    u      - the solution at this timestep
    ctx    - the user-provided context for this monitoring routine.
-            In this case we use the application context which contains 
-            information about the problem size, workspace and the exact 
+            In this case we use the application context which contains
+            information about the problem size, workspace and the exact
             solution.
 */
 PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal time,Vec u,void *ctx)
@@ -314,26 +314,26 @@ PetscScalar bspl(PetscScalar *x, PetscScalar xx,PetscInt il,PetscInt iq,PetscInt
 
   /*** Determine which basis function in interval intrvl is to be used in ***/
   iq1 = iq;
-  if(iq1==0) iq2 = 1;
+  if (iq1==0) iq2 = 1;
   else iq2 = 0;
 
   /***  Determine endpoint of the interval intrvl ***/
   i1=nll[il][iq1];
   i2=nll[il][iq2];
 
-  /*** Determine nodal values at the endpoints of the interval intrvl ***/ 
+  /*** Determine nodal values at the endpoints of the interval intrvl ***/
   x1=x[i1];
   x2=x[i2];
   //printf("x1=%g\tx2=%g\txx=%g\n",x1,x2,xx);
   /*** Evaluate basis function ***/
-  if(id == 2) bfcn=(1.0)/(x1-x2);
+  if (id == 2) bfcn=(1.0)/(x1-x2);
   else bfcn=(xx-x2)/(x1-x2);
   //printf("bfcn=%g\n",bfcn);
   return bfcn;
 }
 
 /*---------------------------------------------------------
-  Function called by rhs function to get B and g 
+  Function called by rhs function to get B and g
 ---------------------------------------------------------*/
 void femBg(PetscScalar btri[][3],PetscScalar *f,PetscInt nz,PetscScalar *z, PetscReal t)
 {
@@ -343,7 +343,7 @@ void femBg(PetscScalar btri[][3],PetscScalar *f,PetscInt nz,PetscScalar *z, Pets
   PetscScalar zquad[num_z][3],dlen[num_z],qdwt[3];
 
   /*  initializing everything - btri and f are initialized in rhs.c  */
-  for(i=0; i < nz; i++){
+  for (i=0; i < nz; i++){
     nli[i][0] = 0;
     nli[i][1] = 0;
     indx[i] = 0;
@@ -351,7 +351,7 @@ void femBg(PetscScalar btri[][3],PetscScalar *f,PetscInt nz,PetscScalar *z, Pets
     zquad[i][1] = 0.0;
     zquad[i][2] = 0.0;
     dlen[i] = 0.0;
-  }/*end for(i)*/
+  }/*end for (i)*/
 
   /*  quadrature weights  */
   qdwt[0] = 1.0/6.0;
@@ -361,7 +361,7 @@ void femBg(PetscScalar btri[][3],PetscScalar *f,PetscInt nz,PetscScalar *z, Pets
   /* 1st and last nodes have Dirichlet boundary condition -
      set indices there to -1 */
 
-  for(i=0; i < nz-1; i++){
+  for (i=0; i < nz-1; i++){
     indx[i]=i-1;
   }
   indx[nz-1]=-1;
@@ -392,8 +392,8 @@ void femBg(PetscScalar btri[][3],PetscScalar *f,PetscInt nz,PetscScalar *z, Pets
         b_z = bspl(z,zz,il,iq,nli,2);
         i = indx[ip];
 
-        if(i > -1){
-          for(iqq=0; iqq < 2; iqq++){
+        if (i > -1){
+          for (iqq=0; iqq < 2; iqq++){
             ipp = nli[il][iqq];
             bbb = bspl(z,zz,il,iqq,nli,1);
             bb_z = bspl(z,zz,il,iqq,nli,2);
@@ -403,18 +403,18 @@ void femBg(PetscScalar btri[][3],PetscScalar *f,PetscInt nz,PetscScalar *z, Pets
             if (j > -1){
               jj = 1+j-i;
               btri[i][jj] += bij*dd;
-            } else {  
+            } else {
               f[i] += bij*dd*exact(z[ipp], t);
               // f[i] += 0.0;
-              // if(il==0 && j==-1){
+              // if (il==0 && j==-1){
               // f[i] += bij*dd*exact(zz,t);
               // }/*end if*/
             } /*end else*/
-          }/*end for(iqq)*/
-        }/*end if(i>0)*/
-      }/*end for(iq)*/
-    }/*end for(iquad)*/
-  }/*end for(il)*/
+          }/*end for (iqq)*/
+        }/*end if (i>0)*/
+      }/*end for (iq)*/
+    }/*end for (iquad)*/
+  }/*end for (il)*/
   return;
 }
 
@@ -428,7 +428,7 @@ void femA(AppCtx *obj,PetscInt nz,PetscScalar *z)
 
   /*  initializing everything  */
 
-  for(i=0; i < nz; i++)
+  for (i=0; i < nz; i++)
   {
      nli[i][0] = 0;
      nli[i][1] = 0;
@@ -437,26 +437,26 @@ void femA(AppCtx *obj,PetscInt nz,PetscScalar *z)
      rquad[i][1] = 0.0;
      rquad[i][2] = 0.0;
      dlen[i] = 0.0;
-  }/*end for(i)*/
+  }/*end for (i)*/
 
   /*  quadrature weights  */
   qdwt[0] = 1.0/6.0;
   qdwt[1] = 4.0/6.0;
   qdwt[2] = 1.0/6.0;
 
-  /* 1st and last nodes have Dirichlet boundary condition - 
+  /* 1st and last nodes have Dirichlet boundary condition -
      set indices there to -1 */
 
-  for(i=0; i < nz-1; i++)
+  for (i=0; i < nz-1; i++)
   {
      indx[i]=i-1;
 
-  }/*end for(i)*/
+  }/*end for (i)*/
   indx[nz-1]=-1;
 
-  ipq = 0;  
+  ipq = 0;
 
-  for(il=0; il < nz-1; il++)
+  for (il=0; il < nz-1; il++)
   {
      ip = ipq;
      ipq = ip+1;
@@ -470,32 +470,32 @@ void femA(AppCtx *obj,PetscInt nz,PetscScalar *z)
      nli[il][0] = ip;
      nli[il][1] = ipq;
 
-  }/*end for(il)*/
+  }/*end for (il)*/
 
-  for(il=0; il < nz-1; il++){
-    for(iquad=0; iquad < 3; iquad++){
+  for (il=0; il < nz-1; il++){
+    for (iquad=0; iquad < 3; iquad++){
       dd = (dlen[il])*(qdwt[iquad]);
       zz = rquad[il][iquad];
 
-      for(iq=0; iq < 2; iq++){
+      for (iq=0; iq < 2; iq++){
         ip = nli[il][iq];
         bb = bspl(z,zz,il,iq,nli,1);
         i = indx[ip];
-        if(i > -1){
-          for(iqq=0; iqq < 2; iqq++){
+        if (i > -1){
+          for (iqq=0; iqq < 2; iqq++){
             ipp = nli[il][iqq];
             bbb = bspl(z,zz,il,iqq,nli,1);
             j = indx[ipp];
             aij = bb*bbb;
-            if(j > -1) {
+            if (j > -1) {
               add_term = aij*dd;
               ierr = MatSetValue(obj->Amat,i,j,add_term,ADD_VALUES);
-            }/*endif*/ 
-          }/*end for(iqq)*/
-        }/*end if(i>0)*/
-      }/*end for(iq)*/
-    }/*end for(iquad)*/
-  }/*end for(il)*/
+            }/*endif*/
+          }/*end for (iqq)*/
+        }/*end if (i>0)*/
+      }/*end for (iq)*/
+    }/*end for (iquad)*/
+  }/*end for (il)*/
   MatAssemblyBegin(obj->Amat,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(obj->Amat,MAT_FINAL_ASSEMBLY);
   return;
@@ -506,13 +506,13 @@ void femA(AppCtx *obj,PetscInt nz,PetscScalar *z)
         By + g values ****
 ---------------------------------------------------------*/
 void rhs(AppCtx *obj,PetscScalar *y, PetscInt nz, PetscScalar *z, PetscReal t)
-{ 
+{
   PetscInt        i,j,js,je,jj;
   PetscScalar     val,g[num_z],btri[num_z][3],add_term;
   PetscErrorCode  ierr;
 
-  for(i=0; i < nz-2; i++){
-    for(j=0; j <= 2; j++){
+  for (i=0; i < nz-2; i++){
+    for (j=0; j <= 2; j++){
       btri[i][j]=0.0;
     }
     g[i] = 0.0;
@@ -522,14 +522,14 @@ void rhs(AppCtx *obj,PetscScalar *y, PetscInt nz, PetscScalar *z, PetscReal t)
   femBg(btri,g,nz,z,t);
 
   /*  setting the entries of the right hand side vector  */
-  for(i=0; i < nz-2; i++){
+  for (i=0; i < nz-2; i++){
     val = 0.0;
     js = 0;
-    if(i == 0) js = 1;
+    if (i == 0) js = 1;
     je = 2;
-    if(i == nz-2) je = 1;
+    if (i == nz-2) je = 1;
 
-    for(jj=js; jj <= je; jj++){
+    for (jj=js; jj <= je; jj++){
       j = i+jj-1;
       val += (btri[i][jj])*(y[j]);
     }
@@ -564,7 +564,7 @@ PetscErrorCode RHSfunction(TS ts,PetscReal t,Vec globalin,Vec globalout,void *ct
 
   /* get the previous solution to compute updated system */
   ierr = VecGetArray(globalin,&soln_ptr);
-  for(i=0;i < num_z-2;i++){
+  for (i=0;i < num_z-2;i++){
     soln[i] = soln_ptr[i];
   }
   ierr = VecRestoreArray(globalin,&soln_ptr);

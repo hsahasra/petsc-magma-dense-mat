@@ -5,24 +5,23 @@
 
 #if !defined(_PETSCHEAD_H)
 #define _PETSCHEAD_H
-#include <petscsys.h>  
-PETSC_EXTERN_CXX_BEGIN
+#include <petscsys.h>
 
 /*
-   All major PETSc data structures have a common core; this is defined 
-   below by PETSCHEADER. 
+   All major PETSc data structures have a common core; this is defined
+   below by PETSCHEADER.
 
    PetscHeaderCreate() should be used whenever creating a PETSc structure.
 */
 
 /*
    PetscOps: structure of core operations that all PETSc objects support.
-   
+
       getcomm()         - Gets the object's communicator.
       view()            - Is the routine for viewing the entire PETSc object; for
                           example, MatView() is the general matrix viewing routine.
-      destroy()         - Is the routine for destroying the entire PETSc object; 
-                          for example,MatDestroy() is the general matrix 
+      destroy()         - Is the routine for destroying the entire PETSc object;
+                          for example,MatDestroy() is the general matrix
                           destruction routine.
       compose()         - Associates a PETSc object with another PETSc object.
       query()           - Returns a different PETSc object that has been associated
@@ -45,46 +44,46 @@ typedef struct {
 
 /*
    All PETSc objects begin with the fields defined in PETSCHEADER.
-   The PetscObject is a way of examining these fields regardless of 
+   The PetscObject is a way of examining these fields regardless of
    the specific object. In C++ this could be a base abstract class
    from which all objects are derived.
 */
 #define PETSC_MAX_OPTIONS_HANDLER 5
 typedef struct _p_PetscObject {
-  PetscClassId   classid;                                        
-  PetscOps       *bops;                                         
-  MPI_Comm       comm;                                          
-  PetscInt       type;                                          
-  PetscLogDouble flops,time,mem;                                
-  PetscInt       id;                                            
-  PetscInt       refct;                                         
-  PetscMPIInt    tag;                                           
-  PetscFList     qlist;                                         
-  PetscOList     olist;                                         
+  PetscClassId   classid;
+  PetscOps       *bops;
+  MPI_Comm       comm;
+  PetscInt       type;
+  PetscLogDouble flops,time,mem;
+  PetscInt       id;
+  PetscInt       refct;
+  PetscMPIInt    tag;
+  PetscFList     qlist;
+  PetscOList     olist;
   char           *class_name;
   char           *description;
   char           *mansec;
-  char           *type_name;                                    
-  PetscObject    parent;                                        
-  PetscInt       parentid;                                      
-  char*          name;                                          
-  char           *prefix;                                       
-  PetscInt       tablevel;                                      
-  void           *cpp;                                          
-  PetscInt       amem;                                          
-  PetscInt       state;                                         
-  PetscInt       int_idmax,        intstar_idmax;               
-  PetscInt       *intcomposedstate,*intstarcomposedstate;       
-  PetscInt       *intcomposeddata, **intstarcomposeddata;       
-  PetscInt       real_idmax,        realstar_idmax;             
-  PetscInt       *realcomposedstate,*realstarcomposedstate;     
-  PetscReal      *realcomposeddata, **realstarcomposeddata;     
-  PetscInt       scalar_idmax,        scalarstar_idmax;         
-  PetscInt       *scalarcomposedstate,*scalarstarcomposedstate; 
-  PetscScalar    *scalarcomposeddata, **scalarstarcomposeddata; 
+  char           *type_name;
+  PetscObject    parent;
+  PetscInt       parentid;
+  char*          name;
+  char           *prefix;
+  PetscInt       tablevel;
+  void           *cpp;
+  PetscInt       amem;
+  PetscInt       state;
+  PetscInt       int_idmax,        intstar_idmax;
+  PetscInt       *intcomposedstate,*intstarcomposedstate;
+  PetscInt       *intcomposeddata, **intstarcomposeddata;
+  PetscInt       real_idmax,        realstar_idmax;
+  PetscInt       *realcomposedstate,*realstarcomposedstate;
+  PetscReal      *realcomposeddata, **realstarcomposeddata;
+  PetscInt       scalar_idmax,        scalarstar_idmax;
+  PetscInt       *scalarcomposedstate,*scalarstarcomposedstate;
+  PetscScalar    *scalarcomposeddata, **scalarstarcomposeddata;
   void           (**fortran_func_pointers)(void);                  /* used by Fortran interface functions to stash user provided Fortran functions */
   PetscInt       num_fortran_func_pointers;                        /* number of Fortran function pointers allocated */
-  void           *python_context;                               
+  void           *python_context;
   PetscErrorCode (*python_destroy)(void*);
 
   PetscInt       noptionhandler;
@@ -101,8 +100,8 @@ typedef struct _p_PetscObject {
 
 #define  PETSCFREEDHEADER -1
 
-typedef PetscErrorCode (*PetscObjectFunction)(PetscObject*); /* force cast in next macro to NEVER use extern "C" style */
-typedef PetscErrorCode (*PetscObjectViewerFunction)(PetscObject,PetscViewer); 
+PETSC_EXTERN_TYPEDEF typedef PetscErrorCode (*PetscObjectFunction)(PetscObject*); /* force cast in next macro to NEVER use extern "C" style */
+PETSC_EXTERN_TYPEDEF typedef PetscErrorCode (*PetscObjectViewerFunction)(PetscObject,PetscViewer);
 
 /*@C
     PetscHeaderCreate - Creates a PETSc object
@@ -124,7 +123,7 @@ typedef PetscErrorCode (*PetscObjectViewerFunction)(PetscObject,PetscViewer);
 
 .seealso: PetscHeaderDestroy(), PetscClassIdRegister()
 
-@*/ 
+@*/
 #define PetscHeaderCreate(h,tp,pops,cook,t,class_name,descr,mansec,com,des,vie) \
   (PetscNew(struct tp,&(h)) ||						\
    PetscNew(PetscOps,&(((PetscObject)(h))->bops)) ||			\
@@ -133,8 +132,8 @@ typedef PetscErrorCode (*PetscObjectViewerFunction)(PetscObject,PetscViewer);
    PetscLogObjectCreate(h) ||						\
    PetscLogObjectMemory(h, sizeof(struct tp) + sizeof(PetscOps) + sizeof(pops)))
 
-extern PetscErrorCode PetscComposedQuantitiesDestroy(PetscObject obj);
-extern PetscErrorCode PetscHeaderCreate_Private(PetscObject,PetscClassId,PetscInt,const char[],const char[],const char[],MPI_Comm,PetscErrorCode (*)(PetscObject*),PetscErrorCode (*)(PetscObject,PetscViewer));
+PETSC_EXTERN PetscErrorCode PetscComposedQuantitiesDestroy(PetscObject obj);
+PETSC_EXTERN PetscErrorCode PetscHeaderCreate_Private(PetscObject,PetscClassId,PetscInt,const char[],const char[],const char[],MPI_Comm,PetscErrorCode (*)(PetscObject*),PetscErrorCode (*)(PetscObject,PetscViewer));
 
 /*@C
     PetscHeaderDestroy - Final step in destroying a PetscObject
@@ -145,7 +144,7 @@ extern PetscErrorCode PetscHeaderCreate_Private(PetscObject,PetscClassId,PetscIn
     Level: developer
 
 .seealso: PetscHeaderCreate()
-@*/ 
+@*/
 #define PetscHeaderDestroy(h)			   \
   (PetscLogObjectDestroy((PetscObject)(*h)) ||	   \
    PetscComposedQuantitiesDestroy((PetscObject)*h) || \
@@ -153,11 +152,91 @@ extern PetscErrorCode PetscHeaderCreate_Private(PetscObject,PetscClassId,PetscIn
    PetscFree((*h)->ops) ||			   \
    PetscFree(*h))
 
-extern PetscErrorCode  PetscHeaderDestroy_Private(PetscObject);
-extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscObject);
+PETSC_EXTERN PetscErrorCode PetscHeaderDestroy_Private(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscObject);
 
 /* ---------------------------------------------------------------------------------------*/
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_SIGINFO_T)
+#include <signal.h>
+#include <setjmp.h>
+PETSC_EXTERN jmp_buf PetscSegvJumpBuf;
+PETSC_EXTERN void PetscSegv_sigaction(int, siginfo_t*, void *);
+/*@C
+     PetscCheckPointer - Returns PETSC_TRUE if a pointer points to accessible data
 
+   Not Collective
+
+   Input Parameters:
++     ptr - the pointer
+-     dtype - the type of data the pointer is suppose to point to
+
+@*/
+PETSC_STATIC_INLINE PetscBool PetscCheckPointer(const void *ptr,PetscDataType dtype)
+{
+  struct sigaction sa,oldsa;
+
+  if (PETSC_RUNNING_ON_VALGRIND) return PETSC_TRUE;
+  if (!ptr) return PETSC_FALSE;
+
+  sigemptyset(&sa.sa_mask);
+  sa.sa_sigaction = PetscSegv_sigaction;
+  sa.sa_flags   = SA_SIGINFO;
+  sigaction(SIGSEGV, &sa, &oldsa);
+
+  if (setjmp(PetscSegvJumpBuf)) {
+    /* A segv was triggered in the code below hence we return with an error code */
+    sigaction(SIGSEGV, &oldsa, PETSC_NULL);/* reset old signal hanlder */
+    return PETSC_FALSE;
+  } else {
+    switch (dtype) {
+    case PETSC_INT:{
+      PETSC_UNUSED PetscInt x = (PetscInt)*(volatile PetscInt*)ptr;
+      break;
+    }
+#if defined(PETSC_USE_COMPLEX)
+    case PETSC_SCALAR:{         /* C++ is seriously dysfunctional with volatile std::complex. */
+      PetscReal xreal = ((volatile PetscReal*)ptr)[0],ximag = ((volatile PetscReal*)ptr)[1];
+      PETSC_UNUSED volatile PetscScalar x = xreal + PETSC_i*ximag;
+      break;
+    }
+#endif
+    case PETSC_REAL:{
+      PETSC_UNUSED PetscReal x = *(volatile PetscReal*)ptr;
+      break;
+    }
+    case PETSC_BOOL:{
+      PETSC_UNUSED PetscBool x = *(volatile PetscBool*)ptr;
+      break;
+    }
+    case PETSC_ENUM:{
+      PETSC_UNUSED PetscEnum x = *(volatile PetscEnum*)ptr;
+      break;
+    }
+    case PETSC_CHAR:{
+      PETSC_UNUSED char *x = *(char*volatile*)ptr;
+      break;
+    }
+    case PETSC_OBJECT:{
+      PETSC_UNUSED volatile PetscClassId classid = ((PetscObject)ptr)->classid;
+      break;
+    }
+    default:;
+    }
+  }
+  sigaction(SIGSEGV, &oldsa, PETSC_NULL); /* reset old signal hanlder */
+  return PETSC_TRUE;
+}
+#else
+PETSC_STATIC_INLINE PetscBool PetscCheckPointer(const void *ptr,PETSC_UNUSED PetscDataType dtype)
+{
+  if (!ptr) return PETSC_FALSE;
+  return PETSC_TRUE;
+}
+#endif
+
+/*
+    Macros to test if a PETSc object is valid and if pointers are valid
+*/
 #if !defined(PETSC_USE_DEBUG)
 
 #define PetscValidHeaderSpecific(h,ck,arg) do {} while (0)
@@ -166,15 +245,16 @@ extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscOb
 #define PetscValidCharPointer(h,arg) do {} while (0)
 #define PetscValidIntPointer(h,arg) do {} while (0)
 #define PetscValidScalarPointer(h,arg) do {} while (0)
+#define PetscValidRealPointer(h,arg) do {} while (0)
 
-#elif !defined(PETSC_HAVE_UNALIGNED_POINTERS)
-/* 
-    Macros to test if a PETSc object is valid and if pointers are valid
-*/
+
+#else
+
+
 #define PetscValidHeaderSpecific(h,ck,arg)                              \
   do {                                                                  \
     if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Object: Parameter # %d",arg); \
-    if ((unsigned long)(h) & (unsigned long)3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Invalid Pointer to Object: Parameter # %d",arg); \
+    if (!PetscCheckPointer(h,PETSC_OBJECT)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Invalid Pointer to Object: Parameter # %d",arg); \
     if (((PetscObject)(h))->classid != ck) {                            \
       if (((PetscObject)(h))->classid == PETSCFREEDHEADER) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Object already free: Parameter # %d",arg); \
       else SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Wrong type of object: Parameter # %d",arg); \
@@ -184,79 +264,42 @@ extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscOb
 #define PetscValidHeader(h,arg)                                         \
   do {                                                                  \
     if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Object: Parameter # %d",arg); \
-    if ((unsigned long)(h) & (unsigned long)3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Invalid Pointer to Object: Parameter # %d",arg); \
-    else if (((PetscObject)(h))->classid == PETSCFREEDHEADER) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Object already free: Parameter # %d",arg); \
+    if (!PetscCheckPointer(h,PETSC_OBJECT)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Invalid Pointer to Object: Parameter # %d",arg); \
+    if (((PetscObject)(h))->classid == PETSCFREEDHEADER) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Object already free: Parameter # %d",arg); \
     else if (((PetscObject)(h))->classid < PETSC_SMALLEST_CLASSID || ((PetscObject)(h))->classid > PETSC_LARGEST_CLASSID) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Invalid type of object: Parameter # %d",arg); \
   } while (0)
 
 #define PetscValidPointer(h,arg)                                        \
   do {                                                                  \
     if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer: Parameter # %d",arg); \
-    if ((unsigned long)(h) & (unsigned long)3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer: Parameter # %d",arg); \
+    if (!PetscCheckPointer(h,PETSC_CHAR)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer: Parameter # %d",arg); \
   } while (0)
 
 #define PetscValidCharPointer(h,arg)                                    \
-  do {if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer: Parameter # %d",arg);} while (0)
+  do {                                                                  \
+    if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer: Parameter # %d",arg);\
+    if (!PetscCheckPointer(h,PETSC_CHAR)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to char: Parameter # %d",arg); \
+  } while (0)
 
 #define PetscValidIntPointer(h,arg)                                     \
   do {                                                                  \
     if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Null Pointer: Parameter # %d",arg); \
-    if ((unsigned long)(h) & (unsigned long)3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to Int: Parameter # %d",arg); \
+    if (!PetscCheckPointer(h,PETSC_INT)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to Int: Parameter # %d",arg); \
   } while (0)
 
-#if !defined(PETSC_HAVE_DOUBLES_ALIGNED)
 #define PetscValidScalarPointer(h,arg)                                  \
   do {                                                                  \
     if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer: Parameter # %d",arg); \
-    if ((unsigned long)(h) & (unsigned long)3) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to PetscScalar: Parameter # %d",arg); \
+    if (!PetscCheckPointer(h,PETSC_SCALAR)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to PetscScalar: Parameter # %d",arg); \
   } while (0)
-#else
-#define PetscValidScalarPointer(h,arg)                                  \
+
+#define PetscValidRealPointer(h,arg)                                  \
   do {                                                                  \
     if (!h) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer: Parameter # %d",arg); \
-    if ((unsigned long)(h) & (unsigned long)7) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to PetscScalar: Parameter # %d",arg); \
-  } while (0)
-#endif
-
-#else
-/*
-     Version where pointers don't have any particular alignment
-*/
-#define PetscValidHeaderSpecific(h,ck,arg)                              \
-  do {                                                                  \
-    if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Object");  \
-    if (((PetscObject)(h))->classid != ck) {                            \
-      if (((PetscObject)(h))->classid == PETSCFREEDHEADER) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Object already free"); \
-      else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Wrong Object");    \
-    }                                                                   \
+    if (!PetscCheckPointer(h,PETSC_REAL)) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_BADPTR,"Invalid Pointer to PetscReal: Parameter # %d",arg); \
   } while (0)
 
-#define PetscValidHeader(h,arg)                                         \
-  do {                                                                  \
-    if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Object");  \
-    if (((PetscObject)(h))->classid == PETSCFREEDHEADER) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Object already free"); \
-    else if (((PetscObject)(h))->classid < PETSC_SMALLEST_CLASSID || ((PetscObject)(h))->classid > PETSC_LARGEST_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_CORRUPT,"Invalid type of object"); \
-  } while (0)
-
-#define PetscValidPointer(h,arg)                                        \
-  do {if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer");} while (0)
-
-#define PetscValidCharPointer(h,arg)                                    \
-  do {if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer");} while (0)
-
-#define PetscValidIntPointer(h,arg)                                     \
-  do {if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer");} while (0)
-
-#if !defined(PETSC_HAVE_DOUBLES_ALIGNED)
-#define PetscValidScalarPointer(h,arg)                                  \
-  do {if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer");} while (0)
-#else
-#define PetscValidScalarPointer(h,arg)                                  \
-  do {if (!h) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_NULL,"Null Pointer");} while (0)
 #endif
-
-#endif
-#define PetscValidDoublePointer(h,arg) PetscValidScalarPointer(h,arg)
 
 #if !defined(PETSC_USE_DEBUG)
 
@@ -274,11 +317,11 @@ extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscOb
 
 /*
     For example, in the dot product between two vectors,
-  both vectors must be either Seq or MPI, not one of each 
+  both vectors must be either Seq or MPI, not one of each
 */
 #define PetscCheckSameType(a,arga,b,argb) \
   if (((PetscObject)a)->type != ((PetscObject)b)->type) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_NOTSAMETYPE,"Objects not of same type: Argument # %d and %d",arga,argb);
-/* 
+/*
    Use this macro to check if the type is set
 */
 #define PetscValidType(a,arg) \
@@ -347,7 +390,7 @@ extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscOb
 #endif
 
 /*MC
-   PetscObjectStateIncrease - Increases the state of any PetscObject, 
+   PetscObjectStateIncrease - Increases the state of any PetscObject,
    regardless of the type.
 
    Synopsis:
@@ -357,7 +400,7 @@ extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscOb
 
    Input Parameter:
 .  obj - any PETSc object, for example a Vec, Mat or KSP. This must be
-         cast with a (PetscObject), for example, 
+         cast with a (PetscObject), for example,
          PetscObjectStateIncrease((PetscObject)mat);
 
    Notes: object state is an integer which gets increased every time
@@ -367,8 +410,8 @@ extern PetscErrorCode PetscObjectCopyFortranFunctionPointers(PetscObject,PetscOb
 
    This routine is mostly for internal use by PETSc; a developer need only
    call it after explicit access to an object's internals. Routines such
-   as VecSet or MatScale already call this routine. It is also called, as a 
-   precaution, in VecRestoreArray, MatRestoreRow, MatRestoreArray.
+   as VecSet() or MatScale() already call this routine. It is also called, as a
+   precaution, in VecRestoreArray(), MatRestoreRow(), MatDenseRestoreArray().
 
    Level: developer
 
@@ -380,7 +423,7 @@ M*/
 #define PetscObjectStateIncrease(obj) ((obj)->state++,0)
 
 /*MC
-   PetscObjectStateDecrease - Decreases the state of any PetscObject, 
+   PetscObjectStateDecrease - Decreases the state of any PetscObject,
    regardless of the type.
 
    Synopsis:
@@ -390,7 +433,7 @@ M*/
 
    Input Parameter:
 .  obj - any PETSc object, for example a Vec, Mat or KSP. This must be
-         cast with a (PetscObject), for example, 
+         cast with a (PetscObject), for example,
          PetscObjectStateIncrease((PetscObject)mat);
 
    Notes: object state is an integer which gets increased every time
@@ -407,16 +450,16 @@ M*/
 M*/
 #define PetscObjectStateDecrease(obj) ((obj)->state--,0)
 
-extern PetscErrorCode  PetscObjectStateQuery(PetscObject,PetscInt*);
-extern PetscErrorCode  PetscObjectSetState(PetscObject,PetscInt);
-extern PetscErrorCode  PetscObjectComposedDataRegister(PetscInt*);
-extern PetscErrorCode  PetscObjectComposedDataIncreaseInt(PetscObject);
-extern PetscErrorCode  PetscObjectComposedDataIncreaseIntstar(PetscObject);
-extern PetscErrorCode  PetscObjectComposedDataIncreaseReal(PetscObject);
-extern PetscErrorCode  PetscObjectComposedDataIncreaseRealstar(PetscObject);
-extern PetscErrorCode  PetscObjectComposedDataIncreaseScalar(PetscObject);
-extern PetscErrorCode  PetscObjectComposedDataIncreaseScalarstar(PetscObject);
-extern PetscInt        PetscObjectComposedDataMax;
+PETSC_EXTERN PetscErrorCode PetscObjectStateQuery(PetscObject,PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscObjectSetState(PetscObject,PetscInt);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataRegister(PetscInt*);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataIncreaseInt(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataIncreaseIntstar(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataIncreaseReal(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataIncreaseRealstar(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataIncreaseScalar(PetscObject);
+PETSC_EXTERN PetscErrorCode PetscObjectComposedDataIncreaseScalarstar(PetscObject);
+PETSC_EXTERN PetscInt         PetscObjectComposedDataMax;
 /*MC
    PetscObjectComposedDataSetInt - attach integer data to a PetscObject
 
@@ -488,7 +531,7 @@ M*/
    ((obj)->intstarcomposeddata[id] = data,(obj)->intstarcomposedstate[id] = (obj)->state, 0))
 
 /*MC
-   PetscObjectComposedDataGetIntstar - retrieve integer array data 
+   PetscObjectComposedDataGetIntstar - retrieve integer array data
    attached to an object
 
    Synopsis:
@@ -664,7 +707,7 @@ M*/
 #endif
 
 /*MC
-   PetscObjectComposedDataSetScalarstar - attach scalar array data to a PetscObject 
+   PetscObjectComposedDataSetScalarstar - attach scalar array data to a PetscObject
 
    Synopsis:
    PetscErrorCode PetscObjectComposedDataSetScalarstar(PetscObject obj,int id,PetscScalar *data)
@@ -721,12 +764,12 @@ M*/
 #endif
 
 /* some vars for logging */
-extern  PetscBool  PetscPreLoadingUsed;       /* true if we are or have done preloading */
-extern  PetscBool  PetscPreLoadingOn;         /* true if we are currently in a preloading calculation */
+PETSC_EXTERN PetscBool PetscPreLoadingUsed;       /* true if we are or have done preloading */
+PETSC_EXTERN PetscBool PetscPreLoadingOn;         /* true if we are currently in a preloading calculation */
 
-extern  PetscMPIInt Petsc_Counter_keyval;
-extern  PetscMPIInt Petsc_InnerComm_keyval;
-extern  PetscMPIInt Petsc_OuterComm_keyval;
+PETSC_EXTERN PetscMPIInt Petsc_Counter_keyval;
+PETSC_EXTERN PetscMPIInt Petsc_InnerComm_keyval;
+PETSC_EXTERN PetscMPIInt Petsc_OuterComm_keyval;
 
 /*
   PETSc communicators have this attribute, see
@@ -738,6 +781,5 @@ typedef struct {
   PetscInt    namecount;        /* used to generate the next name, as in Vec_0, Mat_1, ... */
 } PetscCommCounter;
 
-PETSC_EXTERN_CXX_END
 
 #endif /* _PETSCHEAD_H */

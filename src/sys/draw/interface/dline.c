@@ -3,9 +3,9 @@
        Provides the calling sequences for all the basic PetscDraw routines.
 */
 #include <../src/sys/draw/drawimpl.h>  /*I "petscdraw.h" I*/
-  
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLine" 
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLine"
 /*@
    PetscDrawLine - PetscDraws a line onto a drawable.
 
@@ -29,14 +29,15 @@ PetscErrorCode  PetscDrawLine(PetscDraw draw,PetscReal xl,PetscReal yl,PetscReal
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  ierr = PetscTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isdrawnull);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isdrawnull);CHKERRQ(ierr);
   if (isdrawnull) PetscFunctionReturn(0);
+  if (!draw->ops->line) SETERRQ(((PetscObject)draw)->comm,PETSC_ERR_SUP,"No support for drawing lines");
   ierr = (*draw->ops->line)(draw,xl,yl,xr,yr,cl);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawArrow" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawArrow"
 /*@
    PetscDrawArrow - PetscDraws a line with arrow head at end if the line is long enough
 
@@ -60,8 +61,9 @@ PetscErrorCode  PetscDrawArrow(PetscDraw draw,PetscReal xl,PetscReal yl,PetscRea
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
-  ierr = PetscTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isdrawnull);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)draw,PETSC_DRAW_NULL,&isdrawnull);CHKERRQ(ierr);
   if (isdrawnull) PetscFunctionReturn(0);
+  if (!draw->ops->arrow) SETERRQ(((PetscObject)draw)->comm,PETSC_ERR_SUP,"No support for drawing arrows");
   ierr = (*draw->ops->arrow)(draw,xl,yl,xr,yr,cl);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

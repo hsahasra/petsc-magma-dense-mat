@@ -23,7 +23,7 @@ This uses multigrid to solve the linear system
 
 Note the nice multigrid convergence despite the fact it is only using
 peicewise constant interpolation/restriction. This is because cell-centered multigrid
-does not need the same rule: 
+does not need the same rule:
 
     polynomial degree(interpolation) + polynomial degree(restriction) + 2 > degree of PDE
 
@@ -58,14 +58,14 @@ int main(int argc,char **argv)
   PetscInt       bc;
 
   PetscInitialize(&argc,&argv,(char *)0,help);
-  
+
   ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
-  ierr = DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,DMDA_STENCIL_STAR,12,12,PETSC_DECIDE,PETSC_DECIDE,1,1,0,0,&da);CHKERRQ(ierr);  
-  ierr = DMDASetInterpolationType(da, DMDA_Q0);CHKERRQ(ierr);  
-  
+  ierr = DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,DMDA_STENCIL_STAR,12,12,PETSC_DECIDE,PETSC_DECIDE,1,1,0,0,&da);CHKERRQ(ierr);
+  ierr = DMDASetInterpolationType(da, DMDA_Q0);CHKERRQ(ierr);
+
   ierr = KSPSetDM(ksp,da);CHKERRQ(ierr);
 
-  
+
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD, "", "Options for the inhomogeneous Poisson equation", "DM");
   user.nu     = 0.1;
   ierr        = PetscOptionsScalar("-nu", "The width of the Gaussian source", "ex29.c", 0.1, &user.nu, PETSC_NULL);CHKERRQ(ierr);
@@ -79,7 +79,7 @@ int main(int argc,char **argv)
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
 
   ierr = KSPSolve(ksp,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
-  
+
   ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = PetscFinalize();
@@ -105,7 +105,7 @@ PetscErrorCode ComputeRHS(KSP ksp,Vec b,void *ctx)
   ierr = DMDAGetCorners(da,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(da, b, &array);CHKERRQ(ierr);
   for (j=ys; j<ys+ym; j++){
-    for(i=xs; i<xs+xm; i++){
+    for (i=xs; i<xs+xm; i++){
       array[j][i] = PetscExpScalar(-(((PetscReal)i+0.5)*Hx)*(((PetscReal)i+0.5)*Hx)/user->nu)*PetscExpScalar(-(((PetscReal)j+0.5)*Hy)*(((PetscReal)j+0.5)*Hy)/user->nu)*Hx*Hy;
     }
   }
@@ -125,7 +125,7 @@ PetscErrorCode ComputeRHS(KSP ksp,Vec b,void *ctx)
   PetscFunctionReturn(0);
 }
 
-    
+
 #undef __FUNCT__
 #define __FUNCT__ "ComputeMatrix"
 PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac,MatStructure *str, void *ctx)
@@ -139,14 +139,14 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac,MatStructure *str, void *ctx
 
   PetscFunctionBegin;
   ierr = KSPGetDM(ksp,&da);CHKERRQ(ierr);
-  ierr = DMDAGetInfo(da,0,&mx,&my,0,0,0,0,0,0,0,0,0,0);CHKERRQ(ierr);  
+  ierr = DMDAGetInfo(da,0,&mx,&my,0,0,0,0,0,0,0,0,0,0);CHKERRQ(ierr);
   Hx    = 1.0 / (PetscReal)(mx);
   Hy    = 1.0 / (PetscReal)(my);
   HxdHy = Hx/Hy;
   HydHx = Hy/Hx;
   ierr = DMDAGetCorners(da,&xs,&ys,0,&xm,&ym,0);CHKERRQ(ierr);
   for (j=ys; j<ys+ym; j++)  {
-    for(i=xs; i<xs+xm; i++) {
+    for (i=xs; i<xs+xm; i++) {
       row.i = i; row.j = j;
       if (i==0 || j==0 || i==mx-1 || j==my-1) {
 	if (user->bcType == DIRICHLET) {
@@ -156,26 +156,26 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac,MatStructure *str, void *ctx
 	} else if (user->bcType == NEUMANN) {
 	  num = 0; numi=0; numj=0;
 	  if (j!=0)  {
-	    v[num] = -HxdHy;              
-	    col[num].i = i;   
+	    v[num] = -HxdHy;
+	    col[num].i = i;
 	    col[num].j = j-1;
 	    num++; numj++;
 	  }
 	  if (i!=0)   {
-	    v[num] = -HydHx;              
-	    col[num].i = i-1; 
+	    v[num] = -HydHx;
+	    col[num].i = i-1;
 	    col[num].j = j;
 	    num++; numi++;
 	  }
 	  if (i!=mx-1) {
-	    v[num] = -HydHx;              
-	    col[num].i = i+1; 
+	    v[num] = -HydHx;
+	    col[num].i = i+1;
 	    col[num].j = j;
 	    num++; numi++;
 	  }
 	  if (j!=my-1)  {
-	    v[num] = -HxdHy;              
-	    col[num].i = i;   
+	    v[num] = -HxdHy;
+	    col[num].i = i;
 	    col[num].j = j+1;
 	    num++; numj++;
 	  }

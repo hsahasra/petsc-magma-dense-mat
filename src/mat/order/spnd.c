@@ -5,13 +5,14 @@
 EXTERN_C_BEGIN
 /*
     MatGetOrdering_ND - Find the nested dissection ordering of a given matrix.
-*/    
-#undef __FUNCT__  
+*/
+#undef __FUNCT__
 #define __FUNCT__ "MatGetOrdering_ND"
-PetscErrorCode  MatGetOrdering_ND(Mat mat,const MatOrderingType type,IS *row,IS *col)
+PetscErrorCode  MatGetOrdering_ND(Mat mat,MatOrderingType type,IS *row,IS *col)
 {
   PetscErrorCode ierr;
-  PetscInt       i, *mask,*xls,*ls,nrow,*ia,*ja,*perm;
+  PetscInt       i, *mask,*xls,*ls,nrow,*perm;
+  const PetscInt *ia,*ja;
   PetscBool      done;
 
   PetscFunctionBegin;

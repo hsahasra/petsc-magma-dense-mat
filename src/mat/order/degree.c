@@ -24,10 +24,11 @@
 /*       LS - A TEMPORARY VECTOR USED TO STORE THE NODES OF THE*/
 /*              COMPONENT LEVEL BY LEVEL.*/
 /*****************************************************************/
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKdegree" 
-PetscErrorCode SPARSEPACKdegree(PetscInt *root, PetscInt *xadj,PetscInt *adjncy,PetscInt *mask,PetscInt *deg,PetscInt *ccsize,PetscInt *ls)
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKdegree"
+PetscErrorCode SPARSEPACKdegree(const PetscInt *root,const PetscInt *inxadj,const PetscInt *adjncy,PetscInt *mask,PetscInt *deg,PetscInt *ccsize,PetscInt *ls)
 {
+    PetscInt *xadj = (PetscInt*)inxadj; /* Used as temporary and reset within this function */
     /* System generated locals */
     PetscInt i__1,i__2;
 
@@ -85,7 +86,7 @@ L300:
 	deg[node] = ideg;
     }
 /*       COMPUTE THE CURRENT LEVEL WIDTH. */
-/*       IF IT IS NONZERO, GENERATE ANOTHER LEVEL.*/                       
+/*       IF IT IS NONZERO, GENERATE ANOTHER LEVEL.*/
     lvsize = *ccsize - lvlend;
     if (lvsize > 0) {
 	goto L100;

@@ -81,6 +81,9 @@ PetscErrorCode TSPSolve_Sundials(realtype tn,N_Vector y,N_Vector fy,N_Vector r,N
 int TSFunction_Sundials(realtype t,N_Vector y,N_Vector ydot,void *ctx)
 {
   TS              ts = (TS) ctx;
+  DM              dm;
+  TSDM            tsdm;
+  TSIFunction     ifunction;
   MPI_Comm        comm = ((PetscObject)ts)->comm;
   TS_Sundials     *cvode = (TS_Sundials*)ts->data;
   Vec             yy = cvode->w1,yyd = cvode->w2,yydot = cvode->ydot;
@@ -94,8 +97,11 @@ int TSFunction_Sundials(realtype t,N_Vector y,N_Vector ydot,void *ctx)
   ierr = VecPlaceArray(yy,y_data);CHKERRABORT(comm,ierr);
   ierr = VecPlaceArray(yyd,ydot_data); CHKERRABORT(comm,ierr);
 
-  /* now compute the right hand side function */
-  if (!ts->userops->ifunction) {
+  /* Now compute the right hand side function, via IFunction unless only the more efficient RHSFunction is set */
+  ierr = TSGetDM(ts,&dm);CHKERRQ(ierr);
+  ierr = DMTSGetContext(dm,&tsdm);CHKERRQ(ierr);
+  ierr = DMTSGetIFunction(dm,&ifunction,PETSC_NULL);CHKERRQ(ierr);
+  if (!ifunction) {
     ierr = TSComputeRHSFunction(ts,t,yy,yyd);CHKERRQ(ierr);
   } else {                      /* If rhsfunction is also set, this computes both parts and shifts them to the right */
     ierr = VecZeroEntries(yydot);CHKERRQ(ierr);
@@ -132,6 +138,8 @@ PetscErrorCode TSStep_Sundials(TS ts)
   ierr = TSPreStep(ts);CHKERRQ(ierr);
 
   if (cvode->monitorstep) {
+    /* We would like to call TSPreStep() when starting each step (including rejections) and TSPreStage() before each
+     * stage solve, but CVode does not appear to support this. */
     flag = CVode(mem,tout,cvode->y,&t,CV_ONE_STEP);
   } else {
     flag = CVode(mem,tout,cvode->y,&t,CV_NORMAL);
@@ -196,7 +204,7 @@ PetscErrorCode TSStep_Sundials(TS ts)
   ierr = VecCopy(cvode->update,ts->vec_sol);CHKERRQ(ierr);
   ierr = CVodeGetNumNonlinSolvIters(mem,&its);CHKERRQ(ierr);
   ierr = CVSpilsGetNumLinIters(mem, &its);
-  ts->nonlinear_its = its; ts->linear_its = its;
+  ts->snes_its = its; ts->ksp_its = its;
 
   ts->time_step = t - ts->ptime;
   ts->ptime     = t;
@@ -285,7 +293,7 @@ PetscErrorCode TSSetUp_Sundials(TS ts)
   PetscScalar    *y_data,*parray;
   void           *mem;
   PC             pc;
-  const PCType   pctype;
+  PCType         pctype;
   PetscBool      pcnone;
 
   PetscFunctionBegin;
@@ -368,7 +376,7 @@ PetscErrorCode TSSetUp_Sundials(TS ts)
   /* setup the ode integrator with the given preconditioner */
   ierr = TSSundialsGetPC(ts,&pc); CHKERRQ(ierr);
   ierr = PCGetType(pc,&pctype);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)pc,PCNONE,&pcnone);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)pc,PCNONE,&pcnone);CHKERRQ(ierr);
   if (pcnone){
     flag  = CVSpgmr(mem,PREC_NONE,0);
     if (flag) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CVSpgmr() fails, flag %d",flag);
@@ -388,9 +396,9 @@ PetscErrorCode TSSetUp_Sundials(TS ts)
 }
 
 /* type of CVODE linear multistep method */
-const char *TSSundialsLmmTypes[] = {"","adams","bdf","TSSundialsLmmType","SUNDIALS_",0};
+const char *const TSSundialsLmmTypes[] = {"","ADAMS","BDF","TSSundialsLmmType","SUNDIALS_",0};
 /* type of G-S orthogonalization used by CVODE linear solver */
-const char *TSSundialsGramSchmidtTypes[] = {"","modified","classical","TSSundialsGramSchmidtType","SUNDIALS_",0};
+const char *const TSSundialsGramSchmidtTypes[] = {"","MODIFIED","CLASSICAL","TSSundialsGramSchmidtType","SUNDIALS_",0};
 
 #undef __FUNCT__
 #define __FUNCT__ "TSSetFromOptions_Sundials"
@@ -444,8 +452,8 @@ PetscErrorCode TSView_Sundials(TS ts,PetscViewer viewer)
   if (cvode->cvode_type == SUNDIALS_ADAMS) {type = atype;}
   else                                     {type = btype;}
 
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERSTRING,&isstring);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERSTRING,&isstring);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"Sundials integrater does not use SNES!\n");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"Sundials integrater type %s\n",type);CHKERRQ(ierr);
@@ -614,8 +622,8 @@ EXTERN_C_BEGIN
 PetscErrorCode  TSSundialsGetIterations_Sundials(TS ts,int *nonlin,int *lin)
 {
   PetscFunctionBegin;
-  if (nonlin) *nonlin = ts->nonlinear_its;
-  if (lin)    *lin    = ts->linear_its;
+  if (nonlin) *nonlin = ts->snes_its;
+  if (lin)    *lin    = ts->ksp_its;
   PetscFunctionReturn(0);
 }
 EXTERN_C_END

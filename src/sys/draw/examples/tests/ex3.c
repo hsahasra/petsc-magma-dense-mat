@@ -19,11 +19,11 @@ int main(int argc,char **argv)
 
   xlabel = "X-axis Label";toplabel = "Top Label";ylabel = "Y-axis Label";
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-width",&width,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-height",&height,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-n",&n,PETSC_NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsHasName(PETSC_NULL,"-nolabels",&flg);CHKERRQ(ierr); 
+  ierr = PetscOptionsHasName(PETSC_NULL,"-nolabels",&flg);CHKERRQ(ierr);
   if (flg) {
     xlabel = (char *)0; toplabel = (char *)0;
   }
@@ -46,7 +46,6 @@ int main(int argc,char **argv)
   ierr = PetscDrawLGDraw(lg);CHKERRQ(ierr);
   ierr = PetscDrawString(draw,-3.,150.0,PETSC_DRAW_BLUE,"A legend");CHKERRQ(ierr);
   ierr = PetscDrawFlush(draw);CHKERRQ(ierr);
-  ierr = PetscSleep(2);CHKERRQ(ierr);
 
   ierr = PetscDrawViewPortsDestroy(ports);CHKERRQ(ierr);
   ierr = PetscDrawLGDestroy(&lg);CHKERRQ(ierr);
@@ -54,4 +53,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

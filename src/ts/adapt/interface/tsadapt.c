@@ -127,7 +127,7 @@ PetscErrorCode  TSAdaptRegisterDestroy(void)
 
 #undef __FUNCT__
 #define __FUNCT__ "TSAdaptSetType"
-PetscErrorCode  TSAdaptSetType(TSAdapt adapt,const TSAdaptType type)
+PetscErrorCode  TSAdaptSetType(TSAdapt adapt,TSAdaptType type)
 {
   PetscErrorCode ierr,(*r)(TSAdapt);
 
@@ -159,10 +159,10 @@ PetscErrorCode  TSAdaptView(TSAdapt adapt,PetscViewer viewer)
   PetscBool      iascii;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscObjectPrintClassNamePrefixType((PetscObject)adapt,viewer,"TSAdapt Object");CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"number of candidates %D\n",adapt->candidates.n);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  number of candidates %D\n",adapt->candidates.n);CHKERRQ(ierr);
     if (adapt->ops->view) {
       ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
       ierr = (*adapt->ops->view)(adapt,viewer);CHKERRQ(ierr);
@@ -215,6 +215,37 @@ PetscErrorCode TSAdaptSetMonitor(TSAdapt adapt,PetscBool flg)
   } else {
     ierr = PetscViewerDestroy(&adapt->monitor);CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "TSAdaptSetCheckStage"
+/*@C
+   TSAdaptSetCheckStage - set a callback to check convergence for a stage
+
+   Logically collective on TSAdapt
+
+   Input Arguments:
++  adapt - adaptive controller context
+-  func - stage check function
+
+   Arguments of func:
+$  PetscErrorCode func(TSAdapt adapt,TS ts,PetscBool *accept)
+
++  adapt - adaptive controller context
+.  ts - time stepping context
+-  accept - pending choice of whether to accept, can be modified by this routine
+
+   Level: advanced
+
+.seealso: TSAdaptChoose()
+@*/
+PetscErrorCode TSAdaptSetCheckStage(TSAdapt adapt,PetscErrorCode (*func)(TSAdapt,TS,PetscBool*))
+{
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(adapt,TSADAPT_CLASSID,1);
+  adapt->ops->checkstage = func;
   PetscFunctionReturn(0);
 }
 
@@ -280,7 +311,7 @@ PetscErrorCode  TSAdaptSetFromOptions(TSAdapt adapt)
   * function can only be called from inside TSSetFromOptions_GL()  */
   ierr = PetscOptionsHead("TS Adaptivity options");CHKERRQ(ierr);
   ierr = PetscOptionsList("-ts_adapt_type","Algorithm to use for adaptivity","TSAdaptSetType",TSAdaptList,
-                          ((PetscObject)adapt)->type_name?((PetscObject)adapt)->type_name:type,type,sizeof type,&flg);CHKERRQ(ierr);
+                          ((PetscObject)adapt)->type_name?((PetscObject)adapt)->type_name:type,type,sizeof(type),&flg);CHKERRQ(ierr);
   if (flg || !((PetscObject)adapt)->type_name) {
     ierr = TSAdaptSetType(adapt,type);CHKERRQ(ierr);
   }
@@ -294,7 +325,7 @@ PetscErrorCode  TSAdaptSetFromOptions(TSAdapt adapt)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "TSAdaptCandidatesClear"
 /*@
    TSAdaptCandidatesClear - clear any previously set candidate schemes
@@ -317,7 +348,7 @@ PetscErrorCode TSAdaptCandidatesClear(TSAdapt adapt)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "TSAdaptCandidateAdd"
 /*@C
    TSAdaptCandidateAdd - add a candidate scheme for the adaptive controller to select from
@@ -442,9 +473,9 @@ PetscErrorCode TSAdaptChoose(TSAdapt adapt,TS ts,PetscReal h,PetscInt *next_sc,P
   if (adapt->monitor) {
     ierr = PetscViewerASCIIAddTab(adapt->monitor,((PetscObject)adapt)->tablevel);CHKERRQ(ierr);
     if (wlte < 0) {
-      ierr = PetscViewerASCIIPrintf(adapt->monitor,"    TSAdapt '%s': step %3D %s t=%-11g+%10.3e family='%s' scheme=%D:'%s' dt=%-10g\n",((PetscObject)adapt)->type_name,ts->steps,*accept?"accepted":"rejected",(double)ts->ptime,h,((PetscObject)ts)->type_name,*next_sc,adapt->candidates.name[*next_sc],(double)*next_h);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(adapt->monitor,"    TSAdapt '%s': step %3D %s t=%-11g+%10.3e family='%s' scheme=%D:'%s' dt=%-10g\n",((PetscObject)adapt)->type_name,ts->steps,*accept?"accepted":"rejected",(double)ts->ptime,(double)h,((PetscObject)ts)->type_name,*next_sc,adapt->candidates.name[*next_sc],(double)*next_h);CHKERRQ(ierr);
     } else {
-      ierr = PetscViewerASCIIPrintf(adapt->monitor,"    TSAdapt '%s': step %3D %s t=%-11g+%10.3e wlte=%5.3g family='%s' scheme=%D:'%s' dt=%-10.3e\n",((PetscObject)adapt)->type_name,ts->steps,*accept?"accepted":"rejected",(double)ts->ptime,h,(double)wlte,((PetscObject)ts)->type_name,*next_sc,adapt->candidates.name[*next_sc],(double)*next_h);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(adapt->monitor,"    TSAdapt '%s': step %3D %s t=%-11g+%10.3e wlte=%5.3g family='%s' scheme=%D:'%s' dt=%-10.3e\n",((PetscObject)adapt)->type_name,ts->steps,*accept?"accepted":"rejected",(double)ts->ptime,(double)h,(double)wlte,((PetscObject)ts)->type_name,*next_sc,adapt->candidates.name[*next_sc],(double)*next_h);CHKERRQ(ierr);
     }
     ierr = PetscViewerASCIISubtractTab(adapt->monitor,((PetscObject)adapt)->tablevel);CHKERRQ(ierr);
   }
@@ -483,7 +514,7 @@ PetscErrorCode TSAdaptCheckStage(TSAdapt adapt,TS ts,PetscBool *accept)
     PetscReal dt,new_dt;
     *accept = PETSC_FALSE;
     ierr = TSGetTimeStep(ts,&dt);CHKERRQ(ierr);
-    if (ts->max_snes_failures > 0 && ++ts->num_snes_failures >= ts->max_snes_failures) {
+    if (++ts->num_snes_failures >= ts->max_snes_failures && ts->max_snes_failures > 0) {
       ts->reason = TS_DIVERGED_NONLINEAR_SOLVE;
       ierr = PetscInfo2(ts,"Step=%D, nonlinear solve solve failures %D greater than current TS allowed, stopping solve\n",ts->steps,ts->num_snes_failures);CHKERRQ(ierr);
       if (adapt->monitor) {
@@ -501,8 +532,11 @@ PetscErrorCode TSAdaptCheckStage(TSAdapt adapt,TS ts,PetscBool *accept)
       }
     }
   }
+  if (adapt->ops->checkstage) {ierr = (*adapt->ops->checkstage)(adapt,ts,accept);CHKERRQ(ierr);}
   PetscFunctionReturn(0);
 }
+
+
 
 #undef __FUNCT__
 #define __FUNCT__ "TSAdaptCreate"

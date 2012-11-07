@@ -25,12 +25,13 @@
    23 KSP Residual norm 0.00228274 
    24 KSP Residual norm 0.000332991 
    25 KSP Residual norm 0.000118315 
-   26 KSP Residual norm 3.61091e-05 
+   26 KSP Residual norm 3.57037e-05 
    27 KSP Residual norm 2.75633e-05 
    28 KSP Residual norm 2.68435e-05 
-   29 KSP Residual norm 4.38538e-07 
-   30 KSP Residual norm 6.726e-10 
-  1 SNES Function norm 2.64523e-09 
+   29 KSP Residual norm 4.38447e-07 
+   30 KSP Residual norm 6.741e-10 
+  1 SNES Function norm 2.65348e-09 
+Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
 SNES Object: 1 MPI processes
   type: ls
   maximum iterations=50, maximum function evaluations=10000
@@ -58,13 +59,12 @@ SNES Object: 1 MPI processes
   SNESLineSearch Object:   1 MPI processes
     type: bt
       interpolation: cubic
-      alpha=0.0001
-    maxstep=1e+08, minlambda=1e-12
-    tolerances: relative=1e-08, absolute=1e-15, lambda=1e-08
+      alpha=1.000000e-04
+    maxstep=1.000000e+08, minlambda=1.000000e-12
+    tolerances: relative=1.000000e-08, absolute=1.000000e-15, lambda=1.000000e-08
     maximum iterations=40
-Nonlinear solve converged due to CONVERGED_FNORM_RELATIVE iterations 1
 Number of SNES iterations = 1
-L_2 Error: 9.29e-10
+L_2 Error: 7.47e-10
 Solution
 Vector Object: 1 MPI processes
   type: seq

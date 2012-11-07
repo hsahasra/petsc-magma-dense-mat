@@ -1,10 +1,10 @@
+static char help[] = "testing SeqDense matrices with an LDA (leading dimension of the user-allocated arrray) larger than M.\n";
 /*
  * Example code testing SeqDense matrices with an LDA (leading dimension
  * of the user-allocated arrray) larger than M.
- * This example tests the functionality of MatInsertValues, MatMult,
- * and MatMultTranspose.
+ * This example tests the functionality of MatInsertValues(), MatMult(),
+ * and MatMultTranspose().
  */
-#include <stdlib.h>
 #include <petscmat.h>
 
 #undef __FUNCT__
@@ -18,7 +18,7 @@ int main(int argc,char **argv)
   PetscErrorCode ierr;
   PetscInt       size=8,size1=6,size2=2, i,j;
 
-  PetscInitialize(&argc,&argv,0,0);
+  PetscInitialize(&argc,&argv,0,help);
 
   /*
    * Create matrix and three vectors: these are all normal
@@ -106,11 +106,12 @@ int main(int argc,char **argv)
   ierr = MatMultAdd(A21,X1,Z2,Z2);CHKERRQ(ierr);
   ierr = VecAXPY(Z,-1.0,Y);CHKERRQ(ierr);
   ierr = VecNorm(Z,NORM_2,&nrm);
-  printf("Test1; error norm=%e\n",nrm);
-  
-  printf("MatMult the usual way:\n"); VecView(Y,0);
-  printf("MatMult by subblock:\n"); VecView(Z,0);
-  
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Test1; error norm=%G\n",nrm);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"MatMult the usual way:\n");CHKERRQ(ierr);
+  ierr = VecView(Y,0);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"MatMult by subblock:\n");CHKERRQ(ierr);
+  ierr = VecView(Z,0);CHKERRQ(ierr);
 
   /*
    * Next test: change both matrices
@@ -137,7 +138,7 @@ int main(int argc,char **argv)
   ierr = MatMultAdd(A21,X1,Z2,Z2);CHKERRQ(ierr);
   ierr = VecAXPY(Z,-1.0,Y);CHKERRQ(ierr);
   ierr = VecNorm(Z,NORM_2,&nrm);
-  printf("Test2; error norm=%e\n",nrm);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Test2; error norm=%G\n",nrm);CHKERRQ(ierr);
 
   /*
    * Transpose product
@@ -149,7 +150,7 @@ int main(int argc,char **argv)
   ierr = MatMultTransposeAdd(A12,X1,Z2,Z2);CHKERRQ(ierr);
   ierr = VecAXPY(Z,-1.0,Y);CHKERRQ(ierr);
   ierr = VecNorm(Z,NORM_2,&nrm);
-  printf("Test3; error norm=%e\n",nrm);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Test3; error norm=%G\n",nrm);CHKERRQ(ierr);
 
   ierr = PetscFree(a);CHKERRQ(ierr);
   ierr = PetscFree(b);CHKERRQ(ierr);

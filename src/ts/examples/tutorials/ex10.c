@@ -36,21 +36,21 @@ typedef struct {
 typedef struct _n_RD *RD;
 
 struct _n_RD {
-  void           (*MaterialEnergy)(RD,const RDNode*,PetscScalar*,RDNode*);
-  DM             da;
-  PetscBool      monitor_residual;
+  void               (*MaterialEnergy)(RD,const RDNode*,PetscScalar*,RDNode*);
+  DM                 da;
+  PetscBool          monitor_residual;
   DiscretizationType discretization;
-  QuadratureType quadrature;
-  JacobianType   jacobian;
-  PetscInt       initial;
-  BCType         leftbc;
-  PetscBool      view_draw;
-  char           view_binary[PETSC_MAX_PATH_LEN];
-  PetscBool      test_diff;
-  PetscBool      endpoint;
-  PetscBool      bclimit;
-  PetscBool      bcmidpoint;
-  RDUnit         unit;
+  QuadratureType     quadrature;
+  JacobianType       jacobian;
+  PetscInt           initial;
+  BCType             leftbc;
+  PetscBool          view_draw;
+  char               view_binary[PETSC_MAX_PATH_LEN];
+  PetscBool          test_diff;
+  PetscBool          endpoint;
+  PetscBool          bclimit;
+  PetscBool          bcmidpoint;
+  RDUnit             unit;
 
   /* model constants, see Table 2 and RDCreate() */
   PetscReal rho,K_R,K_p,I_H,m_p,m_e,h,k,c,sigma_b,beta,gamma;
@@ -61,7 +61,7 @@ struct _n_RD {
   PetscReal final_time;
 };
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDDestroy"
 static PetscErrorCode RDDestroy(RD *rd)
 {
@@ -172,7 +172,7 @@ static void RDDiffusionCoefficient(RD rd,PetscBool  limit,RDNode *n,RDNode *nx,P
   }
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDStateView"
 static PetscErrorCode RDStateView(RD rd,Vec X,Vec Xdot,Vec F)
 {
@@ -254,7 +254,7 @@ static PetscScalar RDDiffusion(RD rd,PetscReal hx,const RDNode x[],PetscInt i,RD
   return ihx*(fluxR - fluxL);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDGetLocalArrays"
 static PetscErrorCode RDGetLocalArrays(RD rd,TS ts,Vec X,Vec Xdot,PetscReal *Theta,PetscReal *dt,Vec *X0loc,RDNode **x0,Vec *Xloc,RDNode **x,Vec *Xloc_t,RDNode **xdot)
 {
@@ -276,7 +276,7 @@ static PetscErrorCode RDGetLocalArrays(RD rd,TS ts,Vec X,Vec Xdot,PetscReal *The
     rule.  These methods have equivalent linear stability, but the nonlinear stability is somewhat different.  The
     radiation system is inconvenient to write in explicit form because the ionization model is "on the left".
    */
-  ierr = PetscTypeCompare((PetscObject)ts,TSTHETA,&istheta);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)ts,TSTHETA,&istheta);CHKERRQ(ierr);
   if (istheta && rd->endpoint) {
     ierr = TSThetaGetTheta(ts,Theta);CHKERRQ(ierr);
   } else {
@@ -294,7 +294,7 @@ static PetscErrorCode RDGetLocalArrays(RD rd,TS ts,Vec X,Vec Xdot,PetscReal *The
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDRestoreLocalArrays"
 static PetscErrorCode RDRestoreLocalArrays(RD rd,Vec *X0loc,RDNode **x0,Vec *Xloc,RDNode **x,Vec *Xloc_t,RDNode **xdot)
 {
@@ -310,7 +310,7 @@ static PetscErrorCode RDRestoreLocalArrays(RD rd,Vec *X0loc,RDNode **x0,Vec *Xlo
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDCheckDomain_Private"
 static PetscErrorCode RDCheckDomain_Private(RD rd,TS ts,Vec X,PetscBool  *in) {
   PetscErrorCode ierr;
@@ -339,7 +339,7 @@ static PetscErrorCode RDCheckDomain_Private(RD rd,TS ts,Vec X,PetscBool  *in) {
     if (!_in) PetscFunctionReturn(0);                              \
   } while (0)
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDIFunction_FD"
 static PetscErrorCode RDIFunction_FD(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,void *ctx)
 {
@@ -528,7 +528,7 @@ static void RDEvaluate(PetscReal interp[][2],PetscReal deriv[][2],PetscInt q,con
   }
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDGetQuadrature"
 /*
  Various quadrature rules.  The nonlinear terms are non-polynomial so no standard quadrature will be exact.
@@ -583,7 +583,7 @@ static PetscErrorCode RDGetQuadrature(RD rd,PetscReal hx,PetscInt *nq,PetscReal 
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDIFunction_FE"
 /*
  Finite element version
@@ -672,7 +672,7 @@ static PetscErrorCode RDIFunction_FE(TS ts,PetscReal t,Vec X,Vec Xdot,Vec F,void
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDIJacobian_FE"
 static PetscErrorCode RDIJacobian_FE(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal a,Mat *A,Mat *B,MatStructure *mstr,void *ctx)
 {
@@ -750,7 +750,7 @@ static PetscErrorCode RDIJacobian_FE(TS ts,PetscReal t,Vec X,Vec Xdot,PetscReal 
 static PetscScalar RDRadiationTemperature(RD rd,PetscScalar E)
 { return pow(E*rd->c/(4.*rd->sigma_b),0.25); }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDInitialState"
 static PetscErrorCode RDInitialState(RD rd,Vec X)
 {
@@ -784,7 +784,7 @@ static PetscErrorCode RDInitialState(RD rd,Vec X)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDView"
 static PetscErrorCode RDView(RD rd,Vec X,PetscViewer viewer)
 {
@@ -825,7 +825,7 @@ static PetscErrorCode RDView(RD rd,Vec X,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "RDTestDifferentiation"
 static PetscErrorCode RDTestDifferentiation(RD rd)
 {
@@ -910,6 +910,7 @@ static PetscErrorCode RDCreate(MPI_Comm comm,RD *inrd)
 
   ierr = PetscOptionsBegin(comm,PETSC_NULL,"Options for nonequilibrium radiation-diffusion with RD ionization",PETSC_NULL);CHKERRQ(ierr);
   {
+    rd->initial = 1;
     ierr = PetscOptionsInt("-rd_initial","Initial condition (1=Marshak, 2=Blast, 3=Marshak+)","",rd->initial,&rd->initial,0);CHKERRQ(ierr);
     switch (rd->initial) {
     case 1:
@@ -1025,7 +1026,7 @@ static PetscErrorCode RDCreate(MPI_Comm comm,RD *inrd)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc, char *argv[])
 {
@@ -1037,7 +1038,6 @@ int main(int argc, char *argv[])
   Mat            A,B;
   PetscInt       steps;
   PetscReal      ftime;
-  MatFDColoring  matfdcoloring = 0;
 
   ierr = PetscInitialize(&argc,&argv,0,help);CHKERRQ(ierr);
   ierr = RDCreate(PETSC_COMM_WORLD,&rd);CHKERRQ(ierr);
@@ -1048,14 +1048,15 @@ int main(int argc, char *argv[])
   ierr = TSCreate(PETSC_COMM_WORLD,&ts);CHKERRQ(ierr);
   ierr = TSSetProblemType(ts,TS_NONLINEAR);CHKERRQ(ierr);
   ierr = TSSetType(ts,TSTHETA);CHKERRQ(ierr);
+  ierr = TSSetDM(ts,rd->da);CHKERRQ(ierr);
   switch (rd->discretization) {
   case DISCRETIZATION_FD:
     ierr = TSSetIFunction(ts,PETSC_NULL,RDIFunction_FD,rd);CHKERRQ(ierr);
-    ierr = TSSetIJacobian(ts,B,B,RDIJacobian_FD,rd);CHKERRQ(ierr);
+    if (rd->jacobian == JACOBIAN_ANALYTIC) ierr = TSSetIJacobian(ts,B,B,RDIJacobian_FD,rd);CHKERRQ(ierr);
     break;
   case DISCRETIZATION_FE:
     ierr = TSSetIFunction(ts,PETSC_NULL,RDIFunction_FE,rd);CHKERRQ(ierr);
-    ierr = TSSetIJacobian(ts,B,B,RDIJacobian_FE,rd);CHKERRQ(ierr);
+    if (rd->jacobian == JACOBIAN_ANALYTIC) ierr = TSSetIJacobian(ts,B,B,RDIJacobian_FE,rd);CHKERRQ(ierr);
     break;
   }
   ierr = TSSetDuration(ts,10000,rd->final_time);CHKERRQ(ierr);
@@ -1070,13 +1071,7 @@ int main(int argc, char *argv[])
   case JACOBIAN_MATRIXFREE:
     break;
   case JACOBIAN_FD_COLORING: {
-    ISColoring     iscoloring;
-    ierr = DMCreateColoring(rd->da,IS_COLORING_GLOBAL,MATAIJ,&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringCreate(B,iscoloring,&matfdcoloring);CHKERRQ(ierr);
-    ierr = ISColoringDestroy(&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFunction(matfdcoloring,(PetscErrorCode(*)(void))SNESTSFormFunction,ts);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFromOptions(matfdcoloring);CHKERRQ(ierr);
-    ierr = SNESSetJacobian(snes,A,B,SNESDefaultComputeJacobianColor,matfdcoloring);CHKERRQ(ierr);
+    ierr = SNESSetJacobian(snes,A,B,SNESDefaultComputeJacobianColor,0);CHKERRQ(ierr);
   } break;
   case JACOBIAN_FD_FULL:
     ierr = SNESSetJacobian(snes,A,B,SNESDefaultComputeJacobian,ts);CHKERRQ(ierr);
@@ -1098,8 +1093,6 @@ int main(int argc, char *argv[])
     ierr = RDView(rd,X,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
-
-  if (matfdcoloring) {ierr = MatFDColoringDestroy(&matfdcoloring);CHKERRQ(ierr);}
   ierr = VecDestroy(&X);CHKERRQ(ierr);
   ierr = MatDestroy(&B);CHKERRQ(ierr);
   ierr = RDDestroy(&rd);CHKERRQ(ierr);

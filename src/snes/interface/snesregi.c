@@ -10,13 +10,13 @@ extern PetscErrorCode  SNESCreate_KSPONLY(SNES);
 extern PetscErrorCode  SNESCreate_VIRS(SNES);
 extern PetscErrorCode  SNESCreate_VISS(SNES);
 extern PetscErrorCode  SNESCreate_NGMRES(SNES);
-extern PetscErrorCode  SNESCreate_SORQN(SNES);
 extern PetscErrorCode  SNESCreate_QN(SNES);
 extern PetscErrorCode  SNESCreate_Shell(SNES);
 extern PetscErrorCode  SNESCreate_GS(SNES);
 extern PetscErrorCode  SNESCreate_NCG(SNES);
 extern PetscErrorCode  SNESCreate_FAS(SNES);
 extern PetscErrorCode  SNESCreate_MS(SNES);
+extern PetscErrorCode  SNESCreate_NASM(SNES);
 EXTERN_C_END
 
 const char *SNESConvergedReasons_Shifted[]  = {" "," ","DIVERGED_LOCAL_MIN","DIVERGED_INNER","DIVERGED_LINE_SEARCH","DIVERGED_MAX_IT",
@@ -29,13 +29,13 @@ const char *SNESNormTypes_Shifted[]        = {"DEFAULT","NONE","FUNCTION","INITI
 const char *const*const SNESNormTypes = SNESNormTypes_Shifted + 1;
 
 /*
-      This is used by SNESSetType() to make sure that at least one 
+      This is used by SNESSetType() to make sure that at least one
     SNESRegisterAll() is called. In general, if there is more than one
     DLL then SNESRegisterAll() may be called several times.
 */
 extern PetscBool  SNESRegisterAllCalled;
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESRegisterAll"
 /*@C
    SNESRegisterAll - Registers all of the nonlinear solver methods in the SNES package.
@@ -66,9 +66,9 @@ PetscErrorCode  SNESRegisterAll(const char path[])
   ierr = SNESRegisterDynamic(SNESQN,          path,"SNESCreate_QN",          SNESCreate_QN);CHKERRQ(ierr);
   ierr = SNESRegisterDynamic(SNESSHELL,       path,"SNESCreate_Shell",       SNESCreate_Shell);CHKERRQ(ierr);
   ierr = SNESRegisterDynamic(SNESGS,          path,"SNESCreate_GS",          SNESCreate_GS);CHKERRQ(ierr);
-  ierr = SNESRegisterDynamic(SNESSORQN,       path,"SNESCreate_SORQN",       SNESCreate_SORQN);CHKERRQ(ierr);
   ierr = SNESRegisterDynamic(SNESNCG,         path,"SNESCreate_NCG",         SNESCreate_NCG);CHKERRQ(ierr);
   ierr = SNESRegisterDynamic(SNESFAS,         path,"SNESCreate_FAS",         SNESCreate_FAS);CHKERRQ(ierr);
   ierr = SNESRegisterDynamic(SNESMS,          path,"SNESCreate_MS",          SNESCreate_MS);CHKERRQ(ierr);
+  ierr = SNESRegisterDynamic(SNESNASM,        path,"SNESCreate_NASM",        SNESCreate_NASM);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -49,16 +49,16 @@ int main(int Argc,char **Args)
   /* Set the fudge parameters, we scale the whole thing by 1/(2*h) later */
   h = 1.;
   rho *= 1./(2.*h);
-  
+
   /* Geometry info */
-  for(i=0; i<2; i++) {
+  for (i=0; i<2; i++) {
     nodes[i] = n;
     periodic[i] = PETSC_TRUE;
     refine[i] = 3;
   }
   ierr = DMADDACreate(PETSC_COMM_WORLD, 2, nodes, PETSC_NULL, 2,periodic, &adda);CHKERRQ(ierr);
   ierr = DMADDASetRefinement(adda, refine, 2);CHKERRQ(ierr);
-  
+
   /* Random numbers */
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rctx);CHKERRQ(ierr);
@@ -67,7 +67,7 @@ int main(int Argc,char **Args)
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&comm_size);CHKERRQ(ierr);
 
   /* construct matrix */
-  if( comm_size == 1 ) {
+  if ( comm_size == 1 ) {
     ierr = DMCreateMatrix(adda, MATSEQAIJ, &H);CHKERRQ(ierr);
   } else {
     ierr = DMCreateMatrix(adda, MATMPIAIJ, &H);CHKERRQ(ierr);
@@ -81,8 +81,8 @@ int main(int Argc,char **Args)
   ierr = PetscMalloc(2*sizeof(PetscInt), &(sxy_m.x));CHKERRQ(ierr);
 
   /* Assemble the matrix */
-  for( x=lcs[0]; x<lce[0]; x++ ) {
-    for( y=lcs[1]; y<lce[1]; y++ ) {
+  for ( x=lcs[0]; x<lce[0]; x++ ) {
+    for ( y=lcs[1]; y<lce[1]; y++ ) {
       /* each lattice point sets only the *forward* pointing parameters (right, down),
 	 i.e. Nabla_1^+ and Nabla_2^+.
 	 In this way we can use only local random number creation. That means
@@ -98,7 +98,7 @@ int main(int Argc,char **Args)
       /* use those to set the field */
       uxy1 = PetscExpScalar( ((PetscScalar) (R*c/beta))*PETSC_i);
       uxy2 = PetscExpScalar( ((PetscScalar) (R*s/beta))*PETSC_i);
-      
+
       sxy.x[0] = x; sxy.x[1] = y; /* the point where we are */
 
       /* center action */
@@ -107,7 +107,7 @@ int main(int Argc,char **Args)
       sxy.d = 1; /* spin 1, 1 */
       val = -rho;
       ierr = DMADDAMatSetValues(H, adda, 1, &sxy, adda, 1, &sxy, &val, ADD_VALUES);CHKERRQ(ierr);
-      
+
       sxy_m.x[0] = x+1; sxy_m.x[1] = y; /* right action */
       sxy.d = 0; sxy_m.d = 0; /* spin 0, 0 */
       val = -uxy1; valconj = PetscConj(val);
@@ -145,7 +145,7 @@ int main(int Argc,char **Args)
       ierr = DMADDAMatSetValues(H, adda, 1, &sxy, adda, 1, &sxy_m, &valconj, ADD_VALUES);CHKERRQ(ierr);
     }
   }
-  
+
   ierr = PetscFree(sxy.x);CHKERRQ(ierr);
   ierr = PetscFree(sxy_m.x);CHKERRQ(ierr);
 
@@ -170,8 +170,8 @@ int main(int Argc,char **Args)
 /*   ierr = ADDACreatematrix(adda, MATSEQAIJ, &perm);CHKERRQ(ierr); */
 /*   PetscInt row, col; */
 /*   PetscScalar one = 1.0; */
-/*   for(PetscInt i=0; i<n; i++) { */
-/*     for(PetscInt j=0; j<n; j++) { */
+/*   for (PetscInt i=0; i<n; i++) { */
+/*     for (PetscInt j=0; j<n; j++) { */
 /*       row = (i*n+j)*2; col = i*n+j; */
 /*       ierr = MatSetValues(perm, 1, &row, 1, &col, &one, INSERT_VALUES);CHKERRQ(ierr); */
 /*       row = (i*n+j)*2+1; col = i*n+j + n*n; */
@@ -215,7 +215,7 @@ int main(int Argc,char **Args)
 
   ierr = KSPSetOperators(kspmg, HtH, HtH, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-  ierr = PCASASetDM(pcmg, (DM) adda);CHKERRQ(ierr);
+  ierr = PCSetDM(pcmg,adda);CHKERRQ(ierr);
   ierr = DMDestroy(&adda);CHKERRQ(ierr);
 
   ierr = PCASASetTolerances(pcmg, 1.e-6, 1.e-10,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
@@ -255,7 +255,7 @@ PetscErrorCode computeMinEigVal(Mat A, PetscInt its, PetscScalar *eig) {
   PetscReal       norm;
   Mat             G;
   PetscInt        i;
-  
+
   PetscFunctionBegin;
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rctx);CHKERRQ(ierr);
@@ -272,7 +272,7 @@ PetscErrorCode computeMinEigVal(Mat A, PetscInt its, PetscScalar *eig) {
   ierr = VecCopy(x, x0);CHKERRQ(ierr);
 
   ierr = MatMult(G, x, x_1);CHKERRQ(ierr);
-  for(i=0; i<its; i++) {
+  for (i=0; i<its; i++) {
     tmp = x; x = x_1; x_1 = tmp;
     ierr = MatMult(G, x, x_1);CHKERRQ(ierr);
   }

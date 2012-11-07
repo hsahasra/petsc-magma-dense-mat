@@ -379,7 +379,7 @@ extern PetscErrorCode DMCreateGlobalVector_Mesh(DM dm, Vec *gvec);
 extern PetscErrorCode DMCreateLocalVector_Mesh(DM dm, Vec *lvec);
 extern PetscErrorCode DMCreateLocalToGlobalMapping_Mesh(DM dm);
 extern PetscErrorCode DMCreateInterpolation_Mesh(DM dmCoarse, DM dmFine, Mat *interpolation, Vec *scaling);
-extern PetscErrorCode DMCreateMatrix_Mesh(DM dm, const MatType mtype, Mat *J);
+extern PetscErrorCode DMCreateMatrix_Mesh(DM dm, MatType mtype, Mat *J);
 extern PetscErrorCode DMRefine_Mesh(DM dm, MPI_Comm comm, DM *dmRefined);
 extern PetscErrorCode DMCoarsenHierarchy_Mesh(DM dm, int numLevels, DM *coarseHierarchy);
 extern PetscErrorCode DMDestroy_Mesh(DM dm);
@@ -388,7 +388,7 @@ extern PetscErrorCode DMView_Mesh(DM dm, PetscViewer viewer);
 EXTERN_C_BEGIN
 #undef __FUNCT__
 #define __FUNCT__ "DMConvert_DA_Mesh"
-PetscErrorCode DMConvert_DA_Mesh(DM dm, const DMType newtype, DM *dmNew)
+PetscErrorCode DMConvert_DA_Mesh(DM dm, DMType newtype, DM *dmNew)
 {
   PetscSection   section;
   DM             cda;
@@ -557,8 +557,8 @@ PetscErrorCode DMConvert_DA_Mesh(DM dm, const DMType newtype, DM *dmNew)
   }
   ierr = PetscSectionSetUp(section);CHKERRQ(ierr);
   ierr = DMMeshSetCoordinateSection(*dmNew, section);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinateDA(dm, &cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(dm, &coordinates);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
   {
     Obj<PETSC_MESH_TYPE::real_section_type> coordSection = mesh->getRealSection("coordinates");
 
@@ -671,7 +671,7 @@ PetscErrorCode DMCreate_Mesh(DM dm)
   mesh->closureTmpA    = PETSC_NULL;
   mesh->closureTmpB    = PETSC_NULL;
 
-  ierr = PetscStrallocpy(VECSTANDARD, &dm->vectype);CHKERRQ(ierr);
+  ierr = DMSetVecType(dm,VECSTANDARD);CHKERRQ(ierr);
   dm->ops->view               = DMView_Mesh;
   dm->ops->setfromoptions     = DMSetFromOptions_Mesh;
   dm->ops->setup              = 0;

@@ -2,6 +2,7 @@
 /* qmdqt.f -- translated by f2c (version 19931217).*/
 
 #include <petscsys.h>
+#include <../src/mat/order/order.h>
 
 /***************************************************************/
 /********     QMDQT  ..... QUOT MIN DEG QUOT TRANSFORM  ********/
@@ -23,11 +24,12 @@
 /*    UPDATED PARAMETER -*/
 /*       ADJNCY - BECOMES THE ADJNCY OF THE QUOTIENT GRAPH.*/
 /***************************************************************/
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKqmdqt" 
-PetscErrorCode SPARSEPACKqmdqt(PetscInt *root, PetscInt *xadj, PetscInt *adjncy, 
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKqmdqt"
+PetscErrorCode SPARSEPACKqmdqt(const PetscInt *root,const PetscInt *xadj,const PetscInt *inadjncy,
 	PetscInt *marker, PetscInt *rchsze, PetscInt *rchset, PetscInt *nbrhd)
 {
+    PetscInt *adjncy = (PetscInt*)inadjncy; /* Used as temporary and reset within this function */
     /* System generated locals */
     PetscInt i__1, i__2;
 
@@ -72,7 +74,7 @@ L300:
     adjncy[jstop + 1] = -node;
     goto L100;
 /*       ALL REACHABLE NODES HAVE BEEN SAVED.  END THE ADJ LIST.*/
-/*       ADD ROOT TO THE NBR LIST OF EACH NODE IN THE REACH SET.*/          
+/*       ADD ROOT TO THE NBR LIST OF EACH NODE IN THE REACH SET.*/
 L400:
     adjncy[j + 1] = 0;
     i__1 = *rchsze;

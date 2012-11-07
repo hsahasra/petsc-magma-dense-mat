@@ -147,7 +147,7 @@ class tiled_range
 
 typedef cusp::device_memory memSpace;
 typedef int   IndexType;
-typedef float ValueType;
+typedef PetscScalar ValueType;
 typedef cusp::array1d<IndexType, memSpace> IndexArray;
 typedef cusp::array1d<ValueType, memSpace> ValueArray;
 typedef cusp::array1d<IndexType, cusp::host_memory> IndexHostArray;
@@ -164,8 +164,8 @@ struct is_diag
   __host__ __device__
   bool operator()(Tuple t) {
     // Check column
-    const IndexType row = thrust::get<0>(t);
-    const IndexType col = thrust::get<1>(t);
+    IndexType row = thrust::get<0>(t);
+    IndexType col = thrust::get<1>(t);
     return (row >= first) && (row < last) && (col >= first) && (col < last);
   }
 };
@@ -180,7 +180,7 @@ struct is_nonlocal
   __host__ __device__
   bool operator()(Tuple t) {
     // Check column
-    const IndexType row = thrust::get<0>(t);
+    IndexType row = thrust::get<0>(t);
     return (row < first) || (row >= last);
   }
 };
@@ -262,16 +262,16 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
   // TODO: Ask Nathan how to do this on GPU
   ierr = PetscLogEventBegin(MAT_SetValuesBatchI,0,0,0,0);CHKERRQ(ierr);
   PetscMPIInt *procSendSizes, *procRecvSizes;
-  ierr = PetscMalloc2(numProcs, PetscInt, &procSendSizes, numProcs, PetscInt, &procRecvSizes);CHKERRQ(ierr);
+  ierr = PetscMalloc2(numProcs, PetscMPIInt, &procSendSizes, numProcs, PetscMPIInt, &procRecvSizes);CHKERRQ(ierr);
   ierr = PetscMemzero(procSendSizes, numProcs * sizeof(PetscInt));CHKERRQ(ierr);
   ierr = PetscMemzero(procRecvSizes, numProcs * sizeof(PetscInt));CHKERRQ(ierr);
   numNonlocalRows = 0;
-  for(size_t i = 0; i < N; ++i) {
+  for (size_t i = 0; i < N; ++i) {
     const PetscInt row = elemRows[i];
 
     if ((row < firstRow) || (row >= lastRow)) {
       numNonlocalRows++;
-      for(IndexType p = 0; p < numProcs; ++p) {
+      for (IndexType p = 0; p < numProcs; ++p) {
         if ((row >= rowRanges[p]) && (row < rowRanges[p+1])) {
           procSendSizes[p] += Nl;
           break;
@@ -283,7 +283,7 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
   ierr = PetscInfo2(J, "Nonlocal rows %d total entries %d\n", numNonlocalRows, No);CHKERRQ(ierr);
   ierr = MPI_Alltoall(procSendSizes, 1, MPIU_INT, procRecvSizes, 1, MPIU_INT, comm);CHKERRQ(ierr);
   numRecvEntries = 0;
-  for(PetscInt p = 0; p < numProcs; ++p) {
+  for (PetscInt p = 0; p < numProcs; ++p) {
     numRecvEntries += procRecvSizes[p];
   }
   ierr = PetscInfo2(j->A, "Send entries %d Recv Entries %d\n", numSendEntries, numRecvEntries);CHKERRQ(ierr);
@@ -329,11 +329,11 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
   PetscInt    *sendRows, *recvRows;
   PetscInt    *sendCols, *recvCols;
   PetscScalar *sendVals, *recvVals;
-  ierr = PetscMalloc2(numProcs, PetscInt, &procSendDispls, numProcs, PetscInt, &procRecvDispls);CHKERRQ(ierr);
+  ierr = PetscMalloc2(numProcs, PetscMPIInt, &procSendDispls, numProcs, PetscMPIInt, &procRecvDispls);CHKERRQ(ierr);
   ierr = PetscMalloc3(numSendEntries, PetscInt, &sendRows, numSendEntries, PetscInt, &sendCols, numSendEntries, PetscScalar, &sendVals);CHKERRQ(ierr);
   ierr = PetscMalloc3(numRecvEntries, PetscInt, &recvRows, numRecvEntries, PetscInt, &recvCols, numRecvEntries, PetscScalar, &recvVals);CHKERRQ(ierr);
   procSendDispls[0] = procRecvDispls[0] = 0;
-  for(PetscInt p = 1; p < numProcs; ++p) {
+  for (PetscInt p = 1; p < numProcs; ++p) {
     procSendDispls[p] = procSendDispls[p-1] + procSendSizes[p-1];
     procRecvDispls[p] = procRecvDispls[p-1] + procRecvSizes[p-1];
   }
@@ -391,8 +391,10 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
 
   // print the "fat" COO representation
   if (PetscLogPrintInfo) {
+#if !defined(PETSC_USE_COMPLEX)
     cusp::print(diagCOO);
     cusp::print(offdiagCOO);
+#endif
   }
 
   // Figure out the number of unique off-diagonal columns
@@ -459,15 +461,17 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
   thrust::unique_copy(B.column_indices.begin(), B.column_indices.end(), d_colmap.begin());
   IndexHostArray colmap(d_colmap.begin(), d_colmap.end());
   IndexType      newCol = 0;
-  for(IndexHostArray::iterator c_iter = colmap.begin(); c_iter != colmap.end(); ++c_iter, ++newCol) {
+  for (IndexHostArray::iterator c_iter = colmap.begin(); c_iter != colmap.end(); ++c_iter, ++newCol) {
     thrust::replace(B.column_indices.begin(), B.column_indices.end(), *c_iter, newCol);
   }
 #endif
 
   // print the final matrix
   if (PetscLogPrintInfo) {
+#if !defined(PETSC_USE_COMPLEX)
     cusp::print(A);
     cusp::print(B);
+#endif
   }
 
   ierr = PetscInfo(J, "Converting to PETSc matrix\n");CHKERRQ(ierr);
@@ -477,8 +481,10 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
   cusp::convert(A, *Agpu);
   cusp::convert(B, *Bgpu);
   if (PetscLogPrintInfo) {
+#if !defined(PETSC_USE_COMPLEX)
     cusp::print(*Agpu);
     cusp::print(*Bgpu);
+#endif
   }
   {
     ierr = PetscInfo(J, "Copying to CPU matrix");CHKERRQ(ierr);
@@ -489,7 +495,7 @@ PetscErrorCode MatSetValuesBatch_MPIAIJCUSP(Mat J, PetscInt Ne, PetscInt Nl, Pet
     ierr = PetscFree(j->garray);CHKERRQ(ierr);
     ierr = PetscMalloc(Nc * sizeof(PetscInt), &j->garray);CHKERRQ(ierr);
     PetscInt c = 0;
-    for(IndexHostArray::iterator c_iter = colmap.begin(); c_iter != colmap.end(); ++c_iter, ++c) {
+    for (IndexHostArray::iterator c_iter = colmap.begin(); c_iter != colmap.end(); ++c_iter, ++c) {
       j->garray[c] = *c_iter;
     }
 #endif

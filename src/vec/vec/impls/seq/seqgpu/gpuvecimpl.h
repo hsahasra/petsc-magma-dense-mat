@@ -1,11 +1,11 @@
 #ifndef __GPUVECIMPL
 #define __GPUVECIMPL
 
+#include <petsc-private/vecimpl.h>
 #include <petscconf.h>
 #include <petscsys.h>
 #include <petscvec.h>
-#include <petscconf.h>
-#include <petsc-private/vecimpl.h>
+
 #include <../src/vec/vec/impls/dvecimpl.h>
 
 EXTERN_C_BEGIN
@@ -135,14 +135,6 @@ __device__ void mt19937si(uint);
 __device__ void mt19937sai(uint*,uint);
 __device__ uint mt19937s(void);
 __device__ uint mt19937sl(void);
-
-
-
-
-
-
-
-
 
 
 extern PetscBool  synchronizeGPU;
@@ -328,7 +320,6 @@ PETSC_STATIC_INLINE PetscErrorCode VecGPURestoreArrayWrite(Vec v,PetscScalar *va
 }
 
 EXTERN_C_END
-
 #endif
 
 

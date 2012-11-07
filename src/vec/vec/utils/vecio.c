@@ -1,7 +1,7 @@
 
-/* 
+/*
    This file contains simple binary input routines for vectors.  The
-   analogous output routines are within each vector implementation's 
+   analogous output routines are within each vector implementation's
    VecView (with viewer types PETSCVIEWERBINARY)
  */
 
@@ -10,7 +10,7 @@
 #include <petsc-private/vecimpl.h>
 #include <petscmat.h> /* so that MAT_FILE_CLASSID is defined */
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscViewerBinaryReadVecHeader_Private"
 static PetscErrorCode PetscViewerBinaryReadVecHeader_Private(PetscViewer viewer,PetscInt *rows)
 {
@@ -70,8 +70,8 @@ static PetscErrorCode VecLoad_Binary_MPIIO(Vec vec, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 #endif
-    
-#undef __FUNCT__  
+
+#undef __FUNCT__
 #define __FUNCT__ "VecLoad_Binary"
 PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
 {
@@ -92,16 +92,16 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
   ierr = PetscObjectGetComm((PetscObject)viewer,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  
+
   ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
   ierr = PetscViewerBinaryReadVecHeader_Private(viewer,&rows);CHKERRQ(ierr);
-  /* Set Vec sizes,blocksize,and type if not already set */
-  if (vec->map->n < 0 && vec->map->N < 0) {
-     ierr = VecSetSizes(vec,PETSC_DECIDE,rows);CHKERRQ(ierr);
-  }
+  /* Set Vec sizes,blocksize,and type if not already set. Block size first so that local sizes will be compatible. */
   ierr = PetscOptionsGetInt(((PetscObject)vec)->prefix, "-vecload_block_size", &bs, &flag);CHKERRQ(ierr);
   if (flag) {
     ierr = VecSetBlockSize(vec, bs);CHKERRQ(ierr);
+  }
+  if (vec->map->n < 0 && vec->map->N < 0) {
+     ierr = VecSetSizes(vec,PETSC_DECIDE,rows);CHKERRQ(ierr);
   }
 
   /* If sizes and type already set,check if the vector global size is correct */
@@ -116,7 +116,7 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
   }
 #endif
 
-  ierr = VecGetLocalSize(vec,&n);CHKERRQ(ierr); 
+  ierr = VecGetLocalSize(vec,&n);CHKERRQ(ierr);
   ierr = PetscObjectGetNewTag((PetscObject)viewer,&tag);CHKERRQ(ierr);
   ierr = VecGetArray(vec,&avec);CHKERRQ(ierr);
   if (!rank) {
@@ -150,7 +150,7 @@ PetscErrorCode VecLoad_Binary(Vec vec, PetscViewer viewer)
 }
 
 #if defined(PETSC_HAVE_HDF5)
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscViewerHDF5OpenGroup"
 PetscErrorCode PetscViewerHDF5OpenGroup(PetscViewer viewer, hid_t *fileId, hid_t *groupId) {
   hid_t          file_id, group;
@@ -188,7 +188,7 @@ PetscErrorCode PetscViewerHDF5OpenGroup(PetscViewer viewer, hid_t *fileId, hid_t
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecLoad_HDF5"
 /*
      This should handle properly the cases where PetscInt is 32 or 64 and hsize_t is 32 or 64. These means properly casting with
@@ -202,15 +202,13 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
   herr_t         status;
   PetscInt       n, N, bs = 1, bsInd, lenInd, low, timestep;
   PetscScalar   *x;
-  PetscBool      flag;
   const char    *vecname;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   ierr = PetscViewerHDF5OpenGroup(viewer, &file_id, &group);CHKERRQ(ierr);
   ierr = PetscViewerHDF5GetTimestep(viewer, &timestep);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(((PetscObject)xin)->prefix, "-vecload_block_size", &bs, &flag);CHKERRQ(ierr);
-
+  ierr = VecGetBlockSize(xin,&bs);CHKERRQ(ierr);
   /* Create the dataset with default properties and close filespace */
   ierr = PetscObjectGetName((PetscObject)xin,&vecname);CHKERRQ(ierr);
 #if (H5_VERS_MAJOR * 10000 + H5_VERS_MINOR * 100 + H5_VERS_RELEASE >= 10800)
@@ -243,18 +241,13 @@ PetscErrorCode VecLoad_HDF5(Vec xin, PetscViewer viewer)
   if (rdim != dim) {
     if (rdim == dim+1 && bs == 1) {
       bs = dims[bsInd];
-      if (flag) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Block size 1 specified for vector does not match blocksize in file %d",bs);
     } else SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED, "Dimension of array in file %d not %d as expected",rdim,dim);
   } else if (bs >= 1 && bs != (PetscInt) dims[bsInd]) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Block size %d specified for vector does not match blocksize in file %d",bs,dims[bsInd]);
 
   /* Set Vec sizes,blocksize,and type if not already set */
   if ((xin)->map-> n < 0 && (xin)->map->N < 0) {
-    ierr = VecSetSizes(xin, PETSC_DECIDE, dims[lenInd]);CHKERRQ(ierr);
+    ierr = VecSetSizes(xin, PETSC_DECIDE, dims[lenInd]*bs);CHKERRQ(ierr);
   }
-  if (bs > 1 || flag) {
-    ierr = VecSetBlockSize(xin, bs);CHKERRQ(ierr);
-  }
-
   /* If sizes and type already set,check if the vector global size is correct */
   ierr = VecGetSize(xin, &N);CHKERRQ(ierr);
   if (N/bs != (PetscInt) dims[lenInd]) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED, "Vector in file different length (%d) then input vector (%d)", (PetscInt) dims[lenInd], N/bs);
@@ -337,14 +330,14 @@ PetscErrorCode  VecLoad_Default(Vec newvec, PetscViewer viewer)
 #endif
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_HDF5)
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5,&ishdf5);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5,&ishdf5);CHKERRQ(ierr);
 #endif
 
 #if defined(PETSC_HAVE_HDF5)
   if (ishdf5) {
-    if (!((PetscObject)newvec)->name) { 
+    if (!((PetscObject)newvec)->name) {
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Since HDF5 format gives ASCII name for each object in file; must use VecLoad() after setting name of Vec with PetscObjectSetName()");
      ierr = PetscLogEventEnd(VEC_Load,viewer,0,0,0);CHKERRQ(ierr);
     }
@@ -357,3 +350,34 @@ PetscErrorCode  VecLoad_Default(Vec newvec, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "VecChop"
+/*@
+  VecChop - Set all values in the vector less than the tolerance to zero
+
+  Input Parameters:
++ v   - The vector
+- tol - The zero tolerance
+
+  Output Parameters:
+. v - The chopped vector
+
+  Level: intermediate
+
+.seealso: VecCreate(), VecSet()
+@*/
+PetscErrorCode VecChop(Vec v, PetscReal tol)
+{
+  PetscScalar   *a;
+  PetscInt       n, i;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = VecGetLocalSize(v, &n);CHKERRQ(ierr);
+  ierr = VecGetArray(v, &a);CHKERRQ(ierr);
+  for (i = 0; i < n; ++i) {
+    if (PetscAbsScalar(a[i]) < tol) a[i] = 0.0;
+  }
+  ierr = VecRestoreArray(v, &a);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}

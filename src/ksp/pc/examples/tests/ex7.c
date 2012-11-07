@@ -1,5 +1,5 @@
 
-static char help[] = "Tests MatILUFactorSymbolic() on matrix with missing diagonal.\n\n"; 
+static char help[] = "Tests MatILUFactorSymbolic() on matrix with missing diagonal.\n\n";
 
 #include <petscmat.h>
 #include <petscpc.h>
@@ -8,7 +8,7 @@ static char help[] = "Tests MatILUFactorSymbolic() on matrix with missing diagon
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
-  Mat            C,A; 
+  Mat            C,A;
   PetscInt       i,j;
   PetscErrorCode ierr;
   PetscScalar    v;
@@ -20,6 +20,7 @@ int main(int argc,char **args)
   ierr = MatCreate(PETSC_COMM_WORLD,&C);CHKERRQ(ierr);
   ierr = MatSetSizes(C,PETSC_DECIDE,PETSC_DECIDE,3,3);CHKERRQ(ierr);
   ierr = MatSetFromOptions(C);CHKERRQ(ierr);
+  ierr = MatSetUp(C);CHKERRQ(ierr);
   ierr = VecCreateSeq(PETSC_COMM_WORLD,3,&xtmp);CHKERRQ(ierr);
   i = 0; j = 0; v = 4;
   ierr = MatSetValues(C,1,&i,1,&j,&v,INSERT_VALUES);CHKERRQ(ierr);
@@ -51,4 +52,4 @@ int main(int argc,char **args)
   return 0;
 }
 
- 
+

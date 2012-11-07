@@ -10,8 +10,8 @@ T*/
 
 #include <petscsnes.h>
 
-/* 
-   User-defined application context - contains data needed by the 
+/*
+   User-defined application context - contains data needed by the
    application-provided call-back routines, FormJacobianLocal() and
    FormFunctionLocal().
 */
@@ -21,7 +21,7 @@ typedef struct {
   PetscInt    m;  /* Exponent for A */
 } AppCtx;
 
-/* 
+/*
    User-defined routines
 */
 extern PetscErrorCode FormFunctionLocal(DMDALocalInfo*,PetscScalar**,PetscScalar**,AppCtx*);
@@ -111,7 +111,7 @@ PetscScalar funcA(PetscScalar z, AppCtx *user)
   PetscScalar v = 1.0;
   PetscInt    i;
 
-  for(i = 0; i < user->m; ++i) {
+  for (i = 0; i < user->m; ++i) {
     v *= z;
   }
   return v;
@@ -124,15 +124,15 @@ PetscScalar funcADer(PetscScalar z, AppCtx *user)
   PetscScalar v = 1.0;
   PetscInt    i;
 
-  for(i = 0; i < user->m-1; ++i) {
+  for (i = 0; i < user->m-1; ++i) {
     v *= z;
   }
-  return user->m*v;
+  return (PetscScalar)user->m*v;
 }
 
 #undef __FUNCT__
 #define __FUNCT__ "FormFunctionLocal"
-/* 
+/*
    FormFunctionLocal - Evaluates nonlinear function, F(x).
 */
 PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,PetscScalar **f,AppCtx *user)
@@ -151,13 +151,13 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,PetscScalar
   K      = user->K;
   hx     = 1.0/(PetscReal)(info->mx-1);
   hy     = 1.0/(PetscReal)(info->my-1);
-  hxdhy  = hx/hy; 
+  hxdhy  = hx/hy;
   hydhx  = hy/hx;
   /*
      Compute function over the locally owned part of the grid
   */
-  ierr = DMDAGetCoordinateDA(info->da, &coordDA);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinates(info->da, &coordinates);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(info->da, &coordDA);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(info->da, &coordinates);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(coordDA, coordinates, &coords);CHKERRQ(ierr);
   for (j=info->ys; j<info->ys+info->ym; j++) {
     for (i=info->xs; i<info->xs+info->xm; i++) {
@@ -176,8 +176,8 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,PetscScalar
   }
   ierr = DMDAVecRestoreArray(coordDA, coordinates, &coords);CHKERRQ(ierr);
   ierr = PetscLogFlops(11*info->ym*info->xm);CHKERRQ(ierr);
-  PetscFunctionReturn(0); 
-} 
+  PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "FormJacobianLocal"
@@ -197,16 +197,16 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,PetscScalar **x,Mat jac,App
   K      = user->K;
   hx     = 1.0/(PetscReal)(info->mx-1);
   hy     = 1.0/(PetscReal)(info->my-1);
-  hxdhy  = hx/hy; 
+  hxdhy  = hx/hy;
   hydhx  = hy/hx;
 
-  /* 
+  /*
      Compute entries for the locally owned part of the Jacobian.
       - Currently, all PETSc parallel matrix formats are partitioned by
-        contiguous chunks of rows across the processors. 
+        contiguous chunks of rows across the processors.
       - Each processor needs to insert only elements that it owns
         locally (but any non-local elements will be sent to the
-        appropriate processor during matrix assembly). 
+        appropriate processor during matrix assembly).
       - Here, we set all entries for a particular row at once.
       - We can set matrix entries either using either
         MatSetValuesLocal() or MatSetValues(), as discussed above.
@@ -234,7 +234,7 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,PetscScalar **x,Mat jac,App
         v[2] = D*2.0*(hydhx + hxdhy) + K*(funcADer(x[j][i], user)*normGradZ - A/normGradZ)*hx*hy; col[2].j = row.j; col[2].i = row.i;
         v[3] = -D*hydhx + K*A*hx*hy/(2.0*normGradZ);                                              col[3].j = j;     col[3].i = i+1;
         v[4] = -D*hxdhy + K*A*hx*hy/(2.0*normGradZ);                                              col[4].j = j + 1; col[4].i = i;
-        for(k = 0; k < 5; ++k) {
+        for (k = 0; k < 5; ++k) {
           if (PetscIsInfOrNanScalar(v[k])) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FP, "Invalid residual: %g", PetscRealPart(v[k]));
         }
         ierr = MatSetValuesStencil(jac,1,&row,5,col,v,INSERT_VALUES);CHKERRQ(ierr);
@@ -242,7 +242,7 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,PetscScalar **x,Mat jac,App
     }
   }
 
-  /* 
+  /*
      Assemble matrix, using the 2-step process:
        MatAssemblyBegin(), MatAssemblyEnd().
   */

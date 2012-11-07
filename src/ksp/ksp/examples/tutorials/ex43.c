@@ -1,5 +1,4 @@
-static char help[] =
-  "Solves the incompressible, variable viscosity stokes equation in 2d on the unit domain \n\
+static char help[] = "Solves the incompressible, variable viscosity stokes equation in 2d on the unit domain \n\
 using Q1Q1 elements, stabilized with Bochev's polynomial projection method. \n\
 The models defined utilise free slip boundary conditions on all sides. \n\
 Options: \n\
@@ -162,7 +161,7 @@ static void ConstructGaussQuadrature(PetscInt *ngp,PetscScalar gp_xi[][2],PetscS
 
 
 /* procs to the left claim the ghost node as their element */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAGetLocalElementSize"
 static PetscErrorCode DMDAGetLocalElementSize(DM da,PetscInt *mxl,PetscInt *myl,PetscInt *mzl)
 {
@@ -194,7 +193,7 @@ static PetscErrorCode DMDAGetLocalElementSize(DM da,PetscInt *mxl,PetscInt *myl,
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAGetElementCorners"
 static PetscErrorCode DMDAGetElementCorners(DM da,
                                           PetscInt *sx,PetscInt *sy,PetscInt *sz,
@@ -232,7 +231,7 @@ i,j are the element indices
 The unknown is a vector quantity.
 The s[].c is used to indicate the degree of freedom.
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAGetElementEqnums_up"
 static PetscErrorCode DMDAGetElementEqnums_up(MatStencil s_u[],MatStencil s_p[],PetscInt i,PetscInt j)
 {
@@ -263,7 +262,7 @@ static PetscErrorCode DMDAGetElementEqnums_up(MatStencil s_u[],MatStencil s_p[],
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAGetElementOwnershipRanges2d"
 static PetscErrorCode DMDAGetElementOwnershipRanges2d(DM da,PetscInt **_lx,PetscInt **_ly)
 {
@@ -338,7 +337,7 @@ static PetscErrorCode DMDAGetElementOwnershipRanges2d(DM da,PetscInt **_lx,Petsc
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDACoordViewGnuplot2d"
 static PetscErrorCode DMDACoordViewGnuplot2d(DM da,const char prefix[])
 {
@@ -353,14 +352,14 @@ static PetscErrorCode DMDACoordViewGnuplot2d(DM da,const char prefix[])
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fname,sizeof fname,"%s-p%1.4d.dat",prefix,rank);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fname,sizeof(fname),"%s-p%1.4d.dat",prefix,rank);CHKERRQ(ierr);
   ierr = PetscFOpen(PETSC_COMM_SELF,fname,"w",&fp);CHKERRQ(ierr);
   if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Cannot open file");
 
   ierr = PetscFPrintf(PETSC_COMM_SELF,fp,"### Element geometry for processor %1.4d ### \n",rank);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
   for (j = sj; j < sj+ny-1; j++) {
@@ -378,7 +377,7 @@ static PetscErrorCode DMDACoordViewGnuplot2d(DM da,const char prefix[])
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAViewGnuplot2d"
 static PetscErrorCode DMDAViewGnuplot2d(DM da,Vec fields,const char comment[],const char prefix[])
 {
@@ -395,7 +394,7 @@ static PetscErrorCode DMDAViewGnuplot2d(DM da,Vec fields,const char comment[],co
 
   PetscFunctionBegin;
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-  ierr = PetscSNPrintf(fname,sizeof fname,"%s-p%1.4d.dat",prefix,rank);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fname,sizeof(fname),"%s-p%1.4d.dat",prefix,rank);CHKERRQ(ierr);
   ierr = PetscFOpen(PETSC_COMM_SELF,fname,"w",&fp);CHKERRQ(ierr);
   if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Cannot open file");
 
@@ -410,8 +409,8 @@ static PetscErrorCode DMDAViewGnuplot2d(DM da,Vec fields,const char comment[],co
   ierr = PetscFPrintf(PETSC_COMM_SELF,fp,"###\n");CHKERRQ(ierr);
 
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
 
@@ -446,7 +445,7 @@ static PetscErrorCode DMDAViewGnuplot2d(DM da,Vec fields,const char comment[],co
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAViewCoefficientsGnuplot2d"
 static PetscErrorCode DMDAViewCoefficientsGnuplot2d(DM da,Vec fields,const char comment[],const char prefix[])
 {
@@ -462,7 +461,7 @@ static PetscErrorCode DMDAViewCoefficientsGnuplot2d(DM da,Vec fields,const char 
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
-  ierr = PetscSNPrintf(fname,sizeof fname,"%s-p%1.4d.dat",prefix,rank);CHKERRQ(ierr);
+  ierr = PetscSNPrintf(fname,sizeof(fname),"%s-p%1.4d.dat",prefix,rank);CHKERRQ(ierr);
   ierr = PetscFOpen(PETSC_COMM_SELF,fname,"w",&fp);CHKERRQ(ierr);
   if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Cannot open file");
 
@@ -477,7 +476,7 @@ static PetscErrorCode DMDAViewCoefficientsGnuplot2d(DM da,Vec fields,const char 
   ierr = PetscFPrintf(PETSC_COMM_SELF,fp,"###\n");CHKERRQ(ierr);
 
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
 
   ierr = DMCreateLocalVector(da,&local_fields);CHKERRQ(ierr);
@@ -741,7 +740,7 @@ static void FormMomentumRhsQ1(PetscScalar Fe[],PetscScalar coords[],PetscScalar 
   }
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "GetElementCoords"
 static PetscErrorCode GetElementCoords(DMDACoor2d **_coords,PetscInt ei,PetscInt ej,PetscScalar el_coords[])
 {
@@ -754,7 +753,7 @@ static PetscErrorCode GetElementCoords(DMDACoor2d **_coords,PetscInt ei,PetscInt
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AssembleA_Stokes"
 static PetscErrorCode AssembleA_Stokes(Mat A,DM stokes_da,DM properties_da,Vec properties)
 {
@@ -778,8 +777,8 @@ static PetscErrorCode AssembleA_Stokes(Mat A,DM stokes_da,DM properties_da,Vec p
   PetscFunctionBegin;
 
   /* setup for coords */
-  ierr = DMDAGetCoordinateDA(stokes_da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(stokes_da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(stokes_da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(stokes_da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
 
   /* setup for coefficients */
@@ -827,7 +826,7 @@ static PetscErrorCode AssembleA_Stokes(Mat A,DM stokes_da,DM properties_da,Vec p
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AssembleA_PCStokes"
 static PetscErrorCode AssembleA_PCStokes(Mat A,DM stokes_da,DM properties_da,Vec properties)
 {
@@ -850,8 +849,8 @@ static PetscErrorCode AssembleA_PCStokes(Mat A,DM stokes_da,DM properties_da,Vec
 
   PetscFunctionBegin;
   /* setup for coords */
-  ierr = DMDAGetCoordinateDA(stokes_da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(stokes_da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(stokes_da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(stokes_da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
 
   /* setup for coefficients */
@@ -900,7 +899,7 @@ static PetscErrorCode AssembleA_PCStokes(Mat A,DM stokes_da,DM properties_da,Vec
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDASetValuesLocalStencil_ADD_VALUES"
 static PetscErrorCode DMDASetValuesLocalStencil_ADD_VALUES(StokesDOF **fields_F,MatStencil u_eqn[],MatStencil p_eqn[],PetscScalar Fe_u[],PetscScalar Fe_p[])
 {
@@ -915,7 +914,7 @@ static PetscErrorCode DMDASetValuesLocalStencil_ADD_VALUES(StokesDOF **fields_F,
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "AssembleF_Stokes"
 static PetscErrorCode AssembleF_Stokes(Vec F,DM stokes_da,DM properties_da,Vec properties)
 {
@@ -938,8 +937,8 @@ static PetscErrorCode AssembleF_Stokes(Vec F,DM stokes_da,DM properties_da,Vec p
 
   PetscFunctionBegin;
   /* setup for coords */
-  ierr = DMDAGetCoordinateDA(stokes_da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(stokes_da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(stokes_da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(stokes_da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
 
   /* setup for coefficients */
@@ -992,7 +991,7 @@ static PetscErrorCode AssembleF_Stokes(Vec F,DM stokes_da,DM properties_da,Vec p
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDACreateSolCx"
 static PetscErrorCode DMDACreateSolCx(PetscReal eta0,PetscReal eta1,PetscReal xc,PetscInt nz,
                                     PetscInt mx,PetscInt my,
@@ -1017,8 +1016,8 @@ static PetscErrorCode DMDACreateSolCx(PetscReal eta0,PetscReal eta1,PetscReal xc
   ierr = DMDASetUniformCoordinates(da,0.0,1.0,0.0,1.0,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
 
 
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
 
   ierr = DMCreateGlobalVector(da,&X);CHKERRQ(ierr);
@@ -1054,7 +1053,7 @@ static PetscErrorCode DMDACreateSolCx(PetscReal eta0,PetscReal eta1,PetscReal xc
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "StokesDAGetNodalFields"
 static PetscErrorCode StokesDAGetNodalFields(StokesDOF **fields,PetscInt ei,PetscInt ej,StokesDOF nodal_fields[])
 {
@@ -1067,7 +1066,7 @@ static PetscErrorCode StokesDAGetNodalFields(StokesDOF **fields,PetscInt ei,Pets
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDAIntegrateErrors"
 static PetscErrorCode DMDAIntegrateErrors(DM stokes_da,Vec X,Vec X_analytic)
 {
@@ -1097,8 +1096,8 @@ static PetscErrorCode DMDAIntegrateErrors(DM stokes_da,Vec X,Vec X_analytic)
   ConstructGaussQuadrature(&ngp,gp_xi,gp_weight);
 
   /* setup for coords */
-  ierr = DMDAGetCoordinateDA(stokes_da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(stokes_da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(stokes_da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(stokes_da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
 
   /* setup for analytic */
@@ -1178,7 +1177,7 @@ static PetscErrorCode DMDAIntegrateErrors(DM stokes_da,Vec X,Vec X_analytic)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "solve_stokes_2d_coupled"
 static PetscErrorCode solve_stokes_2d_coupled(PetscInt mx,PetscInt my)
 {
@@ -1255,14 +1254,14 @@ static PetscErrorCode solve_stokes_2d_coupled(PetscInt mx,PetscInt my)
   ierr = DMCreateLocalVector(da_prop,&l_properties);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(da_prop,l_properties,&element_props);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da_prop,&prop_cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da_prop,&prop_coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da_prop,&prop_cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da_prop,&prop_coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(prop_cda,prop_coords,&_prop_coords);CHKERRQ(ierr);
 
   ierr = DMDAGetGhostCorners(prop_cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da_Stokes,&vel_cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da_Stokes,&vel_coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da_Stokes,&vel_cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da_Stokes,&vel_coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(vel_cda,vel_coords,&_vel_coords);CHKERRQ(ierr);
 
 
@@ -1501,7 +1500,7 @@ static PetscErrorCode solve_stokes_2d_coupled(PetscInt mx,PetscInt my)
 
   ierr = KSPSolve(ksp_S,f,X);CHKERRQ(ierr);
 
-  ierr = PetscOptionsGetString(PETSC_NULL,"-o",filename,sizeof filename,&set);CHKERRQ(ierr);
+  ierr = PetscOptionsGetString(PETSC_NULL,"-o",filename,sizeof(filename),&set);CHKERRQ(ierr);
   if (set) {
     char        *ext;
     PetscViewer viewer;
@@ -1605,7 +1604,7 @@ static PetscErrorCode solve_stokes_2d_coupled(PetscInt mx,PetscInt my)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
@@ -1626,7 +1625,7 @@ int main(int argc,char **args)
 
 /* -------------------------- helpers for boundary conditions -------------------------------- */
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "BCApply_EAST"
 static PetscErrorCode BCApply_EAST(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A,Vec b)
 {
@@ -1646,8 +1645,8 @@ static PetscErrorCode BCApply_EAST(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A
   /* enforce bc's */
   ierr = DMDAGetGlobalIndices(da,PETSC_NULL,&g_idx);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
   ierr = DMDAGetInfo(da,0,&M,&N,0,0,0,0,&n_dofs,0,0,0,0,0);CHKERRQ(ierr);
@@ -1694,7 +1693,7 @@ static PetscErrorCode BCApply_EAST(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "BCApply_WEST"
 static PetscErrorCode BCApply_WEST(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A,Vec b)
 {
@@ -1714,8 +1713,8 @@ static PetscErrorCode BCApply_WEST(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A
   /* enforce bc's */
   ierr = DMDAGetGlobalIndices(da,PETSC_NULL,&g_idx);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
   ierr = DMDAGetInfo(da,0,&M,&N,0,0,0,0,&n_dofs,0,0,0,0,0);CHKERRQ(ierr);
@@ -1762,7 +1761,7 @@ static PetscErrorCode BCApply_WEST(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "BCApply_NORTH"
 static PetscErrorCode BCApply_NORTH(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A,Vec b)
 {
@@ -1782,8 +1781,8 @@ static PetscErrorCode BCApply_NORTH(DM da,PetscInt d_idx,PetscScalar bc_val,Mat 
   /* enforce bc's */
   ierr = DMDAGetGlobalIndices(da,PETSC_NULL,&g_idx);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
   ierr = DMDAGetInfo(da,0,&M,&N,0,0,0,0,&n_dofs,0,0,0,0,0);CHKERRQ(ierr);
@@ -1830,7 +1829,7 @@ static PetscErrorCode BCApply_NORTH(DM da,PetscInt d_idx,PetscScalar bc_val,Mat 
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "BCApply_SOUTH"
 static PetscErrorCode BCApply_SOUTH(DM da,PetscInt d_idx,PetscScalar bc_val,Mat A,Vec b)
 {
@@ -1850,8 +1849,8 @@ static PetscErrorCode BCApply_SOUTH(DM da,PetscInt d_idx,PetscScalar bc_val,Mat 
   /* enforce bc's */
   ierr = DMDAGetGlobalIndices(da,PETSC_NULL,&g_idx);CHKERRQ(ierr);
 
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&coords);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,coords,&_coords);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(cda,&si,&sj,0,&nx,&ny,0);CHKERRQ(ierr);
   ierr = DMDAGetInfo(da,0,&M,&N,0,0,0,0,&n_dofs,0,0,0,0,0);CHKERRQ(ierr);
@@ -1899,12 +1898,12 @@ static PetscErrorCode BCApply_SOUTH(DM da,PetscInt d_idx,PetscScalar bc_val,Mat 
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDABCApplyFreeSlip"
 /*
 Free slip sides.
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMDABCApplyFreeSlip"
 static PetscErrorCode DMDABCApplyFreeSlip(DM da_Stokes,Mat A,Vec f)
 {

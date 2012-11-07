@@ -1,4 +1,4 @@
-static char help[] = "Tests DMSliced operations\n\n";
+static char help[] = "Tests DMSLICED operations\n\n";
 
 #include <petscdmsliced.h>
 
@@ -36,7 +36,7 @@ int main(int argc,char *argv[])
       ierr = PetscOptionsReal("-sigma","Width of Gaussian density perturbation","",sigma,&sigma,PETSC_NULL);CHKERRQ(ierr);
       ierr = PetscOptionsBool("-block","Use block matrix assembly","",useblock,&useblock,PETSC_NULL);CHKERRQ(ierr);
     }
-    ierr = PetscOptionsString("-sliced_mat_type","Matrix type to use (aij or baij)","",mat_type,mat_type,sizeof mat_type,PETSC_NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsString("-sliced_mat_type","Matrix type to use (aij or baij)","",mat_type,mat_type,sizeof(mat_type),PETSC_NULL);CHKERRQ(ierr);
   }
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
@@ -49,8 +49,6 @@ int main(int argc,char *argv[])
   ghosts[0] = (N+rstart-1)%N;
   ghosts[1] = (rstart+n)%N;
 
-  ierr = DMSlicedCreate(comm,&slice);CHKERRQ(ierr);
-  ierr = DMSlicedSetGhosts(slice,bs,n,2,ghosts);CHKERRQ(ierr);
   ierr = PetscMalloc2(n,PetscInt,&d_nnz,n,PetscInt,&o_nnz);CHKERRQ(ierr);
   for (i=0; i<n; i++) {
     if (size > 1 && (i==0 || i==n-1)) {
@@ -61,7 +59,7 @@ int main(int argc,char *argv[])
       o_nnz[i] = 0;
     }
   }
-  ierr = DMSlicedSetPreallocation(slice,0,d_nnz,0,o_nnz);CHKERRQ(ierr); /* Currently does not copy X_nnz so we can't free them until after DMSlicedGetMatrix */
+  ierr = DMSlicedCreate(comm,bs,n,2,ghosts,d_nnz,o_nnz,&slice);CHKERRQ(ierr); /* Currently does not copy X_nnz so we can't free them until after DMSlicedGetMatrix */
 
   if (!useblock) {ierr = DMSlicedSetBlockFills(slice,dfill,ofill);CHKERRQ(ierr);} /* Irrelevant for baij formats */
   ierr = DMCreateMatrix(slice,mat_type,&A);CHKERRQ(ierr);

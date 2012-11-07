@@ -28,7 +28,7 @@ static PetscErrorCode SNESLineSearchApply_CP(SNESLineSearch linesearch)
   ierr = SNESLineSearchGetMonitor(linesearch, &monitor);CHKERRQ(ierr);
 
   /* precheck */
-  ierr = SNESLineSearchPreCheck(linesearch, &changed_y);CHKERRQ(ierr);
+  ierr = SNESLineSearchPreCheck(linesearch,X,Y,&changed_y);CHKERRQ(ierr);
   lambda_old = 0.0;
   ierr = VecDot(F, Y, &fty_old);CHKERRQ(ierr);
   fty_init = fty_old;
@@ -53,7 +53,7 @@ static PetscErrorCode SNESLineSearchApply_CP(SNESLineSearch linesearch)
     if (PetscAbsScalar(fty) < atol && i > 0) break;
     if (monitor) {
       ierr = PetscViewerASCIIAddTab(monitor,((PetscObject)linesearch)->tablevel);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(monitor,"    Line search: lambdas = [%g, %g], ftys = [%g, %g]\n",lambda, lambda_old, PetscRealPart(fty), PetscRealPart(fty_old));CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(monitor,"    Line search: lambdas = [%g, %g], ftys = [%g, %g]\n",(double)lambda, (double)lambda_old, (double)PetscRealPart(fty), (double)PetscRealPart(fty_old));CHKERRQ(ierr);
       ierr = PetscViewerASCIISubtractTab(monitor,((PetscObject)linesearch)->tablevel);CHKERRQ(ierr);
     }
 
@@ -112,7 +112,7 @@ static PetscErrorCode SNESLineSearchApply_CP(SNESLineSearch linesearch)
     ierr = (*linesearch->ops->viproject)(snes, W);CHKERRQ(ierr);
   }
   /* postcheck */
-  ierr = SNESLineSearchPostCheck(linesearch, &changed_y, &changed_w);CHKERRQ(ierr);
+  ierr = SNESLineSearchPostCheck(linesearch,X,Y,W,&changed_y,&changed_w);CHKERRQ(ierr);
   if (changed_y) {
     ierr = VecAXPY(X, -lambda, Y);CHKERRQ(ierr);
     if (linesearch->ops->viproject) {
@@ -135,7 +135,7 @@ static PetscErrorCode SNESLineSearchApply_CP(SNESLineSearch linesearch)
 
   if (monitor) {
     ierr = PetscViewerASCIIAddTab(monitor,((PetscObject)linesearch)->tablevel);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(monitor,"    Line search terminated: lambda = %g, fnorms = %g\n", lambda, gnorm);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(monitor,"    Line search terminated: lambda = %g, fnorms = %g\n", (double)lambda, (double)gnorm);CHKERRQ(ierr);
     ierr = PetscViewerASCIISubtractTab(monitor,((PetscObject)linesearch)->tablevel);CHKERRQ(ierr);
   }
   if (lambda <= steptol) {
@@ -175,5 +175,8 @@ PETSC_EXTERN_C PetscErrorCode SNESLineSearchCreate_CP(SNESLineSearch linesearch)
   linesearch->ops->view           = PETSC_NULL;
   linesearch->ops->setup          = PETSC_NULL;
   linesearch->order = SNES_LINESEARCH_ORDER_LINEAR;
+
+  linesearch->max_its =            1;
+
   PetscFunctionReturn(0);
 }

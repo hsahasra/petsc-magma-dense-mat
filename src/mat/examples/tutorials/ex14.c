@@ -1,7 +1,7 @@
 
 static char help[] = "Tests basic assembly of MATIJ using the edges of a 2d parallel DA.\n";
 
-#include <petscmat.h> 
+#include <petscmat.h>
 #include <petscdmda.h>
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -29,27 +29,27 @@ int main(int argc,char **args)
   ierr = MatSetType(A,MATIJ);CHKERRQ(ierr);
 #if 0
   ierr = PetscOptionsGetBool(PETSC_NULL, "--preallocate", &preallocate, &flag); CHKERRQ(ierr);
-  if(preallocate) {
+  if (preallocate) {
   }
 #endif
-  
-  /* 
-   Add local and ghosted edges to A: grid points are indexed by i first, 
+
+  /*
+   Add local and ghosted edges to A: grid points are indexed by i first,
    so that points with the same i-index differ by a multiple of M.
    */
-  for(j = j0; j < j0+n; ++j) {
-    for(i = i0; i < i0+m; ++i) {
+  for (j = j0; j < j0+n; ++j) {
+    for (i = i0; i < i0+m; ++i) {
       k = 0;
-      if(i+1 < gi0+gm) {/* there is a point to the right, so draw an edge to it.*/
+      if (i+1 < gi0+gm) {/* there is a point to the right, so draw an edge to it.*/
         e0[k] = i*M+j; e1[k] = (i+i)*M+j;
         ++k;
       }
-      if(j+1 < gj0+gn) {/* there is a point above, so draw an edge to it.*/
+      if (j+1 < gj0+gn) {/* there is a point above, so draw an edge to it.*/
         e0[k] = i*M+j; e1[k] = (i)*M+j+1;
         ++k;
       }
       MatIJSetEdges(A,k,e0,e1); CHKERRQ(ierr);
-      
+
     }
   }
   ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
@@ -57,9 +57,9 @@ int main(int argc,char **args)
 
   /* View A. */
   ierr = MatView(A, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-  
-  ierr = MatDestroy(&A);CHKERRQ(ierr); 
-  ierr = DMDestroy(&da);CHKERRQ(ierr); 
+
+  ierr = MatDestroy(&A);CHKERRQ(ierr);
+  ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return 0;
 }

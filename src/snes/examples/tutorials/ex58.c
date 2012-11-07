@@ -20,10 +20,10 @@ The command line options are:\n\
   -lb <value>, lower bound on the variables\n\
   -ub <value>, upper bound on the variables\n\n";
 
-/*                                                                              
-   User-defined application context - contains data needed by the               
-   application-provided call-back routines, FormJacobian() and                  
-   FormFunction().                                                              
+/*
+   User-defined application context - contains data needed by the
+   application-provided call-back routines, FormJacobian() and
+   FormFunction().
 */
 
 /*
@@ -31,7 +31,7 @@ The command line options are:\n\
 
      Run, for example, with the options ./ex58 -snes_vi_monitor -ksp_monitor -mg_levels_ksp_monitor -pc_type mg -pc_mg_levels 2 -pc_mg_galerkin -ksp_type fgmres
 
-     Or to run with grid sequencing on the nonlinear problem (note that you do not need to provide the number of 
+     Or to run with grid sequencing on the nonlinear problem (note that you do not need to provide the number of
          multigrid levels, it will be determined automatically based on the number of refinements done)
 
       ./ex58 -pc_type mg -ksp_monitor  -snes_view -pc_mg_galerkin -snes_grid_sequence 3
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 
     Input Parameters:
 .   snes  - the SNES context
-    
+
     Output Parameters:
 .   xl - lower bounds
 .   xu - upper bounds
@@ -137,13 +137,13 @@ PetscErrorCode FormBounds(SNES snes, Vec xl, Vec xu)
 #undef __FUNCT__
 #define __FUNCT__ "FormGradient"
 
-/*  FormGradient - Evaluates gradient of f.             
+/*  FormGradient - Evaluates gradient of f.
 
     Input Parameters:
 .   snes  - the SNES context
 .   X     - input vector
 .   ptr   - optional user-defined context, as set by SNESSetFunction()
-    
+
     Output Parameters:
 .   G - vector containing the newly evaluated gradient
 */
@@ -182,10 +182,10 @@ PetscErrorCode FormGradient(SNES snes, Vec X, Vec G, void *ptr)
   /* Compute function over the locally owned part of the mesh */
   for (j=ys; j < ys+ym; j++){
     for (i=xs; i< xs+xm; i++){
-      
+
       xc = x[j][i];
       xlt=xrb=xl=xr=xb=xt=xc;
-      
+
       if (i==0){ /* left side */
         xl= user->left[j+1];
         xlt = user->left[j+2];
@@ -199,7 +199,7 @@ PetscErrorCode FormGradient(SNES snes, Vec X, Vec G, void *ptr)
       } else {
         xb = x[j-1][i];
       }
-      
+
       if (i+1 == mx){ /* right side */
         xr=user->right[j+1];
         xrb = user->right[j];
@@ -229,7 +229,7 @@ PetscErrorCode FormGradient(SNES snes, Vec X, Vec G, void *ptr)
       d6 = (xrb-xb);
       d7 = (xlt-xl);
       d8 = (xt-xlt);
-      
+
       df1dxc = d1*hydhx;
       df2dxc = ( d1*hydhx + d4*hxdhy );
       df3dxc = d3*hxdhy;
@@ -252,7 +252,7 @@ PetscErrorCode FormGradient(SNES snes, Vec X, Vec G, void *ptr)
       f4 = sqrt( 1.0 + d3*d3 + d2*d2);
       f5 = sqrt( 1.0 + d2*d2 + d5*d5);
       f6 = sqrt( 1.0 + d4*d4 + d6*d6);
-      
+
       df1dxc /= f1;
       df2dxc /= f2;
       df3dxc /= f3;
@@ -261,10 +261,10 @@ PetscErrorCode FormGradient(SNES snes, Vec X, Vec G, void *ptr)
       df6dxc /= f6;
 
       g[j][i] = (df1dxc+df2dxc+df3dxc+df4dxc+df5dxc+df6dxc )/2.0;
-      
+
     }
   }
-  
+
   /* Restore vectors */
   ierr = DMDAVecRestoreArray(da,localX, &x); CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(da,G, &g); CHKERRQ(ierr);
@@ -289,7 +289,7 @@ PetscErrorCode FormGradient(SNES snes, Vec X, Vec G, void *ptr)
 
 */
 PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure* flag, void *ptr)
-{ 
+{
   AppCtx          *user;
   Mat             H = *tH;
   PetscErrorCode  ierr;
@@ -321,7 +321,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
   /* Get ghost points */
   ierr = DMGlobalToLocalBegin(da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
- 
+
   /* Get pointers to vector data */
   ierr = DMDAVecGetArray(da,localX, &x); CHKERRQ(ierr);
 
@@ -329,7 +329,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
   /* Compute Jacobian over the locally owned part of the mesh */
   for (j=ys; j< ys+ym; j++){
     for (i=xs; i< xs+xm; i++){
-      xc = x[j][i]; 
+      xc = x[j][i];
       xlt=xrb=xl=xr=xb=xt=xc;
 
       /* Left */
@@ -339,7 +339,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
       } else {
         xl = x[j][i-1];
       }
-      
+
       /* Bottom */
       if (j==0){
         xb=user->bottom[i+1];
@@ -347,7 +347,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
       } else {
         xb = x[j-1][i];
       }
-      
+
       /* Right */
       if (i+1 == mx){
         xr=user->right[j+1];
@@ -382,7 +382,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
       d6 = (xrb-xb)/hx;
       d7 = (xlt-xl)/hy;
       d8 = (xlt-xt)/hx;
-      
+
       f1 = sqrt( 1.0 + d1*d1 + d7*d7);
       f2 = sqrt( 1.0 + d1*d1 + d4*d4);
       f3 = sqrt( 1.0 + d3*d3 + d8*d8);
@@ -405,53 +405,53 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
 
       hc = hydhx*(1.0+d7*d7)/(f1*f1*f1) + hxdhy*(1.0+d8*d8)/(f3*f3*f3) +
 	hydhx*(1.0+d5*d5)/(f5*f5*f5) + hxdhy*(1.0+d6*d6)/(f6*f6*f6) +
-	(hxdhy*(1.0+d1*d1)+hydhx*(1.0+d4*d4)-2*d1*d4)/(f2*f2*f2) +
-	(hxdhy*(1.0+d2*d2)+hydhx*(1.0+d3*d3)-2*d2*d3)/(f4*f4*f4);
+	(hxdhy*(1.0+d1*d1)+hydhx*(1.0+d4*d4)-2.0*d1*d4)/(f2*f2*f2) +
+	(hxdhy*(1.0+d2*d2)+hydhx*(1.0+d3*d3)-2.0*d2*d3)/(f4*f4*f4);
 
-      hl/=2.0; hr/=2.0; ht/=2.0; hb/=2.0; hbr/=2.0; htl/=2.0;  hc/=2.0; 
+      hl/=2.0; hr/=2.0; ht/=2.0; hb/=2.0; hbr/=2.0; htl/=2.0;  hc/=2.0;
 
       k=0;
       row.i = i;row.j= j;
       /* Bottom */
-      if (j>0){ 
-	v[k]=hb; 
+      if (j>0){
+	v[k]=hb;
 	col[k].i = i; col[k].j=j-1; k++;
       }
-      
+
       /* Bottom right */
       if (j>0 && i < mx -1){
-	v[k]=hbr; 
+	v[k]=hbr;
 	col[k].i = i+1; col[k].j = j-1; k++;
       }
-      
+
       /* left */
       if (i>0){
-	v[k]= hl; 
+	v[k]= hl;
 	col[k].i = i-1; col[k].j = j; k++;
       }
-      
+
       /* Centre */
       v[k]= hc; col[k].i= row.i; col[k].j = row.j; k++;
-      
+
       /* Right */
       if (i < mx-1 ){
-	v[k]= hr; 
+	v[k]= hr;
 	col[k].i= i+1; col[k].j = j;k++;
       }
-      
+
       /* Top left */
       if (i>0 && j < my-1 ){
-	v[k]= htl; 
+	v[k]= htl;
 	col[k].i = i-1;col[k].j = j+1; k++;
       }
-      
+
       /* Top */
       if (j < my-1 ){
-	v[k]= ht; 
+	v[k]= ht;
 	col[k].i = i; col[k].j = j+1; k++;
       }
-      
-      ierr = MatSetValuesStencil(H,1,&row,k,col,v,INSERT_VALUES); 
+
+      ierr = MatSetValuesStencil(H,1,&row,k,col,v,INSERT_VALUES);
       CHKERRQ(ierr);
     }
   }
@@ -469,7 +469,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat *tH, Mat* tHPre, MatStructure*
 /* ------------------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "FormBoundaryConditions"
-/* 
+/*
    FormBoundaryConditions -  Calculates the boundary conditions for
    the region.
 
@@ -512,7 +512,7 @@ PetscErrorCode FormBoundaryConditions(SNES snes,AppCtx **ouser)
   ierr = PetscMalloc(lsize*sizeof(PetscScalar), &user->left);CHKERRQ(ierr);
   ierr = PetscMalloc(rsize*sizeof(PetscScalar), &user->right);CHKERRQ(ierr);
 
-  hx= (r-l)/(mx+1); hy=(t-b)/(my+1);
+  hx= (r-l)/(mx+1.0); hy=(t-b)/(my+1.0);
 
   for (j=0; j<4; j++){
     if (j==0){
@@ -586,7 +586,7 @@ PetscErrorCode DestroyBoundaryConditions(AppCtx **ouser)
 #undef __FUNCT__
 #define __FUNCT__ "ComputeInitialGuess"
 /*
-   ComputeInitialGuess - Calculates the initial guess 
+   ComputeInitialGuess - Calculates the initial guess
 
    Input Parameters:
 .  user - user-defined application context
@@ -616,7 +616,7 @@ PetscErrorCode ComputeInitialGuess(SNES snes, Vec X,void *dummy)
   /* Perform local computations */
   for (j=ys; j<ys+ym; j++){
     for (i=xs; i< xs+xm; i++){
-      x[j][i] = ( ((j+1)*user->bottom[i+1]+(my-j+1)*user->top[i+1])/(my+2)+((i+1)*user->left[j+1]+(mx-i+1)*user->right[j+1])/(mx+2))/2.0;
+      x[j][i] = ( ((j+1.0)*user->bottom[i+1]+(my-j+1.0)*user->top[i+1])/(my+2.0)+((i+1.0)*user->left[j+1]+(mx-i+1.0)*user->right[j+1])/(mx+2.0))/2.0;
     }
   }
   /* Restore vectors */

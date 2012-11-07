@@ -1,5 +1,5 @@
 
-static char help[] = "Tests VecSetValues and VecSetValuesBlocked() on MPI vectors.\n\
+static char help[] = "Tests VecSetValues() and VecSetValuesBlocked() on MPI vectors.\n\
 Where atleast a couple of mallocs will occur in the stash code.\n\n";
 
 #include <petscvec.h>
@@ -14,7 +14,7 @@ int main(int argc,char **argv)
   PetscScalar    val,*vals,zero=0.0;
   Vec            x;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
   bs = size;
 
@@ -53,4 +53,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

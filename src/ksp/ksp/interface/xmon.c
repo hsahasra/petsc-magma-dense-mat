@@ -1,10 +1,10 @@
 
 #include <petsc-private/kspimpl.h>              /*I  "petscksp.h"   I*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "KSPMonitorLGCreate"
+#undef __FUNCT__
+#define __FUNCT__ "KSPMonitorLGResidualNormCreate"
 /*@C
-   KSPMonitorLGCreate - Creates a line graph context for use with 
+   KSPMonitorLGResidualNormCreate - Creates a line graph context for use with
    KSP to monitor convergence of preconditioned residual norms.
 
    Collective on KSP
@@ -20,48 +20,42 @@
 .  draw - the drawing context
 
    Options Database Key:
-.  -ksp_monitor_draw - Sets line graph monitor
+.  -ksp_monitor_lg_residualnorm - Sets line graph monitor
 
-   Notes: 
-   Use KSPMonitorLGDestroy() to destroy this line graph; do not use PetscDrawLGDestroy().
+   Notes:
+   Use KSPMonitorLGResidualNormDestroy() to destroy this line graph; do not use PetscDrawLGDestroy().
 
    Level: intermediate
 
 .keywords: KSP, monitor, line graph, residual, create
 
-.seealso: KSPMonitorLGDestroy(), KSPMonitorSet(), KSPMonitorLGTrueResidualCreate()
+.seealso: KSPMonitorLGResidualNormDestroy(), KSPMonitorSet(), KSPMonitorLGTrueResidualCreate()
 @*/
-PetscErrorCode  KSPMonitorLGCreate(const char host[],const char label[],int x,int y,int m,int n,PetscDrawLG *draw)
+PetscErrorCode  KSPMonitorLGResidualNormCreate(const char host[],const char label[],int x,int y,int m,int n,PetscDrawLG *draw)
 {
   PetscDraw      win;
   PetscErrorCode ierr;
+  PetscDrawAxis  axis;
 
   PetscFunctionBegin;
   ierr = PetscDrawCreate(PETSC_COMM_SELF,host,label,x,y,m,n,&win);CHKERRQ(ierr);
-  ierr = PetscDrawSetType(win,PETSC_DRAW_X);CHKERRQ(ierr);
+  ierr = PetscDrawSetFromOptions(win);CHKERRQ(ierr);
   ierr = PetscDrawLGCreate(win,1,draw);CHKERRQ(ierr);
+  ierr = PetscDrawLGGetAxis(*draw,&axis);CHKERRQ(ierr);
+  ierr = PetscDrawAxisSetLabels(axis,"Convergence","Iteration","Residual Norm");CHKERRQ(ierr);
   ierr = PetscLogObjectParent(*draw,win);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "KSPMonitorLG"
-PetscErrorCode  KSPMonitorLG(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
+#undef __FUNCT__
+#define __FUNCT__ "KSPMonitorLGResidualNorm"
+PetscErrorCode  KSPMonitorLGResidualNorm(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
 {
   PetscDrawLG    lg = (PetscDrawLG)monctx;
   PetscErrorCode ierr;
   PetscReal      x,y;
-  PetscViewer    v;
 
   PetscFunctionBegin;
-  if (!monctx) {
-    MPI_Comm    comm;
-
-    ierr   = PetscObjectGetComm((PetscObject)ksp,&comm);CHKERRQ(ierr);
-    v      = PETSC_VIEWER_DRAW_(comm);
-    ierr   = PetscViewerDrawGetDrawLG(v,0,&lg);CHKERRQ(ierr);
-  } 
-
   if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
   x = (PetscReal) n;
   if (rnorm > 0.0) y = log10(rnorm); else y = -15.0;
@@ -70,13 +64,13 @@ PetscErrorCode  KSPMonitorLG(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
     ierr = PetscDrawLGDraw(lg);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
-} 
- 
-#undef __FUNCT__  
-#define __FUNCT__ "KSPMonitorLGDestroy"
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "KSPMonitorLGResidualNormDestroy"
 /*@
-   KSPMonitorLGDestroy - Destroys a line graph context that was created 
-   with KSPMonitorLGCreate().
+   KSPMonitorLGResidualNormDestroy - Destroys a line graph context that was created
+   with KSPMonitorLGResidualNormCreate().
 
    Collective on KSP
 
@@ -87,9 +81,9 @@ PetscErrorCode  KSPMonitorLG(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
 
 .keywords: KSP, monitor, line graph, destroy
 
-.seealso: KSPMonitorLGCreate(), KSPMonitorLGTrueResidualDestroy(), KSPMonitorSet()
+.seealso: KSPMonitorLGResidualNormCreate(), KSPMonitorLGTrueResidualDestroy(), KSPMonitorSet()
 @*/
-PetscErrorCode  KSPMonitorLGDestroy(PetscDrawLG *drawlg)
+PetscErrorCode  KSPMonitorLGResidualNormDestroy(PetscDrawLG *drawlg)
 {
   PetscDraw      draw;
   PetscErrorCode ierr;
@@ -101,51 +95,8 @@ PetscErrorCode  KSPMonitorLGDestroy(PetscDrawLG *drawlg)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "KSPMonitorLGRangeCreate"
-/*@C
-   KSPMonitorLGRangeCreate - Creates a line graph context for use with 
-   KSP to monitor convergence of preconditioned residual norms and range of residual element values.
-
-   Collective on KSP
-
-   Input Parameters:
-+  host - the X display to open, or null for the local machine
-.  label - the title to put in the title bar
-.  x, y - the screen coordinates of the upper left coordinate of
-          the window
--  m, n - the screen width and height in pixels
-
-   Output Parameter:
-.  draw - the drawing context
-
-   Options Database Key:
-.  -ksp_monitor_range_draw - Sets line graph monitor
-
-   Notes: 
-   Use KSPMonitorLGDestroy() to destroy this line graph; do not use PetscDrawLGDestroy().
-
-   Level: intermediate
-
-.keywords: KSP, monitor, line graph, residual, create
-
-.seealso: KSPMonitorLGDestroy(), KSPMonitorSet(), KSPMonitorLGTrueResidualCreate()
-@*/
-PetscErrorCode  KSPMonitorLGRangeCreate(const char host[],const char label[],int x,int y,int m,int n,PetscDrawLG *draw)
-{
-  PetscDraw      win;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscDrawCreate(PETSC_COMM_SELF,host,label,x,y,m,n,&win);CHKERRQ(ierr);
-  ierr = PetscDrawSetType(win,PETSC_DRAW_X);CHKERRQ(ierr);
-  ierr = PetscDrawLGCreate(win,2,draw);CHKERRQ(ierr);
-  ierr = PetscLogObjectParent(*draw,win);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
 extern PetscErrorCode  KSPMonitorRange_Private(KSP,PetscInt,PetscReal*);
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPMonitorLGRange"
 PetscErrorCode  KSPMonitorLGRange(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
 {
@@ -157,12 +108,6 @@ PetscErrorCode  KSPMonitorLGRange(KSP ksp,PetscInt n,PetscReal rnorm,void *monct
   PetscDraw        draw;
 
   PetscFunctionBegin;
-  if (!monctx) {
-    MPI_Comm    comm;
-
-    ierr   = PetscObjectGetComm((PetscObject)ksp,&comm);CHKERRQ(ierr);
-    v      = PETSC_VIEWER_DRAW_(comm);
-  }
   ierr   = PetscViewerDrawGetDrawLG(v,0,&lg);CHKERRQ(ierr);
   if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
   ierr   = PetscDrawLGGetDraw(lg,&draw);CHKERRQ(ierr);
@@ -213,41 +158,12 @@ PetscErrorCode  KSPMonitorLGRange(KSP ksp,PetscInt n,PetscReal rnorm,void *monct
   }
   prev = rnorm;
   PetscFunctionReturn(0);
-} 
- 
-#undef __FUNCT__  
-#define __FUNCT__ "KSPMonitorLGRangeDestroy"
-/*@
-   KSPMonitorLGRangeDestroy - Destroys a line graph context that was created 
-   with KSPMonitorLGRangeCreate().
-
-   Collective on KSP
-
-   Input Parameter:
-.  draw - the drawing context
-
-   Level: intermediate
-
-.keywords: KSP, monitor, line graph, destroy
-
-.seealso: KSPMonitorLGCreate(), KSPMonitorLGTrueResidualDestroy(), KSPMonitorSet()
-@*/
-PetscErrorCode  KSPMonitorLGRangeDestroy(PetscDrawLG *drawlg)
-{
-  PetscDraw      draw;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PetscDrawLGGetDraw(*drawlg,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawDestroy(&draw);CHKERRQ(ierr);
-  ierr = PetscDrawLGDestroy(drawlg);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPMonitorLGTrueResidualNormCreate"
 /*@C
-   KSPMonitorLGTrueResidualNormCreate - Creates a line graph context for use with 
+   KSPMonitorLGTrueResidualNormCreate - Creates a line graph context for use with
    KSP to monitor convergence of true residual norms (as opposed to
    preconditioned residual norms).
 
@@ -264,9 +180,9 @@ PetscErrorCode  KSPMonitorLGRangeDestroy(PetscDrawLG *drawlg)
 .  draw - the drawing context
 
    Options Database Key:
-.  -ksp_monitor_draw_true_residual - Sets true line graph monitor
+.  -ksp_monitor_lg_true_residualnorm - Sets true line graph monitor
 
-   Notes: 
+   Notes:
    Use KSPMonitorLGTrueResidualNormDestroy() to destroy this line graph, not
    PetscDrawLGDestroy().
 
@@ -274,26 +190,29 @@ PetscErrorCode  KSPMonitorLGRangeDestroy(PetscDrawLG *drawlg)
 
 .keywords: KSP, monitor, line graph, residual, create, true
 
-.seealso: KSPMonitorLGDestroy(), KSPMonitorSet(), KSPMonitorDefault()
+.seealso: KSPMonitorLGResidualNormDestroy(), KSPMonitorSet(), KSPMonitorDefault()
 @*/
 PetscErrorCode  KSPMonitorLGTrueResidualNormCreate(MPI_Comm comm,const char host[],const char label[],int x,int y,int m,int n,PetscDrawLG *draw)
 {
   PetscDraw      win;
   PetscErrorCode ierr;
   PetscMPIInt    rank;
+  PetscDrawAxis  axis;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
   if (rank) { *draw = 0; PetscFunctionReturn(0);}
 
   ierr = PetscDrawCreate(PETSC_COMM_SELF,host,label,x,y,m,n,&win);CHKERRQ(ierr);
-  ierr = PetscDrawSetType(win,PETSC_DRAW_X);CHKERRQ(ierr);
+  ierr = PetscDrawSetFromOptions(win);CHKERRQ(ierr);
   ierr = PetscDrawLGCreate(win,2,draw);CHKERRQ(ierr);
+  ierr = PetscDrawLGGetAxis(*draw,&axis);CHKERRQ(ierr);
+  ierr = PetscDrawAxisSetLabels(axis,"Convergence","Iteration","Residual Norms");CHKERRQ(ierr);
   ierr = PetscLogObjectParent(*draw,win);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPMonitorLGTrueResidualNorm"
 PetscErrorCode  KSPMonitorLGTrueResidualNorm(KSP ksp,PetscInt n,PetscReal rnorm,void *monctx)
 {
@@ -304,17 +223,8 @@ PetscErrorCode  KSPMonitorLGTrueResidualNorm(KSP ksp,PetscInt n,PetscReal rnorm,
   Vec            resid,work;
 
   PetscFunctionBegin;
-  if (!monctx) {
-    MPI_Comm    comm;
-    PetscViewer viewer;
-
-    ierr   = PetscObjectGetComm((PetscObject)ksp,&comm);CHKERRQ(ierr);
-    viewer = PETSC_VIEWER_DRAW_(comm);
-    ierr   = PetscViewerDrawGetDrawLG(viewer,0,&lg);CHKERRQ(ierr);
-  }
-
   ierr = MPI_Comm_rank(((PetscObject)ksp)->comm,&rank);CHKERRQ(ierr);
-  if (!rank) { 
+  if (!rank) {
     if (!n) {ierr = PetscDrawLGReset(lg);CHKERRQ(ierr);}
     x[0] = x[1] = (PetscReal) n;
     if (rnorm > 0.0) y[0] = log10(rnorm); else y[0] = -15.0;
@@ -333,12 +243,12 @@ PetscErrorCode  KSPMonitorLGTrueResidualNorm(KSP ksp,PetscInt n,PetscReal rnorm,
     }
   }
   PetscFunctionReturn(0);
-} 
- 
-#undef __FUNCT__  
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "KSPMonitorLGTrueResidualNormDestroy"
 /*@C
-   KSPMonitorLGTrueResidualNormDestroy - Destroys a line graph context that was created 
+   KSPMonitorLGTrueResidualNormDestroy - Destroys a line graph context that was created
    with KSPMonitorLGTrueResidualNormCreate().
 
    Collective on KSP

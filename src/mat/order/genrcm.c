@@ -2,6 +2,7 @@
 /* genrcm.f -- translated by f2c (version 19931217).*/
 
 #include <petscsys.h>
+#include <../src/mat/order/order.h>
 
 /*****************************************************************/
 /*****************************************************************/
@@ -33,17 +34,15 @@
 /*    PROGRAM SUBROUTINES -*/
 /*       FNROOT, RCM.*/
 /*****************************************************************/
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKgenrcm" 
-PetscErrorCode SPARSEPACKgenrcm(PetscInt *neqns,PetscInt *xadj,PetscInt *adjncy,PetscInt *perm,PetscInt *mask,PetscInt *xls)
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKgenrcm"
+PetscErrorCode SPARSEPACKgenrcm(const PetscInt *neqns,const PetscInt *xadj,const PetscInt *adjncy,PetscInt *perm,PetscInt *mask,PetscInt *xls)
 {
     /* System generated locals */
     PetscInt i__1;
 
     /* Local variables */
     PetscInt nlvl,root,i,ccsize;
-    extern PetscErrorCode SPARSEPACKfnroot(PetscInt*,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *),
-               SPARSEPACKrcm(PetscInt*,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *,PetscInt *);
     PetscInt num;
 
     PetscFunctionBegin;

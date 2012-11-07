@@ -1,12 +1,13 @@
-static char help[] = "Nonlinear, time-dependent. Developed from radiative_surface_balance.c - work with petsc-dev \n";
+static char help[] = "Nonlinear, time-dependent. Developed from radiative_surface_balance.c \n";
 /*
   Contributed by Steve Froehlich, Illinois Institute of Technology
 
    Usage:
     mpiexec -n <np> ./ex5 [options]
     ./ex5 -help  [view petsc options]
-    ./ex5 -ts_type sundials -ts_sundials_monitor_steps -pc_type lu -ts_view
+    ./ex5 -ts_type sundials -ts_view
     ./ex5 -da_grid_x 20 -da_grid_y 20 -log_summary
+    ./ex5 -da_grid_x 20 -da_grid_y 20 -ts_type rosw -ts_atol 1.e-6 -ts_rtol 1.e-6
     ./ex5 -drawcontours -draw_pause 0.1 -draw_fields 0,1,2,3,4
 */
 
@@ -27,7 +28,7 @@ static char help[] = "Nonlinear, time-dependent. Developed from radiative_surfac
 	dTs/dt = Fnet/(Cp*dz) - Div([u*Ts, v*Ts]) + D*Lap(Ts)
                = Fnet/(Cs*dz) - u*(dTs/dx) - v*(dTs/dy) + D*(Ts_xx + Ts_yy)
 	dp/dt  = -Div([u*p,v*p])
-               = - u*dp/dx - v*dp/dy  
+               = - u*dp/dx - v*dp/dy
 	dTa/dt = Fnet/Cp
 
    Equation of State:
@@ -99,7 +100,7 @@ typedef struct {
 /* Struct for visualization */
 typedef struct {
    PetscBool   drawcontours;   /* flag - 1 indicates drawing contours */
-   PetscViewer drawviewer; 
+   PetscViewer drawviewer;
 } MonitorCtx;
 
 
@@ -148,7 +149,6 @@ int main(int argc,char **argv)
   PetscScalar rh;             //relative humidity
   PetscScalar x;              //memory varialbe for relative humidity calculation
   PetscScalar deep_grnd_temp; //temperature of ground under top soil surface layer
-
   PetscScalar emma;		//absorption-emission constant for air
   PetscScalar pressure1 = 101300; //surface pressure
   PetscScalar mixratio;         //mixing ratio
@@ -215,6 +215,7 @@ int main(int argc,char **argv)
   /*Create grid*/
   ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_PERIODIC,DMDA_BOUNDARY_PERIODIC,DMDA_STENCIL_STAR,-20,-20,
                       PETSC_DECIDE,PETSC_DECIDE,dof,1,PETSC_NULL,PETSC_NULL,&da);CHKERRQ(ierr);
+  ierr = DMDASetUniformCoordinates(da, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0);CHKERRQ(ierr);
 
   /*Define output window for each variable of interest*/
   ierr = DMDASetFieldName(da,0,"Ts");CHKERRQ(ierr);
@@ -249,7 +250,7 @@ int main(int argc,char **argv)
   }
 
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Extract global vectors from DA; 
+     Extract global vectors from DA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&T);CHKERRQ(ierr);
   ierr = VecDuplicate(T,&rhs);CHKERRQ(ierr); //r: vector to put the computed right hand side
@@ -277,7 +278,11 @@ int main(int argc,char **argv)
   }
 
   /*Define what to print for ts_monitor option*/
-  ierr = TSMonitorSet(ts,Monitor,&usermonitor,PETSC_NULL);CHKERRQ(ierr);
+  PetscBool  monitor_off = PETSC_FALSE;
+  ierr = PetscOptionsHasName(PETSC_NULL,"-monitor_off",&monitor_off);CHKERRQ(ierr);
+  if (!monitor_off){  
+    ierr = TSMonitorSet(ts,Monitor,&usermonitor,PETSC_NULL);CHKERRQ(ierr);
+  }
   ierr = FormInitialSolution(da,T,&user);CHKERRQ(ierr);
   dt    = TIMESTEP; /* initial time step */
   ftime = TIMESTEP*time;
@@ -285,6 +290,7 @@ int main(int argc,char **argv)
   ierr = TSSetInitialTimeStep(ts,0.0,dt);CHKERRQ(ierr);
   ierr = TSSetDuration(ts,time,ftime);CHKERRQ(ierr);
   ierr = TSSetSolution(ts,T);CHKERRQ(ierr);
+  ierr = TSSetDM(ts,da);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set runtime options
@@ -322,7 +328,7 @@ PetscErrorCode calcfluxs(PetscScalar sfctemp, PetscScalar airtemp, PetscScalar e
 {
  PetscFunctionBegin;
   *flux = SIG*((EMMSFC*emma*pow(airtemp,4)) + (EMMSFC*fract*(1 - emma)*pow(cloudTemp,4)) - (EMMSFC*pow(sfctemp,4)));   //calculates flux using Stefan-Boltzmann relation
-  PetscFunctionReturn(0); 
+  PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
@@ -740,9 +746,6 @@ PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal time,Vec T,void *ctx)
 {
   PetscErrorCode ierr;
   PetscScalar    *array;
-  PetscInt       itime=(PetscInt)(time);
-  const TSType   type;
-  PetscBool      sundials;
   MonitorCtx     *user = (MonitorCtx*)ctx;
   PetscViewer    viewer = user->drawviewer;
   PetscMPIInt    rank;
@@ -750,18 +753,14 @@ PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal time,Vec T,void *ctx)
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(((PetscObject)ts)->comm,&rank);CHKERRQ(ierr);
-
-  ierr = TSGetType(ts,&type);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)ts,TSSUNDIALS,&sundials);CHKERRQ(ierr);
   ierr = VecNorm(T,NORM_INFINITY,&norm);CHKERRQ(ierr);
-  if (sundials || itime%60 == 0){
-    ierr = VecGetArray(T,&array);CHKERRQ(ierr);
-    if (!rank){printf("step %4d, time %8.1f,  %6.4f, %6.4f, %6.4f, %6.4f, %6.4f, %6.4f\n",step,time,(((array[0]-273)*9)/5 + 32),(((array[1]-273)*9)/5 + 32),array[2],array[3],array[4],array[5]);}
-    ierr = VecRestoreArray(T,&array);CHKERRQ(ierr);
-
-    if (user->drawcontours){
-      ierr = VecView(T,viewer);CHKERRQ(ierr);
-    }
+  
+  ierr = VecGetArray(T,&array);CHKERRQ(ierr);
+  if (!rank){printf("step %4d, time %8.1f,  %6.4f, %6.4f, %6.4f, %6.4f, %6.4f, %6.4f\n",step,time,(((array[0]-273)*9)/5 + 32),(((array[1]-273)*9)/5 + 32),array[2],array[3],array[4],array[5]);}
+  ierr = VecRestoreArray(T,&array);CHKERRQ(ierr);
+    
+  if (user->drawcontours){
+    ierr = VecView(T,viewer);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

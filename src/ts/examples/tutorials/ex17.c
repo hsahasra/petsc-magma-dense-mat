@@ -13,13 +13,11 @@ static const char help[] = "Time-dependent PDE in 1d. Simplified from ex15.c for
    Neumann BC:
    At x=0, x=1: du(x,t)/dx = 0
 
-Program usage:
-   mpiexec -n <procs> ./ex17 [-help] [all PETSc options]
-   e.g., mpiexec -n 2 ./ex17 -da_grid_x 40 -ts_max_steps 2 -snes_monitor -ksp_monitor
-         ./ex17 -da_grid_x 40 -drawcontours -draw_pause .1
-         ./ex17 -da_grid_x 100 -drawcontours -draw_pause .1 -ts_type theta -ts_theta_theta 0.5 # Midpoint is not L-stable
-         ./ex17 -jac_type fd_coloring -drawcontours -draw_pause .1 -da_grid_x 500 -boundary 1 
-         ./ex17 -da_grid_x 100 -drawcontours -draw_pause 1 -ts_type gl -ts_adapt_type none -ts_max_steps 2 
+   mpiexec -n 2 ./ex17 -da_grid_x 40 -ts_max_steps 2 -snes_monitor -ksp_monitor
+         ./ex17 -da_grid_x 40 -monitor_solution
+         ./ex17 -da_grid_x 100  -ts_type theta -ts_theta_theta 0.5 # Midpoint is not L-stable
+         ./ex17 -jac_type fd_coloring  -da_grid_x 500 -boundary 1
+         ./ex17 -da_grid_x 100  -ts_type gl -ts_adapt_type none -ts_max_steps 2
 */
 
 #include <petscdmda.h>
@@ -32,10 +30,6 @@ static const char *const JacobianTypes[] = {"analytic","fd_coloring","fd_full","
    User-defined data structures and routines
 */
 typedef struct {
-  PetscBool drawcontours;
-} MonitorCtx;
-
-typedef struct {
   PetscReal      c;
   PetscInt       boundary;       /* Type of boundary condition */
   PetscBool      viewJacobian;
@@ -44,7 +38,6 @@ typedef struct {
 static PetscErrorCode FormIFunction(TS,PetscReal,Vec,Vec,Vec,void*);
 static PetscErrorCode FormIJacobian(TS,PetscReal,Vec,Vec,PetscReal,Mat*,Mat*,MatStructure*,void*);
 static PetscErrorCode FormInitialSolution(TS,Vec,void*);
-static PetscErrorCode MyTSMonitor(TS,PetscInt,PetscReal,Vec,void*);
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -56,9 +49,7 @@ int main(int argc,char **argv)
   PetscInt       steps,maxsteps = 1000;     /* iterations for convergence */
   PetscErrorCode ierr;
   DM             da;
-  MatFDColoring  matfdcoloring = PETSC_NULL;
   PetscReal      ftime,dt;
-  MonitorCtx     usermonitor;       /* user-defined monitor context */
   AppCtx         user;              /* user-defined work context */
   JacobianType   jacType;
 
@@ -70,7 +61,7 @@ int main(int argc,char **argv)
   ierr = DMDACreate1d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,-11,1,1,PETSC_NULL,&da);CHKERRQ(ierr);
 
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Extract global vectors from DMDA; 
+     Extract global vectors from DMDA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&u);CHKERRQ(ierr);
 
@@ -80,9 +71,6 @@ int main(int argc,char **argv)
   user.viewJacobian  = PETSC_FALSE;
   ierr = PetscOptionsGetInt(PETSC_NULL,"-boundary",&user.boundary,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsHasName(PETSC_NULL,"-viewJacobian",&user.viewJacobian);CHKERRQ(ierr);
-
-  usermonitor.drawcontours = PETSC_FALSE;
-  ierr = PetscOptionsHasName(PETSC_NULL,"-drawcontours",&usermonitor.drawcontours);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create timestepping solver context
@@ -101,7 +89,6 @@ int main(int argc,char **argv)
 
   ftime = 1.0;
   ierr = TSSetDuration(ts,maxsteps,ftime);CHKERRQ(ierr);
-  ierr = TSMonitorSet(ts,MyTSMonitor,&usermonitor,PETSC_NULL);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
@@ -123,14 +110,8 @@ int main(int argc,char **argv)
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
   if (jacType == JACOBIAN_FD_COLORING) {
     SNES       snes;
-    ISColoring iscoloring;
-    ierr = DMCreateColoring(da,IS_COLORING_GLOBAL,MATAIJ,&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringCreate(J,iscoloring,&matfdcoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFromOptions(matfdcoloring);CHKERRQ(ierr);
-    ierr = ISColoringDestroy(&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFunction(matfdcoloring,(PetscErrorCode(*)(void))SNESTSFormFunction,ts);CHKERRQ(ierr);
     ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
-    ierr = SNESSetJacobian(snes,J,J,SNESDefaultComputeJacobianColor,matfdcoloring);CHKERRQ(ierr);
+    ierr = SNESSetJacobian(snes,J,J,SNESDefaultComputeJacobianColor,0);CHKERRQ(ierr);
   } else if (jacType == JACOBIAN_FD_FULL){
     SNES       snes;
     ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
@@ -147,7 +128,6 @@ int main(int argc,char **argv)
      Free work space.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = MatDestroy(&J);CHKERRQ(ierr);
-  if (matfdcoloring) {ierr = MatFDColoringDestroy(&matfdcoloring);CHKERRQ(ierr);}
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
@@ -317,25 +297,5 @@ PetscErrorCode FormInitialSolution(TS ts,Vec U,void* ptr)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "MyTSMonitor"
-PetscErrorCode MyTSMonitor(TS ts,PetscInt step,PetscReal ptime,Vec v,void *ptr)
-{
-  PetscErrorCode ierr;
-  PetscReal      norm,vmax,vmin;
-  MPI_Comm       comm;
-  MonitorCtx     *user = (MonitorCtx*)ptr;
 
-  PetscFunctionBegin;
-  ierr = VecNorm(v,NORM_1,&norm);CHKERRQ(ierr);
-  ierr = VecMax(v,PETSC_NULL,&vmax);CHKERRQ(ierr);
-  ierr = VecMin(v,PETSC_NULL,&vmin);CHKERRQ(ierr);
-  ierr = PetscObjectGetComm((PetscObject)ts,&comm);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm,"timestep %D: time %G, solution norm %G, max %G, min %G\n",step,ptime,norm,vmax,vmin);CHKERRQ(ierr);
-
-  if (user->drawcontours){
-    ierr = VecView(v,PETSC_VIEWER_DRAW_WORLD);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
 

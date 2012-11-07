@@ -1,5 +1,4 @@
 #requirespackage   'PETSC_HAVE_SUPERLU'
-#requiresprecision double
 
 ALL: lib
 
@@ -8,8 +7,6 @@ FFLAGS   =
 SOURCEC  = superlu.c
 SOURCEF  = 
 SOURCEH  = 
-OBJSC    = superlu.o
-OBJSF    = 
 LIBBASE  = libpetscmat
 DIRS     = 
 MANSEC   = Mat

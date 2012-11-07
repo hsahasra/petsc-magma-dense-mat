@@ -3,10 +3,8 @@ ALL: lib
 CFLAGS   =
 FFLAGS   =
 SOURCEC  =
-SOURCEF  = f90_fwrap.F
+SOURCEF  = f90_fwrap.F 
 SOURCEH  = 
-OBJSC    =
-OBJSF	 = f90_fwrap.o
 DIRS     = 
 LIBBASE  = libpetscsys
 MANSEC   = Sys

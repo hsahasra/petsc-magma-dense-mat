@@ -34,7 +34,6 @@
        call KSPDestroy(ksp,ierr)
        call DMDestroy(dm,ierr)
        call PetscFinalize(ierr)
-       return
        end
 
 
@@ -46,7 +45,7 @@
        PetscScalar  h
        h=0.0
        call VecSet(b,h,ierr)
-       end subroutine 
+       end subroutine
 
        subroutine ComputeRHS(ksp,b,dummy,ierr)
        implicit none
@@ -57,7 +56,7 @@
        PetscScalar  h
        h=1.0
        call VecSet(b,h,ierr)
-       end subroutine 
+       end subroutine
 
        subroutine ComputeMatrix(ksp,A,B,str,dummy,ierr)
        implicit none
@@ -128,4 +127,4 @@
          call MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY,ierr)
          call MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY,ierr)
        endif
-       end subroutine 
+       end subroutine

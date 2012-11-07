@@ -77,12 +77,10 @@ typedef struct {
 } Field;
 
 PetscErrorCode FormIFunctionLocal(DMDALocalInfo*,PetscReal,Field**,Field**,Field**,void*);
-PetscErrorCode FormIFunction(TS,PetscReal,Vec,Vec,Vec,void*);
 
 typedef struct {
   PassiveReal  lidvelocity,prandtl,grashof;  /* physical parameters */
   PetscBool    parabolic;                    /* allow a transient term corresponding roughly to artificial compressibility */
-  PetscBool    draw_contours;                /* flag - 1 indicates drawing contours */
   PetscReal    cfl_initial;                  /* CFL for first time step */
 } AppCtx;
 
@@ -99,9 +97,7 @@ int main(int argc,char **argv)
   DM             da;
   Vec            X;
   PetscReal      ftime;
-  PetscBool      fdcoloring;
   TSConvergedReason reason;
-  MatFDColoring matfdcoloring = PETSC_NULL;
 
   ierr = PetscInitialize(&argc,&argv,(char *)0,help);if (ierr) return(1);
 
@@ -118,18 +114,14 @@ int main(int argc,char **argv)
   user.lidvelocity   = 1.0/(mx*my);
   user.prandtl       = 1.0;
   user.grashof       = 1.0;
-  user.draw_contours = PETSC_FALSE;
   user.parabolic     = PETSC_FALSE;
   user.cfl_initial   = 50.;
-  fdcoloring         = PETSC_TRUE;
   ierr = PetscOptionsBegin(PETSC_COMM_WORLD,PETSC_NULL,"Driven cavity/natural convection options","");CHKERRQ(ierr);
   ierr = PetscOptionsReal("-lidvelocity","Lid velocity, related to Reynolds number","",user.lidvelocity,&user.lidvelocity,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-prandtl","Ratio of viscous to thermal diffusivity","",user.prandtl,&user.prandtl,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-grashof","Ratio of bouyant to viscous forces","",user.grashof,&user.grashof,PETSC_NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-draw_contours","Plot the solution with contours","",user.draw_contours,&user.draw_contours,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-parabolic","Relax incompressibility to make the system parabolic instead of differential-algebraic","",user.parabolic,&user.parabolic,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-cfl_initial","Advective CFL for the first time step","",user.cfl_initial,&user.cfl_initial,PETSC_NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-fdcoloring","Use finite difference coloring to compute Jacobian","",fdcoloring,&fdcoloring,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
   ierr = DMDASetFieldName(da,0,"x-velocity");CHKERRQ(ierr);
@@ -146,21 +138,7 @@ int main(int argc,char **argv)
      Create time integration context
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMSetApplicationContext(da,&user);CHKERRQ(ierr);
-  ierr = TSSetIFunction(ts,PETSC_NULL,FormIFunction,&user);CHKERRQ(ierr);
-  if (fdcoloring) {
-    Mat B;
-    SNES snes;
-    ISColoring iscoloring;
-    ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
-    ierr = DMCreateMatrix(da,MATAIJ,&B);CHKERRQ(ierr);
-    ierr = DMCreateColoring(da,IS_COLORING_GLOBAL,MATAIJ,&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringCreate(B,iscoloring,&matfdcoloring);CHKERRQ(ierr);
-    ierr = ISColoringDestroy(&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFunction(matfdcoloring,(PetscErrorCode(*)(void))SNESTSFormFunction,ts);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFromOptions(matfdcoloring);CHKERRQ(ierr);
-    ierr = SNESSetJacobian(snes,B,B,SNESDefaultComputeJacobianColor,matfdcoloring);CHKERRQ(ierr);
-    ierr = MatDestroy(&B);CHKERRQ(ierr);
-  }
+  ierr = DMDATSSetIFunctionLocal(da,INSERT_VALUES,(DMDATSIFunctionLocal)FormIFunctionLocal,&user);CHKERRQ(ierr);
   ierr = TSSetDuration(ts,10000,1e12);CHKERRQ(ierr);
   ierr = TSSetInitialTimeStep(ts,0.0,user.cfl_initial/(user.lidvelocity*mx));CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
@@ -181,19 +159,11 @@ int main(int argc,char **argv)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%s at time %G after %D steps\n",TSConvergedReasons[reason],ftime,steps);CHKERRQ(ierr);
 
-  /*
-     Visualize solution
-  */
-  if (user.draw_contours) {
-    ierr = VecView(X,PETSC_VIEWER_DRAW_WORLD);CHKERRQ(ierr);
-  }
-
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Free work space.  All PETSc objects should be destroyed when they
      are no longer needed.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecDestroy(&X);CHKERRQ(ierr);
-  ierr = MatFDColoringDestroy(&matfdcoloring);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
 
@@ -402,35 +372,3 @@ PetscErrorCode FormIFunctionLocal(DMDALocalInfo *info,PetscReal ptime,Field **x,
   ierr = PetscLogFlops(84.0*info->ym*info->xm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-#undef __FUNCT__
-#define __FUNCT__ "FormIFunction"
-PetscErrorCode FormIFunction(TS ts,PetscReal ptime,Vec X,Vec Xdot,Vec F,void *user)
-{
-  DMDALocalInfo  info;
-  Field          **u,**udot,**fu;
-  PetscErrorCode ierr;
-  Vec            localX;
-  DM             da;
-
-  PetscFunctionBegin;
-  ierr = TSGetDM(ts,(DM*)&da);CHKERRQ(ierr);
-  ierr = DMGetLocalVector(da,&localX);CHKERRQ(ierr);
-  /*
-     Scatter ghost points to local vector, using the 2-step process
-        DMGlobalToLocalBegin(), DMGlobalToLocalEnd().
-  */
-  ierr = DMGlobalToLocalBegin(da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
-  ierr = DMDAGetLocalInfo(da,&info);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(da,localX,&u);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(da,Xdot,&udot);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(da,F,&fu);CHKERRQ(ierr);
-  ierr = FormIFunctionLocal(&info,ptime,u,udot,fu,user);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(da,localX,&u);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(da,Xdot,&udot);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(da,F,&fu);CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(da,&localX);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-

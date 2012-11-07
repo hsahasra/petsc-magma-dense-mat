@@ -6,15 +6,15 @@ typedef struct {
 } SNES_Test;
 
 /*
-     SNESSolve_Test - Tests whether a hand computed Jacobian 
+     SNESSolve_Test - Tests whether a hand computed Jacobian
      matches one compute via finite differences.
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESSolve_Test"
 PetscErrorCode SNESSolve_Test(SNES snes)
 {
   Mat            A = snes->jacobian,B;
-  Vec            x = snes->vec_sol,f = snes->vec_func;
+  Vec            x = snes->vec_sol,f = snes->vec_func,f1 = snes->vec_sol_update;
   PetscErrorCode ierr;
   PetscInt       i;
   MatStructure   flg;
@@ -83,15 +83,53 @@ PetscErrorCode SNESSolve_Test(SNES snes)
     }
     if (!gnorm) gnorm = 1; /* just in case */
     ierr = PetscPrintf(((PetscObject)snes)->comm,"Norm of matrix ratio %g difference %g (%s)\n",(double)(nrm/gnorm),(double)nrm,loc[i]);CHKERRQ(ierr);
+
+
+    SNESObjective obj;
+    void          *ctx;
+    PetscReal     fnorm,f1norm,dnorm;
+    ierr = SNESGetObjective(snes,&obj,&ctx);CHKERRQ(ierr);
+    if (obj) {
+      ierr = SNESComputeFunction(snes,x,f);CHKERRQ(ierr);
+      ierr = VecNorm(f,NORM_2,&fnorm);CHKERRQ(ierr);
+      if (neP->complete_print) {
+        PetscViewer viewer;
+        ierr = PetscPrintf(((PetscObject)snes)->comm,"Hand-coded Function (%s)\n",loc[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIGetStdout(((PetscObject)snes)->comm,&viewer);CHKERRQ(ierr);
+        ierr = VecView(f,viewer);CHKERRQ(ierr);
+      }
+      ierr = SNESDefaultObjectiveComputeFunctionFD(snes,x,f1,PETSC_NULL);CHKERRQ(ierr);
+      ierr = VecNorm(f1,NORM_2,&f1norm);CHKERRQ(ierr);
+      if (neP->complete_print) {
+        PetscViewer viewer;
+        ierr = PetscPrintf(((PetscObject)snes)->comm,"Finite-Difference Function (%s)\n",loc[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIGetStdout(((PetscObject)snes)->comm,&viewer);CHKERRQ(ierr);
+        ierr = VecView(f1,viewer);CHKERRQ(ierr);
+      }
+      /* compare the two */
+      ierr = VecAXPY(f,-1.0,f1);CHKERRQ(ierr);
+      ierr = VecNorm(f,NORM_2,&dnorm);CHKERRQ(ierr);
+      if (!fnorm)fnorm = 1.;
+      ierr = PetscPrintf(((PetscObject)snes)->comm,"Norm of function ratio %g difference %g (%s)\n",dnorm/fnorm,dnorm,loc[i]);CHKERRQ(ierr);
+      if (neP->complete_print) {
+        PetscViewer viewer;
+        ierr = PetscPrintf(((PetscObject)snes)->comm,"Difference (%s)\n",loc[i]);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIGetStdout(((PetscObject)snes)->comm,&viewer);CHKERRQ(ierr);
+        ierr = VecView(f,viewer);CHKERRQ(ierr);
+      }
+    }
+
   }
   ierr = MatDestroy(&B);CHKERRQ(ierr);
   /*
-         Return error code cause Jacobian not good
+   Abort after the first iteration due to the jacobian not being valid.
   */
-  PetscFunctionReturn(PETSC_ERR_ARG_WRONGSTATE);
+
+  SETERRQ(((PetscObject)snes)->comm,PETSC_ERR_ARG_WRONGSTATE,"SNESTest aborts after Jacobian test");
+  PetscFunctionReturn(0);
 }
 /* ------------------------------------------------------------ */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESDestroy_Test"
 PetscErrorCode SNESDestroy_Test(SNES snes)
 {
@@ -101,7 +139,7 @@ PetscErrorCode SNESDestroy_Test(SNES snes)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESSetFromOptions_Test"
 static PetscErrorCode SNESSetFromOptions_Test(SNES snes)
 {
@@ -113,6 +151,18 @@ static PetscErrorCode SNESSetFromOptions_Test(SNES snes)
   ierr = PetscOptionsHead("Hand-coded Jacobian tester options");CHKERRQ(ierr);
   ierr = PetscOptionsBool("-snes_test_display","Display difference between hand-coded and finite difference Jacobians","None",ls->complete_print,&ls->complete_print,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsTail();CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "SNESSetUp_Test"
+PetscErrorCode SNESSetUp_Test(SNES snes)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = SNESSetUpMatrices(snes);CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
@@ -129,7 +179,7 @@ static PetscErrorCode SNESSetFromOptions_Test(SNES snes)
 
 M*/
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SNESCreate_Test"
 PetscErrorCode  SNESCreate_Test(SNES  snes)
 {
@@ -141,7 +191,7 @@ PetscErrorCode  SNESCreate_Test(SNES  snes)
   snes->ops->destroy         = SNESDestroy_Test;
   snes->ops->setfromoptions  = SNESSetFromOptions_Test;
   snes->ops->view            = 0;
-  snes->ops->setup           = 0;
+  snes->ops->setup           = SNESSetUp_Test;
   snes->ops->reset           = 0;
 
   snes->usesksp             = PETSC_FALSE;

@@ -89,7 +89,7 @@ static PetscErrorCode SNESView_NRichardson(SNES snes, PetscViewer viewer)
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
   if (iascii) {
   }
   PetscFunctionReturn(0);
@@ -158,13 +158,13 @@ PetscErrorCode SNESSolve_NRichardson(SNES snes)
   ierr = (*snes->ops->converged)(snes,0,0.0,0.0,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
   if (snes->reason) PetscFunctionReturn(0);
 
-  for(i = 0; i < maxits; i++) {
+  for (i = 0; i < maxits; i++) {
     lsSuccess = PETSC_TRUE;
     /* Call general purpose update function */
     if (snes->ops->update) {
       ierr = (*snes->ops->update)(snes, snes->iter);CHKERRQ(ierr);
     }
-    else if (snes->pc) {
+    if (snes->pc && snes->pcside == PC_RIGHT) {
       ierr = VecCopy(X,Y);CHKERRQ(ierr);
       ierr = SNESSetInitialFunction(snes->pc, F);CHKERRQ(ierr);
       ierr = SNESSetInitialFunctionNorm(snes->pc, fnorm);CHKERRQ(ierr);
@@ -259,6 +259,7 @@ PetscErrorCode  SNESCreate_NRichardson(SNES snes)
   if (!snes->tolerancesset) {
     snes->max_funcs = 30000;
     snes->max_its   = 10000;
+    snes->stol      = 1e-20;
   }
 
   PetscFunctionReturn(0);

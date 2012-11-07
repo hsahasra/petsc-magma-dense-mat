@@ -23,6 +23,7 @@ struct _TSOps {
   PetscErrorCode (*snesfunction)(SNES,Vec,Vec,TS);
   PetscErrorCode (*snesjacobian)(SNES,Vec,Mat*,Mat*,MatStructure*,TS);
   PetscErrorCode (*prestep)(TS);
+  PetscErrorCode (*prestage)(TS,PetscReal);
   PetscErrorCode (*poststep)(TS);
   PetscErrorCode (*setup)(TS);
   PetscErrorCode (*step)(TS);
@@ -33,6 +34,7 @@ struct _TSOps {
   PetscErrorCode (*destroy)(TS);
   PetscErrorCode (*view)(TS,PetscViewer);
   PetscErrorCode (*reset)(TS);
+  PetscErrorCode (*linearstability)(TS,PetscReal,PetscReal,PetscReal*,PetscReal*);
 };
 
 struct _TSUserOps {
@@ -44,16 +46,14 @@ struct _TSUserOps {
 
 struct _p_TS {
   PETSCHEADER(struct _TSOps);
-
-  struct _TSUserOps *userops;
   DM            dm;
   TSProblemType problem_type;
   Vec           vec_sol;
-  TSAdapt adapt;
+  TSAdapt       adapt;
 
   /* ---------------- User (or PETSc) Provided stuff ---------------------*/
   PetscErrorCode (*monitor[MAXTSMONITORS])(TS,PetscInt,PetscReal,Vec,void*); /* returns control to user after */
-  PetscErrorCode (*mdestroy[MAXTSMONITORS])(void**);
+  PetscErrorCode (*monitordestroy[MAXTSMONITORS])(void**);
   void *monitorcontext[MAXTSMONITORS];                 /* residual calculation, allows user */
   PetscInt  numbermonitors;                                 /* to, for instance, print residual norm, etc. */
 
@@ -86,9 +86,6 @@ struct _p_TS {
 
   /* ---------------------Nonlinear Iteration------------------------------*/
   SNES  snes;
-  void *funP;
-  void *jacP;
-
 
   /* --- Data that is unique to each particular solver --- */
   PetscInt setupcalled;             /* true if setup has been called */
@@ -100,10 +97,19 @@ struct _p_TS {
   PetscReal max_time;               /* max time allowed */
   PetscReal time_step;              /* current/completed time increment */
   PetscReal time_step_prev;         /* previous time step  */
+
+  /*
+     these are temporary to support increasing the time step if nonlinear solver convergence remains good
+     and time_step was previously cut due to failed nonlinear solver
+  */
+  PetscReal time_step_orig;            /* original time step requested by user */
+  PetscInt  time_steps_since_decrease; /* number of timesteps since timestep was decreased due to lack of convergence */
+  /* ----------------------------------------------------------------------------------------------------------------*/
+
   PetscInt  steps;                  /* steps taken so far */
   PetscReal ptime;                  /* time at the start of the current step (stage time is internal if it exists) */
-  PetscInt  linear_its;             /* total number of linear solver iterations */
-  PetscInt  nonlinear_its;          /* total number of nonlinear solver iterations */
+  PetscInt  ksp_its;                /* total number of linear solver iterations */
+  PetscInt  snes_its;               /* total number of nonlinear solver iterations */
 
   PetscInt num_snes_failures;
   PetscInt max_snes_failures;
@@ -124,6 +130,7 @@ struct _p_TS {
 
 struct _TSAdaptOps {
   PetscErrorCode (*choose)(TSAdapt,TS,PetscReal,PetscInt*,PetscReal*,PetscBool*,PetscReal*);
+  PetscErrorCode (*checkstage)(TSAdapt,TS,PetscBool*);
   PetscErrorCode (*destroy)(TSAdapt);
   PetscErrorCode (*view)(TSAdapt,PetscViewer);
   PetscErrorCode (*setfromoptions)(TSAdapt);
@@ -146,7 +153,44 @@ struct _p_TSAdapt {
   PetscViewer monitor;
 };
 
-extern PetscLogEvent TS_Step, TS_PseudoComputeTimeStep, TS_FunctionEval, TS_JacobianEval;
+typedef struct _n_TSDM *TSDM;
+struct _n_TSDM {
+  TSRHSFunction rhsfunction;
+  TSRHSJacobian rhsjacobian;
+
+  TSIFunction ifunction;
+  TSIJacobian ijacobian;
+
+  TSSolutionFunction solution;
+
+  void *rhsfunctionctx;
+  void *rhsjacobianctx;
+
+  void *ifunctionctx;
+  void *ijacobianctx;
+
+  void *solutionctx;
+
+
+  /* This context/destroy pair allows implementation-specific routines such as DMDA local functions. */
+  PetscErrorCode (*destroy)(TSDM);
+  void *data;
+
+  /* This is NOT reference counted. The SNES that originally created this context is cached here to implement copy-on-write.
+   * Fields in the TSDM should only be written if the SNES matches originalsnes.
+   */
+  DM originaldm;
+};
+
+PETSC_EXTERN PetscErrorCode DMTSGetContext(DM,TSDM*);
+PETSC_EXTERN PetscErrorCode DMTSGetContextWrite(DM,TSDM*);
+PETSC_EXTERN PetscErrorCode DMTSCopyContext(DM,DM);
+PETSC_EXTERN PetscErrorCode DMTSDuplicateContext(DM,DM);
+PETSC_EXTERN PetscErrorCode DMTSSetUpLegacy(DM);
+
+
+
+PETSC_EXTERN PetscLogEvent TS_Step, TS_PseudoComputeTimeStep, TS_FunctionEval, TS_JacobianEval;
 
 typedef enum {TS_STEP_INCOMPLETE, /* vec_sol, ptime, etc point to beginning of step */
               TS_STEP_PENDING,    /* vec_sol advanced, but step has not been accepted yet */

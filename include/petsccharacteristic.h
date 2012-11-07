@@ -4,10 +4,10 @@
 #ifndef __PETSCCHARACTERISTICS_H
 #define __PETSCCHARACTERISTICS_H
 
-#include "petscvec.h"
-#include "petscdmda.h"
+#include <petscvec.h>
+#include <petscdmda.h>
 
-extern PetscErrorCode CharacteristicInitializePackage(const char[]);
+PETSC_EXTERN PetscErrorCode CharacteristicInitializePackage(const char[]);
 
 /*S
      Characteristic - Abstract PETSc object that manages method of characteristics solves
@@ -30,23 +30,23 @@ typedef struct _p_Characteristic *Characteristic;
 .seealso: CharacteristicSetType(), Characteristic
 J*/
 #define CHARACTERISTICDA "da"
-#define CharacteristicType char*
+typedef const char* CharacteristicType;
 
-extern PetscErrorCode CharacteristicCreate(MPI_Comm, Characteristic *);
-extern PetscErrorCode CharacteristicSetType(Characteristic, const CharacteristicType);
-extern PetscErrorCode CharacteristicSetUp(Characteristic);
-extern PetscErrorCode CharacteristicSetVelocityInterpolation(Characteristic, DM, Vec, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(Vec, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
-extern PetscErrorCode CharacteristicSetVelocityInterpolationLocal(Characteristic, DM, Vec, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(void *, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
-extern PetscErrorCode CharacteristicSetFieldInterpolation(Characteristic, DM, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(Vec, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
-extern PetscErrorCode CharacteristicSetFieldInterpolationLocal(Characteristic, DM, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(void *, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
-extern PetscErrorCode CharacteristicSolve(Characteristic, PetscReal, Vec);
-extern PetscErrorCode CharacteristicDestroy(Characteristic*);
+PETSC_EXTERN PetscErrorCode CharacteristicCreate(MPI_Comm, Characteristic *);
+PETSC_EXTERN PetscErrorCode CharacteristicSetType(Characteristic, CharacteristicType);
+PETSC_EXTERN PetscErrorCode CharacteristicSetUp(Characteristic);
+PETSC_EXTERN PetscErrorCode CharacteristicSetVelocityInterpolation(Characteristic, DM, Vec, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(Vec, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
+PETSC_EXTERN PetscErrorCode CharacteristicSetVelocityInterpolationLocal(Characteristic, DM, Vec, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(void *, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
+PETSC_EXTERN PetscErrorCode CharacteristicSetFieldInterpolation(Characteristic, DM, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(Vec, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
+PETSC_EXTERN PetscErrorCode CharacteristicSetFieldInterpolationLocal(Characteristic, DM, Vec, PetscInt, PetscInt[], PetscErrorCode (*)(void *, PetscReal[], PetscInt, PetscInt[], PetscScalar[], void *), void *);
+PETSC_EXTERN PetscErrorCode CharacteristicSolve(Characteristic, PetscReal, Vec);
+PETSC_EXTERN PetscErrorCode CharacteristicDestroy(Characteristic*);
 
-extern PetscFList CharacteristicList;
-extern PetscErrorCode CharacteristicRegisterAll(const char[]);
-extern PetscErrorCode CharacteristicRegisterDestroy(void);
+PETSC_EXTERN PetscFList CharacteristicList;
+PETSC_EXTERN PetscErrorCode CharacteristicRegisterAll(const char[]);
+PETSC_EXTERN PetscErrorCode CharacteristicRegisterDestroy(void);
 
-extern PetscErrorCode CharacteristicRegister(const char[],const char[],const char[],PetscErrorCode (*)(Characteristic));
+PETSC_EXTERN PetscErrorCode CharacteristicRegister(const char[],const char[],const char[],PetscErrorCode (*)(Characteristic));
 
 /*MC
    CharacteristicRegisterDynamic - Adds a solver to the method of characteristics package.
@@ -82,7 +82,7 @@ $     -characteristic_type my_solver
    Level: advanced
 
    Notes: Environmental variables such as ${PETSC_ARCH}, ${PETSC_DIR}, ${PETSC_LIB_DIR},
-          and others of the form ${any_environmental_variable} occuring in pathname will be 
+          and others of the form ${any_environmental_variable} occuring in pathname will be
           replaced with appropriate values.
          If your function is not being put into a shared library then use CharacteristicRegister() instead
 

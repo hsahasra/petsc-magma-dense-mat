@@ -43,7 +43,7 @@ PetscErrorCode  PetscViewerMathematicaFinalizePackage(void)
 
   Level: developer
 
-.keywords: Petsc, initialize, package, PLAPACK
+.keywords: Petsc, initialize, package
 .seealso: PetscSysInitializePackage(), PetscInitialize()
 @*/
 PetscErrorCode  PetscViewerMathematicaInitializePackage(const char path[])
@@ -271,7 +271,7 @@ PetscErrorCode  PetscViewerMathematicaSetFromOptions(PetscViewer v)
     }
     ierr = PetscViewerMathematicaSetLinkHost(v, hostname);CHKERRQ(ierr);
   }
-  for(h = 0; h < numHosts; h++) {
+  for (h = 0; h < numHosts; h++) {
     ierr = PetscFree(hosts[h]);CHKERRQ(ierr);
   }
   ierr = PetscFree(hosts);CHKERRQ(ierr);

@@ -15,7 +15,7 @@ struct _PCOps {
   PetscErrorCode (*applyBAtranspose)(PC,PetscInt,Vec,Vec,Vec);
   PetscErrorCode (*setfromoptions)(PC);
   PetscErrorCode (*presolve)(PC,KSP,Vec,Vec);
-  PetscErrorCode (*postsolve)(PC,KSP,Vec,Vec);  
+  PetscErrorCode (*postsolve)(PC,KSP,Vec,Vec);
   PetscErrorCode (*getfactoredmatrix)(PC,Mat*);
   PetscErrorCode (*applysymmetricleft)(PC,Vec,Vec);
   PetscErrorCode (*applysymmetricright)(PC,Vec,Vec);
@@ -42,10 +42,11 @@ struct _p_PC {
   void           *modifysubmatricesP; /* context for user routine */
   void           *data;
   PetscInt       reuse; /* flag for reusing the numerical factorization */
+  PetscInt       presolvedone;  /* has PCPreSolve() already been run */
   void           *user;             /* optional user-defined context */
 };
 
-extern PetscLogEvent  PC_SetUp, PC_SetUpOnBlocks, PC_Apply, PC_ApplyCoarse, PC_ApplyMultiple, PC_ApplySymmetricLeft;
-extern PetscLogEvent  PC_ApplySymmetricRight, PC_ModifySubMatrices, PC_ApplyOnBlocks, PC_ApplyTransposeOnBlocks, PC_ApplyOnMproc;
+PETSC_EXTERN PetscLogEvent PC_SetUp, PC_SetUpOnBlocks, PC_Apply, PC_ApplyCoarse, PC_ApplyMultiple, PC_ApplySymmetricLeft;
+PETSC_EXTERN PetscLogEvent PC_ApplySymmetricRight, PC_ModifySubMatrices, PC_ApplyOnBlocks, PC_ApplyTransposeOnBlocks, PC_ApplyOnMproc;
 
 #endif

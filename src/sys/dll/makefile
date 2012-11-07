@@ -1,13 +1,11 @@
 
 ALL: lib 
-CFLAGS    =  ${VALGRIND_INCLUDE}
+CFLAGS    =  
 FFLAGS    =
 CPPFLAGS  = 
 SOURCEC	  = dlimpl.c dl.c   reg.c
 SOURCEF	  =
 SOURCEH	  = dlimpl.h
-OBJSC	  = dlimpl.o dl.o   reg.o
-OBJSF	  =
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
 DIRS	  = 

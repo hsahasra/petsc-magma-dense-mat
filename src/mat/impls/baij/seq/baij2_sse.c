@@ -2,7 +2,7 @@
 #include <../src/mat/blockinvert.h>
 #include <petscbt.h>
 #include <petscblaslapack.h>
-#include <immintrin.h>
+//#include <immintrin.h>
 #ifdef _VEC2
 
 #undef __FUNCT__  

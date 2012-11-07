@@ -1,9 +1,9 @@
 
-#include "packimpl.h" /*I   "petscdmcomposite.h"   I*/
+#include <../src/dm/impls/composite/packimpl.h>       /*I  "petscdmcomposite.h"  I*/
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_Composite_Nest"
-static PetscErrorCode DMCreateMatrix_Composite_Nest(DM dm,const MatType mtype,Mat *J)
+static PetscErrorCode DMCreateMatrix_Composite_Nest(DM dm,MatType mtype,Mat *J)
 {
   const DM_Composite           *com = (DM_Composite*)dm->data;
   const struct DMCompositeLink *rlink,*clink;
@@ -44,9 +44,9 @@ static PetscErrorCode DMCreateMatrix_Composite_Nest(DM dm,const MatType mtype,Ma
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_Composite_AIJ"
-static PetscErrorCode DMCreateMatrix_Composite_AIJ(DM dm,const MatType mtype,Mat *J)
+static PetscErrorCode DMCreateMatrix_Composite_AIJ(DM dm,MatType mtype,Mat *J)
 {
   PetscErrorCode         ierr;
   DM_Composite           *com = (DM_Composite*)dm->data;
@@ -54,7 +54,7 @@ static PetscErrorCode DMCreateMatrix_Composite_AIJ(DM dm,const MatType mtype,Mat
   PetscInt               m,*dnz,*onz,i,j,mA;
   Mat                    Atmp;
   PetscMPIInt            rank;
-  PetscBool              dense = PETSC_FALSE; 
+  PetscBool              dense = PETSC_FALSE;
 
   PetscFunctionBegin;
   /* use global vector to determine layout needed for matrix */
@@ -177,9 +177,9 @@ static PetscErrorCode DMCreateMatrix_Composite_AIJ(DM dm,const MatType mtype,Mat
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_Composite"
-PetscErrorCode DMCreateMatrix_Composite(DM dm,const MatType mtype,Mat *J)
+PetscErrorCode DMCreateMatrix_Composite(DM dm,MatType mtype,Mat *J)
 {
   PetscErrorCode         ierr;
   PetscBool              usenest;

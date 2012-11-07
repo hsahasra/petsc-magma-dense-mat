@@ -1,12 +1,13 @@
 /*
-  This file contains Fortran stubs for Options routines. 
+  This file contains Fortran stubs for Options routines.
   These are not generated automatically since they require passing strings
   between Fortran and C.
 */
 
-#include <petsc-private/fortranimpl.h> 
+#include <petsc-private/fortranimpl.h>
 
 #ifdef PETSC_HAVE_FORTRAN_CAPS
+#define petscoptionsgetenumprivate_        PETSCOPTIONSGETENUMPRIVATE
 #define petscoptionsgetbool_               PETSCOPTIONSGETBOOL
 #define petscoptionsgetintarray_           PETSCOPTIONSGETINTARRAY
 #define petscoptionssetvalue_              PETSCOPTIONSSETVALUE
@@ -20,7 +21,9 @@
 #define petscoptionsinsertfile_            PETSCOPTIONSINSERTFILE
 #define petscoptionsclear_                 PETSCOPTIONSCLEAR
 #define petscoptionsinsertstring_          PETSCOPTIONSINSERTSTRING
+#define petscoptionsview_                  PETSCOPTIONSVIEW
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
+#define petscoptionsgetenumprivate_        petscoptionsgetenumprivate
 #define petscoptionsgetbool_               petscoptionsgetbool
 #define petscoptionssetvalue_              petscoptionssetvalue
 #define petscoptionsclearvalue_            petscoptionsclearvalue
@@ -34,6 +37,7 @@
 #define petscoptionsinsertfile_            petscoptionsinsertfile
 #define petscoptionsclear_                 petscoptionsclear
 #define petscoptionsinsertstring_          petscoptionsinsertstring
+#define petscoptionsview_                  petscoptionsview
 #endif
 
 EXTERN_C_BEGIN
@@ -105,6 +109,20 @@ void PETSC_STDCALL petscoptionsgetint_(CHAR pre PETSC_MIXED_LEN(len1),CHAR name 
   FIXCHAR(pre,len1,c1);
   FIXCHAR(name,len2,c2);
   *ierr = PetscOptionsGetInt(c1,c2,ivalue,&flag);
+  if (!FORTRANNULLBOOL(flg)) *flg = flag;
+  FREECHAR(pre,c1);
+  FREECHAR(name,c2);
+}
+
+void PETSC_STDCALL petscoptionsgetenumprivate_(CHAR pre PETSC_MIXED_LEN(len1),CHAR name PETSC_MIXED_LEN(len2),const char *const*list,
+                    PetscEnum *ivalue,PetscBool  *flg,PetscErrorCode *ierr PETSC_END_LEN(len1) PETSC_END_LEN(len2))
+{
+  char *c1,*c2;
+  PetscBool  flag;
+
+  FIXCHAR(pre,len1,c1);
+  FIXCHAR(name,len2,c2);
+  *ierr = PetscOptionsGetEnum(c1,c2,list,ivalue,&flag);
   if (!FORTRANNULLBOOL(flg)) *flg = flag;
   FREECHAR(pre,c1);
   FREECHAR(name,c2);
@@ -194,6 +212,14 @@ void PETSC_STDCALL petscgetprogramname_(CHAR name PETSC_MIXED_LEN(len_in),PetscE
   len = len_in - 1;
   *ierr = PetscGetProgramName(tmp,len);
   FIXRETURNCHAR(PETSC_TRUE,name,len_in);
+}
+
+void PETSC_STDCALL petscoptionsview_(PetscViewer *vin,PetscErrorCode *ierr)
+{
+  PetscViewer v;
+
+  PetscPatchDefaultViewers_Fortran(vin,v);
+  *ierr = PetscOptionsView(v);
 }
 
 EXTERN_C_END

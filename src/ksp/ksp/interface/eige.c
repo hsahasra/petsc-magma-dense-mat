@@ -2,10 +2,10 @@
 #include <petsc-private/kspimpl.h>   /*I "petscksp.h" I*/
 #include <petscblaslapack.h>
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPComputeExplicitOperator"
 /*@
-    KSPComputeExplicitOperator - Computes the explicit preconditioned operator.  
+    KSPComputeExplicitOperator - Computes the explicit preconditioned operator.
 
     Collective on KSP
 
@@ -16,7 +16,7 @@
 .   mat - the explict preconditioned operator
 
     Notes:
-    This computation is done by applying the operators to columns of the 
+    This computation is done by applying the operators to columns of the
     identity matrix.
 
     Currently, this routine uses a dense matrix format when 1 processor
@@ -24,7 +24,7 @@
     and is recommended for use only with relatively small systems.
 
     Level: advanced
-   
+
 .keywords: KSP, compute, explicit, operator
 
 .seealso: KSPComputeEigenvaluesExplicitly(), PCComputeExplicitOperator()
@@ -76,9 +76,9 @@ PetscErrorCode  KSPComputeExplicitOperator(KSP ksp,Mat *mat)
 
     ierr = KSP_MatMult(ksp,A,in,out);CHKERRQ(ierr);
     ierr = KSP_PCApply(ksp,out,in);CHKERRQ(ierr);
-    
+
     ierr = VecGetArray(in,&array);CHKERRQ(ierr);
-    ierr = MatSetValues(*mat,m,rows,1,&i,array,INSERT_VALUES);CHKERRQ(ierr); 
+    ierr = MatSetValues(*mat,m,rows,1,&i,array,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArray(in,&array);CHKERRQ(ierr);
 
   }
@@ -90,11 +90,11 @@ PetscErrorCode  KSPComputeExplicitOperator(KSP ksp,Mat *mat)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPComputeEigenvaluesExplicitly"
 /*@
-   KSPComputeEigenvaluesExplicitly - Computes all of the eigenvalues of the 
-   preconditioned operator using LAPACK.  
+   KSPComputeEigenvaluesExplicitly - Computes all of the eigenvalues of the
+   preconditioned operator using LAPACK.
 
    Collective on KSP
 
@@ -108,7 +108,7 @@ PetscErrorCode  KSPComputeExplicitOperator(KSP ksp,Mat *mat)
 
    Notes:
    This approach is very slow but will generally provide accurate eigenvalue
-   estimates.  This routine explicitly forms a dense matrix representing 
+   estimates.  This routine explicitly forms a dense matrix representing
    the preconditioned operator, and thus will run only for relatively small
    problems, say n < 500.
 
@@ -126,7 +126,7 @@ PetscErrorCode  KSPComputeExplicitOperator(KSP ksp,Mat *mat)
 
 .seealso: KSPComputeEigenvalues(), KSPMonitorSingularValue(), KSPComputeExtremeSingularValues(), KSPSetOperators(), KSPSolve()
 @*/
-PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal *r,PetscReal *c) 
+PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal *r,PetscReal *c)
 {
   Mat                BA;
   PetscErrorCode     ierr;
@@ -162,13 +162,13 @@ PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal 
       ierr = MatSetValues(A,1,&row,nz,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
       ierr = MatRestoreRow(BA,row,&nz,&cols,&vals);CHKERRQ(ierr);
       row++;
-    } 
+    }
 
     ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-    ierr = MatGetArray(A,&array);CHKERRQ(ierr);
+    ierr = MatDenseGetArray(A,&array);CHKERRQ(ierr);
   } else {
-    ierr = MatGetArray(BA,&array);CHKERRQ(ierr);
+    ierr = MatDenseGetArray(BA,&array);CHKERRQ(ierr);
   }
 
 #if defined(PETSC_HAVE_ESSL)
@@ -176,7 +176,8 @@ PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal 
   if (!rank) {
     PetscScalar  sdummy,*cwork;
     PetscReal    *work,*realpart;
-    PetscBLASInt clen,idummy,lwork,*perm,zero = 0;
+    PetscBLASInt clen,idummy,lwork,bn,zero = 0;
+    PetscInt *perm;
 
 #if !defined(PETSC_USE_COMPLEX)
     clen = n;
@@ -184,12 +185,13 @@ PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal 
     clen = 2*n;
 #endif
     ierr   = PetscMalloc(clen*sizeof(PetscScalar),&cwork);CHKERRQ(ierr);
-    idummy = n;
+    idummy = -1;                /* unused */
+    bn = PetscBLASIntCast(n);
     lwork  = 5*n;
     ierr   = PetscMalloc(lwork*sizeof(PetscReal),&work);CHKERRQ(ierr);
     ierr   = PetscMalloc(n*sizeof(PetscReal),&realpart);CHKERRQ(ierr);
     ierr = PetscFPTrapPush(PETSC_FP_TRAP_OFF);CHKERRQ(ierr);
-    LAPACKgeev_(&zero,array,&n,cwork,&sdummy,&idummy,&idummy,&n,work,&lwork);
+    LAPACKgeev_(&zero,array,&bn,cwork,&sdummy,&idummy,&idummy,&bn,work,&lwork);
     ierr = PetscFPTrapPop();CHKERRQ(ierr);
     ierr = PetscFree(work);CHKERRQ(ierr);
 
@@ -234,7 +236,7 @@ PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal 
     ierr     = PetscMalloc(2*n*sizeof(PetscReal),&realpart);CHKERRQ(ierr);
     imagpart = realpart + n;
     ierr     = PetscMalloc(5*n*sizeof(PetscReal),&work);CHKERRQ(ierr);
-#if defined(PETSC_MISSING_LAPACK_GEEV) 
+#if defined(PETSC_MISSING_LAPACK_GEEV)
     SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"GEEV - Lapack routine is unavailable\nNot able to provide eigen values.");
 #else
     {
@@ -270,7 +272,7 @@ PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal 
     ierr = PetscMalloc(5*n*sizeof(PetscScalar),&work);CHKERRQ(ierr);
     ierr = PetscMalloc(2*n*sizeof(PetscReal),&rwork);CHKERRQ(ierr);
     ierr = PetscMalloc(n*sizeof(PetscScalar),&eigs);CHKERRQ(ierr);
-#if defined(PETSC_MISSING_LAPACK_GEEV) 
+#if defined(PETSC_MISSING_LAPACK_GEEV)
     SETERRQ(((PetscObject)ksp)->comm,PETSC_ERR_SUP,"GEEV - Lapack routine is unavailable\nNot able to provide eigen values.");
 #else
     {
@@ -296,13 +298,94 @@ PetscErrorCode  KSPComputeEigenvaluesExplicitly(KSP ksp,PetscInt nmax,PetscReal 
     ierr = PetscFree(perm);CHKERRQ(ierr);
     ierr = PetscFree(eigs);CHKERRQ(ierr);
   }
-#endif  
+#endif
   if (size > 1) {
-    ierr = MatRestoreArray(A,&array);CHKERRQ(ierr);
+    ierr = MatDenseRestoreArray(A,&array);CHKERRQ(ierr);
     ierr = MatDestroy(&A);CHKERRQ(ierr);
   } else {
-    ierr = MatRestoreArray(BA,&array);CHKERRQ(ierr);
+    ierr = MatDenseRestoreArray(BA,&array);CHKERRQ(ierr);
   }
   ierr = MatDestroy(&BA);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "PolyEval"
+static PetscErrorCode PolyEval(PetscInt nroots,const PetscReal *r,const PetscReal *c,PetscReal x,PetscReal y,PetscReal *px,PetscReal *py)
+{
+  PetscInt i;
+  PetscReal rprod = 1,iprod = 0;
+
+  PetscFunctionBegin;
+  for (i=0; i<nroots; i++) {
+    PetscReal rnew = rprod*(x - r[i]) - iprod*(y - c[i]);
+    PetscReal inew = rprod*(y - c[i]) + iprod*(x - r[i]);
+    rprod = rnew;
+    iprod = inew;
+  }
+  *px = rprod;
+  *py = iprod;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "KSPPlotEigenContours_Private"
+/* collective on KSP */
+PetscErrorCode KSPPlotEigenContours_Private(KSP ksp,PetscInt neig,const PetscReal *r,const PetscReal *c)
+{
+  PetscErrorCode      ierr;
+  PetscReal           xmin,xmax,ymin,ymax,*xloc,*yloc,*value,px0,py0,rscale,iscale;
+  PetscInt            M,N,i,j;
+  PetscMPIInt         rank;
+  PetscViewer         viewer;
+  PetscDraw           draw;
+  PetscDrawAxis       drawaxis;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(((PetscObject)ksp)->comm,&rank);CHKERRQ(ierr);
+  if (rank) PetscFunctionReturn(0);
+  M = 80;
+  N = 80;
+  xmin = r[0]; xmax = r[0];
+  ymin = c[0]; ymax = c[0];
+  for (i=1; i<neig; i++) {
+    xmin = PetscMin(xmin,r[i]);
+    xmax = PetscMax(xmax,r[i]);
+    ymin = PetscMin(ymin,c[i]);
+    ymax = PetscMax(ymax,c[i]);
+  }
+  ierr = PetscMalloc3(M,PetscReal,&xloc,N,PetscReal,&yloc,M*N,PetscReal,&value);CHKERRQ(ierr);
+  for (i=0; i<M; i++) xloc[i] = xmin - 0.1*(xmax-xmin) + 1.2*(xmax-xmin)*i/(M-1);
+  for (i=0; i<N; i++) yloc[i] = ymin - 0.1*(ymax-ymin) + 1.2*(ymax-ymin)*i/(N-1);
+  ierr = PolyEval(neig,r,c,0,0,&px0,&py0);CHKERRQ(ierr);
+  rscale = px0/(PetscSqr(px0)+PetscSqr(py0));
+  iscale = -py0/(PetscSqr(px0)+PetscSqr(py0));
+  for (j=0; j<N; j++) {
+    for (i=0; i<M; i++) {
+      PetscReal px,py,tx,ty,tmod;
+      ierr = PolyEval(neig,r,c,xloc[i],yloc[j],&px,&py);
+      tx = px*rscale - py*iscale;
+      ty = py*rscale + px*iscale;
+      tmod = PetscSqr(tx) + PetscSqr(ty); /* modulus of the complex polynomial */
+      if (tmod > 1) tmod = 1.0;
+      if (tmod > 0.5 && tmod < 1) tmod = 0.5;
+      if (tmod > 0.2 && tmod < 0.5) tmod = 0.2;
+      if (tmod > 0.05 && tmod < 0.2) tmod = 0.05;
+      if (tmod < 1e-3) tmod = 1e-3;
+      value[i+j*M] = PetscLogScalar(tmod) / PetscLogScalar(10.0);
+    }
+  }
+  ierr = PetscViewerDrawOpen(PETSC_COMM_SELF,0,"Iteratively Computed Eigen-contours",PETSC_DECIDE,PETSC_DECIDE,450,450,&viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDrawGetDraw(viewer,0,&draw);CHKERRQ(ierr);
+  ierr = PetscDrawTensorContour(draw,M,N,PETSC_NULL,PETSC_NULL,value);CHKERRQ(ierr);
+  if (0) {
+    ierr = PetscDrawAxisCreate(draw,&drawaxis);CHKERRQ(ierr);
+    ierr = PetscDrawAxisSetLimits(drawaxis,xmin,xmax,ymin,ymax);CHKERRQ(ierr);
+    ierr = PetscDrawAxisSetLabels(drawaxis,"Eigen-counters","real","imag");CHKERRQ(ierr);
+    ierr = PetscDrawAxisDraw(drawaxis);CHKERRQ(ierr);
+    ierr = PetscDrawAxisDestroy(&drawaxis);CHKERRQ(ierr);
+  }
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  ierr = PetscFree3(xloc,yloc,value);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

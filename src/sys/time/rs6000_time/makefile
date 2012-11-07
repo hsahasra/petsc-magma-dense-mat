@@ -1,3 +1,4 @@
+
 #requiresfunction 'PETSC_USE_READ_REAL_TIME'
 
 ALL: lib 
@@ -7,8 +8,6 @@ FFLAGS    =
 SOURCEC	  = rs6000_time.c
 SOURCEF	  =
 SOURCEH	  =
-OBJSC	  = ${SOURCEC:.c=.o}
-OBJSF	  =
 MANSEC	  = Sys
 LIBBASE	  = libpetscsys
 DIRS	  =

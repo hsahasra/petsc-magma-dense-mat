@@ -20,7 +20,8 @@ PetscErrorCode  MatGetMultiProcBlock_MPIAIJ(Mat mat, MPI_Comm subComm, MatReuse 
     ierr = MatCreate(subComm,subMat);CHKERRQ(ierr);
     ierr = MatSetType(*subMat,MATMPIAIJ);CHKERRQ(ierr);
     ierr = MatSetSizes(*subMat,mat->rmap->n,mat->cmap->n,PETSC_DECIDE,PETSC_DECIDE);CHKERRQ(ierr);
-  
+    ierr = MatSetBlockSizes(*subMat,mat->rmap->bs,mat->cmap->bs);CHKERRQ(ierr);
+
     /* need to setup rmap and cmap before Preallocation */
     ierr = PetscLayoutSetBlockSize((*subMat)->rmap,mat->rmap->bs);CHKERRQ(ierr);
     ierr = PetscLayoutSetBlockSize((*subMat)->cmap,mat->cmap->bs);CHKERRQ(ierr);
@@ -58,9 +59,9 @@ PetscErrorCode  MatGetMultiProcBlock_MPIAIJ(Mat mat, MPI_Comm subComm, MatReuse 
       for (j=aijB->i[i]; j<aijB->i[i+1]; j++) {
         if (garrayCMap[aijB->j[j]]) nnz[i]++;
       }
-    }  
+    }
     ierr = MatMPIAIJSetPreallocation(*(subMat),0,PETSC_NULL,0,nnz);CHKERRQ(ierr);
-  
+
     /* reuse diag block with the new submat */
     ierr = MatDestroy(&((Mat_MPIAIJ*)((*subMat)->data))->A);CHKERRQ(ierr);
     ((Mat_MPIAIJ*)((*subMat)->data))->A = aij->A;
@@ -87,7 +88,7 @@ PetscErrorCode  MatGetMultiProcBlock_MPIAIJ(Mat mat, MPI_Comm subComm, MatReuse 
   /* assemble the submat */
   ierr = MatAssemblyBegin(*subMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(*subMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  
+
   /* deallocate temporary data */
   ierr = PetscFree(commRankMap);CHKERRQ(ierr);
   ierr = PetscFree(garrayCMap);CHKERRQ(ierr);

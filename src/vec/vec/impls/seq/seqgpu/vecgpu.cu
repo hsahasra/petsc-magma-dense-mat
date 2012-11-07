@@ -583,11 +583,12 @@ PetscErrorCode VecCopyOverD2H(Vec v,PetscScalar *y){
 /*---------------------------- end copy functions --------------------------*/
 
 /*------------------------------ set functions -----------------------------*/
+EXTERN_C_BEGIN
 #undef __FUNCT__
 #define __FUNCT__ "VecSetValues_SeqGPU"
-/*@
+/*
    VecSetValues - Inserts or adds values into certain locations of a vector.
-@*/
+*/
 PetscErrorCode VecSetValues_SeqGPU(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora){
   PetscFunctionBegin;
   PetscErrorCode ierr;
@@ -619,6 +620,7 @@ PetscErrorCode VecSetValues_SeqGPU(Vec x,PetscInt ni,const PetscInt ix[],const P
   }
   PetscFunctionReturn(0);
 }
+EXTERN_C_END
 
 
 
@@ -2228,5 +2230,5 @@ static PetscErrorCode VecView_Seq_ASCII(Vec xin,PetscViewer viewer){
   PetscFunctionReturn(0);
 }
 
-
 EXTERN_C_END
+

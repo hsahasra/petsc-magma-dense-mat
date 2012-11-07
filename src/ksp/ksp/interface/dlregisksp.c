@@ -2,16 +2,16 @@
 #include <petsc-private/pcimpl.h>
 #include <petsc-private/kspimpl.h>
 
-
-const char *PCSides[]          = {"LEFT","RIGHT","SYMMETRIC","PCSide","PC_",0};
-const char *PCASMTypes[]       = {"NONE","RESTRICT","INTERPOLATE","BASIC","PCASMType","PC_ASM_",0};
-const char *PCGASMTypes[]       = {"NONE","RESTRICT","INTERPOLATE","BASIC","PCGASMType","PC_GASM_",0};
-const char *PCCompositeTypes[] = {"ADDITIVE","MULTIPLICATIVE","SYMMETRIC_MULTIPLICATIVE","SPECIAL","SCHUR","PCCompositeType","PC_COMPOSITE",0};
-const char *PCPARMSGlobalTypes[] = {"RAS","SCHUR","BJ","PCPARMSGlobalType","PC_PARMS_",0};
-const char *PCPARMSLocalTypes[]  = {"ILU0","ILUK","ILUT","ARMS","PCPARMSLocalType","PC_PARMS_",0};
+static const char *const PCSides_Shifted[] = {"DEFAULT","LEFT","RIGHT","SYMMETRIC","PCSide","PC_",0};
+const char *const *const PCSides = PCSides_Shifted + 1;
+const char *const PCASMTypes[]       = {"NONE","RESTRICT","INTERPOLATE","BASIC","PCASMType","PC_ASM_",0};
+const char *const PCGASMTypes[]       = {"NONE","RESTRICT","INTERPOLATE","BASIC","PCGASMType","PC_GASM_",0};
+const char *const PCCompositeTypes[] = {"ADDITIVE","MULTIPLICATIVE","SYMMETRIC_MULTIPLICATIVE","SPECIAL","SCHUR","PCCompositeType","PC_COMPOSITE",0};
+const char *const PCPARMSGlobalTypes[] = {"RAS","SCHUR","BJ","PCPARMSGlobalType","PC_PARMS_",0};
+const char *const PCPARMSLocalTypes[]  = {"ILU0","ILUK","ILUT","ARMS","PCPARMSLocalType","PC_PARMS_",0};
 
 static PetscBool  PCPackageInitialized = PETSC_FALSE;
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCFinalizePackage"
 /*@C
   PCFinalizePackage - This function destroys everything in the Petsc interface to the characteristics package. It is
@@ -31,7 +31,7 @@ PetscErrorCode  PCFinalizePackage(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCInitializePackage"
 /*@C
   PCInitializePackage - This function initializes everything in the PC package. It is called
@@ -46,7 +46,7 @@ PetscErrorCode  PCFinalizePackage(void)
 .keywords: PC, initialize, package
 .seealso: PetscInitialize()
 @*/
-PetscErrorCode  PCInitializePackage(const char path[]) 
+PetscErrorCode  PCInitializePackage(const char path[])
 {
   char              logList[256];
   char             *className;
@@ -91,11 +91,11 @@ PetscErrorCode  PCInitializePackage(const char path[])
   PetscFunctionReturn(0);
 }
 
-const char *KSPCGTypes[]                  = {"SYMMETRIC","HERMITIAN","KSPCGType","KSP_CG_",0};
-const char *KSPGMRESCGSRefinementTypes[]  = {"REFINE_NEVER", "REFINE_IFNEEDED", "REFINE_ALWAYS","KSPGMRESRefinementType","KSP_GMRES_CGS_",0};
-const char *KSPNormTypes_Shifted[]        = {"DEFAULT","NONE","PRECONDITIONED","UNPRECONDITIONED","NATURAL","KSPNormType","KSP_NORM_",0};
+const char *const KSPCGTypes[]                  = {"SYMMETRIC","HERMITIAN","KSPCGType","KSP_CG_",0};
+const char *const KSPGMRESCGSRefinementTypes[]  = {"REFINE_NEVER", "REFINE_IFNEEDED", "REFINE_ALWAYS","KSPGMRESRefinementType","KSP_GMRES_CGS_",0};
+const char *const KSPNormTypes_Shifted[]        = {"DEFAULT","NONE","PRECONDITIONED","UNPRECONDITIONED","NATURAL","KSPNormType","KSP_NORM_",0};
 const char *const*const KSPNormTypes = KSPNormTypes_Shifted + 1;
-const char *KSPConvergedReasons_Shifted[] = {"DIVERGED_INDEFINITE_MAT","DIVERGED_NAN","DIVERGED_INDEFINITE_PC",
+const char *const KSPConvergedReasons_Shifted[] = {"DIVERGED_INDEFINITE_MAT","DIVERGED_NAN","DIVERGED_INDEFINITE_PC",
 					     "DIVERGED_NONSYMMETRIC", "DIVERGED_BREAKDOWN_BICG","DIVERGED_BREAKDOWN",
                                              "DIVERGED_DTOL","DIVERGED_ITS","DIVERGED_NULL","","CONVERGED_ITERATING",
                                              "CONVERGED_RTOL_NORMAL","CONVERGED_RTOL","CONVERGED_ATOL","CONVERGED_ITS",
@@ -104,7 +104,7 @@ const char *KSPConvergedReasons_Shifted[] = {"DIVERGED_INDEFINITE_MAT","DIVERGED
 const char *const*KSPConvergedReasons = KSPConvergedReasons_Shifted + 10;
 
 static PetscBool  KSPPackageInitialized = PETSC_FALSE;
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPFinalizePackage"
 /*@C
   KSPFinalizePackage - This function destroys everything in the Petsc interface to the KSP package. It is
@@ -124,7 +124,7 @@ PetscErrorCode  KSPFinalizePackage(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "KSPInitializePackage"
 /*@C
   KSPInitializePackage - This function initializes everything in the KSP package. It is called
@@ -139,7 +139,7 @@ PetscErrorCode  KSPFinalizePackage(void)
 .keywords: KSP, initialize, package
 .seealso: PetscInitialize()
 @*/
-PetscErrorCode  KSPInitializePackage(const char path[]) 
+PetscErrorCode  KSPInitializePackage(const char path[])
 {
   char              logList[256];
   char              *className;
@@ -153,6 +153,8 @@ PetscErrorCode  KSPInitializePackage(const char path[])
   ierr = PetscClassIdRegister("Krylov Solver",&KSP_CLASSID);CHKERRQ(ierr);
   /* Register Constructors */
   ierr = KSPRegisterAll(path);CHKERRQ(ierr);
+  /* Register matrix implementations packaged in KSP */
+  ierr = KSPMatRegisterAll(path);CHKERRQ(ierr);
   /* Register Events */
   ierr = PetscLogEventRegister("KSPGMRESOrthog",   KSP_CLASSID,&KSP_GMRESOrthogonalization);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("KSPSetUp",         KSP_CLASSID,&KSP_SetUp);CHKERRQ(ierr);
@@ -179,7 +181,7 @@ PetscErrorCode  KSPInitializePackage(const char path[])
 
 #ifdef PETSC_USE_DYNAMIC_LIBRARIES
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscDLLibraryRegister_petscksp"
 /*
   PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.

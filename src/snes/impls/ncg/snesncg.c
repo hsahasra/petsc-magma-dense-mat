@@ -1,5 +1,5 @@
 #include <../src/snes/impls/ncg/snesncgimpl.h> /*I "petscsnes.h" I*/
-const char         *SNESNCGTypes[] = {"FR","PRP","HS","DY","CD","SNESNCGType","SNES_NCG_",0};
+const char *const SNESNCGTypes[] = {"FR","PRP","HS","DY","CD","SNESNCGType","SNES_NCG_",0};
 
 #undef __FUNCT__
 #define __FUNCT__ "SNESReset_NCG"
@@ -75,7 +75,7 @@ static PetscErrorCode SNESSetFromOptions_NCG(SNES snes)
   PetscErrorCode     ierr;
   PetscBool          debug;
   SNESLineSearch     linesearch;
-  SNESNCGType        ncgtype;
+  SNESNCGType        ncgtype=ncg->type;
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead("SNES NCG options");CHKERRQ(ierr);
@@ -114,7 +114,7 @@ static PetscErrorCode SNESView_NCG(SNES snes, PetscViewer viewer)
   PetscErrorCode   ierr;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
   if (iascii) {
   }
   PetscFunctionReturn(0);
@@ -330,7 +330,7 @@ PetscErrorCode SNESSolve_NCG(SNES snes)
 
   /* first update -- just use the (preconditioned) residual direction for the initial conjugate direction */
 
-  if (snes->pc) {
+  if (snes->pc && snes->pcside == PC_RIGHT) {
     ierr = VecCopy(X, dX);CHKERRQ(ierr);
     ierr = SNESSetInitialFunction(snes->pc, F);CHKERRQ(ierr);
     ierr = SNESSetInitialFunctionNorm(snes->pc, fnorm);CHKERRQ(ierr);
@@ -351,7 +351,7 @@ PetscErrorCode SNESSolve_NCG(SNES snes)
     ierr = SNESNCGComputeYtJtF_Private(snes, X, F, dX, W, G, &dXdotF);CHKERRQ(ierr);
   }
    */
-  for(i = 1; i < maxits + 1; i++) {
+  for (i = 1; i < maxits + 1; i++) {
     lsSuccess = PETSC_TRUE;
     /* some update types require the old update direction or conjugate direction */
     if (ncg->type != SNES_NCG_FR) {
@@ -383,14 +383,14 @@ PetscErrorCode SNESSolve_NCG(SNES snes)
     ierr = SNESMonitor(snes,snes->iter,snes->norm);CHKERRQ(ierr);
 
     /* Test for convergence */
-    ierr = (*snes->ops->converged)(snes,snes->iter,0.0,0.0,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
+    ierr = (*snes->ops->converged)(snes,snes->iter,xnorm,ynorm,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
     if (snes->reason) PetscFunctionReturn(0);
 
     /* Call general purpose update function */
     if (snes->ops->update) {
       ierr = (*snes->ops->update)(snes, snes->iter);CHKERRQ(ierr);
     }
-    if (snes->pc) {
+    if (snes->pc && snes->pcside == PC_RIGHT) {
       ierr = VecCopy(X,dX);CHKERRQ(ierr);
       ierr = SNESSetInitialFunction(snes->pc, F);CHKERRQ(ierr);
       ierr = SNESSetInitialFunctionNorm(snes->pc, fnorm);CHKERRQ(ierr);
@@ -500,6 +500,7 @@ PetscErrorCode  SNESCreate_NCG(SNES snes)
   if (!snes->tolerancesset) {
     snes->max_funcs = 30000;
     snes->max_its   = 10000;
+    snes->stol      = 1e-20;
   }
 
   ierr = PetscNewLog(snes, SNES_NCG, &neP);CHKERRQ(ierr);

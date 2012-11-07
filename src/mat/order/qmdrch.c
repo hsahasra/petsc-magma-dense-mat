@@ -2,6 +2,7 @@
 /* qmdrch.f -- translated by f2c (version 19931217).*/
 
 #include <petscsys.h>
+#include <../src/mat/order/order.h>
 
 /*****************************************************************/
 /**********     QMDRCH ..... QUOT MIN DEG REACH SET    ***********/
@@ -27,10 +28,10 @@
 /*              LT 0 MEANS THE NODE HAS BEEN MERGED WITH*/
 /*              OTHERS IN THE QUOTIENT OR IT IS IN NBRHD SET.*/
 /*****************************************************************/
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "SPARSEPACKqmdrch"
-PetscErrorCode SPARSEPACKqmdrch(PetscInt *root, PetscInt *xadj, PetscInt *adjncy, 
-	PetscInt *deg, PetscInt *marker, PetscInt *rchsze, PetscInt *rchset, 
+PetscErrorCode SPARSEPACKqmdrch(const PetscInt *root,const PetscInt *xadj,const PetscInt *adjncy,
+	PetscInt *deg, PetscInt *marker, PetscInt *rchsze, PetscInt *rchset,
 	PetscInt *nhdsze, PetscInt *nbrhd)
 {
     /* System generated locals */

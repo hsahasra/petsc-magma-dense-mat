@@ -16,6 +16,7 @@ struct _PCBDDCGraph {
   PetscInt ncmps;
   PetscInt *xadj;
   PetscInt *adjncy;
+  PetscInt **neighbours_set;
   PetscInt *where;
   PetscInt *which_dof;
   PetscInt *cptr;
@@ -40,8 +41,8 @@ typedef struct {
   KSP           coarse_ksp;
   Mat           coarse_phi_B;
   Mat           coarse_phi_D;
-  PetscMPIInt   local_primal_size;
-  PetscMPIInt   *local_primal_indices;
+  PetscInt      local_primal_size;
+  PetscInt      *local_primal_indices;
   PetscMPIInt   *local_primal_displacements;
   PetscMPIInt   *local_primal_sizes;
   PetscMPIInt   replicated_primal_size;
@@ -70,12 +71,22 @@ typedef struct {
   PetscInt      n_constraints;
   PetscInt      n_vertices;
   Mat           ConstraintMatrix;
+  PetscBool     usechangeofbasis;
+  PetscBool     usechangeonfaces;
+  Mat           ChangeOfBasisMatrix;
+  Vec           original_rhs;
+  Vec           temp_solution;
+  Mat           local_mat;
+  PetscBool     use_exact_dirichlet;
   /* Some defaults on selecting vertices and constraints*/
   PetscBool     vertices_flag;
   PetscBool     constraints_flag;
   PetscBool     faces_flag;
   PetscBool     edges_flag;
   /* Some customization is possible */
+  PCBDDCGraph                mat_graph;
+  MatNullSpace               NullSpace;
+  MatNullSpace               CoarseNullSpace;
   PetscBool                  use_nnsp_true;
   PetscInt                   n_ISForDofs;
   IS                         *ISForDofs;
@@ -85,24 +96,53 @@ typedef struct {
   CoarseProblemType          coarse_problem_type;
   CoarseCommunicationsType   coarse_communications_type;
   PetscInt                   coarsening_ratio;
-  PetscInt                   active_procs;
+  PetscInt                   current_level;
+  PetscInt                   max_levels;
   /* For verbose output of some bddc data structures */
   PetscBool                  dbg_flag;
   PetscViewer                dbg_viewer;
 } PC_BDDC;
 
-/* In case of multilevel BDDC, this is the minimum number of procs for which it will be allowed */
-#define MIN_PROCS_FOR_BDDC 5 
-
 /* prototypes for functions contained in bddc.c */
+static PetscErrorCode PCBDDCSetUseExactDirichlet(PC,PetscBool);
+static PetscErrorCode PCBDDCSetLevel(PC,PetscInt);
+static PetscErrorCode PCBDDCAdaptNullSpace(PC);
 static PetscErrorCode PCBDDCCoarseSetUp(PC);
 static PetscErrorCode PCBDDCFindConnectedComponents(PCBDDCGraph,PetscInt);
 static PetscErrorCode PCBDDCSetupCoarseEnvironment(PC,PetscScalar*);
 static PetscErrorCode PCBDDCManageLocalBoundaries(PC);
-static PetscErrorCode PCBDDCApplyInterfacePreconditioner(PC,Vec);
+static PetscErrorCode PCBDDCApplyInterfacePreconditioner(PC);
 static PetscErrorCode PCBDDCSolveSaddlePoint(PC);
 static PetscErrorCode PCBDDCScatterCoarseDataBegin(PC,Vec,Vec,InsertMode,ScatterMode);
 static PetscErrorCode PCBDDCScatterCoarseDataEnd(PC,Vec,Vec,InsertMode,ScatterMode);
 static PetscErrorCode PCBDDCCreateConstraintMatrix(PC);
+
+/* feti-dp */
+typedef struct {
+  PetscInt   n_lambda;
+  Vec        lambda_local;
+  Vec        temp_solution_B;
+  Vec        temp_solution_D;
+  Mat        B_delta;
+  Mat        B_Ddelta;
+  VecScatter l2g_lambda;
+  PC         pc;
+} FETIDPMat_ctx;
+
+typedef struct {
+  Vec        lambda_local;
+  Mat        B_Ddelta;
+  VecScatter l2g_lambda;
+  PC         pc;
+} FETIDPPC_ctx;
+
+static PetscErrorCode PCBDDCCreateFETIDPMatContext(PC,FETIDPMat_ctx**);
+static PetscErrorCode PCBDDCDestroyFETIDPMat(Mat);
+static PetscErrorCode PCBDDCSetupFETIDPMatContext(FETIDPMat_ctx*);
+static PetscErrorCode PCBDDCCreateFETIDPPCContext(PC,FETIDPPC_ctx**);
+static PetscErrorCode PCBDDCDestroyFETIDPPC(PC);
+static PetscErrorCode PCBDDCSetupFETIDPPCContext(Mat,FETIDPPC_ctx*);
+static PetscErrorCode FETIDPPCApply(PC,Vec,Vec);
+static PetscErrorCode FETIDPMatMult(Mat,Vec,Vec);
 
 #endif /* __pcbddc_h */

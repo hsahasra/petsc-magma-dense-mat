@@ -6,11 +6,6 @@ extern PetscErrorCode  VecCreate_SeqGPU(Vec);
 extern PetscErrorCode  VecCreate_MPI(Vec);
 extern PetscErrorCode  VecCreate_Standard(Vec);
 extern PetscErrorCode  VecCreate_Shared(Vec);
-#if defined(PETSC_HAVE_PTHREADCLASSES)
-extern PetscErrorCode  VecCreate_SeqPThread(Vec);
-extern PetscErrorCode  VecCreate_MPIPThread(Vec);
-extern PetscErrorCode  VecCreate_PThread(Vec);
-#endif
 #if defined(PETSC_HAVE_CUSP)
 extern PetscErrorCode  VecCreate_SeqCUSP(Vec);
 extern PetscErrorCode  VecCreate_MPICUSP(Vec);
@@ -23,7 +18,7 @@ extern PetscErrorCode  VecCreate_Sieve(Vec);
 #endif
 EXTERN_C_END
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecRegisterAll"
 /*@C
   VecRegisterAll - Registers all of the vector components in the Vec package.
@@ -49,12 +44,9 @@ PetscErrorCode  VecRegisterAll(const char path[])
   ierr = VecRegisterDynamic(VECMPI,       path, "VecCreate_MPI",       VecCreate_MPI);CHKERRQ(ierr);
   ierr = VecRegisterDynamic(VECSTANDARD,  path, "VecCreate_Standard",  VecCreate_Standard);CHKERRQ(ierr);
   ierr = VecRegisterDynamic(VECSHARED,    path, "VecCreate_Shared",    VecCreate_Shared);CHKERRQ(ierr);
+
   ierr = VecRegisterDynamic(VECSEQGPU,   path, "VecCreate_SeqGPU",   VecCreate_SeqGPU);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_PTHREADCLASSES)
-  ierr = VecRegisterDynamic(VECSEQPTHREAD,path, "VecCreate_SeqPThread",   VecCreate_SeqPThread);CHKERRQ(ierr);
-  ierr = VecRegisterDynamic(VECMPIPTHREAD,path, "VecCreate_MPIPThread",  VecCreate_MPIPThread);CHKERRQ(ierr);
-  ierr = VecRegisterDynamic(VECPTHREAD,   path, "VecCreate_PThread",      VecCreate_PThread);CHKERRQ(ierr);
-#endif
+
 #if defined PETSC_HAVE_CUSP
   ierr = VecRegisterDynamic(VECSEQCUSP,  path, "VecCreate_SeqCUSP",  VecCreate_SeqCUSP);CHKERRQ(ierr);
   ierr = VecRegisterDynamic(VECMPICUSP,  path, "VecCreate_MPICUSP",  VecCreate_MPICUSP);CHKERRQ(ierr);

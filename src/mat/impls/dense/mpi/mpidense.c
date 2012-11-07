@@ -3,28 +3,10 @@
    Basic functions for basic parallel dense matrices.
 */
 
-    
+
 #include <../src/mat/impls/dense/mpi/mpidense.h>    /*I   "petscmat.h"  I*/
-#if defined(PETSC_HAVE_PLAPACK)
-static PetscMPIInt Plapack_nprows,Plapack_npcols,Plapack_ierror,Plapack_nb_alg;
-static MPI_Comm Plapack_comm_2d;
-EXTERN_C_BEGIN 
-#include <PLA.h>
-EXTERN_C_END 
 
-typedef struct {
-  PLA_Obj        A,pivots;
-  PLA_Template   templ;
-  MPI_Datatype   datatype;
-  PetscInt       nb,rstart;
-  VecScatter     ctx;
-  IS             is_pla,is_petsc;
-  PetscBool      pla_solved;
-  MatStructure   mstruct;
-} Mat_Plapack;
-#endif
-
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatDenseGetLocalMatrix"
 /*@
 
@@ -47,7 +29,7 @@ PetscErrorCode MatDenseGetLocalMatrix(Mat A,Mat *B)
   PetscBool      flg;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)A,MATMPIDENSE,&flg);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)A,MATMPIDENSE,&flg);CHKERRQ(ierr);
   if (flg) {
     *B = mat->A;
   } else {
@@ -56,7 +38,7 @@ PetscErrorCode MatDenseGetLocalMatrix(Mat A,Mat *B)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatGetRow_MPIDense"
 PetscErrorCode MatGetRow_MPIDense(Mat A,PetscInt row,PetscInt *nz,PetscInt **idx,PetscScalar **v)
 {
@@ -71,7 +53,7 @@ PetscErrorCode MatGetRow_MPIDense(Mat A,PetscInt row,PetscInt *nz,PetscInt **idx
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatRestoreRow_MPIDense"
 PetscErrorCode MatRestoreRow_MPIDense(Mat mat,PetscInt row,PetscInt *nz,PetscInt **idx,PetscScalar **v)
 {
@@ -104,9 +86,9 @@ PetscErrorCode  MatGetDiagonalBlock_MPIDense(Mat A,Mat *a)
     ierr = MatCreate(comm,&B);CHKERRQ(ierr);
     ierr = MatSetSizes(B,m,m,m,m);CHKERRQ(ierr);
     ierr = MatSetType(B,((PetscObject)mdn->A)->type_name);CHKERRQ(ierr);
-    ierr = MatGetArray(mdn->A,&array);CHKERRQ(ierr);
+    ierr = MatDenseGetArray(mdn->A,&array);CHKERRQ(ierr);
     ierr = MatSeqDenseSetPreallocation(B,array+m*rstart);CHKERRQ(ierr);
-    ierr = MatRestoreArray(mdn->A,&array);CHKERRQ(ierr);
+    ierr = MatDenseRestoreArray(mdn->A,&array);CHKERRQ(ierr);
     ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = PetscObjectCompose((PetscObject)A,"DiagonalBlock",(PetscObject)B);CHKERRQ(ierr);
@@ -119,7 +101,7 @@ PetscErrorCode  MatGetDiagonalBlock_MPIDense(Mat A,Mat *a)
 }
 EXTERN_C_END
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatSetValues_MPIDense"
 PetscErrorCode MatSetValues_MPIDense(Mat mat,PetscInt m,const PetscInt idxm[],PetscInt n,const PetscInt idxn[],const PetscScalar v[],InsertMode addv)
 {
@@ -158,7 +140,7 @@ PetscErrorCode MatSetValues_MPIDense(Mat mat,PetscInt m,const PetscInt idxm[],Pe
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatGetValues_MPIDense"
 PetscErrorCode MatGetValues_MPIDense(Mat mat,PetscInt m,const PetscInt idxm[],PetscInt n,const PetscInt idxn[],PetscScalar v[])
 {
@@ -182,19 +164,19 @@ PetscErrorCode MatGetValues_MPIDense(Mat mat,PetscInt m,const PetscInt idxm[],Pe
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "MatGetArray_MPIDense"
-PetscErrorCode MatGetArray_MPIDense(Mat A,PetscScalar *array[])
+#undef __FUNCT__
+#define __FUNCT__ "MatDenseGetArray_MPIDense"
+PetscErrorCode MatDenseGetArray_MPIDense(Mat A,PetscScalar *array[])
 {
   Mat_MPIDense   *a = (Mat_MPIDense*)A->data;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MatGetArray(a->A,array);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(a->A,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatGetSubMatrix_MPIDense"
 static PetscErrorCode MatGetSubMatrix_MPIDense(Mat A,IS isrow,IS iscol,MatReuse scall,Mat *B)
 {
@@ -221,7 +203,7 @@ static PetscErrorCode MatGetSubMatrix_MPIDense(Mat A,IS isrow,IS iscol,MatReuse 
 
   ierr = MatGetLocalSize(A,&nlrows,&nlcols);CHKERRQ(ierr);
   ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
-  
+
   /* Check submatrix call */
   if (scall == MAT_REUSE_MATRIX) {
     /* SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_SIZ,"Reused submatrix wrong size"); */
@@ -238,7 +220,7 @@ static PetscErrorCode MatGetSubMatrix_MPIDense(Mat A,IS isrow,IS iscol,MatReuse 
   /* Now extract the data pointers and do the copy, column at a time */
   newmatd = (Mat_MPIDense*)newmat->data;
   bv      = ((Mat_SeqDense *)newmatd->A->data)->v;
-  
+
   for (i=0; i<Ncols; i++) {
     av = v + ((Mat_SeqDense *)mat->A->data)->lda*icol[i];
     for (j=0; j<nrows; j++) {
@@ -258,18 +240,22 @@ static PetscErrorCode MatGetSubMatrix_MPIDense(Mat A,IS isrow,IS iscol,MatReuse 
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "MatRestoreArray_MPIDense"
-PetscErrorCode MatRestoreArray_MPIDense(Mat A,PetscScalar *array[])
+#undef __FUNCT__
+#define __FUNCT__ "MatDenseRestoreArray_MPIDense"
+PetscErrorCode MatDenseRestoreArray_MPIDense(Mat A,PetscScalar *array[])
 {
+  Mat_MPIDense   *a = (Mat_MPIDense*)A->data;
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
+  ierr = MatDenseRestoreArray(a->A,array);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatAssemblyBegin_MPIDense"
 PetscErrorCode MatAssemblyBegin_MPIDense(Mat mat,MatAssemblyType mode)
-{ 
+{
   Mat_MPIDense   *mdn = (Mat_MPIDense*)mat->data;
   MPI_Comm       comm = ((PetscObject)mat)->comm;
   PetscErrorCode ierr;
@@ -288,10 +274,10 @@ PetscErrorCode MatAssemblyBegin_MPIDense(Mat mat,MatAssemblyType mode)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatAssemblyEnd_MPIDense"
 PetscErrorCode MatAssemblyEnd_MPIDense(Mat mat,MatAssemblyType mode)
-{ 
+{
   Mat_MPIDense    *mdn=(Mat_MPIDense*)mat->data;
   PetscErrorCode  ierr;
   PetscInt        i,*row,*col,flg,j,rstart,ncols;
@@ -304,7 +290,7 @@ PetscErrorCode MatAssemblyEnd_MPIDense(Mat mat,MatAssemblyType mode)
   while (1) {
     ierr = MatStashScatterGetMesg_Private(&mat->stash,&n,&row,&col,&val,&flg);CHKERRQ(ierr);
     if (!flg) break;
-    
+
     for (i=0; i<n;) {
       /* Now identify the consecutive vals belonging to the same row */
       for (j=i,rstart=row[j]; j<n; j++) { if (row[j] != rstart) break; }
@@ -316,7 +302,7 @@ PetscErrorCode MatAssemblyEnd_MPIDense(Mat mat,MatAssemblyType mode)
     }
   }
   ierr = MatStashScatterEnd_Private(&mat->stash);CHKERRQ(ierr);
-  
+
   ierr = MatAssemblyBegin(mdn->A,mode);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(mdn->A,mode);CHKERRQ(ierr);
 
@@ -326,7 +312,7 @@ PetscErrorCode MatAssemblyEnd_MPIDense(Mat mat,MatAssemblyType mode)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatZeroEntries_MPIDense"
 PetscErrorCode MatZeroEntries_MPIDense(Mat A)
 {
@@ -338,13 +324,13 @@ PetscErrorCode MatZeroEntries_MPIDense(Mat A)
   PetscFunctionReturn(0);
 }
 
-/* the code does not do the diagonal entries correctly unless the 
+/* the code does not do the diagonal entries correctly unless the
    matrix is square and the column and row owerships are identical.
-   This is a BUG. The only way to fix it seems to be to access 
-   mdn->A and mdn->B directly and not through the MatZeroRows() 
-   routine. 
+   This is a BUG. The only way to fix it seems to be to access
+   mdn->A and mdn->B directly and not through the MatZeroRows()
+   routine.
 */
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatZeroRows_MPIDense"
 PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],PetscScalar diag,Vec x,Vec b)
 {
@@ -380,7 +366,7 @@ PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],Petsc
     }
     if (!found) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Index out of range");
   }
-  nsends = 0;  for (i=0; i<size; i++) { nsends += nprocs[2*i+1];} 
+  nsends = 0;  for (i=0; i<size; i++) { nsends += nprocs[2*i+1];}
 
   /* inform other processors of number of messages and max length*/
   ierr = PetscMaxSum(comm,nprocs,&nmax,&nrecvs);CHKERRQ(ierr);
@@ -393,20 +379,20 @@ PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],Petsc
   }
 
   /* do sends:
-      1) starts[i] gives the starting index in svalues for stuff going to 
+      1) starts[i] gives the starting index in svalues for stuff going to
          the ith processor
   */
   ierr = PetscMalloc((N+1)*sizeof(PetscInt),&svalues);CHKERRQ(ierr);
   ierr = PetscMalloc((nsends+1)*sizeof(MPI_Request),&send_waits);CHKERRQ(ierr);
   ierr = PetscMalloc((size+1)*sizeof(PetscInt),&starts);CHKERRQ(ierr);
-  starts[0]  = 0; 
-  for (i=1; i<size; i++) { starts[i] = starts[i-1] + nprocs[2*i-2];} 
+  starts[0]  = 0;
+  for (i=1; i<size; i++) { starts[i] = starts[i-1] + nprocs[2*i-2];}
   for (i=0; i<N; i++) {
     svalues[starts[owner[i]]++] = rows[i];
   }
 
   starts[0] = 0;
-  for (i=1; i<size+1; i++) { starts[i] = starts[i-1] + nprocs[2*i-2];} 
+  for (i=1; i<size+1; i++) { starts[i] = starts[i-1] + nprocs[2*i-2];}
   count = 0;
   for (i=0; i<size; i++) {
     if (nprocs[2*i+1]) {
@@ -431,7 +417,7 @@ PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],Petsc
     count--;
   }
   ierr = PetscFree(recv_waits);CHKERRQ(ierr);
-  
+
   /* move the data into the send scatter */
   ierr = PetscMalloc((slen+1)*sizeof(PetscInt),&lrows);CHKERRQ(ierr);
   count = 0;
@@ -445,7 +431,7 @@ PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],Petsc
   ierr = PetscFree2(lens,source);CHKERRQ(ierr);
   ierr = PetscFree(owner);CHKERRQ(ierr);
   ierr = PetscFree(nprocs);CHKERRQ(ierr);
-    
+
   /* fix right hand side if needed */
   if (x && b) {
     ierr = VecGetArrayRead(x,&xx);CHKERRQ(ierr);
@@ -462,7 +448,7 @@ PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],Petsc
   if (diag != 0.0) {
     Mat_SeqDense *ll = (Mat_SeqDense*)l->A->data;
     PetscInt      m = ll->lda, i;
- 
+
     for (i=0; i<slen; i++) {
       ll->v[lrows[i] + m*(A->cmap->rstart + lrows[i])] = diag;
     }
@@ -481,7 +467,7 @@ PetscErrorCode MatZeroRows_MPIDense(Mat A,PetscInt N,const PetscInt rows[],Petsc
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMult_MPIDense"
 PetscErrorCode MatMult_MPIDense(Mat mat,Vec xx,Vec yy)
 {
@@ -495,7 +481,7 @@ PetscErrorCode MatMult_MPIDense(Mat mat,Vec xx,Vec yy)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMultAdd_MPIDense"
 PetscErrorCode MatMultAdd_MPIDense(Mat mat,Vec xx,Vec yy,Vec zz)
 {
@@ -509,7 +495,7 @@ PetscErrorCode MatMultAdd_MPIDense(Mat mat,Vec xx,Vec yy,Vec zz)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMultTranspose_MPIDense"
 PetscErrorCode MatMultTranspose_MPIDense(Mat A,Vec xx,Vec yy)
 {
@@ -525,7 +511,7 @@ PetscErrorCode MatMultTranspose_MPIDense(Mat A,Vec xx,Vec yy)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMultTransposeAdd_MPIDense"
 PetscErrorCode MatMultTransposeAdd_MPIDense(Mat A,Vec xx,Vec yy,Vec zz)
 {
@@ -540,7 +526,7 @@ PetscErrorCode MatMultTransposeAdd_MPIDense(Mat A,Vec xx,Vec yy,Vec zz)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatGetDiagonal_MPIDense"
 PetscErrorCode MatGetDiagonal_MPIDense(Mat A,Vec v)
 {
@@ -549,7 +535,7 @@ PetscErrorCode MatGetDiagonal_MPIDense(Mat A,Vec v)
   PetscErrorCode ierr;
   PetscInt       len,i,n,m = A->rmap->n,radd;
   PetscScalar    *x,zero = 0.0;
-  
+
   PetscFunctionBegin;
   ierr = VecSet(v,zero);CHKERRQ(ierr);
   ierr = VecGetArray(v,&x);CHKERRQ(ierr);
@@ -570,9 +556,6 @@ PetscErrorCode MatDestroy_MPIDense(Mat mat)
 {
   Mat_MPIDense   *mdn = (Mat_MPIDense*)mat->data;
   PetscErrorCode ierr;
-#if defined(PETSC_HAVE_PLAPACK)
-  Mat_Plapack   *lu=(Mat_Plapack*)mat->spptr;
-#endif
 
   PetscFunctionBegin;
 
@@ -583,17 +566,6 @@ PetscErrorCode MatDestroy_MPIDense(Mat mat)
   ierr = MatDestroy(&mdn->A);CHKERRQ(ierr);
   ierr = VecDestroy(&mdn->lvec);CHKERRQ(ierr);
   ierr = VecScatterDestroy(&mdn->Mvctx);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_PLAPACK)
-  if (lu) {
-    ierr = PLA_Obj_free(&lu->A);CHKERRQ(ierr);
-    ierr = PLA_Obj_free (&lu->pivots);CHKERRQ(ierr);
-    ierr = PLA_Temp_free(&lu->templ);CHKERRQ(ierr);
-    ierr = ISDestroy(&lu->is_pla);CHKERRQ(ierr);
-    ierr = ISDestroy(&lu->is_petsc);CHKERRQ(ierr);
-    ierr = VecScatterDestroy(&lu->ctx);CHKERRQ(ierr);
-  }
-  ierr = PetscFree(mat->spptr);CHKERRQ(ierr);
-#endif
 
   ierr = PetscFree(mat->data);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)mat,0);CHKERRQ(ierr);
@@ -605,7 +577,7 @@ PetscErrorCode MatDestroy_MPIDense(Mat mat)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatView_MPIDense_Binary"
 static PetscErrorCode MatView_MPIDense_Binary(Mat mat,PetscViewer viewer)
 {
@@ -659,13 +631,13 @@ static PetscErrorCode MatView_MPIDense_Binary(Mat mat,PetscViewer viewer)
           mmax = PetscMax(mmax,mat->rmap->range[i+1] - mat->rmap->range[i]);
         }
         ierr = PetscMalloc(mmax*N*sizeof(PetscScalar),&vv);CHKERRQ(ierr);
-        for(k = 1; k < size; k++) {
+        for (k = 1; k < size; k++) {
           v    = vv;
           m    = mat->rmap->range[k+1] - mat->rmap->range[k];
           ierr = MPIULong_Recv(v,m*N,MPIU_SCALAR,k,tag,((PetscObject)mat)->comm);CHKERRQ(ierr);
 
-          for(j = 0; j < N; j++) {
-            for(i = 0; i < m; i++) {
+          for (j = 0; j < N; j++) {
+            for (i = 0; i < m; i++) {
               work[j + i*N] = *v++;
             }
           }
@@ -681,24 +653,21 @@ static PetscErrorCode MatView_MPIDense_Binary(Mat mat,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatView_MPIDense_ASCIIorDraworSocket"
 static PetscErrorCode MatView_MPIDense_ASCIIorDraworSocket(Mat mat,PetscViewer viewer)
 {
-  Mat_MPIDense          *mdn = (Mat_MPIDense*)mat->data;
-  PetscErrorCode        ierr;
-  PetscMPIInt           size = mdn->size,rank = mdn->rank; 
-  const PetscViewerType vtype;
-  PetscBool             iascii,isdraw;
-  PetscViewer           sviewer;
-  PetscViewerFormat     format;
-#if defined(PETSC_HAVE_PLAPACK)
-  Mat_Plapack           *lu; 
-#endif
+  Mat_MPIDense      *mdn = (Mat_MPIDense*)mat->data;
+  PetscErrorCode    ierr;
+  PetscMPIInt       size = mdn->size,rank = mdn->rank;
+  PetscViewerType   vtype;
+  PetscBool         iascii,isdraw;
+  PetscViewer       sviewer;
+  PetscViewerFormat format;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerGetType(viewer,&vtype);CHKERRQ(ierr);
     ierr = PetscViewerGetFormat(viewer,&format);CHKERRQ(ierr);
@@ -706,22 +675,11 @@ static PetscErrorCode MatView_MPIDense_ASCIIorDraworSocket(Mat mat,PetscViewer v
       MatInfo info;
       ierr = MatGetInfo(mat,MAT_LOCAL,&info);CHKERRQ(ierr);
       ierr = PetscViewerASCIISynchronizedAllow(viewer,PETSC_TRUE);CHKERRQ(ierr);
-      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"  [%d] local rows %D nz %D nz alloced %D mem %D \n",rank,mat->rmap->n,(PetscInt)info.nz_used,(PetscInt)info.nz_allocated,(PetscInt)info.memory);CHKERRQ(ierr);       
+      ierr = PetscViewerASCIISynchronizedPrintf(viewer,"  [%d] local rows %D nz %D nz alloced %D mem %D \n",rank,mat->rmap->n,(PetscInt)info.nz_used,(PetscInt)info.nz_allocated,(PetscInt)info.memory);CHKERRQ(ierr);
       ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
       ierr = PetscViewerASCIISynchronizedAllow(viewer,PETSC_FALSE);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_PLAPACK)
-      ierr = PetscViewerASCIIPrintf(viewer,"PLAPACK run parameters:\n");CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  Processor mesh: nprows %d, npcols %d\n",Plapack_nprows, Plapack_npcols);CHKERRQ(ierr);      
-      ierr = PetscViewerASCIIPrintf(viewer,"  Error checking: %d\n",Plapack_ierror);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  Algorithmic block size: %d\n",Plapack_nb_alg);CHKERRQ(ierr);
-      if (mat->factortype){
-        lu=(Mat_Plapack*)(mat->spptr);
-        ierr = PetscViewerASCIIPrintf(viewer,"  Distr. block size nb: %d \n",lu->nb);CHKERRQ(ierr); 
-      }
-#else
       ierr = VecScatterView(mdn->Mvctx,viewer);CHKERRQ(ierr);
-#endif
-      PetscFunctionReturn(0); 
+      PetscFunctionReturn(0);
     } else if (format == PETSC_VIEWER_ASCII_INFO) {
       PetscFunctionReturn(0);
     }
@@ -734,7 +692,7 @@ static PetscErrorCode MatView_MPIDense_ASCIIorDraworSocket(Mat mat,PetscViewer v
     if (isnull) PetscFunctionReturn(0);
   }
 
-  if (size == 1) { 
+  if (size == 1) {
     ierr = MatView(mdn->A,viewer);CHKERRQ(ierr);
   } else {
     /* assemble the entire matrix onto first processor. */
@@ -763,7 +721,7 @@ static PetscErrorCode MatView_MPIDense_ASCIIorDraworSocket(Mat mat,PetscViewer v
       ierr = MatSetValues_MPIDense(A,1,&row,nz,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
       ierr = MatRestoreRow_MPIDense(mat,row,&nz,&cols,&vals);CHKERRQ(ierr);
       row++;
-    } 
+    }
 
     ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
     ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -781,19 +739,19 @@ static PetscErrorCode MatView_MPIDense_ASCIIorDraworSocket(Mat mat,PetscViewer v
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatView_MPIDense"
 PetscErrorCode MatView_MPIDense(Mat mat,PetscViewer viewer)
 {
   PetscErrorCode ierr;
   PetscBool      iascii,isbinary,isdraw,issocket;
- 
+
   PetscFunctionBegin;
-  
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERSOCKET,&issocket);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERSOCKET,&issocket);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
 
   if (iascii || issocket || isdraw) {
     ierr = MatView_MPIDense_ASCIIorDraworSocket(mat,viewer);CHKERRQ(ierr);
@@ -803,7 +761,7 @@ PetscErrorCode MatView_MPIDense(Mat mat,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatGetInfo_MPIDense"
 PetscErrorCode MatGetInfo_MPIDense(Mat A,MatInfoType flag,MatInfo *info)
 {
@@ -844,7 +802,7 @@ PetscErrorCode MatGetInfo_MPIDense(Mat A,MatInfoType flag,MatInfo *info)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatSetOption_MPIDense"
 PetscErrorCode MatSetOption_MPIDense(Mat A,MatOption op,PetscBool  flg)
 {
@@ -884,7 +842,7 @@ PetscErrorCode MatSetOption_MPIDense(Mat A,MatOption op,PetscBool  flg)
 }
 
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatDiagonalScale_MPIDense"
 PetscErrorCode MatDiagonalScale_MPIDense(Mat A,Vec ll,Vec rr)
 {
@@ -903,7 +861,7 @@ PetscErrorCode MatDiagonalScale_MPIDense(Mat A,Vec ll,Vec rr)
     for (i=0; i<m; i++) {
       x = l[i];
       v = mat->v + i;
-      for (j=0; j<n; j++) { (*v) *= x; v+= m;} 
+      for (j=0; j<n; j++) { (*v) *= x; v+= m;}
     }
     ierr = VecRestoreArray(ll,&l);CHKERRQ(ierr);
     ierr = PetscLogFlops(n*m);CHKERRQ(ierr);
@@ -917,7 +875,7 @@ PetscErrorCode MatDiagonalScale_MPIDense(Mat A,Vec ll,Vec rr)
     for (i=0; i<n; i++) {
       x = r[i];
       v = mat->v + i*m;
-      for (j=0; j<m; j++) { (*v++) *= x;} 
+      for (j=0; j<m; j++) { (*v++) *= x;}
     }
     ierr = VecRestoreArray(mdn->lvec,&r);CHKERRQ(ierr);
     ierr = PetscLogFlops(n*m);CHKERRQ(ierr);
@@ -925,7 +883,7 @@ PetscErrorCode MatDiagonalScale_MPIDense(Mat A,Vec ll,Vec rr)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatNorm_MPIDense"
 PetscErrorCode MatNorm_MPIDense(Mat A,NormType type,PetscReal *nrm)
 {
@@ -951,7 +909,7 @@ PetscErrorCode MatNorm_MPIDense(Mat A,NormType type,PetscReal *nrm)
       ierr = MPI_Allreduce(&sum,nrm,1,MPIU_REAL,MPIU_SUM,((PetscObject)A)->comm);CHKERRQ(ierr);
       *nrm = PetscSqrtReal(*nrm);
       ierr = PetscLogFlops(2.0*mdn->A->cmap->n*mdn->A->rmap->n);CHKERRQ(ierr);
-    } else if (type == NORM_1) { 
+    } else if (type == NORM_1) {
       PetscReal *tmp,*tmp2;
       ierr = PetscMalloc2(A->cmap->N,PetscReal,&tmp,A->cmap->N,PetscReal,&tmp2);CHKERRQ(ierr);
       ierr = PetscMemzero(tmp,A->cmap->N*sizeof(PetscReal));CHKERRQ(ierr);
@@ -975,13 +933,13 @@ PetscErrorCode MatNorm_MPIDense(Mat A,NormType type,PetscReal *nrm)
       ierr = MPI_Allreduce(&ntemp,nrm,1,MPIU_REAL,MPIU_MAX,((PetscObject)A)->comm);CHKERRQ(ierr);
     } else SETERRQ(((PetscObject)A)->comm,PETSC_ERR_SUP,"No support for two norm");
   }
-  PetscFunctionReturn(0); 
+  PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatTranspose_MPIDense"
 PetscErrorCode MatTranspose_MPIDense(Mat A,MatReuse reuse,Mat *matout)
-{ 
+{
   Mat_MPIDense   *a = (Mat_MPIDense*)A->data;
   Mat_SeqDense   *Aloc = (Mat_SeqDense*)a->A->data;
   Mat            B;
@@ -1007,7 +965,7 @@ PetscErrorCode MatTranspose_MPIDense(Mat A,MatReuse reuse,Mat *matout)
   for (j=0; j<n; j++) {
     ierr = MatSetValues(B,1,&j,m,rwork,v,INSERT_VALUES);CHKERRQ(ierr);
     v   += m;
-  } 
+  }
   ierr = PetscFree(rwork);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -1023,7 +981,7 @@ PetscErrorCode MatTranspose_MPIDense(Mat A,MatReuse reuse,Mat *matout)
 static PetscErrorCode MatDuplicate_MPIDense(Mat,MatDuplicateOption,Mat *);
 extern PetscErrorCode MatScale_MPIDense(Mat,PetscScalar);
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatSetUp_MPIDense"
 PetscErrorCode MatSetUp_MPIDense(Mat A)
 {
@@ -1034,422 +992,7 @@ PetscErrorCode MatSetUp_MPIDense(Mat A)
   PetscFunctionReturn(0);
 }
 
-#if defined(PETSC_HAVE_PLAPACK)
-
-#undef __FUNCT__   
-#define __FUNCT__ "MatMPIDenseCopyToPlapack"
-PetscErrorCode MatMPIDenseCopyToPlapack(Mat A,Mat F)
-{
-  Mat_Plapack    *lu = (Mat_Plapack*)(F)->spptr;
-  PetscErrorCode ierr;
-  PetscInt       M=A->cmap->N,m=A->rmap->n,rstart;
-  PetscScalar    *array;
-  PetscReal      one = 1.0;
-
-  PetscFunctionBegin;
-  /* Copy A into F->lu->A */
-  ierr = PLA_Obj_set_to_zero(lu->A);CHKERRQ(ierr);
-  ierr = PLA_API_begin();CHKERRQ(ierr);
-  ierr = PLA_Obj_API_open(lu->A);CHKERRQ(ierr);  
-  ierr = MatGetOwnershipRange(A,&rstart,PETSC_NULL);CHKERRQ(ierr);
-  ierr = MatGetArray(A,&array);CHKERRQ(ierr);
-  ierr = PLA_API_axpy_matrix_to_global(m,M, &one,(void *)array,m,lu->A,rstart,0);CHKERRQ(ierr);
-  ierr = MatRestoreArray(A,&array);CHKERRQ(ierr);
-  ierr = PLA_Obj_API_close(lu->A);CHKERRQ(ierr); 
-  ierr = PLA_API_end();CHKERRQ(ierr); 
-  lu->rstart = rstart;
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__   
-#define __FUNCT__ "MatMPIDenseCopyFromPlapack"
-PetscErrorCode MatMPIDenseCopyFromPlapack(Mat F,Mat A)
-{
-  Mat_Plapack    *lu = (Mat_Plapack*)(F)->spptr;
-  PetscErrorCode ierr;
-  PetscInt       M=A->cmap->N,m=A->rmap->n,rstart;
-  PetscScalar    *array;
-  PetscReal      one = 1.0;
-
-  PetscFunctionBegin;
-  /* Copy F into A->lu->A */
-  ierr = MatZeroEntries(A);CHKERRQ(ierr);
-  ierr = PLA_API_begin();CHKERRQ(ierr);
-  ierr = PLA_Obj_API_open(lu->A);CHKERRQ(ierr);  
-  ierr = MatGetOwnershipRange(A,&rstart,PETSC_NULL);CHKERRQ(ierr);
-  ierr = MatGetArray(A,&array);CHKERRQ(ierr);
-  ierr = PLA_API_axpy_global_to_matrix(m,M, &one,lu->A,rstart,0,(void *)array,m);CHKERRQ(ierr);
-  ierr = MatRestoreArray(A,&array);CHKERRQ(ierr);
-  ierr = PLA_Obj_API_close(lu->A);CHKERRQ(ierr); 
-  ierr = PLA_API_end();CHKERRQ(ierr); 
-  lu->rstart = rstart;
-  PetscFunctionReturn(0);
-}
-
 #undef __FUNCT__
-#define __FUNCT__ "MatMatMultNumeric_MPIDense_MPIDense"
-PetscErrorCode MatMatMultNumeric_MPIDense_MPIDense(Mat A,Mat B,Mat C) 
-{
-  PetscErrorCode ierr;
-  Mat_Plapack    *luA = (Mat_Plapack*)A->spptr;
-  Mat_Plapack    *luB = (Mat_Plapack*)B->spptr;
-  Mat_Plapack    *luC = (Mat_Plapack*)C->spptr;
-  PLA_Obj        alpha = NULL,beta = NULL;
-
-  PetscFunctionBegin;
-  ierr = MatMPIDenseCopyToPlapack(A,A);CHKERRQ(ierr);
-  ierr = MatMPIDenseCopyToPlapack(B,B);CHKERRQ(ierr);
-
-  /* 
-  ierr = PLA_Global_show("A = ",luA->A,"%g ","");CHKERRQ(ierr);
-  ierr = PLA_Global_show("B = ",luB->A,"%g ","");CHKERRQ(ierr);
-  */
-
-  /* do the multiply in PLA  */
-  ierr = PLA_Create_constants_conf_to(luA->A,NULL,NULL,&alpha);CHKERRQ(ierr);
-  ierr = PLA_Create_constants_conf_to(luC->A,NULL,&beta,NULL);CHKERRQ(ierr);
-  CHKMEMQ;
-
-  ierr = PLA_Gemm(PLA_NO_TRANSPOSE,PLA_NO_TRANSPOSE,alpha,luA->A,luB->A,beta,luC->A); /* CHKERRQ(ierr); */
-  CHKMEMQ;
-  ierr = PLA_Obj_free(&alpha);CHKERRQ(ierr);
-  ierr = PLA_Obj_free(&beta);CHKERRQ(ierr);
-
-  /*
-  ierr = PLA_Global_show("C = ",luC->A,"%g ","");CHKERRQ(ierr);
-  */
-  ierr = MatMPIDenseCopyFromPlapack(C,C);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-extern PetscErrorCode MatMatMult_MPIDense_MPIDense(Mat A,Mat B,MatReuse scall,PetscReal fill,Mat *C);
-
-#undef __FUNCT__
-#define __FUNCT__ "MatMatMultSymbolic_MPIDense_MPIDense"
-PetscErrorCode MatMatMultSymbolic_MPIDense_MPIDense(Mat A,Mat B,PetscReal fill,Mat *C)
-{
-  PetscErrorCode ierr;
-  PetscInt       m=A->rmap->n,n=B->cmap->n;
-  Mat            Cmat;
-
-  PetscFunctionBegin;
-  if (A->cmap->n != B->rmap->n) SETERRQ2(((PetscObject)A)->comm,PETSC_ERR_ARG_SIZ,"A->cmap->n %d != B->rmap->n %d\n",A->cmap->n,B->rmap->n);
-  SETERRQ(((PetscObject)A)->comm,PETSC_ERR_LIB,"Due to apparent bugs in PLAPACK,this is not currently supported");
-  ierr = MatCreate(((PetscObject)B)->comm,&Cmat);CHKERRQ(ierr);
-  ierr = MatSetSizes(Cmat,m,n,A->rmap->N,B->cmap->N);CHKERRQ(ierr);
-  ierr = MatSetType(Cmat,MATMPIDENSE);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(Cmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(Cmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  Cmat->ops->matmult = MatMatMult_MPIDense_MPIDense;
-  *C = Cmat;
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "MatMatMult_MPIDense_MPIDense"
-PetscErrorCode MatMatMult_MPIDense_MPIDense(Mat A,Mat B,MatReuse scall,PetscReal fill,Mat *C)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (scall == MAT_INITIAL_MATRIX){
-    ierr = MatMatMultSymbolic_MPIDense_MPIDense(A,B,fill,C);CHKERRQ(ierr);
-  }
-  ierr = MatMatMultNumeric_MPIDense_MPIDense(A,B,*C);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "MatSolve_MPIDense"
-PetscErrorCode MatSolve_MPIDense(Mat A,Vec b,Vec x)
-{
-  MPI_Comm       comm = ((PetscObject)A)->comm;
-  Mat_Plapack    *lu = (Mat_Plapack*)A->spptr;
-  PetscErrorCode ierr;
-  PetscInt       M=A->rmap->N,m=A->rmap->n,rstart,i,j,*idx_pla,*idx_petsc,loc_m,loc_stride;
-  PetscScalar    *array;
-  PetscReal      one = 1.0;
-  PetscMPIInt    size,rank,r_rank,r_nproc,c_rank,c_nproc;;
-  PLA_Obj        v_pla = NULL;
-  PetscScalar    *loc_buf;
-  Vec            loc_x;
-   
-  PetscFunctionBegin;
-  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
-
-  /* Create PLAPACK vector objects, then copy b into PLAPACK b */
-  PLA_Mvector_create(lu->datatype,M,1,lu->templ,PLA_ALIGN_FIRST,&v_pla);  
-  PLA_Obj_set_to_zero(v_pla);
-
-  /* Copy b into rhs_pla */
-  PLA_API_begin();   
-  PLA_Obj_API_open(v_pla);
-  ierr = VecGetArray(b,&array);CHKERRQ(ierr);
-  PLA_API_axpy_vector_to_global(m,&one,(void *)array,1,v_pla,lu->rstart);
-  ierr = VecRestoreArray(b,&array);CHKERRQ(ierr);
-  PLA_Obj_API_close(v_pla);
-  PLA_API_end(); 
-
-  if (A->factortype == MAT_FACTOR_LU){
-    /* Apply the permutations to the right hand sides */
-    PLA_Apply_pivots_to_rows (v_pla,lu->pivots);
-
-    /* Solve L y = b, overwriting b with y */
-    PLA_Trsv( PLA_LOWER_TRIANGULAR,PLA_NO_TRANSPOSE,PLA_UNIT_DIAG,lu->A,v_pla );
-
-    /* Solve U x = y (=b), overwriting b with x */
-    PLA_Trsv( PLA_UPPER_TRIANGULAR,PLA_NO_TRANSPOSE,PLA_NONUNIT_DIAG,lu->A,v_pla );
-  } else { /* MAT_FACTOR_CHOLESKY */
-    PLA_Trsv( PLA_LOWER_TRIANGULAR,PLA_NO_TRANSPOSE,PLA_NONUNIT_DIAG,lu->A,v_pla);
-    PLA_Trsv( PLA_LOWER_TRIANGULAR,(lu->datatype == MPI_DOUBLE ? PLA_TRANSPOSE : PLA_CONJUGATE_TRANSPOSE),
-                                    PLA_NONUNIT_DIAG,lu->A,v_pla);
-  }
-
-  /* Copy PLAPACK x into Petsc vector x  */   
-  PLA_Obj_local_length(v_pla, &loc_m);
-  PLA_Obj_local_buffer(v_pla, (void**)&loc_buf);
-  PLA_Obj_local_stride(v_pla, &loc_stride);
-  /*
-    PetscPrintf(PETSC_COMM_SELF," [%d] b - local_m %d local_stride %d, loc_buf: %g %g, nb: %d\n",rank,loc_m,loc_stride,loc_buf[0],loc_buf[(loc_m-1)*loc_stride],lu->nb); 
-  */
-  ierr = VecCreateSeqWithArray(PETSC_COMM_SELF,1,loc_m*loc_stride,loc_buf,&loc_x);CHKERRQ(ierr);
-  if (!lu->pla_solved){
-    
-    PLA_Temp_comm_row_info(lu->templ,&Plapack_comm_2d,&r_rank,&r_nproc);
-    PLA_Temp_comm_col_info(lu->templ,&Plapack_comm_2d,&c_rank,&c_nproc);
-
-    /* Create IS and cts for VecScatterring */
-    PLA_Obj_local_length(v_pla, &loc_m);
-    PLA_Obj_local_stride(v_pla, &loc_stride);
-    ierr = PetscMalloc2(loc_m,PetscInt,&idx_pla,loc_m,PetscInt,&idx_petsc);CHKERRQ(ierr);
-
-    rstart = (r_rank*c_nproc+c_rank)*lu->nb;
-    for (i=0; i<loc_m; i+=lu->nb){
-      j = 0; 
-      while (j < lu->nb && i+j < loc_m){
-        idx_petsc[i+j] = rstart + j; j++;
-      }
-      rstart += size*lu->nb;
-    }
-
-    for (i=0; i<loc_m; i++) idx_pla[i] = i*loc_stride;
-
-    ierr = ISCreateGeneral(PETSC_COMM_SELF,loc_m,idx_pla,PETSC_COPY_VALUES,&lu->is_pla);CHKERRQ(ierr);
-    ierr = ISCreateGeneral(PETSC_COMM_SELF,loc_m,idx_petsc,PETSC_COPY_VALUES,&lu->is_petsc);CHKERRQ(ierr);  
-    ierr = PetscFree2(idx_pla,idx_petsc);CHKERRQ(ierr);
-    ierr = VecScatterCreate(loc_x,lu->is_pla,x,lu->is_petsc,&lu->ctx);CHKERRQ(ierr);
-  }
-  ierr = VecScatterBegin(lu->ctx,loc_x,x,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  ierr = VecScatterEnd(lu->ctx,loc_x,x,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
-  
-  /* Free data */
-  ierr = VecDestroy(&loc_x);CHKERRQ(ierr);
-  PLA_Obj_free(&v_pla); 
-
-  lu->pla_solved = PETSC_TRUE;
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__   
-#define __FUNCT__ "MatLUFactorNumeric_MPIDense"
-PetscErrorCode MatLUFactorNumeric_MPIDense(Mat F,Mat A,const MatFactorInfo *info)
-{
-  Mat_Plapack    *lu = (Mat_Plapack*)(F)->spptr;
-  PetscErrorCode ierr;
-  PetscInt       M=A->rmap->N,m=A->rmap->n,rstart,rend;
-  PetscInt       info_pla=0;
-  PetscScalar    *array,one = 1.0;
-
-  PetscFunctionBegin;
-  if (lu->mstruct == SAME_NONZERO_PATTERN){
-    PLA_Obj_free(&lu->A);
-    PLA_Obj_free (&lu->pivots);
-  }
-  /* Create PLAPACK matrix object */
-  lu->A = NULL; lu->pivots = NULL;
-  PLA_Matrix_create(lu->datatype,M,M,lu->templ,PLA_ALIGN_FIRST,PLA_ALIGN_FIRST,&lu->A);  
-  PLA_Obj_set_to_zero(lu->A);
-  PLA_Mvector_create(MPI_INT,M,1,lu->templ,PLA_ALIGN_FIRST,&lu->pivots);
-
-  /* Copy A into lu->A */
-  PLA_API_begin();
-  PLA_Obj_API_open(lu->A);  
-  ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
-  ierr = MatGetArray(A,&array);CHKERRQ(ierr);
-  PLA_API_axpy_matrix_to_global(m,M, &one,(void *)array,m,lu->A,rstart,0); 
-  ierr = MatRestoreArray(A,&array);CHKERRQ(ierr);
-  PLA_Obj_API_close(lu->A); 
-  PLA_API_end(); 
-
-  /* Factor P A -> L U overwriting lower triangular portion of A with L, upper, U */
-  info_pla = PLA_LU(lu->A,lu->pivots);
-  if (info_pla != 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_MAT_LU_ZRPVT,"Zero pivot encountered at row %d from PLA_LU()",info_pla);
-
-  lu->rstart         = rstart;
-  lu->mstruct        = SAME_NONZERO_PATTERN;
-  F->ops->solve      = MatSolve_MPIDense;
-  F->assembled       = PETSC_TRUE;  /* required by -ksp_view */
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__   
-#define __FUNCT__ "MatCholeskyFactorNumeric_MPIDense"
-PetscErrorCode MatCholeskyFactorNumeric_MPIDense(Mat F,Mat A,const MatFactorInfo *info)
-{
-  Mat_Plapack    *lu = (Mat_Plapack*)F->spptr;
-  PetscErrorCode ierr;
-  PetscInt       M=A->rmap->N,m=A->rmap->n,rstart,rend;
-  PetscInt       info_pla=0;
-  PetscScalar    *array,one = 1.0;
-
-  PetscFunctionBegin;
-  if (lu->mstruct == SAME_NONZERO_PATTERN){
-    PLA_Obj_free(&lu->A);
-  }
-  /* Create PLAPACK matrix object */
-  lu->A      = NULL; 
-  lu->pivots = NULL; 
-  PLA_Matrix_create(lu->datatype,M,M,lu->templ,PLA_ALIGN_FIRST,PLA_ALIGN_FIRST,&lu->A);  
-
-  /* Copy A into lu->A */
-  PLA_API_begin();
-  PLA_Obj_API_open(lu->A);  
-  ierr = MatGetOwnershipRange(A,&rstart,&rend);CHKERRQ(ierr);
-  ierr = MatGetArray(A,&array);CHKERRQ(ierr);
-  PLA_API_axpy_matrix_to_global(m,M, &one,(void *)array,m,lu->A,rstart,0); 
-  ierr = MatRestoreArray(A,&array);CHKERRQ(ierr);
-  PLA_Obj_API_close(lu->A); 
-  PLA_API_end(); 
-
-  /* Factor P A -> Chol */
-  info_pla = PLA_Chol(PLA_LOWER_TRIANGULAR,lu->A);
-  if (info_pla != 0) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_MAT_CH_ZRPVT,"Nonpositive definite matrix detected at row %d from PLA_Chol()",info_pla);
-
-  lu->rstart         = rstart;
-  lu->mstruct        = SAME_NONZERO_PATTERN;
-  F->ops->solve      = MatSolve_MPIDense;  
-  F->assembled       = PETSC_TRUE;  /* required by -ksp_view */
-  PetscFunctionReturn(0);
-}
-
-/* Note the Petsc perm permutation is ignored */
-#undef __FUNCT__  
-#define __FUNCT__ "MatCholeskyFactorSymbolic_MPIDense"
-PetscErrorCode MatCholeskyFactorSymbolic_MPIDense(Mat F,Mat A,IS perm,const MatFactorInfo *info)
-{ 
-  PetscErrorCode ierr;
-  PetscBool      issymmetric,set;
-
-  PetscFunctionBegin;
-  ierr = MatIsSymmetricKnown(A,&set,&issymmetric);CHKERRQ(ierr);
-  if (!set || !issymmetric) SETERRQ(((PetscObject)A)->comm,PETSC_ERR_USER,"Matrix must be set as MAT_SYMMETRIC for CholeskyFactor()");
-  F->ops->choleskyfactornumeric  = MatCholeskyFactorNumeric_MPIDense;
-  PetscFunctionReturn(0);
-}
-
-/* Note the Petsc r and c permutations are ignored */
-#undef __FUNCT__  
-#define __FUNCT__ "MatLUFactorSymbolic_MPIDense"
-PetscErrorCode MatLUFactorSymbolic_MPIDense(Mat F,Mat A,IS r,IS c,const MatFactorInfo *info)
-{  
-  PetscErrorCode ierr;
-  PetscInt       M = A->rmap->N;
-  Mat_Plapack    *lu;
-
-  PetscFunctionBegin;
-  lu = (Mat_Plapack*)F->spptr;
-  ierr = PLA_Mvector_create(MPI_INT,M,1,lu->templ,PLA_ALIGN_FIRST,&lu->pivots);CHKERRQ(ierr);
-  F->ops->lufactornumeric  = MatLUFactorNumeric_MPIDense;
-  PetscFunctionReturn(0);
-}
-
-EXTERN_C_BEGIN
-#undef __FUNCT__  
-#define __FUNCT__ "MatFactorGetSolverPackage_mpidense_plapack"
-PetscErrorCode MatFactorGetSolverPackage_mpidense_plapack(Mat A,const MatSolverPackage *type)
-{
-  PetscFunctionBegin;
-  *type = MATSOLVERPLAPACK;
-  PetscFunctionReturn(0);
-}
-EXTERN_C_END
-
-EXTERN_C_BEGIN
-#undef __FUNCT__  
-#define __FUNCT__ "MatGetFactor_mpidense_plapack"
-PetscErrorCode MatGetFactor_mpidense_plapack(Mat A,MatFactorType ftype,Mat *F)
-{
-  PetscErrorCode ierr;
-  Mat_Plapack    *lu;
-  PetscMPIInt    size;
-  PetscInt       M=A->rmap->N;
-
-  PetscFunctionBegin;
-  /* Create the factorization matrix */
-  ierr = MatCreate(((PetscObject)A)->comm,F);CHKERRQ(ierr);
-  ierr = MatSetSizes(*F,A->rmap->n,A->cmap->n,A->rmap->N,A->cmap->N);CHKERRQ(ierr);
-  ierr = MatSetType(*F,((PetscObject)A)->type_name);CHKERRQ(ierr);
-  ierr = PetscNewLog(*F,Mat_Plapack,&lu);CHKERRQ(ierr);
-  (*F)->spptr = (void*)lu;
-
-  /* Set default Plapack parameters */
-  ierr = MPI_Comm_size(((PetscObject)A)->comm,&size);CHKERRQ(ierr);
-  lu->nb = M/size;
-  if (M - lu->nb*size) lu->nb++; /* without cyclic distribution */
- 
-  /* Set runtime options */
-  ierr = PetscOptionsBegin(((PetscObject)A)->comm,((PetscObject)A)->prefix,"PLAPACK Options","Mat");CHKERRQ(ierr);
-    ierr = PetscOptionsInt("-mat_plapack_nb","block size of template vector","None",lu->nb,&lu->nb,PETSC_NULL);CHKERRQ(ierr); 
-  PetscOptionsEnd(); 
-
-  /* Create object distribution template */
-  lu->templ = NULL;
-  ierr = PLA_Temp_create(lu->nb, 0, &lu->templ);CHKERRQ(ierr);
-
-  /* Set the datatype */
-#if defined(PETSC_USE_COMPLEX)
-  lu->datatype = MPI_DOUBLE_COMPLEX;
-#else
-  lu->datatype = MPI_DOUBLE;
-#endif
-
-  ierr = PLA_Matrix_create(lu->datatype,M,A->cmap->N,lu->templ,PLA_ALIGN_FIRST,PLA_ALIGN_FIRST,&lu->A);CHKERRQ(ierr);
-
-
-  lu->pla_solved     = PETSC_FALSE; /* MatSolve_Plapack() is called yet */
-  lu->mstruct        = DIFFERENT_NONZERO_PATTERN;
-
-  if (ftype == MAT_FACTOR_LU) {
-    (*F)->ops->lufactorsymbolic = MatLUFactorSymbolic_MPIDense;
-  } else if (ftype == MAT_FACTOR_CHOLESKY) {
-    (*F)->ops->choleskyfactorsymbolic = MatCholeskyFactorSymbolic_MPIDense;
-  } else SETERRQ(((PetscObject)A)->comm,PETSC_ERR_SUP,"No incomplete factorizations for dense matrices");
-  (*F)->factortype = ftype;
-  ierr = PetscObjectComposeFunctionDynamic((PetscObject)(*F),"MatFactorGetSolverPackage_C","MatFactorGetSolverPackage_mpidense_plapack",MatFactorGetSolverPackage_mpidense_plapack);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-EXTERN_C_END
-#endif
-
-#undef __FUNCT__  
-#define __FUNCT__ "MatGetFactor_mpidense_petsc"
-PetscErrorCode MatGetFactor_mpidense_petsc(Mat A,MatFactorType ftype,Mat *F)
-{
-#if defined(PETSC_HAVE_PLAPACK)
-  PetscErrorCode ierr;
-#endif
-
-  PetscFunctionBegin;
-#if defined(PETSC_HAVE_PLAPACK)
-  ierr = MatGetFactor_mpidense_plapack(A,ftype,F);CHKERRQ(ierr);
-#else
-  SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Matrix format %s uses PLAPACK direct solver. Install PLAPACK",((PetscObject)A)->type_name);
-#endif
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
 #define __FUNCT__ "MatAXPY_MPIDense"
 PetscErrorCode MatAXPY_MPIDense(Mat Y,PetscScalar alpha,Mat X,MatStructure str)
 {
@@ -1461,7 +1004,7 @@ PetscErrorCode MatAXPY_MPIDense(Mat Y,PetscScalar alpha,Mat X,MatStructure str)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatConjugate_MPIDense"
 PetscErrorCode  MatConjugate_MPIDense(Mat mat)
 {
@@ -1473,7 +1016,7 @@ PetscErrorCode  MatConjugate_MPIDense(Mat mat)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatRealPart_MPIDense"
 PetscErrorCode MatRealPart_MPIDense(Mat A)
 {
@@ -1485,7 +1028,7 @@ PetscErrorCode MatRealPart_MPIDense(Mat A)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatImaginaryPart_MPIDense"
 PetscErrorCode MatImaginaryPart_MPIDense(Mat A)
 {
@@ -1498,7 +1041,7 @@ PetscErrorCode MatImaginaryPart_MPIDense(Mat A)
 }
 
 extern PetscErrorCode MatGetColumnNorms_SeqDense(Mat,NormType,PetscReal*);
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatGetColumnNorms_MPIDense"
 PetscErrorCode MatGetColumnNorms_MPIDense(Mat A,NormType type,PetscReal *norms)
 {
@@ -1523,6 +1066,25 @@ PetscErrorCode MatGetColumnNorms_MPIDense(Mat A,NormType type,PetscReal *norms)
   if (type == NORM_2) {
     for (i=0; i<n; i++) norms[i] = PetscSqrtReal(norms[i]);
   }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "MatSetRandom_MPIDense"
+static PetscErrorCode  MatSetRandom_MPIDense(Mat x,PetscRandom rctx)
+{
+  Mat_MPIDense   *d = (Mat_MPIDense*)x->data;
+  PetscErrorCode ierr;
+  PetscScalar    *a;
+  PetscInt       m,n,i;
+
+  PetscFunctionBegin;
+  ierr = MatGetSize(d->A,&m,&n);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(d->A,&a);CHKERRQ(ierr);
+  for (i=0; i<m*n; i++) {
+    ierr = PetscRandomGetValue(rctx,a+i);CHKERRQ(ierr);
+  }
+  ierr = MatDenseRestoreArray(d->A,&a);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1559,8 +1121,8 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIDense,
 /*29*/ MatSetUp_MPIDense,
        0,
        0,
-       MatGetArray_MPIDense,
-       MatRestoreArray_MPIDense,
+       0,
+       0,
 /*34*/ MatDuplicate_MPIDense,
        0,
        0,
@@ -1576,7 +1138,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIDense,
        0,
        0,
        0,
-/*49*/ 0,
+/*49*/ MatSetRandom_MPIDense,
        0,
        0,
        0,
@@ -1616,16 +1178,10 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPIDense,
        0,
        0,
        0,
-/*89*/ 
-#if defined(PETSC_HAVE_PLAPACK)
-       MatMatMult_MPIDense_MPIDense,
-       MatMatMultSymbolic_MPIDense_MPIDense,
-       MatMatMultNumeric_MPIDense_MPIDense,
-#else
+/*89*/
        0,
        0,
        0,
-#endif
        0,
        0,
 /*94*/ 0,
@@ -1689,27 +1245,8 @@ PetscErrorCode  MatMPIDenseSetPreallocation_MPIDense(Mat mat,PetscScalar *data)
 }
 EXTERN_C_END
 
-/*MC
-   MATSOLVERPLAPACK = "mpidense" - Parallel LU and Cholesky factorization for MATMPIDENSE matrices
-
-  run ./configure with the option --download-plapack
-
-
-  Options Database Keys:
-. -mat_plapack_nprows <n> - number of rows in processor partition
-. -mat_plapack_npcols <n> - number of columns in processor partition
-. -mat_plapack_nb <n> - block size of template vector
-. -mat_plapack_nb_alg <n> - algorithmic block size
-- -mat_plapack_ckerror <n> - error checking flag
-
-   Level: intermediate
-
-.seealso: MatCreateDense(), MATDENSE, MATSEQDENSE, PCFactorSetSolverPackage(), MatSolverPackage
-
-M*/
-
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatCreate_MPIDense"
 PetscErrorCode  MatCreate_MPIDense(Mat mat)
 {
@@ -1734,6 +1271,9 @@ PetscErrorCode  MatCreate_MPIDense(Mat mat)
   a->Mvctx       = 0;
   a->roworiented = PETSC_TRUE;
 
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)mat,"MatDenseGetArray_C","MatDenseGetArray_MPIDense",MatDenseGetArray_MPIDense);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)mat,"MatDenseRestoreArray_C","MatDenseRestoreArray_MPIDense",MatDenseRestoreArray_MPIDense);CHKERRQ(ierr);
+
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)mat,"MatGetDiagonalBlock_C",
                                      "MatGetDiagonalBlock_MPIDense",
                                      MatGetDiagonalBlock_MPIDense);CHKERRQ(ierr);
@@ -1749,15 +1289,6 @@ PetscErrorCode  MatCreate_MPIDense(Mat mat)
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)mat,"MatMatMultNumeric_mpiaij_mpidense_C",
                                      "MatMatMultNumeric_MPIAIJ_MPIDense",
                                       MatMatMultNumeric_MPIAIJ_MPIDense);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunctionDynamic((PetscObject)mat,"MatGetFactor_petsc_C",
-                                     "MatGetFactor_mpidense_petsc",
-                                      MatGetFactor_mpidense_petsc);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_PLAPACK)
-  ierr = PetscObjectComposeFunctionDynamic((PetscObject)mat,"MatGetFactor_plapack_C",
-                                     "MatGetFactor_mpidense_plapack",
-                                      MatGetFactor_mpidense_plapack);CHKERRQ(ierr);
-  ierr = PetscPLAPACKInitializePackage(((PetscObject)mat)->comm);CHKERRQ(ierr);
-#endif
   ierr = PetscObjectChangeTypeName((PetscObject)mat,MATMPIDENSE);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -1779,7 +1310,7 @@ EXTERN_C_END
 .seealso: MatCreateMPIDense,MATSEQDENSE,MATMPIDENSE
 M*/
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatMPIDenseSetPreallocation"
 /*@C
    MatMPIDenseSetPreallocation - Sets the array used to store the matrix entries
@@ -1814,7 +1345,7 @@ PetscErrorCode  MatMPIDenseSetPreallocation(Mat mat,PetscScalar *data)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatCreateDense"
 /*@C
    MatCreateDense - Creates a parallel matrix in dense format.
@@ -1869,7 +1400,7 @@ PetscErrorCode  MatCreateDense(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt M,Pe
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatDuplicate_MPIDense"
 static PetscErrorCode MatDuplicate_MPIDense(Mat A,MatDuplicateOption cpvalues,Mat *newmat)
 {
@@ -1906,7 +1437,7 @@ static PetscErrorCode MatDuplicate_MPIDense(Mat A,MatDuplicateOption cpvalues,Ma
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatLoad_MPIDense_DenseInFile"
 PetscErrorCode MatLoad_MPIDense_DenseInFile(MPI_Comm comm,PetscInt fd,PetscInt M,PetscInt N,Mat newmat,PetscInt sizesset)
 {
@@ -1933,14 +1464,14 @@ PetscErrorCode MatLoad_MPIDense_DenseInFile(MPI_Comm comm,PetscInt fd,PetscInt M
     ierr = MatSetSizes(newmat,m,PETSC_DECIDE,M,N);CHKERRQ(ierr);
   }
   ierr = MatMPIDenseSetPreallocation(newmat,PETSC_NULL);CHKERRQ(ierr);
-  ierr = MatGetArray(newmat,&array);CHKERRQ(ierr);
+  ierr = MatDenseGetArray(newmat,&array);CHKERRQ(ierr);
 
   if (!rank) {
     ierr = PetscMalloc(m*N*sizeof(PetscScalar),&vals);CHKERRQ(ierr);
 
     /* read in my part of the matrix numerical values  */
     ierr = PetscBinaryRead(fd,vals,m*N,PETSC_SCALAR);CHKERRQ(ierr);
-    
+
     /* insert into matrix-by row (this is why cannot directly read into array */
     vals_ptr = vals;
     for (i=0; i<m; i++) {
@@ -1970,6 +1501,7 @@ PetscErrorCode MatLoad_MPIDense_DenseInFile(MPI_Comm comm,PetscInt fd,PetscInt M
       }
     }
   }
+  ierr = MatDenseRestoreArray(newmat,&array);CHKERRQ(ierr);
   ierr = PetscFree(rowners);CHKERRQ(ierr);
   ierr = PetscFree(vals);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(newmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -1977,7 +1509,7 @@ PetscErrorCode MatLoad_MPIDense_DenseInFile(MPI_Comm comm,PetscInt fd,PetscInt M
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatLoad_MPIDense"
 PetscErrorCode MatLoad_MPIDense(Mat newmat,PetscViewer viewer)
 {
@@ -2007,16 +1539,16 @@ PetscErrorCode MatLoad_MPIDense(Mat newmat,PetscViewer viewer)
   /* If global rows/cols are set to PETSC_DECIDE, set it to the sizes given in the file */
   if (sizesset && newmat->rmap->N < 0) newmat->rmap->N = M;
   if (sizesset && newmat->cmap->N < 0) newmat->cmap->N = N;
-  
+
   /* If global sizes are set, check if they are consistent with that given in the file */
   if (sizesset) {
     ierr = MatGetSize(newmat,&grows,&gcols);CHKERRQ(ierr);
-  } 
+  }
   if (sizesset && newmat->rmap->N != grows) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED, "Inconsistent # of rows:Matrix in file has (%d) and input matrix has (%d)",M,grows);
   if (sizesset && newmat->cmap->N != gcols) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED, "Inconsistent # of cols:Matrix in file has (%d) and input matrix has (%d)",N,gcols);
 
   /*
-       Handle case where matrix is stored on disk as a dense matrix 
+       Handle case where matrix is stored on disk as a dense matrix
   */
   if (nz == MATRIX_BINARY_FORMAT_DENSE) {
     ierr = MatLoad_MPIDense_DenseInFile(comm,fd,M,N,newmat,sizesset);CHKERRQ(ierr);
@@ -2032,8 +1564,8 @@ PetscErrorCode MatLoad_MPIDense(Mat newmat,PetscViewer viewer)
   for (i=2; i<=size; i++) {
     rowners[i] += rowners[i-1];
   }
-  rstart = rowners[rank]; 
-  rend   = rowners[rank+1]; 
+  rstart = rowners[rank];
+  rend   = rowners[rank+1];
 
   /* distribute row lengths to all processors */
   ierr    = PetscMalloc2(rend-rstart,PetscInt,&ourlens,rend-rstart,PetscInt,&offlens);CHKERRQ(ierr);
@@ -2121,7 +1653,7 @@ PetscErrorCode MatLoad_MPIDense(Mat newmat,PetscViewer viewer)
     /* read in my part of the matrix numerical values  */
     nz = procsnz[0];
     ierr = PetscBinaryRead(fd,vals,nz,PETSC_SCALAR);CHKERRQ(ierr);
-    
+
     /* insert into matrix */
     jj      = rstart;
     smycols = mycols;
@@ -2170,7 +1702,7 @@ PetscErrorCode MatLoad_MPIDense(Mat newmat,PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MatEqual_MPIDense"
 PetscErrorCode MatEqual_MPIDense(Mat A,Mat B,PetscBool  *flag)
 {
@@ -2180,91 +1712,10 @@ PetscErrorCode MatEqual_MPIDense(Mat A,Mat B,PetscBool  *flag)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  a = matA->A; 
+  a = matA->A;
   b = matB->A;
   ierr = MatEqual(a,b,&flg);CHKERRQ(ierr);
   ierr = MPI_Allreduce(&flg,flag,1,MPI_INT,MPI_LAND,((PetscObject)A)->comm);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#if defined(PETSC_HAVE_PLAPACK)
-
-#undef __FUNCT__  
-#define __FUNCT__ "PetscPLAPACKFinalizePackage" 
-/*@C
-  PetscPLAPACKFinalizePackage - This function destroys everything in the Petsc interface to PLAPACK.
-  Level: developer
-
-.keywords: Petsc, destroy, package, PLAPACK
-.seealso: PetscFinalize()
-@*/
-PetscErrorCode  PetscPLAPACKFinalizePackage(void)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = PLA_Finalize();CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__  
-#define __FUNCT__ "PetscPLAPACKInitializePackage" 
-/*@C
-  PetscPLAPACKInitializePackage - This function initializes everything in the Petsc interface to PLAPACK. It is
-  called from MatCreate_MPIDense() the first time an MPI dense matrix is called.
-
-  Input Parameter:
-.   comm - the communicator the matrix lives on
-
-  Level: developer
-
-   Notes: PLAPACK does not have a good fit with MPI communicators; all (parallel) PLAPACK objects have to live in the
-  same communicator (because there is some global state that is initialized and used for all matrices). In addition if 
-  PLAPACK is initialized (that is the initial matrices created) are on subcommunicators of MPI_COMM_WORLD, these subcommunicators
-  cannot overlap.
-
-.keywords: Petsc, initialize, package, PLAPACK
-.seealso: PetscSysInitializePackage(), PetscInitialize()
-@*/
-PetscErrorCode  PetscPLAPACKInitializePackage(MPI_Comm comm)
-{
-  PetscMPIInt    size;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  if (!PLA_Initialized(PETSC_NULL)) {
-
-    ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
-    Plapack_nprows = 1;
-    Plapack_npcols = size; 
-    
-    ierr = PetscOptionsBegin(comm,PETSC_NULL,"PLAPACK Options","Mat");CHKERRQ(ierr);
-      ierr = PetscOptionsInt("-mat_plapack_nprows","row dimension of 2D processor mesh","None",Plapack_nprows,&Plapack_nprows,PETSC_NULL);CHKERRQ(ierr);
-      ierr = PetscOptionsInt("-mat_plapack_npcols","column dimension of 2D processor mesh","None",Plapack_npcols,&Plapack_npcols,PETSC_NULL);CHKERRQ(ierr);
-#if defined(PETSC_USE_DEBUG)
-      Plapack_ierror = 3;
-#else
-      Plapack_ierror = 0;
-#endif
-      ierr = PetscOptionsInt("-mat_plapack_ckerror","error checking flag","None",Plapack_ierror,&Plapack_ierror,PETSC_NULL);CHKERRQ(ierr);  
-      if (Plapack_ierror){
-	ierr = PLA_Set_error_checking(Plapack_ierror,PETSC_TRUE,PETSC_TRUE,PETSC_FALSE );CHKERRQ(ierr);
-      } else {
-	ierr = PLA_Set_error_checking(Plapack_ierror,PETSC_FALSE,PETSC_FALSE,PETSC_FALSE );CHKERRQ(ierr);
-      }
-  
-      Plapack_nb_alg = 0;
-      ierr = PetscOptionsInt("-mat_plapack_nb_alg","algorithmic block size","None",Plapack_nb_alg,&Plapack_nb_alg,PETSC_NULL);CHKERRQ(ierr);
-      if (Plapack_nb_alg) {
-        ierr = pla_Environ_set_nb_alg (PLA_OP_ALL_ALG,Plapack_nb_alg);CHKERRQ(ierr);
-      }
-    PetscOptionsEnd(); 
-
-    ierr = PLA_Comm_1D_to_2D(comm,Plapack_nprows,Plapack_npcols,&Plapack_comm_2d);CHKERRQ(ierr);
-    ierr = PLA_Init(Plapack_comm_2d);CHKERRQ(ierr);
-    ierr = PetscRegisterFinalize(PetscPLAPACKFinalizePackage);CHKERRQ(ierr);
-  }
-  PetscFunctionReturn(0);
-}
-
-#endif

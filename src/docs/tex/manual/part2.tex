@@ -1227,13 +1227,10 @@ informs the user that all rows from \trl{first_row} to
 \trl{last_row-1} (since the value returned in \trl{last_row} is one more
 than the global index of the last local row) will be stored on the local process.
 
-In the sparse matrix implementations, once the assembly routines have been 
-called, the matrices are compressed and can be used for matrix-vector
-multiplication, etc.
-Inserting new values into the matrix at this point will be expensive, 
-since it requires copies and possible memory allocation. Thus, whenever 
-possible one should completely set the values in the matrices before 
-calling the final assembly routines. 
+In the sparse matrix implementations, once the assembly routines have been called, the matrices are compressed and can be used for matrix-vector multiplication, etc.
+Any space for preallocated nonzeros that was not filled by a call to MatSetValues() or a related routine is compressed out by assembling with \trl{MAT_FINAL_ASSEMBLY}.
+If you intend to use that extra space later, be sure to insert explicit zeros before assembling with \trl{MAT_FINAL_ASSEMBLY} so the space will not be compressed out.
+Once the matrix has been assembled, inserting new values will be expensive since it will require copies and possible memory allocation.
 
 If one wishes to repeatedly assemble matrices that retain the same
 nonzero pattern (such as within a nonlinear or time-dependent
@@ -1990,7 +1987,7 @@ The command
  AOCreateBasicIS(isg,PETSC\_NULL,\&ao);
 \end{tabbing}
 generates, see Section \ref{sec_ao}, an AO object that can be used in conjunction with the
-\trl{is} and \trl{gis} to move the relevant grid information to the correct process
+\trl{is} and \trl{isg} to move the relevant grid information to the correct process
 and renumber the nodes etc. 
 
 PETSc does not currently provide tools that completely manage the migration and 
@@ -2184,17 +2181,17 @@ be used, one calls the command
 \begin{tabbing}
   KSPSetType(KSP ksp,KSPType method);
 \end{tabbing}
-The type can be one of KSPRICHARDSON, KSPCHEBYCHEV, KSPCG, KSPGMRES, 
+The type can be one of KSPRICHARDSON, KSPCHEBYSHEV, KSPCG, KSPGMRES, 
 KSPTCQMR, KSPBCGS, KSPCGS, KSPTFQMR, KSPCR, KSPLSQR, KSPBICG, or KSPPREONLY.
 The KSP method can also be set with the options database command 
 \trl{-ksp_type},
-followed by one of the options \trl{richardson}, \trl{chebychev}, \trl{cg}, \trl{gmres}, \trl{tcqmr}, 
+followed by one of the options \trl{richardson}, \trl{chebyshev}, \trl{cg}, \trl{gmres}, \trl{tcqmr}, 
 \trl{bcgs}, \trl{cgs}, \trl{tfqmr}, \trl{cr}, \trl{lsqr}, \trl{bicg}, or \trl{preonly.} \findex{-ksp_type}
-There are method-specific options for the Richardson, Chebychev,
+There are method-specific options for the Richardson, Chebyshev,
 and GMRES methods: \sindex{GMRES} \sindex{CG}
 \begin{tabbing}
   KSPRichardsonSetScale(KSP ksp,double damping\_factor);\\
-  KSPChebychevSetEigenvalues(KSP ksp,double emax,double emin);\\
+  KSPChebyshevSetEigenvalues(KSP ksp,double emax,double emin);\\
   KSPGMRESSetRestart(KSP ksp,int max\_steps);
 \end{tabbing}
 The default parameter values are \trl{damping_factor=1.0, 
@@ -2312,7 +2309,7 @@ the options database command \trl{ksp_norm_type unpreconditioned } or by calling
 {\bf Method}    &{\bf KSPType}  & {\bf Name}    \\
 \hline
 Richardson                                & KSPRICHARDSON & richardson \\
-Chebychev                                 & KSPCHEBYCHEV  & chebychev   \\
+Chebyshev                                 & KSPCHEBYSHEV  & chebyshev   \\
 Conjugate Gradient \cite{hs:52}           & KSPCG         & cg          \\
 BiConjugate Gradient                      & KSPBICG       & bicg        \\
 Generalized Minimal Residual \cite{ss:86} & KSPGMRES      & gmres       \\
@@ -2394,8 +2391,8 @@ about the iterations. The user can indicate that the norms of the residuals
 should be displayed by using \findex{-ksp_monitor}
 \trl{-ksp_monitor} within the options database.  
 To display the residual norms in a graphical window (running under X Windows),
-one should use \trl{-ksp_monitor_draw} \trl{[x,y,w,h]}, where either all or none of 
-the options must be specified. \findex{-ksp_monitor_draw}
+one should use \trl{-ksp_monitor_lg_residualnorm} \trl{[x,y,w,h]}, where either all or none of 
+the options must be specified. \findex{-ksp_monitor_lg_residualnorm}
 Application programmers can also provide their own routines to perform 
 the monitoring by using the command 
 \begin{tabbing}
@@ -2436,18 +2433,18 @@ To employ the default graphical monitor, one should use the
 commands 
 \begin{tabbing}
    PetscDrawLG lg;\\
-  KSPMonitorLGCreate(char *display,char *title,int x,int y,int w,int h,PetscDrawLG *lg);\\
-  KSPMonitorSet(KSP ksp,KSPMonitorLG,lg,0);
+  KSPMonitorLGResidualNormCreate(char *display,char *title,int x,int y,int w,int h,PetscDrawLG *lg);\\
+  KSPMonitorSet(KSP ksp,KSPMonitorLGResidualNorm,lg,0);
 \end{tabbing}
 When no longer needed, the line graph should be destroyed 
 with the command
 \begin{tabbing}
-  KSPMonitorLGDestroy(PetscDrawLG *lg);
+  KSPMonitorLGResidualNormDestroy(PetscDrawLG *lg);
 \end{tabbing}
 The user can change aspects of the graphs with the \trl{PetscDrawLG*()} and 
 \trl{PetscDrawAxis*()} routines. \findex{PetscDrawAxis*()} \findex{PetscDrawLG*()}
 One can also access this functionality from the options database 
-with the command \trl{-ksp_monitor_draw} \trl{[x,y,w,h]}. \findex{-ksp_monitor_draw}, 
+with the command \trl{-ksp_monitor_lg_residualnorm} \trl{[x,y,w,h]}. \findex{-ksp_monitor_lg_residualnorm}, 
 where \trl{x, y, w, h} are the optional location and size of the window.
 
 One can cancel hardwired monitoring routines for KSP at runtime with 
@@ -2997,8 +2994,6 @@ the coarse grid solver, smoothers, restriction, and interpolation,
 as well as the code to calculate residuals. The PC package
 allows all of that to be wrapped up into a PETSc compliant preconditioner. 
 We fully support both matrix-free and matrix-based multigrid solvers. 
-See also Chapter \ref{chapter_dmmg} for a higher level
-interface to the multigrid solvers for linear and nonlinear problems using the DMMG object.
 
 A multigrid preconditioner is created with the four commands 
 \begin{tabbing}
@@ -3459,10 +3454,6 @@ For eg: \trl{-ksp_type preonly} \trl{-pc_type lu} \trl{-pc_factor_mat_solver_pac
  aij          & lu           &  MATSOLVERMUMPS           & \trl{mumps}\\
  aij          & cholesky     &                           &            \\
  sbaij        & cholesky     &                                   & \\
- mpidense     & lu           &  MATSOLVERPLAPACK         & \trl{plapack}\\
- mpidense     & cholesky     &                                   & \\
- aij          & lu           &  MATSOLVERSPOOLES         & \trl{spooles}\\
- sbaij        & cholesky     &                                   & \\
  seqaij       & lu           &  MATSOLVERSUPERLU         & \trl{superlu} \\
  aij          & lu           &  MATSOLVERSUPERLU\_DIST    & \trl{superlu_dist}\\
  seqaij       & lu           &  MATSOLVERUMFPACK         & \trl{umfpack}\\
@@ -3889,7 +3880,7 @@ user can employ this routine for any application-specific computations
 that should be done after the solution update. The option
 \trl{-snes_monitor} \findex{-snes_monitor} activates the default
 SNES monitor routine, SNESMonitorDefault(), 
-while \trl{-snes_monitor_draw} \findex{-snes_monitor_draw} draws
+while \trl{-snes_monitor_lg_residualnorm} \findex{-snes_monitor_lg_residualnorm} draws
 a simple line graph of the residual norm's convergence.
 
 Once can cancel hardwired monitoring routines for SNES at runtime with 
@@ -4109,10 +4100,9 @@ user-specified Jacobian and the default SNES matrix-free form.
 Table~\ref{tab_jacobians} summarizes the various matrix situations
 that SNES supports.  In particular, different linear system matrices
 and preconditioning matrices are allowed, as well as both matrix-free
-and application-provided preconditioners.  All combinations are
-possible, as demonstrated by the example, 
-\trl{${PETSC_DIR}/src/snes/examples/tutorials/ex6.c},
- in Figure~\ref{fig_snesexample2}.
+and application-provided preconditioners.  If 
+\trl{${PETSC_DIR}/src/snes/examples/tutorials/ex3.c},
+ listed in Figure~\ref{fig_snesexample2}, is run with the options \trl{-snes_mf} and \trl{-user_precond} then it uses a matrix-free application of the matrix-vector multiple and a user provided matrix free Jacobian.
 
 \begin{center}
 \begin{table}[H]
@@ -4147,7 +4137,7 @@ $ ^\dagger $ Set user-defined matrix formation routine with SNESSetJacobian().
 
 \begin{figure}[H]
 {\small
-\fileinclude{../../../../src/snes/examples/tutorials/ex6.c}
+\fileinclude{../../../../src/snes/examples/tutorials/ex3.c}
 }
 \caption{Example of Uniprocess SNES Code - Both Conventional and Matrix-Free Jacobians}
 \label{fig_snesexample2}
@@ -4293,33 +4283,27 @@ is \findex{SNESVISetVariableBounds} used to indicate that one is solving a varia
 \sindex{ODE solvers}
 
 The TS library provides a framework for the scalable solution of ODEs and DAEs
-arising from the discretization of time-dependent PDEs, and of
-steady-state problems using pseudo-timestepping.
+arising from the discretization of time-dependent PDEs.
 
 \vspace{.2cm}
 
 \noindent
 
-{\bf Time-Dependent Problems:} Consider the ODE
-\[
-              u_t = F(u,t),
-\]
-where $ u $ is a finite-dimensional vector, usually obtained from
-discretizing a PDE with finite differences, finite elements, etc.
-For example, in the backward Euler method, discretizing the heat equation 
+{\bf Simple Example:} Consider the PDE
 \[
           u_t = u_{xx} 
 \]
-with centered finite differences results in 
-\[
-          (u_i)_t = \frac{u_{i+1} - 2 u_{i} + u_{i-1}}{h^2};
-\]
-or with piecewise linear finite elements approximation
-$ u(x,t) \doteq \sum_i \xi_i(t) \phi_i(x)$ yields semi-discrete equation
+discretized with centered finite differences in space yielding  the  semi-discrete equation
+\begin{eqnarray*}
+          (u_i)_t & =  & \frac{u_{i+1} - 2 u_{i} + u_{i-1}}{h^2}, \\
+           u_t      &  = & \tilde{A} u;
+\end{eqnarray*}
+or with piecewise linear finite elements approximation in space
+$ u(x,t) \doteq \sum_i \xi_i(t) \phi_i(x)$ yielding the  semi-discrete equation
 \[
           B {\xi}'(t) = A \xi(t)
 \]
-and discrete equation
+Now applying the backward Euler method results in 
 \[
         ( B - dt^n A  ) u^{n+1} = A u^n, 
 \]
@@ -4330,62 +4314,100 @@ in which
 \[  
          {\xi}'(t_{n+1}) \doteq \frac{{u^{n+1}}_i - {u^{n}}_i }{dt^{n}},
 \]
-$A$ is the stiffness matrix and $B$ is the mass matrix.
-
-The TS library provides code to solve these equations (currently 
-using the forward or backward Euler method) as well as an interface to 
-other sophisticated ODE solvers, in a clean and easy manner,
-where the user need only provide code for the evaluation of $ F(u,t) $ and 
-(optionally) its associated Jacobian matrix.
+$A$ is the stiffness matrix and $B$ is the identity for finite differences or the mass matrix for the finite element method.
 
 \vspace{.2cm}
 
-\noindent
-{\bf Steady-State Problems:} 
-In addition, TS provides a general code for performing pseudo timestepping
-with a variable timestep at each physical node point. For example, instead of
-directly attacking the steady-state problem
+The PETSc interface for solving time dependent problems assumes the problem is written in the form
 \[
-           F(u) = 0,
+        F(t,u,\dot{u}) = G(t,u), \quad u(t_0) = u_0.
 \]
-we can use pseudo-transient continuation by solving
-\[
-           u_t = F(u).
-\]
-Using time differencing 
-\[
-   u_t \doteq \frac{{u^{n+1}} - {u^{n}} }{dt^{n}}
-\]
-with the backward Euler method, we obtain
-nonlinear equations at a series of pseudo-timesteps
-\[
-           \frac{1}{dt^n} B (u^{n+1} - u^{n} ) = F(u^{n+1}).
-\]
-For this problem the user must provide $F(u)$,
-the time steps $dt^{n}$ and the left-hand-side matrix $B$
-(or optionally, if the timestep is position independent and $B$ is the
-identity matrix,
-a scalar timestep), as well as optionally the Jacobian of $F(u)$. 
+In general, this is a differential algebraic
+equation (DAE) \footnote{If the matrix $F_{\dot{u}}(t) = \partial F
+/ \partial \dot{u}$ is nonsingular then it is an ODE and can be
+transformed to the standard explicit form, although this transformation
+may not lead to efficient algorithms.} For ODE with nontrivial mass
+matrices such as arise in FEM, the implicit/DAE interface significantly
+reduces overhead to prepare the system for algebraic solvers (SNES/KSP)
+by having the user assemble the correctly shifted matrix.  Therefore
+this interface is also useful for ODE systems.
 
-More generally, this can be applied to implicit ODE and DAE for which
-the transient form is
-\[
-  F(u,\dot{u}) = 0.
-\]
-See Section~\ref{sec_dae} for details on this formulation.
+To solve an ODE or DAE one uses:
 
-\section{Basic TS Usage}
+\begin{itemize}
+\item Function $F(t,u,\dot{u})$
+  \begin{tabbing}
+    TSSetIFunction(TS ts,Vec R,PetscErrorCode (*f)(TS,PetscReal,Vec,Vec,Vec,void*),void *funP);
+  \end{tabbing}
+  The vector \trl{R} is an optional location to store the residual.
+  The arguments to the function \trl{f()} are the
+  timestep contex, current time, input state $u$, input time derivative
+  $\dot{u}$, and the (optional) user-provided context \trl{funP}. If    $F(t,u,\dot{u}) = \dot{u} $ then
+  one need not call this function.
+
+\item Function $ G(t,u)$, if it is nonzero, is provided with the function
+  \begin{tabbing}
+    TSSetRHSFunction(TS ts,Vec R,PetscErrorCode (*f)(TS,PetscReal,Vec,Vec,void*),void *funP);
+  \end{tabbing}
+
+\item Jacobian $F_u + (shift)F_{\dot{u}}$ \\
+  If using a fully implicit or semi-implict (IMEX) method one also can provide an appropriate (approximate) Jacobian matrix of $F()$.
+  \begin{tabbing}
+    TS\=SetIJacobian(TS ts,Mat A,Mat B,\\
+    \>PetscErrorCode (*fjac)(TS,PetscReal,Vec,Vec,PetscReal,Mat*,Mat*,MatStructure*,void*),void *jacP);
+  \end{tabbing}
+  The arguments for the function \trl{fjac()}
+  are the timestep contex, current time, input state $u$, input
+  derivative $\dot{u}$, $shift$, matrix $A$, preconditioning matrix
+  $B$, flag describing structure of preconditioning matrix (see the
+  discussion of KSPSetOperators() in Section~\ref{sec_usingsles} for
+  details), and the (optional) user-provided context \trl{jacP}. 
+  This form for Jacobian arises because for all implicit and semi-implicit time integrator in PETSc $\dot{u}^n$ is approximated by $(shift) u^n + g(u^{n-1},...)$ 
+  where the $shift$ is positive and $ g(u^{n-1},...)$ depends on previous iterations; 
+  for example for backward Euler $\dot{u} = (u^n - u^{n-1})/\delta t = u^n/\delta t - u^{n-1}/\delta t.$  Hence 
+\begin{eqnarray*}
+    \frac{d F}{d u^n} &  = &  \frac{\partial F}{\partial \dot{u}}\frac{\partial \dot{u}}{\partial u} + \frac{\partial F}{\partial u}\\
+                      & = &   (shift) F_{\dot{u}}(t^n,u^n,\dot{u}^n) + F_u(t^t,u^n,\dot{u}^n).
+\end{eqnarray*}
+  For example, again with the backwards Euler method, one obtains
+\begin{eqnarray*}
+    \frac{d F}{d u^n} & = &   u^n/\delta t + F_u(t^t,u^n,\dot{u}^n).
+\end{eqnarray*}
+
+\item Jacobian $G_u$ \\
+  If using a fully implicit method and the function $ G() $ is provided, one also can provide an appropriate (approximate) Jacobian matrix of $G()$.
+  \begin{tabbing}
+    TS\=SetRHSJacobian(TS ts,Mat A,Mat B,\\
+    \>PetscErrorCode (*fjac)(TS,PetscReal,Vec,Mat*,Mat*,MatStructure*,void*),void *jacP);
+  \end{tabbing}
+  The arguments for the function \trl{fjac()}
+  are the timestep contex, current time, input state $u$, matrix $A$, preconditioning matrix
+  $B$, flag describing structure of preconditioning matrix (see the
+  discussion of KSPSetOperators() in Section~\ref{sec_usingsles} for
+  details), and the (optional) user-provided context \trl{jacP}. 
+\end{itemize}
+
+Providing appropriate $ F() $ and $G() $ for your problem allows for the easy runtime switching between explicit, semi-implicit (IMEX), and fully implicit method.
+
+\section{Basic TS Options}
 
 The user first creates a TS object with the command
 \begin{tabbing}
-  int TSCreate(MPI\_Comm comm,TSProblemType problemtype,TS *ts);
+  int TSCreate(MPI\_Comm comm,TS *ts);
+\end{tabbing}
+
+\begin{tabbing}
+  int TSSetProblemType(TS ts,TSProblemType problemtype);
 \end{tabbing}
 The TSProblemType 
-is one of \trl{TS_LINEAR} or \trl{TS_NONLINEAR},
-to indicate whether $ F(u,t) $ is given by a matrix $ A $, or $ A(t) $, or a
-function $ F(u,t). $
+is one of \trl{TS_LINEAR} or \trl{TS_NONLINEAR}.
 
-One can set the solution method with the routine
+\noindent To set up TS for solving an ODE, one must set the ``initial conditions'' for the ODE with
+\begin{tabbing}
+ TSSetSolution(TS ts, Vec initialsolution);
+\end{tabbing}
+
+\noindent One can set the solution method with the routine
 \begin{tabbing}
  TSSetType(TS ts,TSType type);
 \end{tabbing}
@@ -4398,7 +4420,7 @@ or the command line option \\
 \sindex{backward Euler}
 
 
-Set the initial time and timestep with the command
+\noindent Set the initial time and timestep with the command
 \begin{tabbing}
  TSSetInitialTimeStep(TS ts,double time,double dt);
 \end{tabbing}
@@ -4413,14 +4435,14 @@ can determine the current timestep with the routine
 Here, ``current'' refers to the timestep being used to attempt to
 promote the solution form $ u^n $ to $ u^{n+1}. $
 
-One sets the total number of timesteps to run or the total time to run 
+\noindent One sets the total number of timesteps to run or the total time to run 
 (whatever is first) with the command 
 \begin{tabbing}
  TSSetDuration(TS ts,int maxsteps,double maxtime);
 \end{tabbing}
 One performs the request number of time steps with
 \begin{tabbing}
-  TSSolve(TS ts,Vec X,PetscReal *ftime);
+  TSSolve(TS ts,Vec U,PetscReal *ftime);
 \end{tabbing}
 The solve call implicitly sets up the timestep context;
 this can be done explicitly with
@@ -4440,140 +4462,112 @@ In place of TSSolve(), a single step can be taken using
 TSStep(TS ts);
 \end{tabbing}
 
-\subsection{Solving Time-dependent Problems}
-To set up TS for solving an ODE, one must set the following:
-
-\begin{itemize}
-\item Solution:
-\begin{tabbing}
- TSSetSolution(TS ts, Vec initialsolution);
-\end{tabbing}
-The vector \trl{initialsolution} should contain the ``initial conditions''
-for the ODE. 
-
-\item Function: 
-\subitem $ \bullet $ For linear functions (solved with implicit timestepping),
- the user must call 
-\begin{tabbing}
-TSSetMatrices(TS ts,\\
-Mat A,PetscErrorCode (*frhs)(TS,PetscReal,Mat*,Mat*,MatStructure*,void*),\\
-Mat B,PetscErrorCode (*flhs)(TS,PetscReal,Mat*,Mat*,MatStructure*,void*),\\
-MatStructure flag,void *ctx)
-\end{tabbing}
-The matrices \trl{A} and \trl{B} are right and left hand-side matrix respectively.
-The functions \trl{frhs} and \trl{flhs} are used to form the matrices \trl{A} and \trl{B} 
-at each timestep if the matrices are time dependent.
-If the matrices do not depend on time, the user should 
-pass in PETSC\_NULL.  The variable \trl{ctx} allows 
-users to pass in an application context that is passed to the \trl{frhs()} or \trl{flhs()} function 
-whenever they are called, as the final argument. The user must provide the matrices
-\trl{A}. If \trl{B} is an identity matrix, the user should pass in PETSC\_NULL. 
-If the right-hand side is provided only as a linear
-function, the user must construct a MATSHELL matrix. Note that this is 
-the same interface as that for SNESSetJacobian(). 
-
-\subitem $ \bullet $  For nonlinear problems (or linear problems solved using
-explicit timestepping methods) the user  passes the function with 
-the routine
-
-\begin{tabbing}
- TSSetRHSFunction(TS ts,Vec R,PetscErrorCode (*f)(TS,double,Vec,Vec,void*),void *fP);
-\end{tabbing}
-The vector \trl{R} is an optional location to store the result.
-The arguments to the function \trl{f()} are
-the timestep context, the current time, the input for the function,
-the output for the function, and the (optional) user-provided context
-variable \trl{fP}.
-
-\item Jacobian: For nonlinear problems the user must also provide the 
-(approximate) Jacobian matrix of \trl{F(u,t)} and a function to
-compute it at each Newton iteration. This is done with the command
-\begin{tabbing}
- TSSetRHSJacobian(\=TS ts,Mat A, Mat P,PetscErrorCode (*fjac)(TS,double,Vec,Mat*,Mat*,\\
-                  \>        MatStructure*,void*),void *fP);
-\end{tabbing}
-The arguments for the function \trl{fjac()} are
-the timestep context, the current time, the location where the
-Jacobian is to be computed, the Jacobian matrix, an alternative
-approximate Jacobian matrix used as a preconditioner, and the optional
-user-provided context, passed in as \trl{fP}. The user must provide the 
-Jacobian as a matrix; thus, if using a matrix-free approach is used, the
-user must create a MATSHELL matrix. Again, note the similarity
-to SNESSetJacobian().
-\end{itemize}
-
-To configure TS to use coloring, create a MatFDColoring, register the function
-\begin{tabbing}
-  MatFDColoringSetFunction(matfdcoloring,(PetscErrorCode(*)(void))SNESTSFormFunction,ts);
-\end{tabbing}
-obtain the snes using TSGetSNES(), and set the Jacobian routine
-\begin{tabbing}
-  SNESSetJacobian(snes,A,B,SNESDefaultComputeJacobianColor,matfdcoloring);
-\end{tabbing}
-\sindex{coloring with TS}
-
-\subsection{Solving Differential Algebraic Equations}
-\label{sec_dae}
-The interface for solving time dependent problems given in the implicit
-form
-\[
-        F(t,u,\dot{u}) = 0, \quad u(t_0) = u_0
-\]
-is slightly different.  In general, this is a differential algebraic
-equation (DAE), but if the matrix $F_{\dot{u}}(t) = \partial F
-/ \partial \dot{u}$ is nonsingular then it is an ODE and can be
-transformed to the standard explicit form, although this transformation
-may not lead to efficient algorithms.  For ODE with nontrivial mass
-matrices such as arise in FEM, the implicit/DAE interface significantly
-reduces overhead to prepare the system for algebraic solvers (SNES/KSP)
-by having the user assemble the correctly shifted matrix.  Therefore
-this interface is also useful for ODE systems.
-
-To solve a DAE, instead of TSSetRHSFunction() and TSSetRHSJacobian(), one
-uses:
-
-\begin{itemize}
-\item Function $F(t,u,\dot{u})$
-  \begin{tabbing}
-    TSSetIFunction(TS ts,Vec R,PetscErrorCode (*f)(TS,PetscReal,Vec,Vec,Vec,void*),void *funP);
-  \end{tabbing}
-  The vector \trl{R} is an optional location to store the residual.
-  The arguments to the function \trl{f()} are the
-  timestep contex, current time, input state $u$, input time derivative
-  $\dot{u}$, and the (optional) user-provided context \trl{funP}.
-
-\item Jacobian $F_u + aF_{\dot{u}}$ \\
-  Unless one is using matrix-free methods without preconditioning, the user must also provide an (approximate) Jacobian matrix of $G(u) = F(t,u,w+au)$.
-  This form for $G$ arises because the time integrator internally approximates $\dot{u}$ by $w+au$ where the positive ``shift'' $a$ and vector $w$ depend on the integration method, step size, and past states.
-  The function that evaluates $G'(u) = F_u + aF_{\dot{u}}$ is set with
-  \begin{tabbing}
-    TS\=SetIJacobian(TS ts,Mat A,Mat B,\\
-    \>PetscErrorCode (*fjac)(TS,PetscReal,Vec,Vec,PetscReal,Mat*,Mat*,MatStructure*,void*),void *jacP);
-  \end{tabbing}
-  The arguments for the function \trl{fjac()}
-  are the timestep contex, current time, input state $u$, input
-  derivative $\dot{u}$, shift $a$, matrix $A$, preconditioning matrix
-  $B$, flag describing structure of preconditioning matrix (see the
-  discussion of KSPSetOperators() in Section~\ref{sec_usingsles} for
-  details), and the (optional) user-provided context \trl{jacP}.
-\end{itemize}
-
 \subsection{Using Implicit-Explicit (IMEX) methods for multi-rate problems}
 \label{sec_imex}
-The methods of the last section can be generalized for problems with multiple time scales using the form
-\begin{equation}\label{eq:imex}
-  G(t,u,\dot u) = F(t,u),\quad u(t_0) = u_0
-\end{equation}
-where $G$ will be treated implicitly using a method suitable for stiff problems and $F$ will be treated explicitly when using an IMEX method like TSARKIMEX.
-$G$ is typically linear or weakly nonlinear while $F$ may have very strong nonlinearities such as arise in non-oscillatory methods for hyperbolic PDE.
+For problems with multiple time scales 
+$F()$ will be treated implicitly using a method suitable for stiff problems and $G()$ will be treated explicitly when using an IMEX method like TSARKIMEX.
+$F()$ is typically linear or weakly nonlinear while $G()$ may have very strong nonlinearities such as arise in non-oscillatory methods for hyperbolic PDE.
 The user provides three pieces of information, the APIs for which have been described above.
 \begin{itemize}
-\item ``Slow'' part $F(t,u)$ using TSSetRHSFunction().
-\item ``Stiff'' part $G(t,u,\dot u)$ using TSSetIFunction().
-\item Jacobian $J(t,u,\dot u) = G_u + a G_{\dot u}$ using TSSetIJacobian().
-  An assembled Jacobian is optional and can be approximated using finite differencing.
+\item ``Slow'' part $G(t,u)$ using TSSetRHSFunction().
+\item ``Stiff'' part $F(t,u,\dot u)$ using TSSetIFunction().
+\item Jacobian $F_u + (shift) F_{\dot u}$ using TSSetIJacobian().
 \end{itemize}
-To solve Equation~\ref{eq:imex} using fully implicit methods, the user may also provide the Jacobian $F_u$.
+
+\subsection{Using fully implicit methods}
+Either provide the Jacobian of $F() $ (and $G()$ if $G()$ is provided) or use a DM that provides a coloring so the Jacobian can be computed efficiently via finite differences.
+
+{\bf Theta methods}
+
+{\bf GL methods}
+
+\subsection{Using the Explicit Runge-Kutta timestepper with variable timesteps}
+The explicit Euler and Runge-Kutta methods require the ODE be in the form
+\[
+    \dot{u} = G(u,t).
+\]
+The user can either call TSSetRHSFunction() and/or they can call TSSetIFunction() (so long as the function provided to TSSetIFunction() is equivalent to 
+$ \dot{u} + \tilde{F}(t,u) $) but 
+the Jacobians need not be provided.\footnote{PETSc will automatically translate the function provided to the appropriate form.} 
+
+The Explicit Runge-Kutta timestepper with variable timesteps is an \sindex{Runge-Kutta}
+implementation of standard Runge-Kutta using Dormand-Prince \sindex{Dorman-Prince}
+5(4). It is easy to change this table if needed. Since the time-stepper is using variable timesteps, the
+``TSSetInitialTimeStep()'' function is not used.
+
+Setting the tolerance with 
+\begin{tabbing}
+TSRKSetTolerance(TS ts,double tolerance)
+\end{tabbing}
+or \trl{-ts_rk_tol} \findex{-ts_rk_tol} 
+defines the global tolerance, for the whole time
+period. The tolerance for each timestep is calculated relatively to
+the size of the timestep.
+
+The error in each timestep is calculated using the two solutions given
+from Dormand-Prince 5(4). The local error is calculated from the
+2-norm from the difference of the two solutions.
+
+Other timestep features:
+\begin{itemize}
+  \item The next timestep can be maximum 5 times the present timestep
+  \item The smallest timestep can be 1e-14 (to avoid machine precision
+  errors)
+\end{itemize}
+
+More details about the solver and code examples can be found at
+\trl{http://www.parallab.uib.no/projects/molecul/matrix/}.
+
+
+\subsection{Special Cases}
+
+\begin{itemize}
+\item $ \dot{u} = A u.$ First compute the matrix $ A$ then call
+\begin{tabbing}
+  TSSetProblemType(ts,TS\_LINEAR);\\
+  TSSetRHSFunction(ts,PETSC_NULL,TSComputeRHSFunctionLinear,PETSC_NULL); \\
+  TSSetRHSJacobian(ts,A,A,TSComputeRHSJacobianConstant,PETSC_NULL);
+\end{tabbing}
+or 
+\begin{tabbing}
+  TSSetProblemType(ts,TS\_LINEAR);\\
+  TSSetIFunction(ts,PETSC_NULL,TSComputeIFunctionLinear,PETSC_NULL); \\
+  TSSetIJacobian(ts,A,A,TSComputeIJacobianConstant,PETSC_NULL);
+\end{tabbing}
+
+
+\item $ \dot{u} = A(t) u.$ Use
+\begin{tabbing}
+  TSSetProblemType(ts,TS\_LINEAR);\\
+  TSSetRHSFunction(ts,PETSC_NULL,TSComputeRHSFunctionLinear,PETSC_NULL); \\
+  TSSetRHSJacobian(ts,A,A,YourComputeRHSJacobian,\&appctx);
+\end{tabbing}
+where {\tt YourComputeRHSJacobian()} is a function you provide that computes $A$ as a function of time. Or use
+\begin{tabbing}
+  TSSetProblemType(ts,TS\_LINEAR);\\
+  TSSetIFunction(ts,PETSC_NULL,TSComputeIFunctionLinear,PETSC_NULL); \\
+  TSSetIJacobian(ts,A,A,YourComputeIJacobian,\&appctx);
+\end{tabbing}
+
+\end{itemize}
+
+\subsection{Monitoring and visualizing solutions}
+
+\begin{itemize}
+\item  -ts\_monitor - prints the time and timestep at each iteration.
+\item  -ts\_adapt\_monitor - prints information about the timestep adaption calculation at each iteration.
+\item  -ts\_monitor\_lg\_timestep - plots the size of each timestep, TSMonitorLGTimeStep().
+\item  -ts\_monitor\_lg\_solution - for ODEs with only a few components (not arising from the descretization of a PDE) plots the solution as a function of time, TSMonitorLGSolution().
+\item  -ts\_monitor\_lg\_error - for ODEs with only a few components plots the error as a function of time, only if TSSetSolutionFunction() is provided, TSMonitorLGError().
+\item  -ts\_monitor\_draw\_solution - plots the solution at each iteration, TSMonitorDrawSolution().
+\item  -ts\_monitor\_draw\_error - plots the error at each iteration only if TSSetSolutionFunction() is provided, TSMonitorDrawSolution().
+\item  -ts\_monitor\_solution\_binary - saves the solution at each iteration to a binary file, TSMonitorSolutionBinary().
+\item  -ts\_monitor\_solution\_vtk < filename-%%03D.vts> - saves the solution at each iteration to a file in vtk format, TSMonitorSolutionVTK().
+\end{itemize}
+
+\subsection{Error control via variable time-stepping}
+
+\subsection{Debugging ODE solvers}
 
 \subsection{Using Sundials from PETSc}
 \label{sec_sundials}
@@ -4637,12 +4631,47 @@ This may be set in the options
 database with \trl{-ts_sundials_gmres_restart} \trl{restart}. \findex{-ts_sundials_gmres_restart}
 
 
-\subsection{Solving Steady-State Problems with Pseudo-Timestepping}
+\chapter{Solving Steady-State Problems with Pseudo-Timestepping}
+
+\vspace{.2cm}
+
+\noindent
+{\bf Simple Example:} 
+TS provides a general code for performing pseudo timestepping
+with a variable timestep at each physical node point. For example, instead of
+directly attacking the steady-state problem
+\[
+           G(u) = 0,
+\]
+we can use pseudo-transient continuation by solving
+\[
+           u_t = G(u).
+\]
+Using time differencing 
+\[
+   u_t \doteq \frac{{u^{n+1}} - {u^{n}} }{dt^{n}}
+\]
+with the backward Euler method, we obtain
+nonlinear equations at a series of pseudo-timesteps
+\[
+           \frac{1}{dt^n} B (u^{n+1} - u^{n} ) = G(u^{n+1}).
+\]
+For this problem the user must provide $G(u)$,
+the time steps $dt^{n}$ and the left-hand-side matrix $B$
+(or optionally, if the timestep is position independent and $B$ is the
+identity matrix,
+a scalar timestep), as well as optionally the Jacobian of $G(u)$. 
+
+More generally, this can be applied to implicit ODE and DAE for which
+the transient form is
+\[
+  F(u,\dot{u}) = 0.
+\]
 
 For solving steady-state problems with pseudo-timestepping one proceeds 
 as follows.
 \begin{itemize}
-\item Provide the function \trl{F(u)} with the routine
+\item Provide the function \trl{G(u)} with the routine
 \begin{tabbing}
  TSSetRHSFunction(TS ts,PetscErrorCode (*f)(TS,double,Vec,Vec,void*),void *fP);
 \end{tabbing}
@@ -4651,7 +4680,7 @@ the timestep context, the current time, the input for the function,
 the output for the function and the (optional) user-provided context
 variable \trl{fP}.
 
-\item Provide the (approximate) Jacobian matrix of \trl{F(u,t)} and a 
+\item Provide the (approximate) Jacobian matrix of \trl{G(u)} and a 
 function to compute it at each Newton iteration. This is done with the command
 \begin{tabbing}
  TSSetRHSJacobian(\=TS ts,Mat A, Mat B,PetscErrorCode (*f)(TS,double,Vec,Mat*,Mat*,\\
@@ -4706,146 +4735,13 @@ or  the option
       has not yet been created.
 \end{itemize}
 
-\subsection{Using the Explicit Runge-Kutta timestepper with variable timesteps}
-The Explicit Runge-Kutta timestepper with variable timesteps is an \sindex{Runge-Kutta}
-implementation of standard Runge-Kutta using Dormand-Prince \sindex{Dorman-Prince}
-5(4). It is easy to change this table if needed. Since the time-stepper is using variable timesteps, the
-``TSSetInitialTimeStep()'' function is not used.
-
-Setting the tolerance with 
-\begin{tabbing}
-TSRKSetTolerance(TS ts,double tolerance)
-\end{tabbing}
-or \trl{-ts_rk_tol} \findex{-ts_rk_tol} 
-defines the global tolerance, for the whole time
-period. The tolerance for each timestep is calculated relatively to
-the size of the timestep.
-
-The error in each timestep is calculated using the two solutions given
-from Dormand-Prince 5(4). The local error is calculated from the
-2-norm from the difference of the two solutions.
-
-Other timestep features:
-\begin{itemize}
-  \item The next timestep can be maximum 5 times the present timestep
-  \item The smallest timestep can be 1e-14 (to avoid machine precision
-  errors)
-\end{itemize}
-
-More details about the solver and code examples can be found at
-\trl{http://www.parallab.uib.no/projects/molecul/matrix/}.
 
 
 \cleardoublepage
-\chapter{High Level Support for Multigrid with DMMG}
-\label{chapter_dmmg}
+\chapter{High Level Support for Multigrid with KSPSetDM() and SNESSetDM()}
+\label{chapter_kspdm}
 
-This infrastructure will be replaced in the next PETSc release. DO NOT USE IT.
-
-PETSc provides an easy to use high-level interface for multigrid on a
-single structured grid using the PETSc DMDA object (or the DMComposite
-object) to decompose the grid across the processes.  This DMMG code
-is built on top of the lower level PETSc multigrid
-interface provided in the PCType of MG, see Section
-\ref{sec_mg}. Currently we only provide piecewise linear and piecewise
-constant interpolation, but can add more if needed. The DMMG routines
-only provide linear multigrid but they can be used easily with either
-KSP (for linear problems) or SNES (for nonlinear problems).
-
-For linear problems the examples \trl{src/ksp/ksp/examples/tutorials/ex22.c} and \trl{ex25.c} can be used
-to guide your development. We give a short summary here.
-\begin{tabbing}
-  DMMG        *dmmg;\\
-  DM          da;\\
-  Vec         soln;\\
-
-  /* Create the DMDA that stores information about the coarsest grid you wish to use */\\
-  ierr = DMDACreate3d(PETSC\_COMM\_WORLD,DMDA\_NONPERIODIC,DMDA\_STENCIL\_STAR,\\
-         3,3,3,PETSC\_DECIDE,PETSC\_DECIDE,PETSC\_DECIDE,1,1,0,0,0,\&da);CHKERRQ(ierr);\\
-
-  /* Create the DMMG data structure */\\
-       - the second argument indicates the number of levels you wish to use and \\
-         can be changed with the option -dmmg\_nlevels \\
-  ierr = DMMGCreate(PETSC\_COMM\_WORLD,3,PETSC\_NULL,\&dmmg);CHKERRQ(ierr);\\
-
-  /*  Tell the DMMG object to use the da to define the coarsest grid */\\
-  ierr = DMMGSetDM(dmmg,(DM)da);\\
-
-  /*  Tell the DMMG we are solving a linear problem (hence KSP) and provide the \\
-      callback function to compute the right hand side and matrices for each level */\\
-  ierr = DMMGSetKSP(dmmg,ComputeRHS,ComputeMatrix);CHKERRQ(ierr);\\
-
-  /*  Solve the problem */\\
-  ierr = DMMGSolve(dmmg);CHKERRQ(ierr);\\
-
-  /*  One can access the solution with */\\
-  soln = DMMGGetx(dmmg);\\
-
-  ierr = DMMGDestroy(dmmg);CHKERRQ(ierr);\\
-  ierr = DMDestroy(\&da);CHKERRQ(ierr);\\
-\end{tabbing}
-The option \trl{-ksp_monitor} \findex{-ksp_monitor} and \trl{-mg_levels_ksp_monitor} and optionally \trl{-mg_coarse_ksp_monitor} 
- causes the DMMG code to print the residual norms for each level of the solver to the screen so that
-the coarser the grid the more indented the print out. The option \trl{-dmmg_grid_sequence} \findex{-dmmg_grid_sequence} causes the 
-DMMG solve to use grid sequencing to generate the initial guess by solving the same problem on the previous coarser grid; this often
-results in a much faster time to solution.
-
-The solver (smoother) used on each level but the coarsest can be controled via the options
-database with any PC or KSP option prefixed as \trl{-mg_levels_[pc/ksp]_}. The 
-solver options on the finest grid can be set with  \trl{-mg_coarse_[pc/ksp]_}. The 
-DMMG has many other options that can view by running the DMMG program with the option \trl{-help}.
-You should generally run your code with the option \trl{-ksp_view} to see exactly what 
-solvers are being used.
-
-For nonlinear problems one replaces the DMMGSetKSP() with 
-\begin{tabbing}
-  DMMGSetSNES(\=DMMG *dmmg,PetscErrorCode (*function)(SNES,Vec,Vec,void*),\\
-             \>PetscErrorCode (*jacobian)(SNES,Vec,Mat*,Mat*,MatStructure*,void*))
-\end{tabbing}
-or the prefered approach
-\begin{tabbing}
-  DMMGSetSNESLocal(\=DMMG *dmmg,\\
-  \>PetscErrorCode (*localfunction)(DMDALocalInfo *info,void *x,void *f,void* appctx),\\
-  \>PetscErrorCode (*localjacobian)(DMDALocalInfo *,void *x,Mat J,void *appctx),\\
-  \>ad\_function,ad\_mf\_function);
-\end{tabbing}
-The \trl{ad_function} and \trl{ad_mf_function} are described in the next chapter. 
-See examples \trl{src/snes/examples/tutorials/ex18.c} and \trl{ex19.c} for complete details.
-
-For scalar problems (problems with one degree of freedom per node),
-the \trl{localfunction} \trl{x} and \trl{f} arguments are simply
-multi-dimensional arrays of double precision (or complex) numbers
-(according to the dimension of the grid) that should be indexed using
-{\em global} i, j, k indices on the entire grid. For multi-component
-problems you must create a C struct with an entry for each component
-and the \trl{x} and \trl{f} arguments are appropriately dimensioned
-arrays of that struct. For example, for a 3d scalar problem the function
-would be 
-\begin{tabbing}
-int localfunction(DMDALocalInfo *info,double ***x, double ***f,void *ctx)
-\end{tabbing}
-For a 2d multi-component problem with u, v, and p components one would write
-\begin{tabbing}
-ty\=pedef struct \{\\
-  \> PetscScalar u,v,p;\\
- \} Field;\\
-...\\
-int localfunction(DMDALocalInfo *info,Field **x,Field **f,void *ctx)
-\end{tabbing}
-
-For many nonlinear problems it is too difficult to compute the
-Jacobian analytically, thus if \trl{jacobian} or \trl{localjacobian} is not
-provided, (indicated by passing in a PETSC\_NULL) the DMMG will compute the
-sparse Jacobian reasonably efficiently automatically using finite
-differencing. See the next chapter on computing the Jacobian via
-automatic differentiation. The option \trl{-dmmg_jacobian_mf_fd}
-causes the code to not compute the Jacobian explicitly but rather to
-use differences to apply the matrix vector product of the Jacobian.
-
-The usual option \trl{-snes_monitor} \findex{-snes_monitor} can
-be used to monitor the progress of the nonlinear solver. The usual \trl{-snes_} options
-may be used to control the nonlinearr solves. Again we recommend using the 
-option \trl{-dmmg_grid_sequence} and \trl{-snes_view} for most runs.
+This chapter needs to be written.
 
 
 \cleardoublepage
@@ -4853,12 +4749,7 @@ option \trl{-dmmg_grid_sequence} and \trl{-snes_view} for most runs.
 
 Automatic differentiation is an incredible technique to generate code
 that computes Jacobians and other differentives directly from code
-that only evaluates the function. For structured grid problems, via
-the DMMG interface (see Chapter \ref{chapter_dmmg}) PETSc provides a way to use
-ADIFOR and ADIC to compute the sparse Jacobians or perform matrix free
-vector products with them. See
-\trl{src/snes/examples/tutorials/ex18.c} and \trl{ex5f.F} for example
-usage. 
+that only evaluates the function. 
 
 First one indicates the functions for which one needs Jacobians by adding
 in the comments in the code 
@@ -4871,7 +4762,7 @@ where one lists the functions. In Fortran use
 \end{tabbing}
 Next one uses the call
 \begin{tabbing}
-  DMMGSetSNESLocal(DMMG *dmmg,\\
+  DMDASetSNESLocal(DM dm,\\
    PetscErrorCode (*localfunction)(DMDALocalInfo *info,void *x,void *f,void* appctx),PETSC\_NULL,\\
   ad\_localfunction,ad\_mf\_localfunction);
 \end{tabbing}
@@ -4879,13 +4770,7 @@ where the names of the last two functions are obtained
 by prepending an \trl{ad_} and \trl{ad_mf_} in front
 of the function name. In Fortran, this is done by prepending a \trl{g_} and \trl{m_}.
 
-Two useful options are \trl{-dmmg_jacobian_mf_ad} and \trl{-dmmg_jacobian_mf_ad_operator},
-with the former is uses the matrix-free automatic differentiation to apply the operator
-and to define the preconditioner operator. The latter form uses the matrix-free for the 
-matrix-vector product but still computes the Jacobian (by default with finite differences)
-used to construct the preconditioner.
-
-\section{Work arrays inside the local functions} In C you can call DMDAGetArray() to get 
+\section{Work arrays inside the local functions} In C you can call DMDAVecGetArray() to get 
 work arrays (this is low overhead). In Fortran you can provide a \trl{FormFunctionLocal()}
 that had local arrays that have hardwired sizes that are large enough or somehow allocate
 space and pass it into an inner FormFunctionLocal() that is the one you differentiate; this
@@ -5150,7 +5035,7 @@ final \trl{ierr} argument.
 
 Since Fortran 77 does not allow arrays to be returned in routine
 arguments, all PETSc routines that return arrays, such as 
-VecGetArray(), MatGetArray(), 
+VecGetArray(), MatDenseGetArray(), 
 ISGetIndices(), and DMDAGetGlobalIndices()
 are defined slightly differently in Fortran than in C.  
 Instead of returning the array itself, these routines
@@ -5168,7 +5053,7 @@ The Fortran interface for several routines is as follows:
    DM  d \\
  
    call VecGetArray(x,xx\_v,xx\_i,ierr)\\
-   call MatGetArray(A,aa\_v,aa\_i,ierr)\\
+   call MatDenseGetArray(A,aa\_v,aa\_i,ierr)\\
    call ISGetIndices(s,ss\_v,ss\_i,ierr)\\
    call DMDAGetGlobalIndices(d,nloc,dd\_v,dd\_i,ierr)
 \end{tabbing}
@@ -5202,7 +5087,7 @@ indexing begins with 1, not 0 (unless the array is declared as \trl{xx_v(0:1)}).
 This is different from the use of VecSetValues()
 where, indexing always starts with 0.
 
-{\em Note}: If using VecGetArray(), MatGetArray(), ISGetIndices(),
+{\em Note}: If using VecGetArray(), MatDenseGetArray(), ISGetIndices(),
 or DMDAGetGlobalIndices()
 from Fortran, the user {\em must not} compile the Fortran code with options 
 to check for ``array entries out of bounds'' (e.g., on the IBM RS/6000 this 
@@ -5322,7 +5207,7 @@ manual pages and previous discussion in this chapter for details:
 \begin{tabbing}
  PetscInitialize(char *filename,int \trl{ierr)}\\
  PetscError(MPI\_COMM,int err,char *message,int \trl{ierr)}\\
- VecGetArray(), MatGetArray()\\
+ VecGetArray(), MatDenseGetArray()\\
  ISGetIndices(), DMDAGetGlobalIndices()\\
  VecDuplicateVecs(), VecDestroyVecs()\\
  PetscOptionsGetString()
@@ -5347,7 +5232,7 @@ Current routines include:
  VecGetArrayF90(), VecRestoreArrayF90()\\
  VecDuplicateVecsF90(), VecDestroyVecsF90()\\
  DMDAGetGlobalIndicesF90()\\
- MatGetArrayF90(), MatRestoreArrayF90()\\
+ MatDenseGetArrayF90(), MatDenseRestoreArrayF90()\\
  ISGetIndicesF90(), ISRestoreIndicesF90()
 \end{tabbing}
 See the manual pages for details and pointers to example programs.  To
@@ -6962,12 +6847,21 @@ Note that there are many more options available that one can feed into the \text
 
 \section{Developers Studio Users} \sindex{developers studio}
 
-In the \trl{projects} subdirectory of PETSc are several Developers Studio projects that use PETSc.
+To use PETSc from MS Visual Studio - one would have to compile a PETSc example with its corresponding makefile - and then transcribe all compiler and linker options used in this build into a Visual Studio project file - in the appropriate format in Visual Studio project settings.
 
 \section{XCode Users (The Apple GUI Development System} \sindex{xcode}
 
-Please let us know how you have set things up at \trl{petsc-dev@mcs.anl.gov}.
+\subsection{Mac OSX}
 
+Follow the instructions in systems/Apple/OSX/bin/makeframework to build the PETSc framework.
+
+You can then use the PETSc framework in \$\{PETSC\_DIR\}/arch-osx/PETSc.framework in the usual manner for Apple framworks, see the examples in systems/Apple/OSX/examples.  When working in xcode things like function name completion should work for all PETSc functions as well as MPI functions. You must also link against the Apple Accelerate.framework.
+
+\subsection{iPhone/iPad iOS}
+
+Follow the instructions in systems/Apple/ios/bin/iosbuilder.py to build the PETSc library for use on the iPhone/iPad.
+
+You can then use the PETSc static library in \$\{PETSC\_DIR\}/arch-osx/libPETSc.a in the usual manner for Apple libraries inside your iOS xcode projects, see the examples in systems/Apple/iOS/examples.  You must also link against the Apple Accelerate.framework.
 
 \section{Parallel Communication}
 
@@ -7024,11 +6918,12 @@ colormap can be used via the option \trl{-draw_x_shared_colormap}.
 \subsection{Simple PetscDrawing}
 
 One can open a window that is not associated with a viewer directly 
-under the X11 Window System with the
-command \sindex{X windows}
+under the X11 Window System or OpenGL with the
+command \sindex{X windows} \sindex{OpenGL}
 \begin{tabbing}
-  PetscDrawOpenX(MPI\_Comm comm,char *display,char *title,int x,\\
+  PetscDrawCreate(MPI\_Comm comm,char *display,char *title,int x,\\
                  int y,int w,int h,PetscDraw *win);
+  PetscDrawSetFromOptions(win);
 \end{tabbing}
 All drawing routines are done relative to the windows coordinate system 
 and viewport. By default the drawing coordinates are from \trl{(0,0)} to 
@@ -7166,12 +7061,12 @@ large, or for timing.
 For both the linear and nonlinear solvers default routines
 allow one to graphically monitor convergence of the iterative method.
 These are accessed via the command line with 
-\trl{-ksp_monitor_draw} and \trl{-snes_monitor_draw}. \findex{-ksp_monitor_draw}
-\findex{-snes_monitor_draw} See also Sections \ref{sec_kspmonitor} and
+\trl{-ksp_monitor_lg_residualnorm} and \trl{-snes_monitor_lg_residualnorm}. \findex{-ksp_monitor_lg_residualnorm}
+\findex{-snes_monitor_lg_residualnorm} See also Sections \ref{sec_kspmonitor} and
 \ref{sec_snesmonitor}. 
 
-The two functions used are KSPMonitorLG() 
-and KSPMonitorLGCreate(). These 
+The two functions used are KSPMonitorLGResidualNorm() 
+and KSPMonitorLGResidualNormCreate(). These 
 can easily be modified to serve specialized needs.
 
 
@@ -7445,12 +7340,9 @@ makefiles, they are also easily used.
 
    CFLAGS   =\\  
    SOURCEC  = sp1wd.c spinver.c spnd.c spqmd.c sprcm.c\\
-   SOURCEF  = degree.f  fnroot.f genqmd.f qmdqt.f rcm.f fn1wd.f gen1wd.f \ \\
-              genrcm.f qmdrch.f rootls.f fndsep.f gennd.f qmdmrg.f qmdupd.f\\
+   SOURCEF  = degree.F  fnroot.F genqmd.F qmdqt.F rcm.F fn1wd.F gen1wd.F \ \\
+              genrcm.F qmdrch.F rootls.F fndsep.F gennd.F qmdmrg.F qmdupd.F\\
    SOURCEH  = \\
-   OBJSC    = sp1wd.o spinver.o spnd.o spqmd.o sprcm.o\\
-   OBJSF    = degree.o  fnroot.o genqmd.o qmdqt.o rcm.o fn1wd.o gen1wd.o \ \\
-              genrcm.o qmdrch.o rootls.o fndsep.o gennd.o qmdmrg.o qmdupd.o\\
    LIBBASE  = libpetscmat\\
    MANSEC   = Mat\\
 
@@ -7464,9 +7356,7 @@ makefiles, they are also easily used.
 
 The library's name is \trl{libpetscmat.a}, and the source files being added
 to it are indicated by \trl{SOURCEC} (for C files) and \trl{SOURCEF} (for 
-Fortran files). Note that the \trl{OBJSF} and \trl{OBJSC} are identical 
-to \trl{SOURCEF} and \trl{SOURCEC}, respectively, except they use the
-suffix \trl{.o} rather than \trl{.c} or \trl{.f}. 
+Fortran files).
 
 The variable \trl{MANSEC} indicates that any manual pages generated
 from this source should be included in the \trl{Mat} section. 

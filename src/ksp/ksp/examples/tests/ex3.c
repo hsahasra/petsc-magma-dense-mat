@@ -1,6 +1,5 @@
 
-static char help[] = "This example solves a linear system in parallel with KSP.  The matrix\n\
-uses simple bilinear elements on the unit square.  To test the parallel\n\
+static char help[] = "Bilinear elements on the unit square for Laplacian.  To test the parallel\n\
 matrix assembly, the matrix is intentionally laid out across processors\n\
 differently from the way it is assembled.  Input arguments are:\n\
   -m <size> : problem size\n\n";
@@ -23,7 +22,7 @@ int FormElementStiffness(PetscReal H,PetscScalar *Ke)
 int FormElementRhs(PetscReal x,PetscReal y,PetscReal H,PetscScalar *r)
 {
   PetscFunctionBegin;
-  r[0] = 0.; r[1] = 0.; r[2] = 0.; r[3] = 0.0; 
+  r[0] = 0.; r[1] = 0.; r[2] = 0.; r[3] = 0.0;
   PetscFunctionReturn(0);
 }
 
@@ -31,7 +30,7 @@ int FormElementRhs(PetscReal x,PetscReal y,PetscReal H,PetscScalar *r)
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
-  Mat            C; 
+  Mat            C;
   PetscMPIInt    rank,size;
   PetscInt       i,m = 5,N,start,end,M,its;
   PetscScalar    val,Ke[16],r[4];
@@ -55,13 +54,13 @@ int main(int argc,char **args)
   ierr = MatSetFromOptions(C);CHKERRQ(ierr);
   ierr = MatSetUp(C);CHKERRQ(ierr);
   start = rank*(M/size) + ((M%size) < rank ? (M%size) : rank);
-  end   = start + M/size + ((M%size) > rank); 
+  end   = start + M/size + ((M%size) > rank);
 
   /* Assemble matrix */
   ierr = FormElementStiffness(h*h,Ke);   /* element stiffness for Laplacian */
   for (i=start; i<end; i++) {
      /* location of lower left corner of element */
-     x = h*(i % m); y = h*(i/m); 
+     x = h*(i % m); y = h*(i/m);
      /* node numbers for the four corners of element */
      idx[0] = (m+1)*(i/m) + (i % m);
      idx[1] = idx[0]+1; idx[2] = idx[1] + m + 1; idx[3] = idx[2] - 1;
@@ -71,8 +70,8 @@ int main(int argc,char **args)
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
   /* Create right-hand-side and solution vectors */
-  ierr = VecCreate(PETSC_COMM_WORLD,&u);CHKERRQ(ierr); 
-  ierr = VecSetSizes(u,PETSC_DECIDE,N);CHKERRQ(ierr); 
+  ierr = VecCreate(PETSC_COMM_WORLD,&u);CHKERRQ(ierr);
+  ierr = VecSetSizes(u,PETSC_DECIDE,N);CHKERRQ(ierr);
   ierr = VecSetFromOptions(u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)u,"Approx. Solution");CHKERRQ(ierr);
   ierr = VecDuplicate(u,&b);CHKERRQ(ierr);
@@ -84,7 +83,7 @@ int main(int argc,char **args)
   /* Assemble right-hand-side vector */
   for (i=start; i<end; i++) {
      /* location of lower left corner of element */
-     x = h*(i % m); y = h*(i/m); 
+     x = h*(i % m); y = h*(i/m);
      /* node numbers for the four corners of element */
      idx[0] = (m+1)*(i/m) + (i % m);
      idx[1] = idx[0]+1; idx[2] = idx[1] + m + 1; idx[3] = idx[2] - 1;
@@ -109,17 +108,17 @@ int main(int argc,char **args)
     rows[count++] = i;
   }
   for (i=0; i<4*m; i++) {
-     x = h*(rows[i] % (m+1)); y = h*(rows[i]/(m+1)); 
+     x = h*(rows[i] % (m+1)); y = h*(rows[i]/(m+1));
      val = y;
      ierr = VecSetValues(u,1,&rows[i],&val,INSERT_VALUES);CHKERRQ(ierr);
      ierr = VecSetValues(b,1,&rows[i],&val,INSERT_VALUES);CHKERRQ(ierr);
-  }    
+  }
   ierr = MatZeroRows(C,4*m,rows,1.0,0,0);CHKERRQ(ierr);
 
   ierr = PetscFree(rows);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(u);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(u);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(b);CHKERRQ(ierr); 
+  ierr = VecAssemblyBegin(b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(b);CHKERRQ(ierr);
 
   { Mat A;
@@ -139,7 +138,7 @@ int main(int argc,char **args)
   /* Check error */
   ierr = VecGetOwnershipRange(ustar,&start,&end);CHKERRQ(ierr);
   for (i=start; i<end; i++) {
-     x = h*(i % (m+1)); y = h*(i/(m+1)); 
+     x = h*(i % (m+1)); y = h*(i/(m+1));
      val = y;
      ierr = VecSetValues(ustar,1,&i,&val,INSERT_VALUES);CHKERRQ(ierr);
   }

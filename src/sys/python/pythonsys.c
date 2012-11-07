@@ -51,7 +51,7 @@ static PetscErrorCode PetscPythonFindLibrary(char pythonexe[PETSC_MAX_PATH_LEN],
     { SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Python: bad output from executable: %s",pythonexe); }
   if (!fgets(version,sizeof(version),fp))
     { SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Python: bad output from executable: %s",pythonexe); }
-  ierr = PetscPClose(PETSC_COMM_SELF,fp);CHKERRQ(ierr);
+  ierr = PetscPClose(PETSC_COMM_SELF,fp,PETSC_NULL);CHKERRQ(ierr);
 #else
   SETERRQ(PETSC_COMM_SELF,1,"Python: Aborted due to missing popen()");
 #endif
@@ -318,9 +318,9 @@ PetscErrorCode PetscPythonMonitorSet(PetscObject obj, const char url[])
   PetscFunctionBegin;
   PetscValidHeader(obj,1);
   PetscValidCharPointer(url,2);
-  if(PetscPythonMonitorSet_C == PETSC_NULL) {
+  if (PetscPythonMonitorSet_C == PETSC_NULL) {
     ierr = PetscPythonInitialize(PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
-    if(PetscPythonMonitorSet_C == PETSC_NULL)
+    if (PetscPythonMonitorSet_C == PETSC_NULL)
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Couldn't initialize Python support for monitors");
   }
   ierr = PetscPythonMonitorSet_C(obj,url);CHKERRQ(ierr);

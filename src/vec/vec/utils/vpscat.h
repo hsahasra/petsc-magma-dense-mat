@@ -9,7 +9,7 @@
 #define PETSCMAP1_b(a,b)  PETSCMAP1_a(a,b)
 #define PETSCMAP1(a)      PETSCMAP1_b(a,BS)
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecScatterBegin_" PetscStringize(BS)
 PetscErrorCode PETSCMAP1(VecScatterBegin)(VecScatter ctx,Vec xin,Vec yin,InsertMode addv,ScatterMode mode)
 {
@@ -54,8 +54,9 @@ PetscErrorCode PETSCMAP1(VecScatterBegin)(VecScatter ctx,Vec xin,Vec yin,InsertM
        the just is still out.
    */
   if (xin->valid_GPU_array == PETSC_CUSP_GPU) {
-    if (xin->spptr && ctx->spptr) 
+    if (xin->spptr && ctx->spptr) {
       ierr = VecCUSPCopyFromGPUSome_Public(xin,(PetscCUSPIndices)ctx->spptr);CHKERRQ(ierr);
+    }
   }
 #endif
   xv   = *(PetscScalar**)xin->data;
@@ -91,7 +92,7 @@ PetscErrorCode PETSCMAP1(VecScatterBegin)(VecScatter ctx,Vec xin,Vec yin,InsertM
   if (xin != yin) {ierr = VecGetArray(yin,&yv);CHKERRQ(ierr);} else {yv = xv;}
 
   if (!(mode & SCATTER_LOCAL)) {
-    if (!from->use_readyreceiver && !to->sendfirst && !to->use_alltoallv  & !to->use_window) {  
+    if (!from->use_readyreceiver && !to->sendfirst && !to->use_alltoallv  & !to->use_window) {
       /* post receives since they were not previously posted    */
       if (nrecvs) {ierr = MPI_Startall_irecv(from->starts[nrecvs]*bs,nrecvs,rwaits);CHKERRQ(ierr);}
     }
@@ -127,7 +128,7 @@ PetscErrorCode PETSCMAP1(VecScatterBegin)(VecScatter ctx,Vec xin,Vec yin,InsertM
       }
     }
 
-    if (!from->use_readyreceiver && to->sendfirst && !to->use_alltoallv && !to->use_window) {  
+    if (!from->use_readyreceiver && to->sendfirst && !to->use_alltoallv && !to->use_window) {
       /* post receives since they were not previously posted   */
       if (nrecvs) {ierr = MPI_Startall_irecv(from->starts[nrecvs]*bs,nrecvs,rwaits);CHKERRQ(ierr);}
     }
@@ -156,7 +157,7 @@ PetscErrorCode PETSCMAP1(VecScatterBegin)(VecScatter ctx,Vec xin,Vec yin,InsertM
 
 /* --------------------------------------------------------------------------------------*/
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecScatterEnd_" PetscStringize(BS)
 PetscErrorCode PETSCMAP1(VecScatterEnd)(VecScatter ctx,Vec xin,Vec yin,InsertMode addv,ScatterMode mode)
 {
@@ -213,7 +214,7 @@ PetscErrorCode PETSCMAP1(VecScatterEnd)(VecScatter ctx,Vec xin,Vec yin,InsertMod
       count--;
     }
   }
-  if (from->use_readyreceiver) {  
+  if (from->use_readyreceiver) {
     if (nrecvs) {ierr = MPI_Startall_irecv(from->starts[nrecvs]*bs,nrecvs,rwaits);CHKERRQ(ierr);}
     ierr = MPI_Barrier(((PetscObject)ctx)->comm);CHKERRQ(ierr);
   }
@@ -223,8 +224,9 @@ PetscErrorCode PETSCMAP1(VecScatterEnd)(VecScatter ctx,Vec xin,Vec yin,InsertMod
   ierr = VecRestoreArray(yin,&yv);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_TXPETSCGPU)
   if (yin->valid_GPU_array == PETSC_CUSP_CPU) {
-    if (yin->spptr && ctx->spptr) 
+    if (yin->spptr && ctx->spptr) {
       ierr = VecCUSPCopyToGPUSome_Public(yin,(PetscCUSPIndices)ctx->spptr);CHKERRQ(ierr);
+    }
   }
 #endif
   PetscFunctionReturn(0);

@@ -158,11 +158,13 @@ static PetscErrorCode TSStep_Pseudo(TS ts)
   ierr = TSPseudoComputeTimeStep(ts,&next_time_step);CHKERRQ(ierr);
   for (reject=0; reject<ts->max_reject; reject++,ts->reject++) {
     ts->time_step = next_time_step;
+    ierr = TSPreStep(ts);CHKERRQ(ierr);
+    ierr = TSPreStage(ts,ts->ptime+ts->time_step);CHKERRQ(ierr);
     ierr = SNESSolve(ts->snes,PETSC_NULL,pseudo->update);CHKERRQ(ierr);
     ierr = SNESGetConvergedReason(ts->snes,&snesreason);CHKERRQ(ierr);
     ierr = SNESGetLinearSolveIterations(ts->snes,&lits);CHKERRQ(ierr);
     ierr = SNESGetIterationNumber(ts->snes,&its);CHKERRQ(ierr);
-    ts->nonlinear_its += its; ts->linear_its += lits;
+    ts->snes_its += its; ts->ksp_its += lits;
     ierr = PetscInfo3(ts,"step=%D, nonlinear solve iterations=%D, linear solve iterations=%D\n",ts->steps,its,lits);CHKERRQ(ierr);
     pseudo->fnorm = -1;         /* The current norm is no longer valid, monitor must recompute it. */
     ierr = TSPseudoVerifyTimeStep(ts,pseudo->update,&next_time_step,&stepok);CHKERRQ(ierr);
@@ -680,7 +682,7 @@ PetscErrorCode  TSCreate_Pseudo(TS ts)
   TS_Pseudo      *pseudo;
   PetscErrorCode ierr;
   SNES           snes;
-  const SNESType stype;
+  SNESType       stype;
 
   PetscFunctionBegin;
   ts->ops->reset           = TSReset_Pseudo;

@@ -1,5 +1,5 @@
 
-static char help[] = "Tests DMCreateInterpolation for nonuniform DMDA coordinates.\n\n";
+static char help[] = "Tests DMCreateInterpolation() for nonuniform DMDA coordinates.\n\n";
 
 #include <petscdmda.h>
 
@@ -15,8 +15,8 @@ PetscErrorCode SetCoordinates1d(DM da)
 
   PetscFunctionBegin;
   ierr = DMDASetUniformCoordinates(da,0.0,1.0,0.0,1.0,0.0,1.0);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&gc);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&gc);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,gc,&coors);CHKERRQ(ierr);
   ierr = DMDAGetCorners(cda,&start,0,0,&m,0,0);CHKERRQ(ierr);
   for (i=start; i<start+m; i++) {
@@ -25,7 +25,7 @@ PetscErrorCode SetCoordinates1d(DM da)
     }
   }
   ierr = DMDAVecRestoreArray(cda,gc,&coors);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinates(da,&global);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(da,&global);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(cda,gc,INSERT_VALUES,global);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(cda,gc,INSERT_VALUES,global);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -43,8 +43,8 @@ PetscErrorCode SetCoordinates2d(DM da)
 
   PetscFunctionBegin;
   ierr = DMDASetUniformCoordinates(da,0.0,1.0,0.0,1.0,0.0,1.0);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&gc);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&gc);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,gc,&coors);CHKERRQ(ierr);
   ierr = DMDAGetCorners(cda,&mstart,&nstart,0,&m,&n,0);CHKERRQ(ierr);
   for (i=mstart; i<mstart+m; i++) {
@@ -58,7 +58,7 @@ PetscErrorCode SetCoordinates2d(DM da)
     }
   }
   ierr = DMDAVecRestoreArray(cda,gc,&coors);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinates(da,&global);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(da,&global);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(cda,gc,INSERT_VALUES,global);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(cda,gc,INSERT_VALUES,global);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -76,8 +76,8 @@ PetscErrorCode SetCoordinates3d(DM da)
 
   PetscFunctionBegin;
   ierr = DMDASetUniformCoordinates(da,0.0,1.0,0.0,1.0,0.0,1.0);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinateDA(da,&cda);CHKERRQ(ierr);
-  ierr = DMDAGetGhostedCoordinates(da,&gc);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(da,&cda);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(da,&gc);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(cda,gc,&coors);CHKERRQ(ierr);
   ierr = DMDAGetCorners(cda,&mstart,&nstart,&pstart,&m,&n,&p);CHKERRQ(ierr);
   for (i=mstart; i<mstart+m; i++) {
@@ -96,7 +96,7 @@ PetscErrorCode SetCoordinates3d(DM da)
     }
   }
   ierr = DMDAVecRestoreArray(cda,gc,&coors);CHKERRQ(ierr);
-  ierr = DMDAGetCoordinates(da,&global);CHKERRQ(ierr);
+  ierr = DMGetCoordinates(da,&global);CHKERRQ(ierr);
   ierr = DMLocalToGlobalBegin(cda,gc,INSERT_VALUES,global);CHKERRQ(ierr);
   ierr = DMLocalToGlobalEnd(cda,gc,INSERT_VALUES,global);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -106,14 +106,14 @@ PetscErrorCode SetCoordinates3d(DM da)
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  PetscInt       M = 5,N = 4,P = 3, m = PETSC_DECIDE,n = PETSC_DECIDE,p = PETSC_DECIDE,dim = 1;
-  PetscErrorCode ierr;
-  DM             dac,daf;
+  PetscInt         M = 5,N = 4,P = 3, m = PETSC_DECIDE,n = PETSC_DECIDE,p = PETSC_DECIDE,dim = 1;
+  PetscErrorCode   ierr;
+  DM               dac,daf;
   DMDABoundaryType bx=DMDA_BOUNDARY_NONE,by=DMDA_BOUNDARY_NONE,bz=DMDA_BOUNDARY_NONE;
   DMDAStencilType  stype = DMDA_STENCIL_BOX;
-  Mat            A;
+  Mat              A;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
 
   /* Read options */
   ierr = PetscOptionsGetInt(PETSC_NULL,"-M",&M,PETSC_NULL);CHKERRQ(ierr);
@@ -153,4 +153,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

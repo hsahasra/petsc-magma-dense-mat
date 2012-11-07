@@ -1,6 +1,4 @@
 
-/* Program usage:  ./ex16 [-help] [all PETSc options] */
-
 static char help[] = "Solves the van der Pol DAE.\n\
 Input parameters include:\n";
 
@@ -33,7 +31,7 @@ Input parameters include:\n";
    [ (u_2^3/3 - u_2) - u_1 ]   [ 0 ]
 
    which is now in the desired form of u_t = f(u,t). As this is a DAE, and
-   there is no u_2', there is no need for a split, 
+   there is no u_2', there is no need for a split,
 
    so
 
@@ -134,13 +132,14 @@ static PetscErrorCode RegisterMyARK2(void)
                  {0.75,0.25,0}},
       At[3][3] = {{0,0,0},
                   {0.12132034355964257320,0.29289321881345247560,0},
-                  {0.20710678118654752440,0.50000000000000000000,0.29289321881345247560}};
-      ierr = TSARKIMEXRegister("myark2",2,3,&At[0][0],PETSC_NULL,PETSC_NULL,&A[0][0],PETSC_NULL,PETSC_NULL,0,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
+                  {0.20710678118654752440,0.50000000000000000000,0.29289321881345247560}},
+	*bembedt = PETSC_NULL,*bembed = PETSC_NULL;
+	ierr = TSARKIMEXRegister("myark2",2,3,&At[0][0],PETSC_NULL,PETSC_NULL,&A[0][0],PETSC_NULL,PETSC_NULL,bembedt,bembed,0,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "Monitor"
 /* Monitor timesteps and use interpolation to output at integer multiples of 0.1 */
 static PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal t,Vec X,void *ctx)
@@ -205,7 +204,7 @@ int main(int argc,char **argv)
   ierr = MatCreate(PETSC_COMM_WORLD,&A);CHKERRQ(ierr);
   ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,2,2);CHKERRQ(ierr);
   ierr = MatSetFromOptions(A);CHKERRQ(ierr);
-
+  ierr = MatSetUp(A);CHKERRQ(ierr);
   ierr = MatGetVecs(A,&x,PETSC_NULL);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

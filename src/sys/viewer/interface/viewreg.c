@@ -1,10 +1,10 @@
 
-#include <petsc-private/viewerimpl.h>  /*I "petscsys.h" I*/  
+#include <petsc-private/viewerimpl.h>  /*I "petscsys.h" I*/
 
 PetscFList PetscViewerList              = 0;
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscViewerCreate" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerCreate"
 /*@
    PetscViewerCreate - Creates a viewing context
 
@@ -22,7 +22,7 @@ PetscFList PetscViewerList              = 0;
    Concepts: file input/output^creating PetscViewer
    Concepts: sockets^creating PetscViewer
 
-.seealso: PetscViewerDestroy(), PetscViewerSetType()
+.seealso: PetscViewerDestroy(), PetscViewerSetType(), PetscViewerType
 
 @*/
 PetscErrorCode  PetscViewerCreate(MPI_Comm comm,PetscViewer *inviewer)
@@ -40,9 +40,9 @@ PetscErrorCode  PetscViewerCreate(MPI_Comm comm,PetscViewer *inviewer)
   viewer->data        = 0;
   PetscFunctionReturn(0);
 }
- 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscViewerSetType" 
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerSetType"
 /*@C
    PetscViewerSetType - Builds PetscViewer for a particular implementation.
 
@@ -53,18 +53,18 @@ PetscErrorCode  PetscViewerCreate(MPI_Comm comm,PetscViewer *inviewer)
 -  type        - for example, "ASCII"
 
    Options Database Command:
-.  -draw_type  <type> - Sets the type; use -help for a list 
+.  -draw_type  <type> - Sets the type; use -help for a list
     of available methods (for instance, ascii)
 
    Level: advanced
 
-   Notes:  
+   Notes:
    See "include/petscviewer.h" for available methods (for instance,
    PETSC_VIEWER_SOCKET)
 
-.seealso: PetscViewerCreate(), PetscViewerGetType()
+.seealso: PetscViewerCreate(), PetscViewerGetType(), PetscViewerType
 @*/
-PetscErrorCode  PetscViewerSetType(PetscViewer viewer,const PetscViewerType type)
+PetscErrorCode  PetscViewerSetType(PetscViewer viewer,PetscViewerType type)
 {
   PetscErrorCode ierr,(*r)(PetscViewer);
   PetscBool      match;
@@ -73,7 +73,7 @@ PetscErrorCode  PetscViewerSetType(PetscViewer viewer,const PetscViewerType type
   PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
   PetscValidCharPointer(type,2);
   CHKMEMQ;
-  ierr = PetscTypeCompare((PetscObject)viewer,type,&match);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,type,&match);CHKERRQ(ierr);
   if (match) PetscFunctionReturn(0);
 
   /* cleanup any old type that may be there */
@@ -92,8 +92,8 @@ PetscErrorCode  PetscViewerSetType(PetscViewer viewer,const PetscViewerType type
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscViewerRegisterDestroy" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerRegisterDestroy"
 /*@C
    PetscViewerRegisterDestroy - Frees the list of PetscViewer methods that were
    registered by PetscViewerRegisterDynamic().
@@ -113,8 +113,8 @@ PetscErrorCode  PetscViewerRegisterDestroy(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscViewerRegister" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerRegister"
 PetscErrorCode  PetscViewerRegister(const char *sname,const char *path,const char *name,PetscErrorCode (*function)(PetscViewer))
 {
   PetscErrorCode ierr;
@@ -126,8 +126,8 @@ PetscErrorCode  PetscViewerRegister(const char *sname,const char *path,const cha
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscViewerSetFromOptions" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerSetFromOptions"
 /*@C
    PetscViewerSetFromOptions - Sets the graphics type from the options database.
       Defaults to a PETSc X windows graphics.
@@ -139,12 +139,12 @@ PetscErrorCode  PetscViewerRegister(const char *sname,const char *path,const cha
 
    Level: intermediate
 
-   Notes: 
+   Notes:
     Must be called after PetscViewerCreate() before the PetscViewer is used.
 
   Concepts: PetscViewer^setting options
 
-.seealso: PetscViewerCreate(), PetscViewerSetType()
+.seealso: PetscViewerCreate(), PetscViewerSetType(), PetscViewerType
 
 @*/
 PetscErrorCode  PetscViewerSetFromOptions(PetscViewer viewer)

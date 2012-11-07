@@ -91,7 +91,6 @@ def FixDir(petscdir,dir,verbose):
     outbuf +=  'CFLAGS   =\n'
     outbuf +=  'FFLAGS   =\n'
     outbuf +=  'SOURCEC  = ' +' '.join(cnames)+ '\n'
-    outbuf +=  'OBJSC    = ' +' '.join(cnames).replace('.c','.o')+ '\n'    
     outbuf +=  'SOURCEF  =\n'
     outbuf +=  'SOURCEH  = ' +' '.join(hnames)+ '\n'
     outbuf +=  'DIRS     =\n'
@@ -150,7 +149,7 @@ def processDir(arg,dirname,names):
   outdir = os.path.join(dirname,'ftn-auto')
 
   for l in names:
-    if os.path.splitext(l)[1] =='.c' or os.path.splitext(l)[1] == '.h':
+    if os.path.splitext(l)[1] in ['.c','.h','.cu']:
       newls.append(l)
   if newls:
     PrepFtnDir(outdir)

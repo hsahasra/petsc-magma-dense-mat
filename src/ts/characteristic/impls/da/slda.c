@@ -1,17 +1,17 @@
 #include <../src/ts/characteristic/impls/da/slda.h>       /*I  "petsccharacteristic.h"  I*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "CharacteristicView_DA" 
+#undef __FUNCT__
+#define __FUNCT__ "CharacteristicView_DA"
 PetscErrorCode CharacteristicView_DA(Characteristic c, PetscViewer viewer)
 {
-  Characteristic_DA *da = (Characteristic_DA *) c->data; 
+  Characteristic_DA *da = (Characteristic_DA *) c->data;
   PetscBool          iascii, isstring;
   PetscErrorCode     ierr;
 
   PetscFunctionBegin;
   /* Pull out field names from DM */
-  ierr = PetscTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject) viewer, PETSCVIEWERSTRING, &isstring);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERSTRING, &isstring);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"  DMDA: dummy=%D\n", da->dummy);CHKERRQ(ierr);
   } else if (isstring) {
@@ -22,8 +22,8 @@ PetscErrorCode CharacteristicView_DA(Characteristic c, PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "CharacteristicDestroy_DA" 
+#undef __FUNCT__
+#define __FUNCT__ "CharacteristicDestroy_DA"
 PetscErrorCode CharacteristicDestroy_DA(Characteristic c)
 {
   Characteristic_DA *da = (Characteristic_DA*) c->data;
@@ -40,7 +40,7 @@ PetscErrorCode CharacteristicSetUp_DA(Characteristic c)
 {
   PetscMPIInt    blockLen[2];
   MPI_Aint       indices[2];
-  MPI_Datatype   oldtypes[2]; 
+  MPI_Datatype   oldtypes[2];
   PetscInt       dim, numValues;
   PetscErrorCode ierr;
 
@@ -75,7 +75,7 @@ PetscErrorCode CharacteristicSetUp_DA(Characteristic c)
 }
 
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "CharacteristicCreate_DA"
 PetscErrorCode CharacteristicCreate_DA(Characteristic c)
 {
@@ -106,8 +106,8 @@ EXTERN_C_END
 PetscErrorCode DMDAMapCoordsToPeriodicDomain(DM da, PetscScalar *x, PetscScalar *y)
 {
   DMDABoundaryType bx, by;
-  PetscInt       dim, gx, gy;
-  PetscErrorCode ierr;
+  PetscInt         dim, gx, gy;
+  PetscErrorCode   ierr;
 
   PetscFunctionBegin;
   ierr = DMDAGetInfo(da, &dim, &gx, &gy, 0, 0, 0, 0, 0, 0, &bx, &by, 0, 0);

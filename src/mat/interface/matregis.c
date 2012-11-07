@@ -9,11 +9,6 @@ extern PetscErrorCode  MatCreate_IS(Mat);
 extern PetscErrorCode  MatCreate_SeqAIJ(Mat);
 extern PetscErrorCode  MatCreate_MPIAIJ(Mat);
 
-#if defined(PETSC_HAVE_PTHREADCLASSES)
-extern PetscErrorCode  MatCreate_SeqAIJPThread(Mat);
-extern PetscErrorCode  MatCreate_AIJPThread(Mat);
-#endif
-
 extern PetscErrorCode  MatCreate_SeqBAIJ(Mat);
 extern PetscErrorCode  MatCreate_MPIBAIJ(Mat);
 
@@ -49,9 +44,15 @@ extern PetscErrorCode  MatCreate_SeqAIJCUSP(Mat);
 extern PetscErrorCode  MatCreate_MPIAIJCUSP(Mat);
 #endif
 
+#if defined PETSC_HAVE_TXPETSCGPU
+extern PetscErrorCode  MatCreate_SeqAIJCUSPARSE(Mat);
+extern PetscErrorCode  MatCreate_MPIAIJCUSPARSE(Mat);
+#endif
+
 #if defined PETSC_HAVE_FFTW
 extern PetscErrorCode  MatCreate_FFTW(Mat);
 #endif
+
 
 extern PetscErrorCode MatCreate_SeqBSG(Mat);
 extern PetscErrorCode MatCreate_MPIBSG(Mat);
@@ -65,6 +66,9 @@ extern PetscErrorCode MatCreate_SeqSG(Mat);
 extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
 
 
+
+
+extern PetscErrorCode  MatCreate_Elemental(Mat);
 
 EXTERN_C_END
 
@@ -108,10 +112,6 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterBaseName(MATAIJ,MATSEQAIJ,MATMPIAIJ);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATMPIAIJ,         path,"MatCreate_MPIAIJ",      MatCreate_MPIAIJ);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATSEQAIJ,         path,"MatCreate_SeqAIJ",      MatCreate_SeqAIJ);CHKERRQ(ierr);
-#if defined(PETSC_HAVE_PTHREADCLASSES)
-  ierr = MatRegisterBaseName(MATAIJPTHREAD,MATSEQAIJPTHREAD,0);CHKERRQ(ierr);
-  ierr = MatRegisterDynamic(MATSEQAIJPTHREAD,  path,"MatCreate_SeqAIJPThread", MatCreate_SeqAIJPThread);CHKERRQ(ierr);
-#endif
 
   ierr = MatRegisterBaseName(MATAIJPERM,MATSEQAIJPERM,MATMPIAIJPERM);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATMPIAIJPERM,     path,"MatCreate_MPIAIJPERM", MatCreate_MPIAIJPERM);CHKERRQ(ierr);
@@ -154,9 +154,16 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterDynamic(MATMPIAIJCUSP,     path,"MatCreate_MPIAIJCUSP",  MatCreate_MPIAIJCUSP);CHKERRQ(ierr);
 #endif
 
+#if defined PETSC_HAVE_TXPETSCGPU
+  ierr = MatRegisterBaseName(MATAIJCUSPARSE,MATSEQAIJCUSPARSE,MATMPIAIJCUSPARSE);CHKERRQ(ierr);
+  ierr = MatRegisterDynamic(MATSEQAIJCUSPARSE,     path,"MatCreate_SeqAIJCUSPARSE",  MatCreate_SeqAIJCUSPARSE);CHKERRQ(ierr);
+  ierr = MatRegisterDynamic(MATMPIAIJCUSPARSE,     path,"MatCreate_MPIAIJCUSPARSE",  MatCreate_MPIAIJCUSPARSE);CHKERRQ(ierr);
+#endif
+
 #if defined PETSC_HAVE_FFTW
   ierr = MatRegisterDynamic(MATFFTW,           path,"MatCreate_FFTW",        MatCreate_FFTW);CHKERRQ(ierr);
 #endif
+
 
  ierr = MatRegisterDynamic(MATBLOCKSTRUCTGRID,     path,"MatCreate_SeqBSG",MatCreate_SeqBSG);CHKERRQ(ierr);
  //ierr = MatRegisterDynamic(MATMPIBSG,     path,"MatCreate_MPIBSG",MatCreate_MPIBSG);CHKERRQ(ierr);
@@ -165,8 +172,11 @@ PetscErrorCode  MatRegisterAll(const char path[])
  ierr = MatRegisterDynamic(MATSEQSGGPU,     path,"MatCreate_SeqSGGPU",MatCreate_SeqSGGPU);CHKERRQ(ierr);
 
 
+#if defined PETSC_HAVE_ELEMENTAL
+  ierr = MatRegisterDynamic(MATELEMENTAL,      path,"MatCreate_Elemental",    MatCreate_Elemental);CHKERRQ(ierr);
+#endif
+  PetscFunctionReturn(0);
 
- PetscFunctionReturn(0);
 }
 
 

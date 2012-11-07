@@ -2,8 +2,8 @@
 #include <../src/sys/draw/utils/lgimpl.h>
 PetscClassId PETSC_DRAWLG_CLASSID = 0;
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGGetAxis" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGGetAxis"
 /*@
    PetscDrawLGGetAxis - Gets the axis context associated with a line graph.
    This is useful if one wants to change some axis property, such as
@@ -34,8 +34,8 @@ PetscErrorCode  PetscDrawLGGetAxis(PetscDrawLG lg,PetscDrawAxis *axis)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGGetDraw" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGGetDraw"
 /*@
    PetscDrawLGGetDraw - Gets the draw context associated with a line graph.
 
@@ -65,8 +65,8 @@ PetscErrorCode  PetscDrawLGGetDraw(PetscDrawLG lg,PetscDraw *draw)
 }
 
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGSPDraw" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGSPDraw"
 /*@
    PetscDrawLGSPDraw - Redraws a line graph.
 
@@ -93,7 +93,7 @@ PetscErrorCode  PetscDrawLGSPDraw(PetscDrawLG lg,PetscDrawSP spin)
   PetscFunctionBegin;
   if (lg && ((PetscObject)lg)->classid == PETSC_DRAW_CLASSID) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(lg,PETSC_DRAWLG_CLASSID,1);
-  PetscValidHeaderSpecific(sp,PETSC_DRAWSP_CLASSID,2); 
+  PetscValidHeaderSpecific(sp,PETSC_DRAWSP_CLASSID,2);
 
   xmin = PetscMin(lg->xmin,sp->xmin);
   ymin = PetscMin(lg->ymin,sp->ymin);
@@ -106,7 +106,7 @@ PetscErrorCode  PetscDrawLGSPDraw(PetscDrawLG lg,PetscDrawSP spin)
 
   ierr = MPI_Comm_rank(((PetscObject)lg)->comm,&rank);CHKERRQ(ierr);
   if (!rank) {
-  
+
     dim   = lg->dim;
     nopts = lg->nopts;
     for (i=0; i<dim; i++) {
@@ -129,11 +129,11 @@ PetscErrorCode  PetscDrawLGSPDraw(PetscDrawLG lg,PetscDrawSP spin)
   ierr = PetscDrawFlush(lg->win);CHKERRQ(ierr);
   ierr = PetscDrawPause(lg->win);CHKERRQ(ierr);
   PetscFunctionReturn(0);
-} 
+}
 
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGCreate" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGCreate"
 /*@
     PetscDrawLGCreate - Creates a line graph data structure.
 
@@ -152,7 +152,7 @@ PetscErrorCode  PetscDrawLGSPDraw(PetscDrawLG lg,PetscDrawSP spin)
 
 .seealso:  PetscDrawLGDestroy()
 @*/
-PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,int dim,PetscDrawLG *outctx)
+PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,PetscInt dim,PetscDrawLG *outctx)
 {
   PetscErrorCode ierr;
   PetscBool      isnull;
@@ -162,7 +162,7 @@ PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,int dim,PetscDrawLG *outctx)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
   PetscValidPointer(outctx,2);
-  ierr = PetscTypeCompare(obj,PETSC_DRAW_NULL,&isnull);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare(obj,PETSC_DRAW_NULL,&isnull);CHKERRQ(ierr);
   if (isnull) {
     ierr = PetscDrawOpenNull(((PetscObject)obj)->comm,(PetscDraw*)outctx);CHKERRQ(ierr);
     PetscFunctionReturn(0);
@@ -188,7 +188,7 @@ PetscErrorCode  PetscDrawLGCreate(PetscDraw draw,int dim,PetscDrawLG *outctx)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscDrawLGSetColors"
 /*@
    PetscDrawLGSetColors - Sets the color of each line graph drawn
@@ -217,9 +217,9 @@ PetscErrorCode  PetscDrawLGSetColors(PetscDrawLG lg,const int *colors)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGSetLegend" 
+#undef __FUNCT__
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGSetLegend"
 /*@C
    PetscDrawLGSetLegend - sets the names of each curve plotted
 
@@ -258,8 +258,35 @@ PetscErrorCode  PetscDrawLGSetLegend(PetscDrawLG lg,const char *const *names)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGSetDimension" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGGetDimension"
+/*@
+   PetscDrawLGGetDimension - Change the number of lines that are to be drawn.
+
+   Logically Collective over PetscDrawLG
+
+   Input Parameter:
+.  lg - the line graph context.
+
+   Output Parameter:
+.  dim - the number of curves.
+
+   Level: intermediate
+
+   Concepts: line graph^setting number of lines
+
+@*/
+PetscErrorCode  PetscDrawLGGetDimension(PetscDrawLG lg,PetscInt *dim)
+{
+  PetscFunctionBegin;
+  if (lg && ((PetscObject)lg)->classid == PETSC_DRAW_CLASSID) PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(lg,PETSC_DRAWLG_CLASSID,1);
+  *dim = lg->dim;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGSetDimension"
 /*@
    PetscDrawLGSetDimension - Change the number of lines that are to be drawn.
 
@@ -300,8 +327,8 @@ PetscErrorCode  PetscDrawLGSetDimension(PetscDrawLG lg,PetscInt dim)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGReset" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGReset"
 /*@
    PetscDrawLGReset - Clears line graph to allow for reuse with new data.
 
@@ -329,8 +356,8 @@ PetscErrorCode  PetscDrawLGReset(PetscDrawLG lg)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGDestroy" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGDestroy"
 /*@
    PetscDrawLGDestroy - Frees all space taken up by line graph data structure.
 
@@ -371,8 +398,8 @@ PetscErrorCode  PetscDrawLGDestroy(PetscDrawLG *lg)
   ierr = PetscHeaderDestroy(lg);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGIndicateDataPoints" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGIndicateDataPoints"
 /*@
    PetscDrawLGIndicateDataPoints - Causes LG to draw a big dot for each data-point.
 
@@ -395,8 +422,20 @@ PetscErrorCode  PetscDrawLGIndicateDataPoints(PetscDrawLG lg)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawLGDraw" 
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_X)
+#include <sys/types.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <setjmp.h>
+static jmp_buf PetscXIOErrorJumpBuf;
+static void PetscXIOHandler(Display *dpy)
+{
+  longjmp(PetscXIOErrorJumpBuf, 1);
+}
+#endif
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawLGDraw"
 /*@
    PetscDrawLGDraw - Redraws a line graph.
 
@@ -416,25 +455,38 @@ PetscErrorCode  PetscDrawLGDraw(PetscDrawLG lg)
   PetscErrorCode ierr;
   int            i,j,dim = lg->dim,nopts = lg->nopts,rank,cl;
   PetscDraw      draw = lg->win;
+  PetscBool      isnull;
 
   PetscFunctionBegin;
   if (lg && ((PetscObject)lg)->classid == PETSC_DRAW_CLASSID) PetscFunctionReturn(0);
   PetscValidHeaderSpecific(lg,PETSC_DRAWLG_CLASSID,1);
+  ierr = PetscDrawIsNull(lg->win,&isnull);CHKERRQ(ierr);
+  if (isnull) PetscFunctionReturn(0);
 
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_X)
+  if (!setjmp(PetscXIOErrorJumpBuf)) XSetIOErrorHandler((XIOErrorHandler)PetscXIOHandler);
+  else {
+    XSetIOErrorHandler(PETSC_NULL);
+    ierr = PetscDrawSetType(draw,PETSC_DRAW_NULL);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+#endif
+
+  ierr = PetscDrawCheckResizedWindow(draw);CHKERRQ(ierr);
   ierr = PetscDrawClear(draw);CHKERRQ(ierr);
   ierr = PetscDrawAxisSetLimits(lg->axis,xmin,xmax,ymin,ymax);CHKERRQ(ierr);
   ierr = PetscDrawAxisDraw(lg->axis);CHKERRQ(ierr);
 
   ierr = MPI_Comm_rank(((PetscObject)lg)->comm,&rank);CHKERRQ(ierr);
   if (!rank) {
-  
+
     for (i=0; i<dim; i++) {
       for (j=1; j<nopts; j++) {
         if (lg->colors) cl = lg->colors[i];
         else cl = PETSC_DRAW_BLACK+i;
         ierr = PetscDrawLine(draw,lg->x[(j-1)*dim+i],lg->y[(j-1)*dim+i],lg->x[j*dim+i],lg->y[j*dim+i],cl);CHKERRQ(ierr);
         if (lg->use_dots) {
-          ierr = PetscDrawString(draw,lg->x[j*dim+i],lg->y[j*dim+i],PETSC_DRAW_RED,"x");CHKERRQ(ierr);
+          ierr = PetscDrawString(draw,lg->x[j*dim+i],lg->y[j*dim+i],cl,"x");CHKERRQ(ierr);
         }
       }
     }
@@ -461,10 +513,13 @@ PetscErrorCode  PetscDrawLGDraw(PetscDrawLG lg)
   }
   ierr = PetscDrawFlush(lg->win);CHKERRQ(ierr);
   ierr = PetscDrawPause(lg->win);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_X)
+  XSetIOErrorHandler(PETSC_NULL);
+#endif
   PetscFunctionReturn(0);
-} 
+}
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscDrawLGPrint"
 /*@
   PetscDrawLGPrint - Prints a line graph.
@@ -491,9 +546,9 @@ PetscErrorCode  PetscDrawLGPrint(PetscDrawLG lg)
   if (nopts < 1)                  PetscFunctionReturn(0);
   if (xmin > xmax || ymin > ymax) PetscFunctionReturn(0);
 
-  for(i = 0; i < dim; i++) {
+  for (i = 0; i < dim; i++) {
     PetscPrintf(((PetscObject)lg)->comm, "Line %d>\n", i);
-    for(j = 0; j < nopts; j++) {
+    for (j = 0; j < nopts; j++) {
       PetscPrintf(((PetscObject)lg)->comm, "  X: %g Y: %g\n", (double)lg->x[j*dim+i], (double)lg->y[j*dim+i]);
     }
   }

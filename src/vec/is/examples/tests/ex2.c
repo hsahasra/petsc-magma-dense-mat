@@ -17,10 +17,10 @@ int main(int argc,char **argv)
   PetscBool      flg;
   PetscErrorCode ierr;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
 
   /*
-     Test IS of size 0 
+     Test IS of size 0
   */
   ierr = ISCreateStride(PETSC_COMM_SELF,0,0,2,&is);CHKERRQ(ierr);
   ierr = ISGetSize(is,&n);CHKERRQ(ierr);
@@ -28,7 +28,7 @@ int main(int argc,char **argv)
   ierr = ISStrideGetInfo(is,&start,&stride);CHKERRQ(ierr);
   if (start != 0) SETERRQ(PETSC_COMM_SELF,1,"ISStrideGetInfo");
   if (stride != 2) SETERRQ(PETSC_COMM_SELF,1,"ISStrideGetInfo");
-  ierr = PetscTypeCompare((PetscObject)is,ISSTRIDE,&flg);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)is,ISSTRIDE,&flg);CHKERRQ(ierr);
   if (!flg) SETERRQ(PETSC_COMM_SELF,1,"ISStride");
   ierr = ISGetIndices(is,&ii);CHKERRQ(ierr);
   ierr = ISRestoreIndices(is,&ii);CHKERRQ(ierr);
@@ -49,7 +49,7 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+
 
 
 

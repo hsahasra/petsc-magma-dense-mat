@@ -32,8 +32,10 @@ struct _SNESOps {
 
 struct _p_SNES {
   PETSCHEADER(struct _SNESOps);
-  DM   dm;
-  SNES pc;
+  DM        dm;
+  PetscBool dmAuto;             /* SNES created currently used DM automatically */
+  SNES      pc;
+  PCSide    pcside;
   PetscBool usespc;
 
   /*  ------------------------ User-provided stuff -------------------------------*/
@@ -134,10 +136,13 @@ struct _p_SNES {
   Vec         *vwork;            /* more work vectors for Jacobian approx */
   PetscInt    nvwork;
 
+  PetscBool   mf;               /* -snes_mf was used on this snes */
   PetscBool   mf_operator;      /* -snes_mf_operator was used on this snes */
+  PetscInt    mf_version;       /* The version of snes_mf used */
 
   Vec         xl,xu;             /* upper and lower bounds for box constrained VI problems */
   PetscInt    ntruebounds;       /* number of non-infinite bounds set for VI box constraints */
+  PetscBool   usersetbounds;     /* bounds have been set via SNESVISetVariableBounds(), rather than via computevariablebounds() callback. */
 };
 
 /* Context for resolution-dependent SNES callback information */
@@ -146,12 +151,30 @@ struct _n_SNESDM {
   PetscErrorCode (*computefunction)(SNES,Vec,Vec,void*);
   PetscErrorCode (*computegs)(SNES,Vec,Vec,void*);
   PetscErrorCode (*computejacobian)(SNES,Vec,Mat*,Mat*,MatStructure*,void*);
+
+  /* objective */
+  PetscErrorCode (*computeobjective)(SNES,Vec,PetscReal*,void*);
+
+  /* Picard iteration functions */
+  PetscErrorCode (*computepfunction)(SNES,Vec,Vec,void*);
+  PetscErrorCode (*computepjacobian)(SNES,Vec,Mat*,Mat*,MatStructure*,void*);
+
+  /* Block functions */
+  PetscErrorCode (*computeblockfunction)(SNES,Vec,Vec,void*);
+  PetscErrorCode (*computeblockjacobian)(SNES,Vec,Mat*,Mat*,MatStructure*,void*);
+
   void *functionctx;
   void *gsctx;
+  void *pctx;
   void *jacobianctx;
+  void *objectivectx;
+
+  void *blockfunctionctx;
+  void *blockjacobianctx;
 
   /* This context/destroy pair allows implementation-specific routines such as DMDA local functions. */
   PetscErrorCode (*destroy)(SNESDM);
+  PetscErrorCode (*duplicate)(SNESDM,DM);
   void *data;
 
   /* This is NOT reference counted. The SNES that originally created this context is cached here to implement copy-on-write.
@@ -159,11 +182,11 @@ struct _n_SNESDM {
    */
   DM originaldm;
 };
-extern PetscErrorCode DMSNESGetContext(DM,SNESDM*);
-extern PetscErrorCode DMSNESGetContextWrite(DM,SNESDM*);
-extern PetscErrorCode DMSNESCopyContext(DM,DM);
-extern PetscErrorCode DMSNESDuplicateContext(DM,DM);
-extern PetscErrorCode DMSNESSetUpLegacy(DM);
+PETSC_EXTERN PetscErrorCode DMSNESGetContext(DM,SNESDM*);
+PETSC_EXTERN PetscErrorCode DMSNESGetContextWrite(DM,SNESDM*);
+PETSC_EXTERN PetscErrorCode DMSNESCopyContext(DM,DM);
+PETSC_EXTERN PetscErrorCode DMSNESDuplicateContext(DM,DM);
+PETSC_EXTERN PetscErrorCode DMSNESSetUpLegacy(DM);
 
 /* Context for Eisenstat-Walker convergence criteria for KSP solvers */
 typedef struct {
@@ -186,28 +209,28 @@ typedef struct {
       snes->conv_hist_len++;\
     }}
 
-extern PetscErrorCode SNESDefaultGetWork(SNES,PetscInt);
+PETSC_EXTERN PetscErrorCode SNESDefaultGetWork(SNES,PetscInt);
 
-extern PetscErrorCode SNESVIProjectOntoBounds(SNES,Vec);
-extern PetscErrorCode SNESVICheckLocalMin_Private(SNES,Mat,Vec,Vec,PetscReal,PetscBool*);
-extern PetscErrorCode SNESReset_VI(SNES);
-extern PetscErrorCode SNESDestroy_VI(SNES);
-extern PetscErrorCode SNESView_VI(SNES,PetscViewer);
-extern PetscErrorCode SNESSetFromOptions_VI(SNES);
-extern PetscErrorCode SNESSetUp_VI(SNES);
-typedef PetscErrorCode (*SNESVIComputeVariableBoundsFunction)(SNES,Vec,Vec);
+PETSC_EXTERN PetscErrorCode SNESVIProjectOntoBounds(SNES,Vec);
+PETSC_EXTERN PetscErrorCode SNESVICheckLocalMin_Private(SNES,Mat,Vec,Vec,PetscReal,PetscBool*);
+PETSC_EXTERN PetscErrorCode SNESReset_VI(SNES);
+PETSC_EXTERN PetscErrorCode SNESDestroy_VI(SNES);
+PETSC_EXTERN PetscErrorCode SNESView_VI(SNES,PetscViewer);
+PETSC_EXTERN PetscErrorCode SNESSetFromOptions_VI(SNES);
+PETSC_EXTERN PetscErrorCode SNESSetUp_VI(SNES);
+PETSC_EXTERN_TYPEDEF typedef PetscErrorCode (*SNESVIComputeVariableBoundsFunction)(SNES,Vec,Vec);
 EXTERN_C_BEGIN
-extern PetscErrorCode SNESVISetComputeVariableBounds_VI(SNES,SNESVIComputeVariableBoundsFunction);
-extern PetscErrorCode SNESVISetVariableBounds_VI(SNES,Vec,Vec);
+PETSC_EXTERN PetscErrorCode SNESVISetComputeVariableBounds_VI(SNES,SNESVIComputeVariableBoundsFunction);
+PETSC_EXTERN PetscErrorCode SNESVISetVariableBounds_VI(SNES,Vec,Vec);
 EXTERN_C_END
-extern PetscErrorCode SNESDefaultConverged_VI(SNES,PetscInt,PetscReal,PetscReal,PetscReal,SNESConvergedReason*,void*);
+PETSC_EXTERN PetscErrorCode SNESDefaultConverged_VI(SNES,PetscInt,PetscReal,PetscReal,PetscReal,SNESConvergedReason*,void*);
 
 PetscErrorCode SNES_KSPSolve(SNES,KSP,Vec,Vec);
 PetscErrorCode SNESScaleStep_Private(SNES,Vec,PetscReal*,PetscReal*,PetscReal*,PetscReal*);
 
-extern PetscBool  SNESRegisterAllCalled;
-extern PetscFList SNESList;
+PETSC_EXTERN PetscBool SNESRegisterAllCalled;
+PETSC_EXTERN PetscFList SNESList;
 
-extern PetscLogEvent SNES_Solve, SNES_LineSearch, SNES_FunctionEval, SNES_JacobianEval, SNES_GSEval;
+PETSC_EXTERN PetscLogEvent SNES_Solve, SNES_LineSearch, SNES_FunctionEval, SNES_JacobianEval, SNES_GSEval;
 
 #endif

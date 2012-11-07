@@ -20,7 +20,7 @@ int main(int argc,char **argv)
 
   xlabel = "X-axis Label";toplabel = "Top Label";ylabel = "Y-axis Label";
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-width",&w,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-height",&h,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-n",&nn,PETSC_NULL);CHKERRQ(ierr);
@@ -31,9 +31,8 @@ int main(int argc,char **argv)
   if (flg) {
     xlabel = (char *)0; toplabel = (char *)0;
   }
-  /* ierr = PetscDrawOpenX(PETSC_COMM_SELF,0,"Title",x,y,width,height,&draw);CHKERRQ(ierr);*/
   ierr = PetscDrawCreate(PETSC_COMM_SELF,0,"Title",x,y,width,height,&draw);CHKERRQ(ierr);
-  ierr = PetscDrawSetType(draw,PETSC_DRAW_X);CHKERRQ(ierr);
+  ierr = PetscDrawSetFromOptions(draw);CHKERRQ(ierr);
   ierr = PetscDrawHGCreate(draw,bins,&hist);CHKERRQ(ierr);
   ierr = PetscDrawHGGetAxis(hist,&axis);CHKERRQ(ierr);
   ierr = PetscDrawAxisSetColors(axis,PETSC_DRAW_BLACK,PETSC_DRAW_RED,PETSC_DRAW_BLUE);CHKERRQ(ierr);
@@ -52,4 +51,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

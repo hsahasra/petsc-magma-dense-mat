@@ -7,21 +7,21 @@ static char help[] = "Tests VecView()/VecLoad() for DMDA vectors (this tests DMD
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  PetscMPIInt    rank,size;
-  PetscInt       N = 6,M=8,P=5,dof=1;
-  PetscInt       stencil_width=1,pt=0,st=0;
-  PetscErrorCode ierr;
-  PetscBool      flg2,flg3,isbinary,mpiio;
+  PetscMPIInt      rank,size;
+  PetscInt         N = 6,M=8,P=5,dof=1;
+  PetscInt         stencil_width=1,pt=0,st=0;
+  PetscErrorCode   ierr;
+  PetscBool        flg2,flg3,isbinary,mpiio;
   DMDABoundaryType bx = DMDA_BOUNDARY_NONE,by = DMDA_BOUNDARY_NONE,bz = DMDA_BOUNDARY_NONE;
   DMDAStencilType  stencil_type = DMDA_STENCIL_STAR;
-  DM             da,da2;
-  Vec            global1,global2;
-  PetscScalar    mone = -1.0;
-  PetscReal      norm;
-  PetscViewer    viewer;
-  PetscRandom    rdm;
+  DM               da,da2;
+  Vec              global1,global2;
+  PetscScalar      mone = -1.0;
+  PetscReal        norm;
+  PetscViewer      viewer;
+  PetscRandom      rdm;
 #if defined(PETSC_HAVE_HDF5)
-  PetscBool      ishdf5;
+  PetscBool        ishdf5;
 #endif
 
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
@@ -36,14 +36,14 @@ int main(int argc,char **argv)
   ierr = PetscOptionsGetInt(PETSC_NULL,"-periodic",&pt,PETSC_NULL);CHKERRQ(ierr); 
   if (pt == 1) bx = DMDA_BOUNDARY_PERIODIC;
   if (pt == 2) by = DMDA_BOUNDARY_PERIODIC;
-  if (pt == 4) bx = DMDA_BOUNDARY_PERIODIC; by = DMDA_BOUNDARY_PERIODIC
+  if (pt == 4) {bx = DMDA_BOUNDARY_PERIODIC; by = DMDA_BOUNDARY_PERIODIC;}
 
   ierr = PetscOptionsGetInt(PETSC_NULL,"-stencil_type",&st,PETSC_NULL);CHKERRQ(ierr); 
   stencil_type = (DMDAStencilType) st;
 
-  ierr = PetscOptionsHasName(PETSC_NULL,"-1d",&flg2);CHKERRQ(ierr);
-  ierr = PetscOptionsHasName(PETSC_NULL,"-2d",&flg2);CHKERRQ(ierr);
-  ierr = PetscOptionsHasName(PETSC_NULL,"-3d",&flg3);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(PETSC_NULL,"-oned",&flg2);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(PETSC_NULL,"-twod",&flg2);CHKERRQ(ierr);
+  ierr = PetscOptionsHasName(PETSC_NULL,"-threed",&flg3);CHKERRQ(ierr);
 
   ierr = PetscOptionsHasName(PETSC_NULL,"-binary",&isbinary);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_HDF5)
@@ -110,7 +110,7 @@ int main(int argc,char **argv)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ex23: Norm of difference %G should be zero\n",norm);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of processors %d\n",size);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"  M,N,P,dof %D %D %D %D\n",M,N,P,dof);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"  stencil_width %D stencil_type %d periodic %d\n",stencil_width,(int)stencil_type,(int)periodic);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"  stencil_width %D stencil_type %d periodic %d\n",stencil_width,(int)stencil_type,(int)pt);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"  dimension %d\n",1 + (int) flg2 + (int) flg3);CHKERRQ(ierr);
   }
 

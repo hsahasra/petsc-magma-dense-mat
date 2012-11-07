@@ -21,7 +21,7 @@ int main(int argc,char **argv)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscInitialize(&argc, &argv, (char *) 0, help);CHKERRQ(ierr); 
+  PetscInitialize(&argc, &argv, (char *) 0, help);
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL, "-n", &n, PETSC_NULL);CHKERRQ(ierr);
 
@@ -32,7 +32,7 @@ int main(int argc,char **argv)
 
   ierr = VecGetLocalSize(x1, &nlocal);CHKERRQ(ierr);
   ierr = VecGetArray(x1, &array);CHKERRQ(ierr);
-  for(i = 0; i < nlocal; i++) {
+  for (i = 0; i < nlocal; i++) {
     array[i] = rank + 1;
   }
   ierr = VecRestoreArray(x1, &array);CHKERRQ(ierr);
@@ -40,7 +40,7 @@ int main(int argc,char **argv)
   ierr = VecAssemblyEnd(x1);CHKERRQ(ierr);
 
   ierr = VecCreate(PETSC_COMM_WORLD, &x2);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) x2, "TestVec");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) x2, "TestVec2");CHKERRQ(ierr);
   ierr = VecSetSizes(x2, PETSC_DECIDE, n);CHKERRQ(ierr);
   ierr = VecSetBlockSize(x2, 2);CHKERRQ(ierr);
   ierr = VecSetFromOptions(x2);CHKERRQ(ierr);
@@ -65,16 +65,23 @@ int main(int argc,char **argv)
   ierr = PetscObjectSetName((PetscObject) y1, "TestVec");CHKERRQ(ierr);
   ierr = VecSetSizes(y1, PETSC_DECIDE, n);CHKERRQ(ierr);
   ierr = VecSetFromOptions(y1);CHKERRQ(ierr);
-  ierr = VecDuplicate(y1, &y2);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) y2, "TestVec");CHKERRQ(ierr);
-  ierr = VecDuplicate(y1, &y3);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) y3, "TestVec");CHKERRQ(ierr);
-  ierr = VecDuplicate(y1, &y4);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) y4, "TestVec");CHKERRQ(ierr);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&y2);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(y2, 2);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) y2, "TestVec2");CHKERRQ(ierr);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&y3);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(y3, 2);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) y3, "TestVec2");CHKERRQ(ierr);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&y4);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(y4, 2);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) y4, "TestVec2");CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, "ex19.h5", FILE_MODE_READ, &viewer);CHKERRQ(ierr);
   ierr = PetscViewerHDF5PushGroup(viewer, "/");CHKERRQ(ierr);
   ierr = VecLoad(y1, viewer);CHKERRQ(ierr);
+
   ierr = PetscViewerHDF5PushGroup(viewer, "/testBlockSize");CHKERRQ(ierr);
   ierr = VecLoad(y2, viewer);CHKERRQ(ierr);
   ierr = PetscViewerHDF5PushGroup(viewer, "/testTimestep");CHKERRQ(ierr);
@@ -109,4 +116,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   PetscFunctionReturn(0);
 }
- 
+

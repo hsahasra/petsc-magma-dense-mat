@@ -74,8 +74,8 @@ int main(int argc,char **argv)
 
   ierr = TSSolve(ts,X,&ftime);CHKERRQ(ierr);
   ierr = TSGetTimeStepNumber(ts,&steps);CHKERRQ(ierr);
-  ierr = TSGetNonlinearSolveIterations(ts,&nits);CHKERRQ(ierr);
-  ierr = TSGetLinearSolveIterations(ts,&lits);CHKERRQ(ierr);
+  ierr = TSGetSNESIterations(ts,&nits);CHKERRQ(ierr);
+  ierr = TSGetKSPIterations(ts,&lits);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Time integrator took (%D,%D,%D) iterations to reach final time %G\n",steps,nits,lits,ftime);CHKERRQ(ierr);
   if (view_final) {
     ierr = VecView(X,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -93,7 +93,7 @@ int main(int argc,char **argv)
   return 0;
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "MonitorObjective"
 static PetscErrorCode MonitorObjective(TS ts,PetscInt step,PetscReal t,Vec X,void *ictx)
 {

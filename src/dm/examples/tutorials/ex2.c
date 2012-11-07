@@ -7,21 +7,21 @@ static char help[] = "Tests DMDAGlobalToNaturalAllCreate() using contour plottin
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  PetscInt       i,j,M = 10,N = 8,m = PETSC_DECIDE,n = PETSC_DECIDE;
-  PetscMPIInt    rank;
-  PetscErrorCode ierr;
-  PetscBool      flg = PETSC_FALSE;
-  DM             da;
-  PetscViewer    viewer;
-  Vec            localall,global;
-  PetscScalar    value,*vlocal;
+  PetscInt         i,j,M = 10,N = 8,m = PETSC_DECIDE,n = PETSC_DECIDE;
+  PetscMPIInt      rank;
+  PetscErrorCode   ierr;
+  PetscBool        flg = PETSC_FALSE;
+  DM               da;
+  PetscViewer      viewer;
+  Vec              localall,global;
+  PetscScalar      value,*vlocal;
   DMDABoundaryType bx = DMDA_BOUNDARY_NONE,by = DMDA_BOUNDARY_NONE;
   DMDAStencilType  stype = DMDA_STENCIL_BOX;
-  VecScatter     tolocalall,fromlocalall;
-  PetscInt       start,end;
-  
+  VecScatter       tolocalall,fromlocalall;
+  PetscInt         start,end;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = PetscViewerDrawOpen(PETSC_COMM_WORLD,0,"",300,0,300,300,&viewer);CHKERRQ(ierr);
 
   /* Read options */
@@ -80,4 +80,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

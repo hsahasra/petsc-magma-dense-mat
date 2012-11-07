@@ -11,6 +11,7 @@ class Configure(PETSc.package.NewPackage):
     self.includes  = ['dmumps_c.h']
     #
     # Mumps does NOT work with 64 bit integers without a huge number of hacks we ain't making
+    self.double    = 0
     self.complex   = 1
     self.worksonWindows   = 1
     self.downloadonWindows= 1
@@ -48,6 +49,8 @@ class Configure(PETSc.package.NewPackage):
   def Install(self):
     import os
 
+    if not hasattr(self.compilers, 'FC'):
+      raise RuntimeError('Cannot install '+self.name+' without Fortran, make sure you do NOT have --with-fc=0')
     if not self.compilers.FortranDefineCompilerOption:
       raise RuntimeError('Fortran compiler cannot handle preprocessing directives from command line.')
     if self.framework.argDB['with-mumps-serial']:
@@ -57,7 +60,7 @@ class Configure(PETSc.package.NewPackage):
     g.write('IPORD      = -I$(topdir)/PORD/include/\n')
     g.write('LPORD      = -L$(LPORDDIR) -lpord\n')
     orderingsc = '-Dpord'
-    orderingsf = self.compilers.FortranDefineCompilerOption+'prod'
+    orderingsf = self.compilers.FortranDefineCompilerOption+'pord'
     # Disable threads on BGL
     if self.libraryOptions.isBGL():
       orderingsc += ' -DWITHOUT_PTHREAD'
@@ -66,7 +69,7 @@ class Configure(PETSc.package.NewPackage):
       g.write('LMETIS = '+self.libraries.toString(self.parmetis.lib)+'\n')
       orderingsc += ' -Dmetis -Dparmetis'
       orderingsf += ' '+self.compilers.FortranDefineCompilerOption+'metis '+self.compilers.FortranDefineCompilerOption+'parmetis'
-    elif self.ptscotch.found:
+    if self.ptscotch.found:
       g.write('ISCOTCH = '+self.headers.toString(self.ptscotch.include)+'\n')
       g.write('LSCOTCH = '+self.libraries.toString(self.ptscotch.lib)+'\n')
       orderingsc += ' -Dscotch  -Dptscotch'
@@ -133,10 +136,11 @@ class Configure(PETSc.package.NewPackage):
     return self.installDir
 
   def configureLibrary(self):
-    if self.parmetis.found:
-      self.deps.append(self.parmetis)
-    elif self.ptscotch.found:
-      self.deps.append(self.ptscotch)
+    if not self.framework.argDB['with-mumps-serial']:
+      if self.parmetis.found:
+        self.deps.append(self.parmetis)
+      if self.ptscotch.found:
+        self.deps.append(self.ptscotch)
     PETSc.package.NewPackage.configureLibrary(self)
      # [parallem mumps] make sure either ptscotch or parmetis is enabled
     if not self.framework.argDB['with-mumps-serial'] and not self.ptscotch.found and not self.parmetis.found:

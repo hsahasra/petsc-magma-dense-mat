@@ -51,11 +51,16 @@ static PetscErrorCode PCSetUp_AINVCUSP(PC pc)
 {
   PC_AINVCUSP     *ainv = (PC_AINVCUSP*)pc->data;
   PetscBool       flg = PETSC_FALSE;
-  Mat_SeqAIJCUSP  *gpustruct;
+#if !defined(PETSC_USE_COMPLEX)
+  // protect these in order to avoid compiler warnings. This preconditioner does 
+  // not work for complex types.
+  Mat_SeqAIJCUSP *gpustruct;
+  CUSPMATRIX* mat;	
+#endif
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)pc->pmat,MATSEQAIJCUSP,&flg);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)pc->pmat,MATSEQAIJCUSP,&flg);CHKERRQ(ierr);
   if (!flg) SETERRQ(((PetscObject)pc)->comm,PETSC_ERR_SUP,"Currently only handles CUSP matrices");
   if (pc->setupcalled != 0){
     try {
@@ -70,12 +75,22 @@ static PetscErrorCode PCSetUp_AINVCUSP(PC pc)
   }
   try {
     ierr = MatCUSPCopyToGPU(pc->pmat);CHKERRQ(ierr);
+#if defined(PETSC_USE_COMPLEX)
+    ainv->AINVCUSP =  0; CHKERRQ(1); /* TODO */
+#else
     gpustruct = (Mat_SeqAIJCUSP *)(pc->pmat->spptr);
+#ifdef PETSC_HAVE_TXPETSCGPU
+    ierr = gpustruct->mat->getCsrMatrix(&mat);CHKERRCUSP(ierr);
+#else
+    mat = (CUSPMATRIX*)gpustruct->mat;
+#endif
+
     if (ainv->scaled) {
-      ainv->AINVCUSP =  new cuspainvprecondscaled(*(CUSPMATRIX*)gpustruct->mat, ainv->droptolerance,ainv->nonzeros,ainv->uselin,ainv->linparam);
+      ainv->AINVCUSP =  new cuspainvprecondscaled(*mat, ainv->droptolerance,ainv->nonzeros,ainv->uselin,ainv->linparam);
     } else {
-      ainv->AINVCUSP =  new cuspainvprecond(*(CUSPMATRIX*)gpustruct->mat, ainv->droptolerance,ainv->nonzeros,ainv->uselin,ainv->linparam);
+      ainv->AINVCUSP =  new cuspainvprecond(*mat, ainv->droptolerance,ainv->nonzeros,ainv->uselin,ainv->linparam);
     }
+#endif
   } catch(char* ex) {
     SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s",ex);
   }
@@ -105,8 +120,8 @@ static PetscErrorCode PCApply_AINVCUSP(PC pc,Vec x,Vec y)
   CUSPARRAY       *xarray,*yarray;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)x,VECSEQCUSP,&flg1);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)y,VECSEQCUSP,&flg2);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQCUSP,&flg1);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)y,VECSEQCUSP,&flg2);CHKERRQ(ierr);
   if (!(flg1 && flg2)) SETERRQ(((PetscObject)pc)->comm,PETSC_ERR_SUP, "Currently only handles CUSP vectors");
   if (!ainv->AINVCUSP) {
     ierr = PCSetUp_AINVCUSP(pc);CHKERRQ(ierr);

@@ -8,11 +8,10 @@
 #include <string.h> /* for strcmp */
 #endif
 
-PETSC_EXTERN_CXX_BEGIN
 
 /*
    Defines the directory where the compiled source is located; used
-   in printing error messages. Each makefile has an entry 
+   in printing error messages. Each makefile has an entry
    LOCDIR	  =  thedirectory
    and bmake/common_variables includes in CCPPFLAGS -D__SDIR__=${LOCDIR}
    which is a flag passed to the C/C++ compilers. This declaration below
@@ -23,7 +22,7 @@ PETSC_EXTERN_CXX_BEGIN
 #endif
 
 /*
-   Defines the function where the compiled source is located; used 
+   Defines the function where the compiled source is located; used
    in printing error messages. This is defined here in case the user
    does not declare it.
 */
@@ -31,7 +30,7 @@ PETSC_EXTERN_CXX_BEGIN
 #define __FUNCT__ "User provided function"
 #endif
 
-/* 
+/*
      These are the generic error codes. These error codes are used
      many different places in the PETSc source code. The string versions are
      at src/sys/error/err.c any changes here must also be made there
@@ -54,6 +53,7 @@ PETSC_EXTERN_CXX_BEGIN
 #define PETSC_ERR_CONV_FAILED      82   /* iterative method (KSP or SNES) failed */
 #define PETSC_ERR_USER             83   /* user has not provided needed function */
 #define PETSC_ERR_SYS              88   /* error in system call */
+#define PETSC_ERR_POINTER          70   /* pointer does not point to valid address */
 
 #define PETSC_ERR_ARG_SIZ          60   /* nonconforming object sizes used in operation */
 #define PETSC_ERR_ARG_IDN          61   /* two arguments not allowed to be the same */
@@ -90,7 +90,7 @@ PETSC_EXTERN_CXX_BEGIN
 #if defined(PETSC_USE_ERRORCHECKING)
 
 /*MC
-   SETERRQ - Macro that is called when an error has been detected, 
+   SETERRQ - Macro that is called when an error has been detected,
 
    Synopsis:
    PetscErrorCode SETERRQ(MPI_Comm comm,PetscErrorCode errorcode,char *message)
@@ -119,7 +119,7 @@ M*/
 #define SETERRQ(comm,n,s)              return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s)
 
 /*MC
-   SETERRQ1 - Macro that is called when an error has been detected, 
+   SETERRQ1 - Macro that is called when an error has been detected,
 
    Synopsis:
    PetscErrorCode SETERRQ1(MPI_Comm comm,PetscErrorCode errorcode,char *formatmessage,arg)
@@ -145,7 +145,7 @@ M*/
 #define SETERRQ1(comm,n,s,a1)          return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s,a1)
 
 /*MC
-   SETERRQ2 - Macro that is called when an error has been detected, 
+   SETERRQ2 - Macro that is called when an error has been detected,
 
    Synopsis:
    PetscErrorCode SETERRQ2(PetscErrorCode errorcode,char *formatmessage,arg1,arg2)
@@ -172,7 +172,7 @@ M*/
 #define SETERRQ2(comm,n,s,a1,a2)       return PetscError(comm,__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__,n,PETSC_ERROR_INITIAL,s,a1,a2)
 
 /*MC
-   SETERRQ3 - Macro that is called when an error has been detected, 
+   SETERRQ3 - Macro that is called when an error has been detected,
 
    Synopsis:
    PetscErrorCode SETERRQ3(PetscErrorCode errorcode,char *formatmessage,arg1,arg2,arg3)
@@ -233,7 +233,7 @@ M*/
     highly inappropriate to use it in this manner as it invokes return(PetscErrorCode). In particular,
     it cannot be used in functions which return(void) or any other datatype.  In these types of functions,
     you can use CHKERRV() which returns without an error code (bad idea since the error is ignored or
-         if (n) {PetscError(....); return(YourReturnType);} 
+         if (n) {PetscError(....); return(YourReturnType);}
     where you may pass back a PETSC_NULL to indicate an error. You can also call CHKERRABORT(comm,n) to have
     MPI_Abort() returned immediately.
 
@@ -299,7 +299,7 @@ M*/
 
    Concepts: memory corruption
 
-.seealso: PetscTraceBackErrorHandler(), PetscPushErrorHandler(), PetscError(), SETERRQ(), CHKMEMQ, SETERRQ1(), SETERRQ2(), SETERRQ3(), 
+.seealso: PetscTraceBackErrorHandler(), PetscPushErrorHandler(), PetscError(), SETERRQ(), CHKMEMQ, SETERRQ1(), SETERRQ2(), SETERRQ3(),
           PetscMallocValidate()
 M*/
 #define CHKMEMQ do {PetscErrorCode _7_ierr = PetscMallocValidate(__LINE__,PETSC_FUNCTION_NAME,__FILE__,__SDIR__);CHKERRQ(_7_ierr);} while(0)
@@ -308,20 +308,20 @@ M*/
 
 #else /* PETSC_USE_ERRORCHECKING */
 
-/* 
+/*
     These are defined to be empty for when error checking is turned off, with ./configure --with-errorchecking=0
 */
 
-#define SETERRQ(c,n,s) 
-#define SETERRQ1(c,n,s,a1) 
-#define SETERRQ2(c,n,s,a1,a2) 
-#define SETERRQ3(c,n,s,a1,a2,a3) 
-#define SETERRQ4(c,n,s,a1,a2,a3,a4) 
-#define SETERRQ5(c,n,s,a1,a2,a3,a4,a5) 
-#define SETERRQ6(c,n,s,a1,a2,a3,a4,a5,a6) 
-#define SETERRQ7(c,n,s,a1,a2,a3,a4,a5,a6,a7) 
-#define SETERRQ8(c,n,s,a1,a2,a3,a4,a5,a6,a7,a8) 
-#define SETERRABORT(comm,n,s) 
+#define SETERRQ(c,n,s)
+#define SETERRQ1(c,n,s,a1)
+#define SETERRQ2(c,n,s,a1,a2)
+#define SETERRQ3(c,n,s,a1,a2,a3)
+#define SETERRQ4(c,n,s,a1,a2,a3,a4)
+#define SETERRQ5(c,n,s,a1,a2,a3,a4,a5)
+#define SETERRQ6(c,n,s,a1,a2,a3,a4,a5,a6)
+#define SETERRQ7(c,n,s,a1,a2,a3,a4,a5,a6,a7)
+#define SETERRQ8(c,n,s,a1,a2,a3,a4,a5,a6,a7,a8)
+#define SETERRABORT(comm,n,s)
 
 #define CHKERRQ(n)     ;
 #define CHKERRABORT(comm,n) ;
@@ -347,32 +347,88 @@ M*/
 E*/
 typedef enum {PETSC_ERROR_INITIAL=0,PETSC_ERROR_REPEAT=1,PETSC_ERROR_IN_CXX = 2} PetscErrorType;
 
-extern PetscErrorCode  PetscErrorPrintfInitialize(void);
-extern PetscErrorCode  PetscErrorMessage(int,const char*[],char **);
-extern PetscErrorCode  PetscTraceBackErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscIgnoreErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscMPIAbortErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscAbortErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscAttachDebuggerErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscReturnErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
-extern PetscErrorCode  PetscError(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,...);
-extern PetscErrorCode  PetscPushErrorHandler(PetscErrorCode (*handler)(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*),void*);
-extern PetscErrorCode  PetscPopErrorHandler(void);
-extern PetscErrorCode  PetscDefaultSignalHandler(int,void*);
-extern PetscErrorCode  PetscPushSignalHandler(PetscErrorCode (*)(int,void *),void*);
-extern PetscErrorCode  PetscPopSignalHandler(void);
+PETSC_EXTERN PetscErrorCode PetscErrorPrintfInitialize(void);
+PETSC_EXTERN PetscErrorCode PetscErrorMessage(int,const char*[],char **);
+PETSC_EXTERN PetscErrorCode PetscTraceBackErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscIgnoreErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscEmacsClientErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscMPIAbortErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscAbortErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscAttachDebuggerErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscReturnErrorHandler(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*);
+PETSC_EXTERN PetscErrorCode PetscError(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,...);
+PETSC_EXTERN PetscErrorCode PetscPushErrorHandler(PetscErrorCode (*handler)(MPI_Comm,int,const char*,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*),void*);
+PETSC_EXTERN PetscErrorCode PetscPopErrorHandler(void);
+PETSC_EXTERN PetscErrorCode PetscDefaultSignalHandler(int,void*);
+PETSC_EXTERN PetscErrorCode PetscPushSignalHandler(PetscErrorCode (*)(int,void *),void*);
+PETSC_EXTERN PetscErrorCode PetscPopSignalHandler(void);
 
 typedef enum {PETSC_FP_TRAP_OFF=0,PETSC_FP_TRAP_ON=1} PetscFPTrap;
-extern PetscErrorCode   PetscSetFPTrap(PetscFPTrap);
-extern PetscErrorCode PetscFPTrapPush(PetscFPTrap);
-extern PetscErrorCode PetscFPTrapPop(void);
+PETSC_EXTERN PetscErrorCode PetscSetFPTrap(PetscFPTrap);
+PETSC_EXTERN PetscErrorCode PetscFPTrapPush(PetscFPTrap);
+PETSC_EXTERN PetscErrorCode PetscFPTrapPop(void);
+
+/*  Linux functions CPU_SET and others don't work if sched.h is not included before
+    including pthread.h. Also, these functions are active only if either _GNU_SOURCE
+    or __USE_GNU is not set (see /usr/include/sched.h and /usr/include/features.h), hence
+    set these first.
+*/
+#if defined(PETSC_HAVE_PTHREADCLASSES)
+#if defined(PETSC_HAVE_SCHED_H)
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <sched.h>
+#endif
+#include <pthread.h>
+#endif
+
+#if defined(PETSC_HAVE_PTHREADCLASSES) && !defined(PETSC_PTHREAD_LOCAL)
+/* Get the value associated with key */
+PETSC_STATIC_INLINE void* PetscThreadLocalGetValue(pthread_key_t key)
+{
+  return pthread_getspecific(key);
+}
+
+/* Set the value for key */
+PETSC_STATIC_INLINE void PetscThreadLocalSetValue(pthread_key_t key,void* value)
+{
+  pthread_setspecific(key,(void*)value);
+}
+
+/* Create pthread thread local key */
+PETSC_STATIC_INLINE void PetscThreadLocalRegister(pthread_key_t *key)
+{
+  pthread_key_create(key,NULL);
+}
+
+/* Delete pthread thread local key */
+PETSC_STATIC_INLINE void PetscThreadLocalDestroy(pthread_key_t key)
+{
+  pthread_key_delete(key);
+}
+#else
+PETSC_STATIC_INLINE void* PetscThreadLocalGetValue(void* name)
+{
+  return name;
+}
+
+#define PetscThreadLocalSetValue(name,value) (name = value)
+
+PETSC_STATIC_INLINE void PetscThreadLocalRegister(PETSC_UNUSED void *name)
+{
+}
+
+PETSC_STATIC_INLINE void PetscThreadLocalDestroy(PETSC_UNUSED void *name)
+{
+} 
+#endif
 
 /*
       Allows the code to build a stack frame as it runs
 */
 
-
+#if defined(PETSC_USE_DEBUG)
 
 #define PETSCSTACKSIZE 64
 
@@ -381,18 +437,26 @@ typedef struct  {
   const char *file[PETSCSTACKSIZE];
   const char *directory[PETSCSTACKSIZE];
         int  line[PETSCSTACKSIZE];
-        int currentsize;
+        int  currentsize;
 } PetscStack;
 
+#if defined(PETSC_HAVE_PTHREADCLASSES)
 #if defined(PETSC_PTHREAD_LOCAL)
-extern  PETSC_PTHREAD_LOCAL PetscStack *petscstack;
+PETSC_EXTERN PETSC_PTHREAD_LOCAL PetscStack *petscstack;
 #else
-extern PetscStack *petscstack;
+PETSC_EXTERN pthread_key_t petscstack;
 #endif
-extern PetscErrorCode   PetscStackCopy(PetscStack*,PetscStack*);
-extern PetscErrorCode   PetscStackPrint(PetscStack*,FILE* fp);
+#elif defined(PETSC_HAVE_OPENMP)
+PETSC_EXTERN PetscStack *petscstack;
+#pragma omp threadprivate(petscstack)
+#else
+PETSC_EXTERN PetscStack *petscstack;
+#endif
 
-#define PetscStackActive (petscstack != 0)
+PETSC_EXTERN PetscErrorCode PetscStackCopy(PetscStack*,PetscStack*);
+PETSC_EXTERN PetscErrorCode PetscStackPrint(PetscStack*,FILE* fp);
+
+#define PetscStackActive (((PetscStack*)PetscThreadLocalGetValue(petscstack)) != 0)
 
 /*MC
    PetscFunctionBegin - First executable line of each PETSc function
@@ -420,15 +484,17 @@ extern PetscErrorCode   PetscStackPrint(PetscStack*,FILE* fp);
 .keywords: traceback, error handling
 M*/
 #define PetscFunctionBegin \
-  do {                                                                  \
-    if (petscstack && (petscstack->currentsize < PETSCSTACKSIZE)) {     \
-      petscstack->function[petscstack->currentsize]  = PETSC_FUNCTION_NAME; \
-      petscstack->file[petscstack->currentsize]      = __FILE__;        \
-      petscstack->directory[petscstack->currentsize] = __SDIR__;        \
-      petscstack->line[petscstack->currentsize]      = __LINE__;        \
-      petscstack->currentsize++;                                        \
+  do {									\
+    PetscStack* petscstackp;                                            \
+    petscstackp = (PetscStack*)PetscThreadLocalGetValue(petscstack);     \
+    if (petscstackp && (petscstackp->currentsize < PETSCSTACKSIZE)) {	\
+      petscstackp->function[petscstackp->currentsize]  = PETSC_FUNCTION_NAME; \
+      petscstackp->file[petscstackp->currentsize]      = __FILE__;        \
+      petscstackp->directory[petscstackp->currentsize] = __SDIR__;        \
+      petscstackp->line[petscstackp->currentsize]      = __LINE__;        \
+      petscstackp->currentsize++;                                        \
     }                                                                   \
-    PetscCheck__FUNCT__();                                              \
+    PetscCheck__FUNCT__();						\
   } while (0)
 
 #define PetscCheck__FUNCT__() do { \
@@ -456,22 +522,27 @@ M*/
 
 
 #define PetscStackPush(n) \
-  do {if (petscstack && (petscstack->currentsize < PETSCSTACKSIZE)) {    \
-    petscstack->function[petscstack->currentsize]  = n; \
-    petscstack->file[petscstack->currentsize]      = "unknown"; \
-    petscstack->directory[petscstack->currentsize] = "unknown"; \
-    petscstack->line[petscstack->currentsize]      = 0; \
-    petscstack->currentsize++; \
-  } CHKMEMQ;} while (0)
+  do {									\
+    PetscStack * petscstackp;                                           \
+    petscstackp = (PetscStack*)PetscThreadLocalGetValue(petscstack);     \
+    if (petscstackp && (petscstackp->currentsize < PETSCSTACKSIZE)) {	\
+      petscstackp->function[petscstackp->currentsize]  = n;		\
+      petscstackp->file[petscstackp->currentsize]      = "unknown";	\
+      petscstackp->directory[petscstackp->currentsize] = "unknown";	\
+      petscstackp->line[petscstackp->currentsize]      = 0;		\
+      petscstackp->currentsize++;					\
+    } CHKMEMQ;} while (0)
 
 #define PetscStackPop \
-  do {CHKMEMQ; if (petscstack && petscstack->currentsize > 0) {	\
-    petscstack->currentsize--; \
-    petscstack->function[petscstack->currentsize]  = 0; \
-    petscstack->file[petscstack->currentsize]      = 0; \
-    petscstack->directory[petscstack->currentsize] = 0; \
-    petscstack->line[petscstack->currentsize]      = 0; \
-  }} while (0)
+  do {PetscStack* petscstackp;CHKMEMQ;                                  \
+    petscstackp = (PetscStack*)PetscThreadLocalGetValue(petscstack);     \
+    if (petscstackp && petscstackp->currentsize > 0) {			\
+      petscstackp->currentsize--;					\
+      petscstackp->function[petscstackp->currentsize]  = 0;		\
+      petscstackp->file[petscstackp->currentsize]      = 0;		\
+      petscstackp->directory[petscstackp->currentsize] = 0;		\
+      petscstackp->line[petscstackp->currentsize]      = 0;		\
+    }} while (0)
 
 /*MC
    PetscFunctionReturn - Last executable line of each PETSc function
@@ -499,30 +570,34 @@ M*/
 .keywords: traceback, error handling
 M*/
 #define PetscFunctionReturn(a) \
-  do {\
-  if (petscstack && petscstack->currentsize > 0) {	\
-    petscstack->currentsize--; \
-    petscstack->function[petscstack->currentsize]  = 0; \
-    petscstack->file[petscstack->currentsize]      = 0; \
-    petscstack->directory[petscstack->currentsize] = 0; \
-    petscstack->line[petscstack->currentsize]      = 0; \
-  }\
-  return(a);} while (0)
+  do {									\
+    PetscStack* petscstackp;                                            \
+    petscstackp = (PetscStack*)PetscThreadLocalGetValue(petscstack); \
+    if (petscstackp && petscstackp->currentsize > 0) {			\
+      petscstackp->currentsize--;					\
+      petscstackp->function[petscstackp->currentsize]  = 0;		\
+      petscstackp->file[petscstackp->currentsize]      = 0;		\
+      petscstackp->directory[petscstackp->currentsize] = 0;		\
+      petscstackp->line[petscstackp->currentsize]      = 0;		\
+    }									\
+    return(a);} while (0)
 
 #define PetscFunctionReturnVoid() \
-  do {\
-  if (petscstack && petscstack->currentsize > 0) {	\
-    petscstack->currentsize--; \
-    petscstack->function[petscstack->currentsize]  = 0; \
-    petscstack->file[petscstack->currentsize]      = 0; \
-    petscstack->directory[petscstack->currentsize] = 0; \
-    petscstack->line[petscstack->currentsize]      = 0; \
-  }\
-  return;} while (0)
-/*
+  do {                                                              \
+    PetscStack* petscstackp;                                        \
+    petscstackp = (PetscStack*)PetscThreadLocalGetValue(petscstack); \
+    if (petscstackp && petscstackp->currentsize > 0) {			\
+      petscstackp->currentsize--;					\
+      petscstackp->function[petscstackp->currentsize]  = 0;		\
+      petscstackp->file[petscstackp->currentsize]      = 0;		\
+      petscstackp->directory[petscstackp->currentsize] = 0;		\
+      petscstackp->line[petscstackp->currentsize]      = 0;		\
+    }									\
+    return;} while (0)
+
 #else
 
-#define PetscFunctionBegin 
+#define PetscFunctionBegin
 #define PetscFunctionReturn(a)  return(a)
 #define PetscFunctionReturnVoid() return
 #define PetscStackPop     CHKMEMQ
@@ -530,7 +605,7 @@ M*/
 #define PetscStackActive        0
 
 #endif
- */
+
 /*
     PetscStackCall - Calls an external library routine or user function after pushing the name of the routine on the stack.
 
@@ -543,12 +618,10 @@ M*/
 */
 #define PetscStackCall(name,routine) PetscStackPush(name);routine;PetscStackPop;
 
-extern PetscErrorCode   PetscStackCreate(void);
-extern PetscErrorCode   PetscStackView(PetscViewer);
-extern PetscErrorCode   PetscStackDestroy(void);
-extern PetscErrorCode   PetscStackPublish(void);
-extern PetscErrorCode   PetscStackDepublish(void);
+PETSC_EXTERN PetscErrorCode PetscStackCreate(void);
+PETSC_EXTERN PetscErrorCode PetscStackView(PetscViewer);
+PETSC_EXTERN PetscErrorCode PetscStackDestroy(void);
+PETSC_EXTERN PetscErrorCode PetscStackPublish(void);
+PETSC_EXTERN PetscErrorCode PetscStackDepublish(void);
 
-
-PETSC_EXTERN_CXX_END
 #endif

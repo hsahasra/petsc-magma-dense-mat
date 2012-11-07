@@ -2,8 +2,7 @@
 /* fnroot.f -- translated by f2c (version 19931217).*/
 
 #include <petscsys.h>
-
-extern PetscErrorCode SPARSEPACKrootls(PetscInt*, PetscInt *, PetscInt *, PetscInt *, PetscInt *, PetscInt *, PetscInt *);
+#include <../src/mat/order/order.h>
 
 /*****************************************************************/
 /********     FNROOT ..... FIND PSEUDO-PERIPHERAL NODE    ********/
@@ -31,9 +30,9 @@ extern PetscErrorCode SPARSEPACKrootls(PetscInt*, PetscInt *, PetscInt *, PetscI
 /*      ROOTLS.                                                 */
 /*                                                              */
 /****************************************************************/
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKfnroot" 
-PetscErrorCode SPARSEPACKfnroot(PetscInt *root, PetscInt *xadj, PetscInt *adjncy,  
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKfnroot"
+PetscErrorCode SPARSEPACKfnroot(PetscInt *root,const PetscInt *xadj,const PetscInt *adjncy,
                                 PetscInt *mask, PetscInt *nlvl, PetscInt *xls, PetscInt *ls)
 {
     /* System generated locals */

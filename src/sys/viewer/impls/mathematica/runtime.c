@@ -1,3 +1,4 @@
+static const char help[] = "Tests PETSc -- Mathematica connection\n";
 #include <petscksp.h>
 #include <mathlink.h>
 
@@ -38,7 +39,7 @@ static int setupConnection(MLENV *env, MLINK *link, const char *linkhost, LinkMo
   }
 
   *env  = MLInitialize(0);
-  for(lerr = 0; lerr < argc; lerr++) {
+  for (lerr = 0; lerr < argc; lerr++) {
     printf("argv[%ld] = %s\n", lerr, argv[lerr]);
   }
   *link = MLOpenInEnv(*env, argc, argv, &lerr);
@@ -52,7 +53,7 @@ static int printIndent(int indent) {
   int i;
 
   PetscFunctionBegin;
-  for(i = 0; i < indent; i++) printf(" ");
+  for (i = 0; i < indent; i++) printf(" ");
   PetscFunctionReturn(0);
 }
 
@@ -81,7 +82,7 @@ static int processPacket(MLINK link, int indent) {
       isHead = 0;
       /* Process arguments */
       printf("  Arguments:\n");
-      for(arg = 0; arg < numArguments; arg++) {
+      for (arg = 0; arg < numArguments; arg++) {
         ierr = processPacket(link, indent+4);                                                             CHKERRQ(ierr);
       }
     }
@@ -243,7 +244,7 @@ int main(int argc, char *argv[]) {
   MLINK link;
   int   ierr;
 
-  ierr = PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);                     CHKERRABORT(PETSC_COMM_WORLD, ierr);
+  ierr = PetscInitialize(&argc, &argv, PETSC_NULL, help);                     CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = setupConnection(&env, &link, "192.168.119.1", MATHEMATICA_LINK_CONNECT);   CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = processPackets(link);                                                      CHKERRABORT(PETSC_COMM_WORLD, ierr);
   ierr = cleanupConnection(env, link);                                              CHKERRABORT(PETSC_COMM_WORLD, ierr);

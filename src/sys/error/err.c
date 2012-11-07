@@ -18,10 +18,10 @@ struct _EH {
 
 static EH eh = 0;
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscEmacsClientErrorHandler" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscEmacsClientErrorHandler"
 /*@C
-   PetscEmacsClientErrorHandler - Error handler that uses the emacsclient program to 
+   PetscEmacsClientErrorHandler - Error handler that uses the emacsclient program to
     load the file where the error occured. Then calls the "previous" error handler.
 
    Not Collective
@@ -45,8 +45,8 @@ static EH eh = 0;
    Notes:
    You must put (server-start) in your .emacs file for the emacsclient software to work
 
-   Most users need not directly employ this routine and the other error 
-   handlers, but can instead use the simplified interface SETERRQ, which has 
+   Most users need not directly employ this routine and the other error
+   handlers, but can instead use the simplified interface SETERRQ, which has
    the calling sequence
 $     SETERRQ(PETSC_COMM_SELF,number,p,mess)
 
@@ -56,7 +56,7 @@ $     SETERRQ(PETSC_COMM_SELF,number,p,mess)
    Concepts: emacs^going to on error
    Concepts: error handler^going to line in emacs
 
-.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(), 
+.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(),
           PetscAbortErrorHandler()
  @*/
 PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm comm,int line,const char *fun,const char* file,const char *dir,PetscErrorCode n,PetscErrorType p,const char *mess,void *ctx)
@@ -65,6 +65,7 @@ PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm comm,int line,const char *
   char        command[PETSC_MAX_PATH_LEN];
   const char  *pdir;
   FILE        *fp;
+  PetscInt    rval;
 
   PetscFunctionBegin;
   /* Note: don't check error codes since this an error handler :-) */
@@ -72,7 +73,7 @@ PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm comm,int line,const char *
   sprintf(command,"cd %s; emacsclient --no-wait +%d %s%s\n",pdir,line,dir,file);
 #if defined(PETSC_HAVE_POPEN)
   ierr = PetscPOpen(MPI_COMM_WORLD,(char*)ctx,command,"r",&fp);
-  ierr = PetscPClose(MPI_COMM_WORLD,fp);
+  ierr = PetscPClose(MPI_COMM_WORLD,fp,&rval);
 #else
   SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP_SYS,"Cannot run external programs on this machine");
 #endif
@@ -82,8 +83,8 @@ PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm comm,int line,const char *
   PetscFunctionReturn(ierr);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscPushErrorHandler" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscPushErrorHandler"
 /*@C
    PetscPushErrorHandler - Sets a routine to be called on detection of errors.
 
@@ -91,7 +92,7 @@ PetscErrorCode  PetscEmacsClientErrorHandler(MPI_Comm comm,int line,const char *
 
    Input Parameters:
 +  handler - error handler routine
--  ctx - optional handler context that contains information needed by the handler (for 
+-  ctx - optional handler context that contains information needed by the handler (for
          example file pointers for error messages etc.)
 
    Calling sequence of handler:
@@ -119,7 +120,7 @@ $    int handler(MPI_Comm comm,int line,char *func,char *file,char *dir,PetscErr
 
    Fortran Notes: You can only push one error handler from Fortran before poping it.
 
-.seealso: PetscPopErrorHandler(), PetscAttachDebuggerErrorHandler(), PetscAbortErrorHandler(), PetscTraceBackErrorHandler()
+.seealso: PetscPopErrorHandler(), PetscAttachDebuggerErrorHandler(), PetscAbortErrorHandler(), PetscTraceBackErrorHandler(), PetscPushSignalHandler()
 
 @*/
 PetscErrorCode  PetscPushErrorHandler(PetscErrorCode (*handler)(MPI_Comm comm,int,const char *,const char*,const char*,PetscErrorCode,PetscErrorType,const char*,void*),void *ctx)
@@ -129,7 +130,7 @@ PetscErrorCode  PetscPushErrorHandler(PetscErrorCode (*handler)(MPI_Comm comm,in
 
   PetscFunctionBegin;
   ierr = PetscNew(struct _EH,&neweh);CHKERRQ(ierr);
-  if (eh) {neweh->previous = eh;} 
+  if (eh) {neweh->previous = eh;}
   else    {neweh->previous = 0;}
   neweh->handler = handler;
   neweh->ctx     = ctx;
@@ -137,10 +138,10 @@ PetscErrorCode  PetscPushErrorHandler(PetscErrorCode (*handler)(MPI_Comm comm,in
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscPopErrorHandler" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscPopErrorHandler"
 /*@
-   PetscPopErrorHandler - Removes the latest error handler that was 
+   PetscPopErrorHandler - Removes the latest error handler that was
    pushed with PetscPushErrorHandler().
 
    Not Collective
@@ -164,7 +165,7 @@ PetscErrorCode  PetscPopErrorHandler(void)
 
   PetscFunctionReturn(0);
 }
- 
+
 #undef __FUNCT__
 #define __FUNCT__ "PetscReturnErrorHandler"
 /*@C
@@ -187,8 +188,8 @@ PetscErrorCode  PetscPopErrorHandler(void)
    Level: developer
 
    Notes:
-   Most users need not directly employ this routine and the other error 
-   handlers, but can instead use the simplified interface SETERRQ, which has 
+   Most users need not directly employ this routine and the other error
+   handlers, but can instead use the simplified interface SETERRQ, which has
    the calling sequence
 $     SETERRQ(comm,number,mess)
 
@@ -233,7 +234,7 @@ static const char *PetscErrorStrings[] = {
           "Write to file failed",
           "Invalid pointer",
   /*69 */ "Arguments must have same type",
-          "",
+  /*70 */ "Attempt to use a pointer that does not point to a valid accessible location",
   /*71 */ "Detected zero pivot in LU factorization:\nsee http://www.mcs.anl.gov/petsc/documentation/faq.html#ZeroPivot",
   /*72 */ "Floating point exception",
   /*73 */ "Object is in wrong state",
@@ -261,8 +262,8 @@ static const char *PetscErrorStrings[] = {
   /*95 */ "  ",
 };
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscErrorMessage" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscErrorMessage"
 /*@C
    PetscErrorMessage - returns the text string associated with a PETSc error code.
 
@@ -271,15 +272,15 @@ static const char *PetscErrorStrings[] = {
    Input Parameter:
 .   errnum - the error code
 
-   Output Parameter: 
-+  text - the error message (PETSC_NULL if not desired) 
--  specific - the specific error message that was set with SETERRxxx() or PetscError().  (PETSC_NULL if not desired) 
+   Output Parameter:
++  text - the error message (PETSC_NULL if not desired)
+-  specific - the specific error message that was set with SETERRxxx() or PetscError().  (PETSC_NULL if not desired)
 
    Level: developer
 
    Concepts: error handler^messages
 
-.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(), 
+.seealso:  PetscPushErrorHandler(), PetscAttachDebuggerErrorHandler(),
           PetscAbortErrorHandler(), PetscTraceBackErrorHandler()
  @*/
 PetscErrorCode  PetscErrorMessage(int errnum,const char *text[],char **specific)
@@ -295,10 +296,10 @@ PetscErrorCode  PetscErrorMessage(int errnum,const char *text[],char **specific)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscError" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscError"
 /*@C
-   PetscError - Routine that is called when an error has been detected, 
+   PetscError - Routine that is called when an error has been detected,
    usually called through the macro SETERRQ(PETSC_COMM_SELF,).
 
    Not Collective
@@ -318,7 +319,7 @@ PetscErrorCode  PetscErrorMessage(int errnum,const char *text[],char **specific)
 
    Notes:
    Most users need not directly use this routine and the error handlers, but
-   can instead use the simplified interface SETERRQ, which has the calling 
+   can instead use the simplified interface SETERRQ, which has the calling
    sequence
 $     SETERRQ(comm,n,mess)
 
@@ -355,8 +356,8 @@ PetscErrorCode  PetscError(MPI_Comm comm,int line,const char *func,const char* f
   if (!eh)     ierr = PetscTraceBackErrorHandler(comm,line,func,file,dir,n,p,lbuf,0);
   else         ierr = (*eh->handler)(comm,line,func,file,dir,n,p,lbuf,eh->ctx);
 
-  /* 
-      If this is called from the main() routine we call MPI_Abort() instead of 
+  /*
+      If this is called from the main() routine we call MPI_Abort() instead of
     return to allow the parallel program to be properly shutdown.
 
     Since this is in the error handler we don't check the errors below. Of course,
@@ -371,7 +372,7 @@ PetscErrorCode  PetscError(MPI_Comm comm,int line,const char *func,const char* f
   if (p == PETSC_ERROR_IN_CXX) {
     const char *str;
     if (eh && eh->ctx) {
-      std::ostringstream *msg; 
+      std::ostringstream *msg;
       msg = (std::ostringstream*) eh->ctx;
       str = msg->str().c_str();
     } else {
@@ -385,8 +386,8 @@ PetscErrorCode  PetscError(MPI_Comm comm,int line,const char *func,const char* f
 
 /* -------------------------------------------------------------------------*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscIntView" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscIntView"
 /*@C
     PetscIntView - Prints an array of integers; useful for debugging.
 
@@ -401,7 +402,7 @@ PetscErrorCode  PetscError(MPI_Comm comm,int line,const char *func,const char* f
 
     Developer Notes: idx cannot be const because may be passed to binary viewer where byte swappping is done
 
-.seealso: PetscRealView() 
+.seealso: PetscRealView()
 @*/
 PetscErrorCode  PetscIntView(PetscInt N,const PetscInt idx[],PetscViewer viewer)
 {
@@ -416,8 +417,8 @@ PetscErrorCode  PetscIntView(PetscInt N,const PetscInt idx[],PetscViewer viewer)
   if (N) PetscValidIntPointer(idx,2);
   ierr = PetscObjectGetComm((PetscObject)viewer,&comm);CHKERRQ(ierr);
 
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIISynchronizedAllow(viewer,PETSC_TRUE);CHKERRQ(ierr);
     for (i=0; i<n; i++) {
@@ -447,7 +448,7 @@ PetscErrorCode  PetscIntView(PetscInt N,const PetscInt idx[],PetscViewer viewer)
       } else {
 	ierr      = PetscMalloc(size*sizeof(PetscMPIInt),&sizes);CHKERRQ(ierr);
         ierr      = MPI_Gather(&NN,1,MPI_INT,sizes,1,MPIU_INT,0,comm);CHKERRQ(ierr);
-        Ntotal    = sizes[0]; 
+        Ntotal    = sizes[0];
 	ierr      = PetscMalloc(size*sizeof(PetscMPIInt),&displs);CHKERRQ(ierr);
         displs[0] = 0;
         for (i=1; i<size; i++) {
@@ -472,8 +473,8 @@ PetscErrorCode  PetscIntView(PetscInt N,const PetscInt idx[],PetscViewer viewer)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscRealView" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscRealView"
 /*@C
     PetscRealView - Prints an array of doubles; useful for debugging.
 
@@ -488,7 +489,7 @@ PetscErrorCode  PetscIntView(PetscInt N,const PetscInt idx[],PetscViewer viewer)
 
     Developer Notes: idx cannot be const because may be passed to binary viewer where byte swappping is done
 
-.seealso: PetscIntView() 
+.seealso: PetscIntView()
 @*/
 PetscErrorCode  PetscRealView(PetscInt N,const PetscReal idx[],PetscViewer viewer)
 {
@@ -503,8 +504,8 @@ PetscErrorCode  PetscRealView(PetscInt N,const PetscReal idx[],PetscViewer viewe
   PetscValidScalarPointer(idx,2);
   ierr = PetscObjectGetComm((PetscObject)viewer,&comm);CHKERRQ(ierr);
 
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIISynchronizedAllow(viewer,PETSC_TRUE);CHKERRQ(ierr);
     for (i=0; i<n; i++) {
@@ -535,7 +536,7 @@ PetscErrorCode  PetscRealView(PetscInt N,const PetscReal idx[],PetscViewer viewe
       } else {
 	ierr   = PetscMalloc(size*sizeof(PetscMPIInt),&sizes);CHKERRQ(ierr);
         ierr   = MPI_Gather(&NN,1,MPI_INT,sizes,1,MPI_INT,0,comm);CHKERRQ(ierr);
-        Ntotal = sizes[0]; 
+        Ntotal = sizes[0];
 	ierr   = PetscMalloc(size*sizeof(PetscMPIInt),&displs);CHKERRQ(ierr);
         displs[0] = 0;
         for (i=1; i<size; i++) {
@@ -560,8 +561,8 @@ PetscErrorCode  PetscRealView(PetscInt N,const PetscReal idx[],PetscViewer viewe
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscScalarView" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscScalarView"
 /*@C
     PetscScalarView - Prints an array of scalars; useful for debugging.
 
@@ -591,8 +592,8 @@ PetscErrorCode  PetscScalarView(PetscInt N,const PetscScalar idx[],PetscViewer v
   PetscValidScalarPointer(idx,2);
   ierr = PetscObjectGetComm((PetscObject)viewer,&comm);CHKERRQ(ierr);
 
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIISynchronizedAllow(viewer,PETSC_TRUE);CHKERRQ(ierr);
     for (i=0; i<n; i++) {
@@ -601,7 +602,7 @@ PetscErrorCode  PetscScalarView(PetscInt N,const PetscScalar idx[],PetscViewer v
 #if defined (PETSC_USE_COMPLEX)
         ierr = PetscViewerASCIISynchronizedPrintf(viewer," (%12.4e,%12.4e)",
                                  PetscRealPart(idx[i*3+j]),PetscImaginaryPart(idx[i*3+j]));CHKERRQ(ierr);
-#else       
+#else
         ierr = PetscViewerASCIISynchronizedPrintf(viewer," %12.4e",idx[i*3+j]);CHKERRQ(ierr);
 #endif
       }
@@ -609,7 +610,7 @@ PetscErrorCode  PetscScalarView(PetscInt N,const PetscScalar idx[],PetscViewer v
     }
     if (p) {
       ierr = PetscViewerASCIISynchronizedPrintf(viewer,"%2d:",3*n);CHKERRQ(ierr);
-      for (i=0; i<p; i++) { 
+      for (i=0; i<p; i++) {
 #if defined (PETSC_USE_COMPLEX)
         ierr = PetscViewerASCIISynchronizedPrintf(viewer," (%12.4e,%12.4e)",
                                  PetscRealPart(idx[n*3+i]),PetscImaginaryPart(idx[n*3+i]));CHKERRQ(ierr);
@@ -635,7 +636,7 @@ PetscErrorCode  PetscScalarView(PetscInt N,const PetscScalar idx[],PetscViewer v
       } else {
 	ierr   = PetscMalloc(size*sizeof(PetscMPIInt),&sizes);CHKERRQ(ierr);
         ierr   = MPI_Gather(&NN,1,MPI_INT,sizes,1,MPI_INT,0,comm);CHKERRQ(ierr);
-        Ntotal = sizes[0]; 
+        Ntotal = sizes[0];
 	ierr   = PetscMalloc(size*sizeof(PetscMPIInt),&displs);CHKERRQ(ierr);
         displs[0] = 0;
         for (i=1; i<size; i++) {

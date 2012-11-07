@@ -1,7 +1,5 @@
-/* Program usage:  mpiexec -n <procs> ex7 [-help] [all PETSc options] */
 
-static char help[] = "Nonlinear PDE in 2d.\n\
-We solve the Stokes equation in a 2D rectangular\n\
+static char help[] = "Solves the Stokes equation in a 2D rectangular\n\
 domain, using distributed arrays (DMDAs) to partition the parallel grid.\n\n";
 
 /*T
@@ -13,22 +11,22 @@ T*/
 /* ------------------------------------------------------------------------
 
     The Stokes equation is given by the partial differential equation
-  
+
         -alpha*Laplacian u - \nabla p = f,  0 < x,y < 1,
 
           \nabla \cdot u              = 0
-  
+
     with boundary conditions
-   
+
              u = 0  for  x = 0, x = 1, y = 0, y = 1.
-  
+
     A P2/P1 finite element approximation is used to discretize the boundary
     value problem on the two triangles which make up each rectangle in the DMDA
     to obtain a nonlinear system of equations.
 
   ------------------------------------------------------------------------- */
 
-/* 
+/*
    Include "petscdmda.h" so that we can use distributed arrays (DMDAs).
    Include "petscsnes.h" so that we can use SNES solvers.  Note that this
    file automatically includes:
@@ -43,8 +41,8 @@ T*/
 #include <petscdmda.h>
 #include <petscsnes.h>
 
-/* 
-   User-defined application context - contains data needed by the 
+/*
+   User-defined application context - contains data needed by the
    application-provided call-back routines, FormJacobianLocal() and
    FormFunctionLocal().
 */
@@ -87,7 +85,7 @@ static PetscScalar quadPoints[8] = {0.17855873, 0.15505103,
                                     0.28001992, 0.64494897};
 static PetscScalar quadWeights[4] = {0.15902069,  0.09097931,  0.15902069,  0.09097931};
 
-/* 
+/*
    User-defined routines
 */
 extern PetscErrorCode CreateNullSpace(DM, Vec*);
@@ -126,9 +124,7 @@ int main(int argc,char **argv)
   ierr = PetscBagSetFromOptions(bag);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(PETSC_NULL,"-alpha",&user->alpha,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(PETSC_NULL,"-lambda",&user->lambda,PETSC_NULL);CHKERRQ(ierr);
-  if (user->lambda > lambda_max || user->lambda < lambda_min) {
-    SETERRQ3(PETSC_COMM_SELF,1,"Lambda %G is out of range [%G, %G]", user->lambda, lambda_min, lambda_max);
-  }
+  if (user->lambda > lambda_max || user->lambda < lambda_min) SETERRQ3(PETSC_COMM_SELF,1,"Lambda %G is out of range [%G, %G]", user->lambda, lambda_min, lambda_max);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create multilevel DM data structure (SNES) to manage hierarchical solvers
@@ -138,8 +134,7 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create distributed array (DMDA) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,DMDA_STENCIL_BOX,-3,-3,PETSC_DECIDE,PETSC_DECIDE,
-                    3,1,PETSC_NULL,PETSC_NULL,&da);CHKERRQ(ierr);
+  ierr = DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,DMDA_STENCIL_BOX,-3,-3,PETSC_DECIDE,PETSC_DECIDE,3,1,PETSC_NULL,PETSC_NULL,&da);CHKERRQ(ierr);
   ierr = DMDASetFieldName(da, 0, "ooblek");CHKERRQ(ierr);
   ierr = DMSetApplicationContext(da,&user);CHKERRQ(ierr);
   ierr = SNESSetDM(snes, (DM) da);CHKERRQ(ierr);
@@ -163,7 +158,7 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Solve nonlinear system
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-  ierr = SNESSolve(snes,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr); 
+  ierr = SNESSolve(snes,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
   ierr = SNESGetConvergedReason(snes, &reason);CHKERRQ(ierr);
 
@@ -208,8 +203,8 @@ PetscErrorCode CreateNullSpace(DM da, Vec *N)
   ierr = DMDAGetCorners(da, &xs, &ys, PETSC_NULL, &xm, &ym, PETSC_NULL);CHKERRQ(ierr);
   ierr = DMCreateGlobalVector(da,N);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(da, *N, &x);CHKERRQ(ierr);
-  for(j = ys; j < ys+ym; j++) {
-    for(i = xs; i < xs+xm; i++) {
+  for (j = ys; j < ys+ym; j++) {
+    for (i = xs; i < xs+xm; i++) {
       x[j][i].u = 0.0;
       x[j][i].v = 0.0;
       x[j][i].p = 1.0;
@@ -221,7 +216,7 @@ PetscErrorCode CreateNullSpace(DM da, Vec *N)
 
 #undef __FUNCT__
 #define __FUNCT__ "FormInitialGuess"
-/* 
+/*
    FormInitialGuess - Forms initial approximation.
 
    Input Parameters:
@@ -241,8 +236,7 @@ PetscErrorCode FormInitialGuess(DM da,Vec X)
 
   PetscFunctionBegin;
   ierr = DMGetApplicationContext(da,&user);CHKERRQ(ierr);
-  ierr = DMDAGetInfo(da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,
-                   PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);
+  ierr = DMDAGetInfo(da,PETSC_IGNORE,&Mx,&My,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE,PETSC_IGNORE);CHKERRQ(ierr);
 
   lambda = user->lambda;
   hx     = 1.0/(PetscReal)(Mx-1);
@@ -310,7 +304,7 @@ PetscErrorCode constantResidual(PetscReal lambda, PetscBool  isLower, int i, int
   PetscInt    q, k;
 
   PetscFunctionBegin;
-  for(q = 0; q < 4; q++) {
+  for (q = 0; q < 4; q++) {
     phi[0] = 1.0 - quadPoints[q*2] - quadPoints[q*2+1];
     phi[1] = quadPoints[q*2];
     phi[2] = quadPoints[q*2+1];
@@ -324,13 +318,13 @@ PetscErrorCode constantResidual(PetscReal lambda, PetscBool  isLower, int i, int
     res.u  = quadWeights[q]*(0.0);
     res.v  = quadWeights[q]*(0.0);
     res.p  = quadWeights[q]*(0.0);
-    for(k = 0; k < 3; k++) {
+    for (k = 0; k < 3; k++) {
       rLocal[k].u += phi[k]*res.u;
       rLocal[k].v += phi[k]*res.v;
       rLocal[k].p += phi[k]*res.p;
     }
   }
-  for(k = 0; k < 3; k++) {
+  for (k = 0; k < 3; k++) {
     /*printf("  constLocal[%d] = (%g, %g, %g)\n", k, lambda*hxhy*rLocal[k].u, lambda*hxhy*rLocal[k].v, hxhy*rLocal[k].p); */
     r[k].u += lambda*hxhy*rLocal[k].u;
     r[k].v += lambda*hxhy*rLocal[k].v;
@@ -345,10 +339,10 @@ PetscErrorCode nonlinearResidual(PetscReal lambda, Field u[], Field r[]) {
   Field       rLocal[3] = {{0.0, 0.0}, {0.0, 0.0}, {0.0, 0.0}};
   PetscScalar phi[3] = {0.0, 0.0, 0.0};
   Field       res;
-  PetscInt q;
+  PetscInt    q;
 
   PetscFunctionBegin;
-  for(q = 0; q < 4; q++) {
+  for (q = 0; q < 4; q++) {
     phi[0] = 1.0 - quadPoints[q*2] - quadPoints[q*2+1];
     phi[1] = quadPoints[q*2];
     phi[2] = quadPoints[q*2+1];
@@ -356,8 +350,8 @@ PetscErrorCode nonlinearResidual(PetscReal lambda, Field u[], Field r[]) {
     res.v  = quadWeights[q]*PetscExpScalar(u[0].v*phi[0] + u[1].v*phi[1] + u[2].v*phi[2]);
     rLocal[0].u += phi[0]*res.u;
     rLocal[0].v += phi[0]*res.v;
-    rLocal[1].u += phi[1]*res.u;  
-    rLocal[1].v += phi[1]*res.v;  
+    rLocal[1].u += phi[1]*res.u;
+    rLocal[1].v += phi[1]*res.v;
     rLocal[2].u += phi[2]*res.u;
     rLocal[2].v += phi[2]*res.v;
   }
@@ -372,7 +366,7 @@ PetscErrorCode nonlinearResidual(PetscReal lambda, Field u[], Field r[]) {
 
 #undef __FUNCT__
 #define __FUNCT__ "FormFunctionLocal"
-/* 
+/*
    FormFunctionLocal - Evaluates nonlinear function, F(x).
 
        Process adiC(36): FormFunctionLocal
@@ -400,13 +394,13 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info, Field **x, Field **f, AppC
   hx      = 1.0/(PetscReal)(info->mx-1);
   hy      = 1.0/(PetscReal)(info->my-1);
   sc      = hx*hy*lambda;
-  hxhy    = hx*hy; 
+  hxhy    = hx*hy;
   detJInv = hxhy;
   G[0] = (1.0/(hx*hx)) * detJInv;
   G[1] = 0.0;
   G[2] = G[1];
   G[3] = (1.0/(hy*hy)) * detJInv;
-  for(k = 0; k < 4; k++) {
+  for (k = 0; k < 4; k++) {
     /* printf("G[%d] = %g\n", k, G[k]);*/
   }
 
@@ -427,21 +421,21 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info, Field **x, Field **f, AppC
 
      and therefore we do not loop over the last vertex in each dimension.
   */
-  for(j = info->ys; j < info->ys+info->ym-1; j++) {
-    for(i = info->xs; i < info->xs+info->xm-1; i++) {
+  for (j = info->ys; j < info->ys+info->ym-1; j++) {
+    for (i = info->xs; i < info->xs+info->xm-1; i++) {
       /* Lower element */
       uLocal[0] = x[j][i];
       uLocal[1] = x[j][i+1];
       uLocal[2] = x[j+1][i];
       /* printf("Lower Solution ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  uLocal[%d] = (%g, %g, %g)\n", k, uLocal[k].u, uLocal[k].v, uLocal[k].p);*/
       }
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         rLocal[k].u = 0.0;
         rLocal[k].v = 0.0;
         rLocal[k].p = 0.0;
-        for(l = 0; l < 3; l++) {
+        for (l = 0; l < 3; l++) {
           rLocal[k].u += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1])*uLocal[l].u;
           rLocal[k].v += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1])*uLocal[l].v;
           /* rLocal[k].u += hxhy*Identity[k*3+l]*uLocal[l].u; */
@@ -454,17 +448,17 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info, Field **x, Field **f, AppC
         }
       }
       /* printf("Lower Laplacian ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  rLocal[%d] = (%g, %g, %g)\n", k, rLocal[k].u, rLocal[k].v, rLocal[k].p);*/
       }
       ierr = constantResidual(1.0, PETSC_TRUE, i, j, hx, hy, rLocal);CHKERRQ(ierr);
       /* printf("Lower Laplacian+Constant ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  rLocal[%d] = (%g, %g, %g)\n", k, rLocal[k].u, rLocal[k].v, rLocal[k].p);*/
       }
       ierr = nonlinearResidual(0.0*sc, uLocal, rLocal);CHKERRQ(ierr);
       /* printf("Lower Full nonlinear ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  rLocal[%d] = (%g, %g, %g)\n", k, rLocal[k].u, rLocal[k].v, rLocal[k].p);*/
       }
       f[j][i].u   += rLocal[0].u;
@@ -481,14 +475,14 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info, Field **x, Field **f, AppC
       uLocal[1] = x[j+1][i];
       uLocal[2] = x[j][i+1];
       /* printf("Upper Solution ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  uLocal[%d] = (%g, %g, %g)\n", k, uLocal[k].u, uLocal[k].v, uLocal[k].p);*/
       }
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         rLocal[k].u = 0.0;
         rLocal[k].v = 0.0;
         rLocal[k].p = 0.0;
-        for(l = 0; l < 3; l++) {
+        for (l = 0; l < 3; l++) {
           rLocal[k].u += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1])*uLocal[l].u;
           rLocal[k].v += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1])*uLocal[l].v;
           /* rLocal[k].p += Identity[k*3+l]*uLocal[l].p; */
@@ -500,17 +494,17 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info, Field **x, Field **f, AppC
         }
       }
       /* printf("Upper Laplacian ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  rLocal[%d] = (%g, %g, %g)\n", k, rLocal[k].u, rLocal[k].v, rLocal[k].p);*/
       }
       ierr = constantResidual(1.0, PETSC_BOOL, i, j, hx, hy, rLocal);CHKERRQ(ierr);
       /* printf("Upper Laplacian+Constant ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  rLocal[%d] = (%g, %g, %g)\n", k, rLocal[k].u, rLocal[k].v, rLocal[k].p);*/
       }
       ierr = nonlinearResidual(0.0*sc, uLocal, rLocal);CHKERRQ(ierr);
       /* printf("Upper Full nonlinear ElementVector for (%d, %d)\n", i, j);*/
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
         /* printf("  rLocal[%d] = (%g, %g, %g)\n", k, rLocal[k].u, rLocal[k].v, rLocal[k].p);*/
       }
       f[j+1][i+1].u += rLocal[0].u;
@@ -550,19 +544,20 @@ PetscErrorCode FormFunctionLocal(DMDALocalInfo *info, Field **x, Field **f, AppC
     }
   }
 
-  for(j = info->ys+info->ym-1; j >= info->ys; j--) {
-    for(i = info->xs; i < info->xs+info->xm; i++) {
+  for (j = info->ys+info->ym-1; j >= info->ys; j--) {
+    for (i = info->xs; i < info->xs+info->xm; i++) {
       /* printf("f[%d][%d] = (%g, %g, %g) ", j, i, f[j][i].u, f[j][i].v, f[j][i].p);*/
     }
     /*printf("\n");*/
   }
   ierr = PetscLogFlops(68.0*(info->ym-1)*(info->xm-1));CHKERRQ(ierr);
-  PetscFunctionReturn(0); 
-} 
+  PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "nonlinearJacobian"
-PetscErrorCode nonlinearJacobian(PetscReal lambda, Field u[], PetscScalar J[]) {
+PetscErrorCode nonlinearJacobian(PetscReal lambda, Field u[], PetscScalar J[])
+{
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
@@ -592,24 +587,24 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info, Field **x, Mat jac, AppCtx
   hx     = 1.0/(PetscReal)(info->mx-1);
   hy     = 1.0/(PetscReal)(info->my-1);
   sc     = hx*hy*lambda;
-  hxhy   = hx*hy; 
+  hxhy   = hx*hy;
   detJInv = hxhy;
   G[0] = (1.0/(hx*hx)) * detJInv;
   G[1] = 0.0;
   G[2] = G[1];
   G[3] = (1.0/(hy*hy)) * detJInv;
-  for(k = 0; k < 4; k++) {
+  for (k = 0; k < 4; k++) {
     /* printf("G[%d] = %g\n", k, G[k]);*/
   }
 
   ierr = MatZeroEntries(jac);CHKERRQ(ierr);
-  /* 
+  /*
      Compute entries for the locally owned part of the Jacobian.
       - Currently, all PETSc parallel matrix formats are partitioned by
-        contiguous chunks of rows across the processors. 
+        contiguous chunks of rows across the processors.
       - Each processor needs to insert only elements that it owns
         locally (but any non-local elements will be sent to the
-        appropriate processor during matrix assembly). 
+        appropriate processor during matrix assembly).
       - Here, we set all entries for a particular row at once.
       - We can set matrix entries either using either
         MatSetValuesLocal() or MatSetValues(), as discussed above.
@@ -774,18 +769,18 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info, Field **x, Mat jac, AppCtx
       cols[3*dof+2].i = i; cols[3*dof+2].j = j+1; cols[3*dof+2].c = 2;
 
       /* Lower Element */
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
 #ifdef PRES_BC
         if (!hasLower[k]) continue;
 #endif
-        for(l = 0; l < 3; l++) {
+        for (l = 0; l < 3; l++) {
           /* Divergence */
           JLocal[pressureRows[lowerRow[k]]*dof*4 + lowerRow[l]*dof+0] += hx*Divergence[(k*2+0)*3 + l];
           JLocal[pressureRows[lowerRow[k]]*dof*4 + lowerRow[l]*dof+1] += hy*Divergence[(k*2+1)*3 + l];
 /*        JLocal[pressureRows[lowerRow[k]]*dof*4 + lowerRow[l]*dof+2] += Identity[k*3 + l]; */
         }
         if (!hasLower[k]) continue;
-        for(l = 0; l < 3; l++) {
+        for (l = 0; l < 3; l++) {
           /* Laplacian */
           JLocal[velocityRows[lowerRow[k]]*dof*4     + lowerRow[l]*dof+0] += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1]);
           JLocal[(velocityRows[lowerRow[k]]+1)*dof*4 + lowerRow[l]*dof+1] += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1]);
@@ -797,18 +792,18 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info, Field **x, Mat jac, AppCtx
         }
       }
       /* Upper Element */
-      for(k = 0; k < 3; k++) {
+      for (k = 0; k < 3; k++) {
 #ifdef PRES_BC
         if (!hasUpper[k]) continue;
 #endif
-        for(l = 0; l < 3; l++) {
+        for (l = 0; l < 3; l++) {
           /* Divergence */
           JLocal[pressureRows[upperRow[k]]*dof*4 + upperRow[l]*dof+0] += hx*Divergence[(k*2+0)*3 + l];
           JLocal[pressureRows[upperRow[k]]*dof*4 + upperRow[l]*dof+1] += hy*Divergence[(k*2+1)*3 + l];
 /*        JLocal[pressureRows[upperRow[k]]*dof*4 + upperRow[l]*dof+2] += Identity[k*3 + l]; */
         }
         if (!hasUpper[k]) continue;
-        for(l = 0; l < 3; l++) {
+        for (l = 0; l < 3; l++) {
           /* Laplacian */
           JLocal[velocityRows[upperRow[k]]*dof*4     + upperRow[l]*dof+0] += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1]);
           JLocal[(velocityRows[upperRow[k]]+1)*dof*4 + upperRow[l]*dof+1] += alpha*(G[0]*Kref[(k*2*3 + l)*2]+G[1]*Kref[(k*2*3 + l)*2+1]+G[2]*Kref[((k*2+1)*3 + l)*2]+G[3]*Kref[((k*2+1)*3 + l)*2+1]);
@@ -821,13 +816,13 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info, Field **x, Mat jac, AppCtx
       ierr = nonlinearJacobian(-1.0*sc, uLocal, JLocal);CHKERRQ(ierr);
       /* printf("Element matrix for (%d, %d)\n", i, j);*/
       /* printf("   col         ");*/
-      for(l = 0; l < 4*3; l++) {
+      for (l = 0; l < 4*3; l++) {
         /* printf("(%d, %d, %d) ", cols[l].i, cols[l].j, cols[l].c);*/
       }
       /* printf("\n");*/
-      for(k = 0; k < numRows; k++) {
+      for (k = 0; k < numRows; k++) {
         /* printf("row (%d, %d, %d): ", rows[k].i, rows[k].j, rows[k].c);*/
-        for(l = 0; l < 4; l++) {
+        for (l = 0; l < 4; l++) {
           /* printf("%9.6g %9.6g %9.6g ", JLocal[k*dof*4 + l*dof+0], JLocal[k*dof*4 + l*dof+1], JLocal[k*dof*4 + l*dof+2]);*/
         }
         /* printf("\n");*/
@@ -836,7 +831,7 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info, Field **x, Mat jac, AppCtx
     }
   }
 
-  /* 
+  /*
      Assemble matrix, using the 2-step process:
        MatAssemblyBegin(), MatAssemblyEnd().
   */
@@ -863,12 +858,12 @@ PetscErrorCode FormJacobianLocal(DMDALocalInfo *info, Field **x, Mat jac, AppCtx
 */
 PetscErrorCode L_2Error(DM da, Vec fVec, double *error, AppCtx *user)
 {
-  DMDALocalInfo info;
-  Vec fLocalVec;
-  Field **f;
-  Field u, uExact, uLocal[4];
-  PetscScalar hx, hy, hxhy, x, y, phi[3];
-  PetscInt i, j, q;
+  DMDALocalInfo  info;
+  Vec            fLocalVec;
+  Field          **f;
+  Field          u, uExact, uLocal[4];
+  PetscScalar    hx, hy, hxhy, x, y, phi[3];
+  PetscInt       i, j, q;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
@@ -882,14 +877,14 @@ PetscErrorCode L_2Error(DM da, Vec fVec, double *error, AppCtx *user)
   hx     = 1.0/(PetscReal)(info.mx-1);
   hy     = 1.0/(PetscReal)(info.my-1);
   hxhy   = hx*hy;
-  for(j = info.ys; j < info.ys+info.ym-1; j++) {
-    for(i = info.xs; i < info.xs+info.xm-1; i++) {
+  for (j = info.ys; j < info.ys+info.ym-1; j++) {
+    for (i = info.xs; i < info.xs+info.xm-1; i++) {
       uLocal[0] = f[j][i];
       uLocal[1] = f[j][i+1];
       uLocal[2] = f[j+1][i+1];
       uLocal[3] = f[j+1][i];
       /* Lower element */
-      for(q = 0; q < 4; q++) {
+      for (q = 0; q < 4; q++) {
         phi[0] = 1.0 - quadPoints[q*2] - quadPoints[q*2+1];
         phi[1] = quadPoints[q*2];
         phi[2] = quadPoints[q*2+1];
@@ -908,7 +903,7 @@ PetscErrorCode L_2Error(DM da, Vec fVec, double *error, AppCtx *user)
         / x_U \ = / -1  0 \ / x_L \ + / hx \
         \ y_U /   \  0 -1 / \ y_L /   \ hy /
        */
-      for(q = 0; q < 4; q++) {
+      for (q = 0; q < 4; q++) {
         phi[0] = 1.0 - quadPoints[q*2] - quadPoints[q*2+1];
         phi[1] = quadPoints[q*2];
         phi[2] = quadPoints[q*2+1];

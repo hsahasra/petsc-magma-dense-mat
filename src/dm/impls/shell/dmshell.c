@@ -9,7 +9,7 @@ typedef struct  {
 
 #undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_Shell"
-static PetscErrorCode DMCreateMatrix_Shell(DM dm,const MatType mtype,Mat *J)
+static PetscErrorCode DMCreateMatrix_Shell(DM dm,MatType mtype,Mat *J)
 {
   PetscErrorCode ierr;
   DM_Shell       *shell = (DM_Shell*)dm->data;
@@ -18,11 +18,22 @@ static PetscErrorCode DMCreateMatrix_Shell(DM dm,const MatType mtype,Mat *J)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   PetscValidPointer(J,3);
+  if (!shell->A) {
+    if (shell->Xglobal) {
+      PetscInt m,M;
+      ierr = PetscInfo(dm,"Naively creating matrix using global vector distribution without preallocation");CHKERRQ(ierr);
+      ierr = VecGetSize(shell->Xglobal,&M);CHKERRQ(ierr);
+      ierr = VecGetLocalSize(shell->Xglobal,&m);CHKERRQ(ierr);
+      ierr = MatCreate(((PetscObject)dm)->comm,&shell->A);CHKERRQ(ierr);
+      ierr = MatSetSizes(shell->A,m,m,M,M);CHKERRQ(ierr);
+      if (mtype) {ierr = MatSetType(shell->A,mtype);CHKERRQ(ierr);}
+      ierr = MatSetUp(shell->A);CHKERRQ(ierr);
+    } else SETERRQ(((PetscObject)dm)->comm,PETSC_ERR_USER,"Must call DMShellSetMatrix(), DMShellSetCreateMatrix(), or provide a vector");
+  }
   A = shell->A;
-  if (!A) SETERRQ(((PetscObject)dm)->comm,PETSC_ERR_USER,"Must call DMShellSetMatrix() or DMShellSetCreateMatrix()");
   if (mtype) {
     PetscBool flg;
-    ierr = PetscTypeCompare((PetscObject)A,mtype,&flg);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)A,mtype,&flg);CHKERRQ(ierr);
     if (!flg) SETERRQ2(((PetscObject)dm)->comm,PETSC_ERR_ARG_NOTSAMETYPE,"Requested matrix of type %s, but only %s available",mtype,((PetscObject)A)->type_name);
   }
   if (((PetscObject)A)->refct < 2) { /* We have an exclusive reference so we can give it out */
@@ -86,7 +97,7 @@ PetscErrorCode DMShellSetMatrix(DM dm,Mat J)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   PetscValidHeaderSpecific(J,MAT_CLASSID,2);
-  ierr = PetscTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
   if (!isshell) PetscFunctionReturn(0);
   ierr = PetscObjectReference((PetscObject)J);CHKERRQ(ierr);
   ierr = MatDestroy(&shell->A);CHKERRQ(ierr);
@@ -109,7 +120,7 @@ PetscErrorCode DMShellSetMatrix(DM dm,Mat J)
 
 .seealso: DMCreateMatrix(), DMShellSetMatrix()
 @*/
-PetscErrorCode DMShellSetCreateMatrix(DM dm,PetscErrorCode (*func)(DM,const MatType,Mat*))
+PetscErrorCode DMShellSetCreateMatrix(DM dm,PetscErrorCode (*func)(DM,MatType,Mat*))
 {
 
   PetscFunctionBegin;
@@ -142,7 +153,7 @@ PetscErrorCode DMShellSetGlobalVector(DM dm,Vec X)
   PetscFunctionBegin;
   PetscValidHeaderSpecific(dm,DM_CLASSID,1);
   PetscValidHeaderSpecific(X,VEC_CLASSID,2);
-  ierr = PetscTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)dm,DMSHELL,&isshell);CHKERRQ(ierr);
   if (!isshell) PetscFunctionReturn(0);
   ierr = PetscObjectReference((PetscObject)X);CHKERRQ(ierr);
   ierr = VecDestroy(&shell->Xglobal);CHKERRQ(ierr);
@@ -184,7 +195,8 @@ static PetscErrorCode DMDestroy_Shell(DM dm)
   PetscFunctionBegin;
   ierr = MatDestroy(&shell->A);CHKERRQ(ierr);
   ierr = VecDestroy(&shell->Xglobal);CHKERRQ(ierr);
-  ierr = PetscFree(dm->data);CHKERRQ(ierr);
+  /* This was originally freed in DMDestroy(), but that prevents reference counting of backend objects */
+  ierr = PetscFree(shell);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -207,7 +219,7 @@ PETSC_EXTERN_C PetscErrorCode  DMCreate_Shell(DM dm)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "DMShellCreate"
 /*@
     DMShellCreate - Creates a shell DM object, used to manage user-defined problem data

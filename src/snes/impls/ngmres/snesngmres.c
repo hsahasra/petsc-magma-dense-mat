@@ -1,8 +1,8 @@
 #include <../src/snes/impls/ngmres/snesngmres.h> /*I "petscsnes.h" I*/
 #include <petscblaslapack.h>
 
-const char *SNESNGMRESRestartTypes[] = {"NONE","PERIODIC","DIFFERENCE","SNESNGMRESRestartType","SNES_NGMRES_RESTART_",0};
-const char *SNESNGMRESSelectTypes[] = {"NONE","DIFFERENCE","LINESEARCH","SNESNGMRESSelectType","SNES_NGMRES_SELECT_",0};
+const char *const SNESNGMRESRestartTypes[] = {"NONE","PERIODIC","DIFFERENCE","SNESNGMRESRestartType","SNES_NGMRES_RESTART_",0};
+const char *const SNESNGMRESSelectTypes[] = {"NONE","DIFFERENCE","LINESEARCH","SNESNGMRESSelectType","SNES_NGMRES_SELECT_",0};
 
 #undef __FUNCT__
 #define __FUNCT__ "SNESReset_NGMRES"
@@ -143,7 +143,7 @@ PetscErrorCode SNESView_NGMRES(SNES snes, PetscViewer viewer)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERASCII, &iascii);CHKERRQ(ierr);
   if (iascii) {
 
     ierr = PetscViewerASCIIPrintf(viewer, "  Number of stored past updates: %d\n", ngmres->msize);CHKERRQ(ierr);
@@ -180,10 +180,10 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
   /* solution selection data */
   PetscBool           selectA, selectRestart;
   PetscReal           dnorm, dminnorm = 0.0, dcurnorm;
-  PetscReal           fminnorm;
+  PetscReal           fminnorm,xnorm,ynorm;
 
   SNESConvergedReason reason;
-  PetscBool           lssucceed;
+  PetscBool           lssucceed,changed_y,changed_w;
   PetscErrorCode      ierr;
 
   PetscFunctionBegin;
@@ -221,7 +221,7 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
 
   if (!snes->norm_init_set) {
     ierr = VecNorm(F, NORM_2, &fnorm);CHKERRQ(ierr);
-    if (PetscIsInfOrNanReal(fnorm)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_FP, "Infinite or not-a-number generated in function evaluation");
+    if (PetscIsInfOrNanReal(fnorm)) SETERRQ(((PetscObject)snes)->comm, PETSC_ERR_FP, "Infinite or not-a-number generated in function evaluation");
   } else {
     fnorm = snes->norm_init;
     snes->norm_init_set = PETSC_FALSE;
@@ -252,7 +252,7 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
     ivec = k_restart % ngmres->msize; /* replace the last used part of the subspace */
 
     /* Computation of x^M */
-    if (snes->pc) {
+    if (snes->pc && snes->pcside == PC_RIGHT) {
       ierr = VecCopy(X, XM);CHKERRQ(ierr);
       ierr = SNESSetInitialFunction(snes->pc, F);CHKERRQ(ierr);
       ierr = SNESSetInitialFunctionNorm(snes->pc, fnorm);CHKERRQ(ierr);
@@ -299,12 +299,16 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
       }
     }
 
-    if(l == 1) {
+    if (l == 1) {
       /* simply set alpha[0] = beta[0] / H[0, 0] */
-      beta[0] = beta[0] / H(0, 0);
+      if (H(0, 0) != 0.) {
+        beta[0] = beta[0] / H(0, 0);
+      } else {
+        beta[0] = 0.;
+      }
     } else {
 #ifdef PETSC_MISSING_LAPACK_GELSS
-    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "NGMRES with LS requires the LAPACK GELSS routine.");
+      SETERRQ(((PetscObject)snes)->comm, PETSC_ERR_SUP, "NGMRES with LS requires the LAPACK GELSS routine.");
 #else
     ngmres->m = PetscBLASIntCast(l);
     ngmres->n = PetscBLASIntCast(l);
@@ -342,9 +346,15 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
                  &ngmres->info);
 #endif
     ierr = PetscFPTrapPop();CHKERRQ(ierr);
-    if (ngmres->info < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Bad argument to GELSS");
-    if (ngmres->info > 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"SVD failed to converge");
+    if (ngmres->info < 0) SETERRQ(((PetscObject)snes)->comm,PETSC_ERR_LIB,"Bad argument to GELSS");
+    if (ngmres->info > 0) SETERRQ(((PetscObject)snes)->comm,PETSC_ERR_LIB,"SVD failed to converge");
 #endif
+    }
+
+    for (i=0;i<l;i++) {
+      if (PetscIsInfOrNanScalar(beta[i])) {
+        SETERRQ(((PetscObject)snes)->comm,PETSC_ERR_LIB,"SVD generated inconsistent output");
+      }
     }
 
     alph_total = 0.;
@@ -356,6 +366,11 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
     ierr = VecScale(XA, 1. - alph_total);CHKERRQ(ierr);
 
     ierr = VecMAXPY(XA, l, beta, Xdot);CHKERRQ(ierr);
+
+    /* check the validity of the step */
+    ierr = VecCopy(XA,Y);CHKERRQ(ierr);
+    ierr = VecAXPY(Y,-1.0,X);CHKERRQ(ierr);
+    ierr = SNESLineSearchPostCheck(snes->linesearch,X,Y,XA,&changed_y,&changed_w);CHKERRQ(ierr);
     ierr = SNESComputeFunction(snes, XA, FA);CHKERRQ(ierr);
 
     /* differences for selection and restart */
@@ -364,7 +379,7 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
         dminnorm = -1.0;
         ierr=VecCopy(XA, D);CHKERRQ(ierr);
         ierr=VecAXPY(D, -1.0, XM);CHKERRQ(ierr);
-        for(i=0;i<l;i++) {
+        for (i=0;i<l;i++) {
           ierr=VecAXPY(Xdot[i],-1.0,XA);CHKERRQ(ierr);
         }
         ierr = VecNormBegin(FA, NORM_2, &fAnorm);CHKERRQ(ierr);
@@ -377,7 +392,7 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
         for (i=0;i<l;i++) {
           ierr = VecNormEnd(Xdot[i], NORM_2, &ngmres->xnorms[i]);CHKERRQ(ierr);
         }
-        for(i=0;i<l;i++) {
+        for (i=0;i<l;i++) {
           dcurnorm = ngmres->xnorms[i];
           if ((dcurnorm < dminnorm) || (dminnorm < 0.0)) dminnorm = dcurnorm;
           ierr=VecAXPY(Xdot[i],1.0,XA);CHKERRQ(ierr);
@@ -390,16 +405,17 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
         ierr=VecNormEnd(D, NORM_2, &dnorm);CHKERRQ(ierr);
         ierr=VecNormEnd(FA, NORM_2, &fAnorm);CHKERRQ(ierr);
         dminnorm = -1.0;
-        for(i=0;i<l;i++) {
+        for (i=0;i<l;i++) {
           ierr=VecCopy(XA, D);CHKERRQ(ierr);
           ierr=VecAXPY(D, -1.0, Xdot[i]);CHKERRQ(ierr);
           ierr=VecNorm(D, NORM_2, &dcurnorm);CHKERRQ(ierr);
-          if((dcurnorm < dminnorm) || (dminnorm < 0.0)) dminnorm = dcurnorm;
+          if ((dcurnorm < dminnorm) || (dminnorm < 0.0)) dminnorm = dcurnorm;
         }
       }
     } else {
       ierr = VecNorm(FA, NORM_2, &fAnorm);CHKERRQ(ierr);
     }
+    if (PetscIsInfOrNanReal(fAnorm)) SETERRQ(((PetscObject)snes)->comm, PETSC_ERR_FP, "Infinite or not-a-number generated in function evaluation");
     /* combination (additive) or selection (multiplicative) of the N-GMRES solution */
     if (ngmres->select_type == SNES_NGMRES_SELECT_LINESEARCH) {
       /* X = X + \lambda(XA - X) */
@@ -409,8 +425,8 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
       ierr = VecCopy(FM, F);CHKERRQ(ierr);
       ierr = VecCopy(XM, X);CHKERRQ(ierr);
       ierr = VecCopy(XA, Y);CHKERRQ(ierr);
-      fnorm = fMnorm;
       ierr = VecAYPX(Y, -1.0, X);CHKERRQ(ierr);
+      fnorm = fMnorm;
       ierr = SNESLineSearchApply(ngmres->additive_linesearch,X,F,&fnorm,Y);CHKERRQ(ierr);
       ierr = SNESLineSearchGetSuccess(ngmres->additive_linesearch, &lssucceed);CHKERRQ(ierr);
       if (!lssucceed) {
@@ -445,10 +461,12 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
         ierr = VecCopy(XA, X);CHKERRQ(ierr);
       } else {
         if (ngmres->monitor) {
-          ierr = PetscViewerASCIIPrintf(ngmres->monitor, "picked X_M, ||F_A||_2 = %e, ||F_M||_2 = %e\n", fAnorm, fnorm);CHKERRQ(ierr);
+          ierr = PetscViewerASCIIPrintf(ngmres->monitor, "picked X_M, ||F_A||_2 = %e, ||F_M||_2 = %e\n", fAnorm, fMnorm);CHKERRQ(ierr);
         }
         fnorm = fMnorm;
         nu = fnorm*fnorm;
+        ierr = VecCopy(XM, Y);CHKERRQ(ierr);
+        ierr = VecAXPY(Y,-1.0,X);CHKERRQ(ierr);
         ierr = VecCopy(FM, F);CHKERRQ(ierr);
         ierr = VecCopy(XM, X);CHKERRQ(ierr);
       }
@@ -462,7 +480,7 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
     selectRestart = PETSC_FALSE;
     if (ngmres->restart_type == SNES_NGMRES_RESTART_DIFFERENCE) {
       /* difference stagnation restart */
-      if((ngmres->epsilonB*dnorm > dminnorm) && (PetscSqrtReal(fAnorm) > ngmres->deltaB*PetscSqrtReal(fminnorm))) {
+      if ((ngmres->epsilonB*dnorm > dminnorm) && (PetscSqrtReal(fAnorm) > ngmres->deltaB*PetscSqrtReal(fminnorm))) {
         if (ngmres->monitor) {
           ierr = PetscViewerASCIIPrintf(ngmres->monitor, "difference restart: %e > %e\n", ngmres->epsilonB*dnorm, dminnorm);CHKERRQ(ierr);
         }
@@ -545,8 +563,11 @@ PetscErrorCode SNESSolve_NGMRES(SNES snes)
     ierr = PetscObjectGrantAccess(snes);CHKERRQ(ierr);
     SNESLogConvHistory(snes, snes->norm, snes->iter);
     ierr = SNESMonitor(snes, snes->iter, snes->norm);CHKERRQ(ierr);
-
-    ierr = (*snes->ops->converged)(snes,snes->iter,0.0,0.0,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
+    ierr = VecNormBegin(Y,NORM_2,&ynorm);CHKERRQ(ierr);
+    ierr = VecNormBegin(X,NORM_2,&xnorm);CHKERRQ(ierr);
+    ierr = VecNormEnd(Y,NORM_2,&ynorm);CHKERRQ(ierr);
+    ierr = VecNormEnd(X,NORM_2,&xnorm);CHKERRQ(ierr);
+    ierr = (*snes->ops->converged)(snes,snes->iter,xnorm,ynorm,fnorm,&snes->reason,snes->cnvP);CHKERRQ(ierr);
     if (snes->reason) PetscFunctionReturn(0);
   }
   snes->reason = SNES_DIVERGED_MAX_IT;

@@ -9,8 +9,8 @@
 */
 PetscFList PetscDrawList              = 0;
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawCreate" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawCreate"
 /*@C
    PetscDrawCreate - Creates a graphics context.
 
@@ -55,27 +55,28 @@ PetscErrorCode  PetscDrawCreate(MPI_Comm comm,const char display[],const char ti
   draw->w       = w;
   draw->h       = h;
   draw->pause   = 0.0;
-  draw->coor_xl = 0.0;  
+  draw->coor_xl = 0.0;
   draw->coor_xr = 1.0;
-  draw->coor_yl = 0.0;  
+  draw->coor_yl = 0.0;
   draw->coor_yr = 1.0;
-  draw->port_xl = 0.0;  
+  draw->port_xl = 0.0;
   draw->port_xr = 1.0;
-  draw->port_yl = 0.0;  
+  draw->port_yl = 0.0;
   draw->port_yr = 1.0;
   draw->popup   = 0;
   ierr = PetscOptionsGetReal(PETSC_NULL,"-draw_pause",&dpause,&flag);CHKERRQ(ierr);
   if (flag) draw->pause = dpause;
-  draw->savefilename = PETSC_NULL;
+  draw->savefilename  = PETSC_NULL;
   draw->savefilemovie = PETSC_FALSE;
+  draw->savefilecount = -1;
   *indraw       = draw;
   PetscFunctionReturn(0);
 }
- 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawSetType" 
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawSetType"
 /*@C
-   PetscDrawSetType - Builds graphics object for a particular implementation 
+   PetscDrawSetType - Builds graphics object for a particular implementation
 
    Collective on PetscDraw
 
@@ -84,24 +85,22 @@ PetscErrorCode  PetscDrawCreate(MPI_Comm comm,const char display[],const char ti
 -  type      - for example, PETSC_DRAW_X
 
    Options Database Command:
-.  -draw_type  <type> - Sets the type; use -help for a list 
+.  -draw_type  <type> - Sets the type; use -help for a list
     of available methods (for instance, x)
 
    Level: intermediate
 
-   Notes:  
+   Notes:
    See "petsc/include/petscdraw.h" for available methods (for instance,
    PETSC_DRAW_X)
 
    Concepts: drawing^X windows
    Concepts: X windows^graphics
-   Concepts: drawing^postscript
-   Concepts: postscript^graphics
    Concepts: drawing^Microsoft Windows
 
 .seealso: PetscDrawSetFromOptions(), PetscDrawCreate(), PetscDrawDestroy()
 @*/
-PetscErrorCode  PetscDrawSetType(PetscDraw draw,const PetscDrawType type)
+PetscErrorCode  PetscDrawSetType(PetscDraw draw,PetscDrawType type)
 {
   PetscErrorCode ierr,(*r)(PetscDraw);
   PetscBool       match;
@@ -111,14 +110,14 @@ PetscErrorCode  PetscDrawSetType(PetscDraw draw,const PetscDrawType type)
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
   PetscValidCharPointer(type,2);
 
-  ierr = PetscTypeCompare((PetscObject)draw,type,&match);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)draw,type,&match);CHKERRQ(ierr);
   if (match) PetscFunctionReturn(0);
 
   /*  User requests no graphics */
   ierr = PetscOptionsHasName(PETSC_NULL,"-nox",&flg);CHKERRQ(ierr);
 
   /*
-     This is not ideal, but it allows codes to continue to run if X graphics 
+     This is not ideal, but it allows codes to continue to run if X graphics
    was requested but is not installed on this machine. Mostly this is for
    testing.
    */
@@ -154,8 +153,8 @@ PetscErrorCode  PetscDrawSetType(PetscDraw draw,const PetscDrawType type)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawRegisterDestroy" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawRegisterDestroy"
 /*@C
    PetscDrawRegisterDestroy - Frees the list of PetscDraw methods that were
    registered by PetscDrawRegisterDynamic().
@@ -175,23 +174,23 @@ PetscErrorCode  PetscDrawRegisterDestroy(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawGetType" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawGetType"
 /*@C
    PetscDrawGetType - Gets the PetscDraw type as a string from the PetscDraw object.
 
    Not Collective
 
    Input Parameter:
-.  draw - Krylov context 
+.  draw - Krylov context
 
    Output Parameters:
-.  name - name of PetscDraw method 
+.  name - name of PetscDraw method
 
    Level: advanced
 
 @*/
-PetscErrorCode  PetscDrawGetType(PetscDraw draw,const PetscDrawType *type)
+PetscErrorCode  PetscDrawGetType(PetscDraw draw,PetscDrawType *type)
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
@@ -200,8 +199,8 @@ PetscErrorCode  PetscDrawGetType(PetscDraw draw,const PetscDrawType *type)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawRegister" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawRegister"
 PetscErrorCode  PetscDrawRegister(const char *sname,const char *path,const char *name,PetscErrorCode (*function)(PetscDraw))
 {
   PetscErrorCode ierr;
@@ -213,9 +212,9 @@ PetscErrorCode  PetscDrawRegister(const char *sname,const char *path,const char 
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawSetFromOptions" 
-/*@C
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawSetFromOptions"
+/*@
    PetscDrawSetFromOptions - Sets the graphics type from the options database.
       Defaults to a PETSc X windows graphics.
 
@@ -226,18 +225,20 @@ PetscErrorCode  PetscDrawRegister(const char *sname,const char *path,const char 
 
    Options Database Keys:
 +   -nox - do not use X graphics (ignore graphics calls, but run program correctly)
--   -nox_warning - when X windows support is not installed this prevents the warning message
+.   -nox_warning - when X windows support is not installed this prevents the warning message
                    from being printed
+.   -draw_save [optional filename] - (X windows only) saves each image before it is cleared to a file
+-   -draw_save_movie - converts image files to a movie  at the end of the run. See PetscDrawSetSave()
 
    Level: intermediate
 
-   Notes: 
+   Notes:
     Must be called after PetscDrawCreate() before the PetscDrawtor is used.
 
     Concepts: drawing^setting options
     Concepts: graphics^setting options
 
-.seealso: PetscDrawCreate(), PetscDrawSetType()
+.seealso: PetscDrawCreate(), PetscDrawSetType(), PetscDrawSetSave()
 
 @*/
 PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
@@ -265,14 +266,18 @@ PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
   } else {
     ierr = PetscOptionsHasName(PETSC_NULL,"-nox",&nox);CHKERRQ(ierr);
     def  = PETSC_DRAW_NULL;
-#if defined(PETSC_USE_WINDOWS_GRAPHICS) && !defined(PETSC_HAVE_X)
+#if defined(PETSC_USE_WINDOWS_GRAPHICS)
     if (!nox) def = PETSC_DRAW_WIN32;
 #elif defined(PETSC_HAVE_X)
     if (!nox) def = PETSC_DRAW_X;
+#elif defined(PETSC_HAVE_GLUT)
+    if (!nox) def = PETSC_DRAW_GLUT;
+#elif defined(PETSC_HAVE_OPENGLES)
+    if (!nox) def = PETSC_DRAW_OPENGLES;
 #else
     ierr = PetscOptionsHasName(PETSC_NULL,"-nox_warning",&warn);CHKERRQ(ierr);
     if (!nox && !warn) {
-      (*PetscErrorPrintf)("PETSc installed without X windows on this machine\nproceeding without graphics\n");
+      (*PetscErrorPrintf)("PETSc installed without X windows, Microsoft Graphics, OpenGL ES, or GLUT/OpenGL on this machine\nproceeding without graphics\n");
     }
 #endif
   }
@@ -284,11 +289,13 @@ PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
       ierr = PetscDrawSetType(draw,def);CHKERRQ(ierr);
     }
     ierr = PetscOptionsName("-nox","Run without graphics","None",&nox);CHKERRQ(ierr);
-    ierr = PetscOptionsBool("-draw_save_movie","Make a movie from the images saved","PetscDrawSetSave",movie,&movie,PETSC_NULL);CHKERRQ(ierr);
-    ierr = PetscOptionsString("-draw_save","Save graphics to file","PetscDrawSetSave",filename,filename,PETSC_MAX_PATH_LEN,&save);CHKERRQ(ierr);
+#if defined(PETSC_HAVE_X)
+    ierr = PetscOptionsBool("-draw_save_movie","Make a movie from the images saved (X Windows only)","PetscDrawSetSave",movie,&movie,PETSC_NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsString("-draw_save","Save graphics to file (X Windows only)","PetscDrawSetSave",filename,filename,PETSC_MAX_PATH_LEN,&save);CHKERRQ(ierr);
     if (save) {
       ierr = PetscDrawSetSave(draw,filename,movie);CHKERRQ(ierr);
     }
+#endif
 
     /* process any options handlers added with PetscObjectAddOptionsHandler() */
     ierr = PetscObjectProcessOptionsHandlers((PetscObject)draw);CHKERRQ(ierr);
@@ -296,8 +303,8 @@ PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawSetSave" 
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawSetSave"
 /*@C
    PetscDrawSave - Saves images produced in a PetscDraw into a file as a Gif file using AfterImage
 
@@ -306,7 +313,7 @@ PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
    Input Parameter:
 +  draw      - the graphics context
 .  filename  - name of the file, if PETSC_NULL uses name of draw object
--  movie - produce a movie of all the images 
+-  movie - produce a movie of all the images
 
    Options Database Command:
 +  -draw_save  <filename>
@@ -315,11 +322,13 @@ PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
    Level: intermediate
 
    Concepts: X windows^graphics
-   Concepts: drawing^postscript
-   Concepts: postscript^graphics
-   Concepts: drawing^Microsoft Windows
 
-   Notes: Requires that PETSc be configured with the option --with-afterimage
+   Notes: You should call this BEFORE calling PetscDrawClear() and creating your image.
+
+   Requires that PETSc be configured with the option --with-afterimage to save the images and ffmpeg must be in your path to make the movie
+
+   If X windows generates an error message about X_CreateWindow() failing then Afterimage was installed without X windows. Reinstall Afterimage using the 
+   ./configure flags --x-includes=/pathtoXincludes --x-libraries=/pathtoXlibraries   For example under Mac OS X Mountain Lion --x-includes=/opt/X11/include -x-libraries=/opt/X11/lib
 
 
 .seealso: PetscDrawSetFromOptions(), PetscDrawCreate(), PetscDrawDestroy(), PetscDrawSave()
@@ -331,7 +340,6 @@ PetscErrorCode  PetscDrawSetSave(PetscDraw draw,const char *filename,PetscBool m
   PetscFunctionBegin;
   PetscValidHeaderSpecific(draw,PETSC_DRAW_CLASSID,1);
   ierr = PetscFree(draw->savefilename);CHKERRQ(ierr);
-  draw->savefilecount = 0;
   draw->savefilemovie = movie;
   if (filename && filename[0]) {
     ierr = PetscStrallocpy(filename,&draw->savefilename);CHKERRQ(ierr);

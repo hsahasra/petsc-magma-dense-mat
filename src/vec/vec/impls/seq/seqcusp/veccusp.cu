@@ -25,6 +25,7 @@ PetscErrorCode VecCUSPAllocateCheckHost(Vec v)
   PetscInt       n = v->map->n;
   PetscFunctionBegin;
   s = (Vec_Seq*)v->data;
+  ierr = VecCUSPAllocateCheck(v);CHKERRQ(ierr);
   if (s->array == 0) {
     //#ifdef PETSC_HAVE_TXPETSCGPU
     //if (n>0)
@@ -233,8 +234,8 @@ PetscErrorCode VecCUSPCopyFromGPUSome(Vec v, PetscCUSPIndices ci)
 
 
 #undef __FUNCT__
-#define __FUNCT__ "VecCopy_Seq"
-static PetscErrorCode VecCopy_Seq(Vec xin,Vec yin)
+#define __FUNCT__ "VecCopy_SeqCUSP_Private"
+static PetscErrorCode VecCopy_SeqCUSP_Private(Vec xin,Vec yin)
 {
   PetscScalar       *ya;
   const PetscScalar *xa;
@@ -252,8 +253,8 @@ static PetscErrorCode VecCopy_Seq(Vec xin,Vec yin)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "VecSetRandom_Seq"
-static PetscErrorCode VecSetRandom_Seq(Vec xin,PetscRandom r)
+#define __FUNCT__ "VecSetRandom_SeqCUSP_Private"
+static PetscErrorCode VecSetRandom_SeqCUSP_Private(Vec xin,PetscRandom r)
 {
   PetscErrorCode ierr;
   PetscInt       n = xin->map->n,i;
@@ -267,8 +268,8 @@ static PetscErrorCode VecSetRandom_Seq(Vec xin,PetscRandom r)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "VecDestroy_Seq"
-static PetscErrorCode VecDestroy_Seq(Vec v)
+#define __FUNCT__ "VecDestroy_SeqCUSP_Private"
+static PetscErrorCode VecDestroy_SeqCUSP_Private(Vec v)
 {
   Vec_Seq        *vs = (Vec_Seq*)v->data;
   PetscErrorCode ierr;
@@ -285,8 +286,8 @@ static PetscErrorCode VecDestroy_Seq(Vec v)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "VecResetArray_Seq"
-static PetscErrorCode VecResetArray_Seq(Vec vin)
+#define __FUNCT__ "VecResetArray_SeqCUSP_Private"
+static PetscErrorCode VecResetArray_SeqCUSP_Private(Vec vin)
 {
   Vec_Seq *v = (Vec_Seq *)vin->data;
 
@@ -793,7 +794,7 @@ struct VecCUSPMAXPY3
   __host__ __device__
   void operator()(Tuple t)
   {
-    /*y += a1*x1 +a2*x2 + 13*x3 */
+    /*y += a1*x1 +a2*x2 + a3*x3 */
     thrust::get<0>(t) += thrust::get<1>(t)*thrust::get<2>(t)+thrust::get<3>(t)*thrust::get<4>(t)+thrust::get<5>(t)*thrust::get<6>(t);
   }
 };
@@ -946,33 +947,33 @@ PetscErrorCode VecMAXPY_SeqCUSP(Vec xin, PetscInt nv,const PetscScalar *alpha,Ve
 #define __FUNCT__ "VecDot_SeqCUSP"
 PetscErrorCode VecDot_SeqCUSP(Vec xin,Vec yin,PetscScalar *z)
 {
-#if defined(PETSC_USE_COMPLEX)
-  PetscScalar    *ya,*xa;
-#endif
   CUSPARRAY      *xarray,*yarray;
+  //  PetscScalar    *xptr,*yptr,*zgpu;
   PetscErrorCode ierr;
+  //PetscReal tmp;
 
   PetscFunctionBegin;
+  //VecNorm_SeqCUSP(xin, NORM_2, &tmp);
+  //VecNorm_SeqCUSP(yin, NORM_2, &tmp);
+  ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
+  ierr = VecCUSPGetArrayRead(yin,&yarray);CHKERRQ(ierr);
+  try {
 #if defined(PETSC_USE_COMPLEX)
-  /*Not working for complex*/
+    *z = cusp::blas::dotc(*yarray,*xarray);
 #else
-  {
-    ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
-    ierr = VecCUSPGetArrayRead(yin,&yarray);CHKERRQ(ierr);
-    try {
-      *z = cusp::blas::dot(*xarray,*yarray);
-    } catch(char* ex) {
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
-    }
-  }
+    *z = cusp::blas::dot(*yarray,*xarray);
 #endif
- ierr = WaitForGPU();CHKERRCUSP(ierr);
- if (xin->map->n >0) {
+  } catch(char* ex) {
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
+  }
+  ierr = WaitForGPU();CHKERRCUSP(ierr);
+  if (xin->map->n >0) {
     ierr = PetscLogFlops(2.0*xin->map->n-1);CHKERRQ(ierr);
   }
- ierr = VecCUSPRestoreArrayRead(xin,&xarray);CHKERRQ(ierr);
- ierr = VecCUSPRestoreArrayRead(yin,&yarray);CHKERRQ(ierr);
- PetscFunctionReturn(0);
+  ierr = VecCUSPRestoreArrayRead(xin,&xarray);CHKERRQ(ierr);
+  ierr = VecCUSPRestoreArrayRead(yin,&yarray);CHKERRQ(ierr);
+  //printf("VecDot_SeqCUSP=%1.5g,%1.5g\n",PetscRealPart(*z),PetscImaginaryPart(*z));
+  PetscFunctionReturn(0);
 }
 
 /*The following few template functions are for VecMDot_SeqCUSP*/
@@ -1040,6 +1041,124 @@ struct cuspadd4 : thrust::binary_function<T,T,T>
 #undef __FUNCT__
 #define __FUNCT__ "VecMDot_SeqCUSP"
 PetscErrorCode VecMDot_SeqCUSP(Vec xin,PetscInt nv,const Vec yin[],PetscScalar *z)
+{
+  PetscErrorCode ierr;
+  PetscInt       n = xin->map->n,i;
+  CUSPARRAY      *xarray,*yy;
+  PetscScalar    *V,*xptr,*yptr,*zgpu;
+  Vec            *yyin = (Vec*)yin;
+  cublasStatus   stat;
+
+  PetscFunctionBegin;
+  stat = cublasAlloc(n*nv,sizeof(PetscScalar),(void**)&V);
+  if (stat!=CUBLAS_STATUS_SUCCESS) SETERRQ1(PETSC_COMM_SELF,1,"CUBLAS error %d",stat);
+  stat = cublasAlloc(nv,sizeof(PetscScalar),(void**)&zgpu);
+  if (stat!=CUBLAS_STATUS_SUCCESS) SETERRQ1(PETSC_COMM_SELF,1,"CUBLAS error %d",stat);
+  for (i=0;i<nv;i++) {
+    ierr = VecCUSPGetArrayRead(yyin[i],&yy);CHKERRQ(ierr);
+    yptr = thrust::raw_pointer_cast(&(*yy)[0]);
+    cudaMemcpy(V+i*n,yptr,n*sizeof(PetscScalar),cudaMemcpyDeviceToDevice);
+    ierr = VecCUSPRestoreArrayRead(yyin[i],&yy);CHKERRQ(ierr);
+  }
+  ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
+  xptr = thrust::raw_pointer_cast(&(*xarray)[0]);
+#if defined(PETSC_USE_COMPLEX)
+#if defined(PETSC_USE_REAL_DOUBLE)
+#define cublasXgemv cublasZgemv
+  cuDoubleComplex one = {1.0, 0.0};
+  cuDoubleComplex zero = {0.0, 0.0};
+#else
+#define cublasXgemv cublasCgemv
+  cuFloatComplex one = {1.0f, 0.0f};
+  cuFloatComplex zero = {0.0f, 0.0f};
+#endif
+#else
+#if defined(PETSC_USE_REAL_DOUBLE)
+#define cublasXgemv cublasDgemv
+  PetscScalar one = 1.0;
+  PetscScalar zero = 0.0;
+#else
+#define cublasXgemv cublasSgemv
+  PetscScalar one = 1.0f;
+  PetscScalar zero = 0.0f;
+#endif
+#endif
+
+#if defined(PETSC_USE_COMPLEX)
+  cublasXgemv('C',n,nv,one,V,n,xptr,1,zero,zgpu,1);
+#else
+  cublasXgemv('T',n,nv,one,V,n,xptr,1,zero,zgpu,1);
+#endif
+  ierr = cudaMemcpy(z,zgpu,nv*sizeof(PetscScalar),cudaMemcpyDeviceToHost);CHKERRCUSP(ierr);
+  ierr = VecCUSPRestoreArrayRead(xin,&xarray);CHKERRQ(ierr);
+  stat = cublasFree(V);CHKERRCUSP(stat);
+  stat = cublasFree(zgpu);CHKERRCUSP(stat);
+  ierr = WaitForGPU();CHKERRCUSP(ierr);
+  ierr = PetscLogFlops(PetscMax(nv*(2.0*n-1),0.0));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "VecMDot_SeqCUSP_CUBLAS_1"
+PetscErrorCode VecMDot_SeqCUSP_CUBLAS_1(Vec xin,PetscInt nv,const Vec yin[],PetscScalar *z)
+{
+  PetscErrorCode ierr;
+  PetscInt       n = xin->map->n,i;
+  CUSPARRAY      *xarray,*yy;
+  PetscScalar    *V,*xptr,*yptr,*zgpu;
+  Vec            *yyin = (Vec*)yin;
+  cublasStatus   stat;
+  cudaError      cuerr;
+  size_t         pitch;
+
+  PetscFunctionBegin;
+  cuerr = cudaMallocPitch((void**)&V,&pitch,nv*sizeof(PetscScalar),n);
+  if (cuerr!=cudaSuccess) SETERRQ1(PETSC_COMM_SELF,1,"CUDA error %d",cuerr);
+  stat = cublasAlloc(nv,sizeof(PetscScalar),(void**)&zgpu);
+  if (stat!=CUBLAS_STATUS_SUCCESS) SETERRQ1(PETSC_COMM_SELF,1,"CUBLAS error %d",stat);
+  for (i=0;i<nv;i++) {
+    ierr = VecCUSPGetArrayRead(yyin[i],&yy);CHKERRQ(ierr);
+    yptr = thrust::raw_pointer_cast(&(*yy)[0]);
+    cuerr = cudaMemcpy2D(V+i,pitch,yptr,sizeof(PetscScalar),sizeof(PetscScalar),n,cudaMemcpyDeviceToDevice);
+    if (cuerr!=cudaSuccess) SETERRQ1(PETSC_COMM_SELF,1,"CUDA error %d",cuerr);
+    ierr = VecCUSPRestoreArrayRead(yyin[i],&yy);CHKERRQ(ierr);
+  }
+  ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
+  xptr = thrust::raw_pointer_cast(&(*xarray)[0]);
+#if defined(PETSC_USE_COMPLEX)
+#if defined(PETSC_USE_REAL_DOUBLE)
+#define cublasXgemv cublasZgemv
+  cuDoubleComplex one = {1.0, 0.0};
+  cuDoubleComplex zero = {0.0, 0.0};
+#else
+#define cublasXgemv cublasCgemv
+  cuFloatComplex one = {1.0f, 0.0f};
+  cuFloatComplex zero = {0.0f, 0.0f};
+#endif
+#else
+#if defined(PETSC_USE_REAL_DOUBLE)
+#define cublasXgemv cublasDgemv
+  PetscScalar one = 1.0;
+  PetscScalar zero = 0.0;
+#else
+#define cublasXgemv cublasSgemv
+  PetscScalar one = 1.0f;
+  PetscScalar zero = 0.0f;
+#endif
+#endif
+  cublasXgemv('N',nv,n,one,V,pitch/sizeof(PetscScalar),xptr,1,zero,zgpu,1);
+  cudaMemcpy(z,zgpu,nv*sizeof(PetscScalar),cudaMemcpyDeviceToHost);
+  ierr = VecCUSPRestoreArrayRead(xin,&xarray);CHKERRQ(ierr);
+  cublasFree(V);
+  cublasFree(zgpu);
+  ierr = WaitForGPU();CHKERRCUSP(ierr);
+  ierr = PetscLogFlops(PetscMax(nv*(2.0*n-1),0.0));CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "VecMDot_SeqCUSPOld"
+PetscErrorCode VecMDot_SeqCUSPOld(Vec xin,PetscInt nv,const Vec yin[],PetscScalar *z)
 {
   PetscErrorCode    ierr;
   PetscInt          n = xin->map->n,j,j_rem;
@@ -1165,7 +1284,6 @@ PetscErrorCode VecMDot_SeqCUSP(Vec xin,PetscInt nv,const Vec yin[],PetscScalar *
   PetscFunctionReturn(0);
 }
 
-
 #undef __FUNCT__
 #define __FUNCT__ "VecSet_SeqCUSP"
 PetscErrorCode VecSet_SeqCUSP(Vec xin,PetscScalar alpha)
@@ -1215,25 +1333,22 @@ PetscErrorCode VecScale_SeqCUSP(Vec xin, PetscScalar alpha)
 #define __FUNCT__ "VecTDot_SeqCUSP"
 PetscErrorCode VecTDot_SeqCUSP(Vec xin,Vec yin,PetscScalar *z)
 {
-#if defined(PETSC_USE_COMPLEX)
-  PetscScalar    *ya,*xa;
-#endif
   CUSPARRAY      *xarray,*yarray;
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-#if defined(PETSC_USE_COMPLEX)
+  //#if defined(PETSC_USE_COMPLEX)
   /*Not working for complex*/
-#else
- ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
- ierr = VecCUSPGetArrayRead(yin,&yarray);CHKERRQ(ierr);
- try {
-   *z = cusp::blas::dot(*xarray,*yarray);
- } catch(char* ex) {
-      SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
- }
-#endif
- ierr = WaitForGPU();CHKERRCUSP(ierr);
+  //#else
+  ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
+  ierr = VecCUSPGetArrayRead(yin,&yarray);CHKERRQ(ierr);
+  try {
+    *z = cusp::blas::dot(*xarray,*yarray);
+  } catch(char* ex) {
+    SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
+  }
+  //#endif
+  ierr = WaitForGPU();CHKERRCUSP(ierr);
   if (xin->map->n > 0) {
     ierr = PetscLogFlops(2.0*xin->map->n-1);CHKERRQ(ierr);
   }
@@ -1264,12 +1379,12 @@ PetscErrorCode VecCopy_SeqCUSP(Vec xin,Vec yin)
 
     } else if (xin->valid_GPU_array == PETSC_CUSP_CPU) {
       /* copy in CPU if we are on the CPU*/
-      ierr = VecCopy_Seq(xin,yin);CHKERRQ(ierr);
+      ierr = VecCopy_SeqCUSP_Private(xin,yin);CHKERRQ(ierr);
     } else if (xin->valid_GPU_array == PETSC_CUSP_BOTH) {
       /* if xin is valid in both places, see where yin is and copy there (because it's probably where we'll want to next use it) */
       if (yin->valid_GPU_array == PETSC_CUSP_CPU) {
 	/* copy in CPU */
-	ierr = VecCopy_Seq(xin,yin);CHKERRQ(ierr);
+	ierr = VecCopy_SeqCUSP_Private(xin,yin);CHKERRQ(ierr);
 
       } else if (yin->valid_GPU_array == PETSC_CUSP_GPU) {
 	/* copy in GPU */
@@ -1297,7 +1412,7 @@ PetscErrorCode VecCopy_SeqCUSP(Vec xin,Vec yin)
         ierr = VecCUSPRestoreArrayRead(xin,&xarray);CHKERRQ(ierr);
         ierr = VecCUSPRestoreArrayWrite(yin,&yarray);CHKERRQ(ierr);
       } else {
-	ierr = VecCopy_Seq(xin,yin);CHKERRQ(ierr);
+	ierr = VecCopy_SeqCUSP_Private(xin,yin);CHKERRQ(ierr);
       }
     }
   }
@@ -1317,10 +1432,19 @@ PetscErrorCode VecSwap_SeqCUSP(Vec xin,Vec yin)
   if (xin != yin) {
     ierr = VecCUSPGetArrayReadWrite(xin,&xarray);CHKERRQ(ierr);
     ierr = VecCUSPGetArrayReadWrite(yin,&yarray);CHKERRQ(ierr);
+
+#if defined(PETSC_USE_COMPLEX)
+#if defined(PETSC_USE_REAL_SINGLE)
+    cublasCswap(bn,(cuFloatComplex*)VecCUSPCastToRawPtr(*xarray),one,(cuFloatComplex*)VecCUSPCastToRawPtr(*yarray),one);
+#else
+    cublasZswap(bn,(cuDoubleComplex*)VecCUSPCastToRawPtr(*xarray),one,(cuDoubleComplex*)VecCUSPCastToRawPtr(*yarray),one);
+#endif
+#else
 #if defined(PETSC_USE_REAL_SINGLE)
     cublasSswap(bn,VecCUSPCastToRawPtr(*xarray),one,VecCUSPCastToRawPtr(*yarray),one);
 #else
     cublasDswap(bn,VecCUSPCastToRawPtr(*xarray),one,VecCUSPCastToRawPtr(*yarray),one);
+#endif
 #endif
     ierr = cublasGetError();CHKERRCUSP(ierr);
     ierr = WaitForGPU();CHKERRCUSP(ierr);
@@ -1550,10 +1674,18 @@ PetscErrorCode VecNorm_SeqCUSP(Vec xin,NormType type,PetscReal* z)
     *z   = max;
   } else if (type == NORM_1) {
     ierr = VecCUSPGetArrayRead(xin,&xarray);CHKERRQ(ierr);
+#if defined(PETSC_USE_COMPLEX)
+#if defined(PETSC_USE_REAL_SINGLE)
+    *z = cublasScasum(bn,(cuFloatComplex*)VecCUSPCastToRawPtr(*xarray),one);
+#else
+    *z = cublasDzasum(bn,(cuDoubleComplex*)VecCUSPCastToRawPtr(*xarray),one);
+#endif
+#else
 #if defined(PETSC_USE_REAL_SINGLE)
     *z = cublasSasum(bn,VecCUSPCastToRawPtr(*xarray),one);
 #else
     *z = cublasDasum(bn,VecCUSPCastToRawPtr(*xarray),one);
+#endif
 #endif
     ierr = cublasGetError();CHKERRCUSP(ierr);
     ierr = VecCUSPRestoreArrayRead(xin,&xarray);CHKERRQ(ierr);
@@ -1563,6 +1695,7 @@ PetscErrorCode VecNorm_SeqCUSP(Vec xin,NormType type,PetscReal* z)
     ierr = VecNorm_SeqCUSP(xin,NORM_1,z);CHKERRQ(ierr);
     ierr = VecNorm_SeqCUSP(xin,NORM_2,z+1);CHKERRQ(ierr);
   }
+  //printf("VecNorm_SeqCUSP=%1.5g\n",*z);
   PetscFunctionReturn(0);
 }
 
@@ -1575,7 +1708,7 @@ PetscErrorCode VecSetRandom_SeqCUSP(Vec xin,PetscRandom r)
 {
   PetscErrorCode ierr;
   PetscFunctionBegin;
-  ierr = VecSetRandom_Seq(xin,r);CHKERRQ(ierr);
+  ierr = VecSetRandom_SeqCUSP_Private(xin,r);CHKERRQ(ierr);
   xin->valid_GPU_array = PETSC_CUSP_CPU;
   PetscFunctionReturn(0);
 }
@@ -1587,7 +1720,7 @@ PetscErrorCode VecResetArray_SeqCUSP(Vec vin)
   PetscErrorCode ierr;
   PetscFunctionBegin;
   ierr = VecCUSPCopyFromGPU(vin);CHKERRQ(ierr);
-  ierr = VecResetArray_Seq(vin);CHKERRQ(ierr);
+  ierr = VecResetArray_SeqCUSP_Private(vin);CHKERRQ(ierr);
   vin->valid_GPU_array = PETSC_CUSP_CPU;
   PetscFunctionReturn(0);
 }
@@ -1657,21 +1790,25 @@ PetscErrorCode  VecCreateSeqCUSP(MPI_Comm comm,PetscInt n,Vec *v)
 template <typename T>
 struct cuspdotnormcalculate : thrust::unary_function<T,T>
 {
-	__host__ __device__
-	T operator()(T x)
-	{
-		return thrust::make_tuple(thrust::get<0>(x)*thrust::get<1>(x),thrust::get<1>(x)*thrust::get<1>(x));
-	}
+  __host__ __device__
+  T operator()(T x)
+  {
+#if defined(PETSC_USE_COMPLEX)
+    //return thrust::make_tuple(thrust::get<0>(x)*thrust::get<1>(x), thrust::get<1>(x)*thrust::get<1>(x));
+#else
+    return thrust::make_tuple(thrust::get<0>(x)*thrust::get<1>(x), thrust::get<1>(x)*thrust::get<1>(x));
+#endif
+  }
 };
 
 template <typename T>
 struct cuspdotnormreduce : thrust::binary_function<T,T,T>
 {
-	__host__ __device__
-	T operator()(T x,T y)
-	{
-		return thrust::make_tuple(thrust::get<0>(x)+thrust::get<0>(y),thrust::get<1>(x)+thrust::get<1>(y));
-	}
+  __host__ __device__
+  T operator()(T x,T y)
+  {
+    return thrust::make_tuple(thrust::get<0>(x)+thrust::get<0>(y), thrust::get<1>(x)+thrust::get<1>(y));
+  }
 };
 
 #undef __FUNCT__
@@ -1679,30 +1816,38 @@ struct cuspdotnormreduce : thrust::binary_function<T,T,T>
 PetscErrorCode VecDotNorm2_SeqCUSP(Vec s, Vec t, PetscScalar *dp, PetscScalar *nm)
 {
   PetscErrorCode                         ierr;
-  PetscScalar                            zero = 0.0,n=s->map->n;
+  PetscScalar                            zero = 0.0;
+  PetscReal                              n=s->map->n;
   thrust::tuple<PetscScalar,PetscScalar> result;
   CUSPARRAY                              *sarray,*tarray;
-
+  
   PetscFunctionBegin;
   /*ierr = VecCUSPCopyToGPU(s);CHKERRQ(ierr);
    ierr = VecCUSPCopyToGPU(t);CHKERRQ(ierr);*/
   ierr = VecCUSPGetArrayRead(s,&sarray);CHKERRQ(ierr);
   ierr = VecCUSPGetArrayRead(t,&tarray);CHKERRQ(ierr);
   try {
+#if defined(PETSC_USE_COMPLEX)
+    ierr = VecDot_SeqCUSP(s,t,dp);CHKERRQ(ierr);
+    ierr = VecDot_SeqCUSP(t,t,nm);CHKERRQ(ierr);
+    //printf("VecDotNorm2_SeqCUSP=%1.5g,%1.5g\n",PetscRealPart(*dp),PetscImaginaryPart(*dp));
+    //printf("VecDotNorm2_SeqCUSP=%1.5g,%1.5g\n",PetscRealPart(*nm),PetscImaginaryPart(*nm));
+#else
     result = thrust::transform_reduce(
-		 thrust::make_zip_iterator(
-		     thrust::make_tuple(
-                         sarray->begin(),
-			 tarray->begin())),
-		 thrust::make_zip_iterator(
-                     thrust::make_tuple(
-			 sarray->end(),
-			 tarray->end())),
-		  cuspdotnormcalculate<thrust::tuple<PetscScalar,PetscScalar> >(),
-		  thrust::make_tuple(zero,zero), /*init */
-		  cuspdotnormreduce<thrust::tuple<PetscScalar, PetscScalar> >()); /* binary function */
+				      thrust::make_zip_iterator(
+								thrust::make_tuple(
+										   sarray->begin(),
+										   tarray->begin())),
+				      thrust::make_zip_iterator(
+								thrust::make_tuple(
+										   sarray->end(),
+										   tarray->end())),
+				      cuspdotnormcalculate<thrust::tuple<PetscScalar,PetscScalar> >(),
+				      thrust::make_tuple(zero,zero), /*init */
+				      cuspdotnormreduce<thrust::tuple<PetscScalar, PetscScalar> >()); /* binary function */
     *dp = thrust::get<0>(result);
     *nm = thrust::get<1>(result);
+#endif
   } catch(char* ex) {
       SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
   }
@@ -1750,7 +1895,7 @@ PetscErrorCode VecDestroy_SeqCUSP(Vec v)
   } catch(char* ex) {
     SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUSP error: %s", ex);
   }
-  ierr = VecDestroy_Seq(v);CHKERRQ(ierr);
+  ierr = VecDestroy_SeqCUSP_Private(v);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

@@ -16,4 +16,5 @@ typedef struct {
   Vec        w;           /* work space for ghost values for parallel case */
 } Mat_MPIMAIJ;
 
+PETSC_EXTERN_C PetscErrorCode MatPtAP_SeqAIJ_SeqMAIJ(Mat,Mat,MatReuse,PetscReal,Mat*);
 #endif

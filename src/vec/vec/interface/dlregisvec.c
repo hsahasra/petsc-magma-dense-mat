@@ -3,7 +3,7 @@
 #include <petscpf.h>
 
 static PetscBool  ISPackageInitialized = PETSC_FALSE;
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "ISFinalizePackage"
 /*@C
   ISFinalizePackage - This function destroys everything in the IS package. It is
@@ -23,7 +23,7 @@ PetscErrorCode  ISFinalizePackage(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "ISInitializePackage"
 /*@C
       ISInitializePackage - This function initializes everything in the IS package. It is called
@@ -38,7 +38,7 @@ PetscErrorCode  ISFinalizePackage(void)
 .keywords: Vec, initialize, package
 .seealso: PetscInitialize()
 @*/
-PetscErrorCode  ISInitializePackage(const char path[]) 
+PetscErrorCode  ISInitializePackage(const char path[])
 {
   char              logList[256];
   char              *className;
@@ -86,12 +86,12 @@ extern void  MPIAPI VecMin_Local(void*,void*,PetscMPIInt*,MPI_Datatype*);
 extern void  MPIAPI PetscSplitReduction_Local(void*,void*,PetscMPIInt*,MPI_Datatype*);
 EXTERN_C_END
 
-const char *NormTypes[] = {"1","2","FROBENIUS","INFINITY","1_AND_2","NormType","NORM_",0};
+const char *const NormTypes[] = {"1","2","FROBENIUS","INFINITY","1_AND_2","NormType","NORM_",0};
 PetscInt   NormIds[7];  /* map from NormType to IDs used to cache Normvalues */
 
 static PetscBool  VecPackageInitialized = PETSC_FALSE;
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecInitializePackage"
 /*@C
   VecInitializePackage - This function initializes everything in the Vec package. It is called
@@ -106,7 +106,7 @@ static PetscBool  VecPackageInitialized = PETSC_FALSE;
 .keywords: Vec, initialize, package
 .seealso: PetscInitialize()
 @*/
-PetscErrorCode  VecInitializePackage(const char path[]) 
+PetscErrorCode  VecInitializePackage(const char path[])
 {
   char              logList[256];
   char              *className;
@@ -214,13 +214,13 @@ PetscErrorCode  VecInitializePackage(const char path[])
   for (i=0; i<4; i++) {
     ierr = PetscObjectComposedDataRegister(NormIds+i);CHKERRQ(ierr);
   }
-  
+
   /* Register finalization routine */
   ierr = PetscRegisterFinalize(VecFinalizePackage);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "VecFinalizePackage"
 /*@C
   VecFinalizePackage - This function finalizes everything in the Vec package. It is called
@@ -245,7 +245,7 @@ PetscErrorCode  VecFinalizePackage(void) {
 
 #ifdef PETSC_USE_DYNAMIC_LIBRARIES
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscDLLibraryRegister_petscvec"
 /*
   PetscDLLibraryRegister - This function is called when the dynamic library it is in is opened.

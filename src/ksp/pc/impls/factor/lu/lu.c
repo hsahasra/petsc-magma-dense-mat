@@ -8,14 +8,14 @@
 #include <../src/ksp/pc/impls/factor/lu/lu.h>  /*I "petscpc.h" I*/
 
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCFactorReorderForNonzeroDiagonal_LU"
 PetscErrorCode  PCFactorReorderForNonzeroDiagonal_LU(PC pc,PetscReal z)
 {
   PC_LU *lu = (PC_LU*)pc->data;
 
   PetscFunctionBegin;
-  lu->nonzerosalongdiagonal = PETSC_TRUE;                 
+  lu->nonzerosalongdiagonal = PETSC_TRUE;
   if (z == PETSC_DECIDE) {
     lu->nonzerosalongdiagonaltol = 1.e-10;
   } else {
@@ -26,7 +26,7 @@ PetscErrorCode  PCFactorReorderForNonzeroDiagonal_LU(PC pc,PetscReal z)
 EXTERN_C_END
 
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCFactorSetReuseOrdering_LU"
 PetscErrorCode  PCFactorSetReuseOrdering_LU(PC pc,PetscBool  flag)
 {
@@ -39,7 +39,7 @@ PetscErrorCode  PCFactorSetReuseOrdering_LU(PC pc,PetscBool  flag)
 EXTERN_C_END
 
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCFactorSetReuseFill_LU"
 PetscErrorCode  PCFactorSetReuseFill_LU(PC pc,PetscBool  flag)
 {
@@ -51,7 +51,7 @@ PetscErrorCode  PCFactorSetReuseFill_LU(PC pc,PetscBool  flag)
 }
 EXTERN_C_END
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCSetFromOptions_LU"
 static PetscErrorCode PCSetFromOptions_LU(PC pc)
 {
@@ -74,7 +74,7 @@ static PetscErrorCode PCSetFromOptions_LU(PC pc)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCView_LU"
 static PetscErrorCode PCView_LU(PC pc,PetscViewer viewer)
 {
@@ -83,22 +83,22 @@ static PetscErrorCode PCView_LU(PC pc,PetscViewer viewer)
   PetscBool      iascii;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     if (lu->inplace) {
       ierr = PetscViewerASCIIPrintf(viewer,"  LU: in-place factorization\n");CHKERRQ(ierr);
     } else {
       ierr = PetscViewerASCIIPrintf(viewer,"  LU: out-of-place factorization\n");CHKERRQ(ierr);
     }
-   
+
     if (lu->reusefill)    {ierr = PetscViewerASCIIPrintf(viewer,"       Reusing fill from past factorization\n");CHKERRQ(ierr);}
     if (lu->reuseordering) {ierr = PetscViewerASCIIPrintf(viewer,"       Reusing reordering from past factorization\n");CHKERRQ(ierr);}
-  } 
+  }
   ierr = PCView_Factor(pc,viewer);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCSetUp_LU"
 static PetscErrorCode PCSetUp_LU(PC pc)
 {
@@ -113,7 +113,7 @@ static PetscErrorCode PCSetUp_LU(PC pc)
     ierr = ISDestroy(&dir->col);CHKERRQ(ierr);
     ierr = MatGetOrdering(pc->pmat,((PC_Factor*)dir)->ordering,&dir->row,&dir->col);CHKERRQ(ierr);
     if (dir->row) {
-      ierr = PetscLogObjectParent(pc,dir->row);CHKERRQ(ierr); 
+      ierr = PetscLogObjectParent(pc,dir->row);CHKERRQ(ierr);
       ierr = PetscLogObjectParent(pc,dir->col);CHKERRQ(ierr);
     }
     ierr = MatLUFactor(pc->pmat,dir->row,dir->col,&((PC_Factor*)dir)->info);CHKERRQ(ierr);
@@ -126,7 +126,7 @@ static PetscErrorCode PCSetUp_LU(PC pc)
         ierr = MatReorderForNonzeroDiagonal(pc->pmat,dir->nonzerosalongdiagonaltol,dir->row,dir->col);CHKERRQ(ierr);
       }
       if (dir->row) {
-        ierr = PetscLogObjectParent(pc,dir->row);CHKERRQ(ierr); 
+        ierr = PetscLogObjectParent(pc,dir->row);CHKERRQ(ierr);
         ierr = PetscLogObjectParent(pc,dir->col);CHKERRQ(ierr);
       }
       if (!((PC_Factor*)dir)->fact){
@@ -156,14 +156,14 @@ static PetscErrorCode PCSetUp_LU(PC pc)
       dir->actualfill = info.fill_ratio_needed;
       ierr = PetscLogObjectParent(pc,((PC_Factor*)dir)->fact);CHKERRQ(ierr);
     }
-    if((!pc->setupcalled) || (pc->setupcalled && !pc->reuse)) {
+    if ((!pc->setupcalled) || (pc->setupcalled && !pc->reuse)) {
       ierr = MatLUFactorNumeric(((PC_Factor*)dir)->fact,pc->pmat,&((PC_Factor*)dir)->info);CHKERRQ(ierr);
     }
   }
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCReset_LU"
 static PetscErrorCode PCReset_LU(PC pc)
 {
@@ -177,7 +177,7 @@ static PetscErrorCode PCReset_LU(PC pc)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCDestroy_LU"
 static PetscErrorCode PCDestroy_LU(PC pc)
 {
@@ -192,7 +192,7 @@ static PetscErrorCode PCDestroy_LU(PC pc)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCApply_LU"
 static PetscErrorCode PCApply_LU(PC pc,Vec x,Vec y)
 {
@@ -205,7 +205,7 @@ static PetscErrorCode PCApply_LU(PC pc,Vec x,Vec y)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCApplyTranspose_LU"
 static PetscErrorCode PCApplyTranspose_LU(PC pc,Vec x,Vec y)
 {
@@ -221,7 +221,7 @@ static PetscErrorCode PCApplyTranspose_LU(PC pc,Vec x,Vec y)
 /* -----------------------------------------------------------------------------------*/
 
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCFactorSetUseInPlace_LU"
 PetscErrorCode  PCFactorSetUseInPlace_LU(PC pc)
 {
@@ -240,7 +240,7 @@ EXTERN_C_END
 
    Options Database Keys:
 +  -pc_factor_reuse_ordering - Activate PCFactorSetReuseOrdering()
-.  -pc_factor_mat_solver_package - Actives PCFactorSetMatSolverPackage() to choose the direct solver, like spooles
+.  -pc_factor_mat_solver_package - Actives PCFactorSetMatSolverPackage() to choose the direct solver, like superlu
 .  -pc_factor_reuse_fill - Activates PCFactorSetReuseFill()
 .  -pc_factor_fill <fill> - Sets fill amount
 .  -pc_factor_in_place - Activates in-place factorization
@@ -260,8 +260,8 @@ EXTERN_C_END
 
    Concepts: LU factorization, direct solver
 
-   Notes: Usually this will compute an "exact" solution in one iteration and does 
-          not need a Krylov method (i.e. you can use -ksp_type preonly, or 
+   Notes: Usually this will compute an "exact" solution in one iteration and does
+          not need a Krylov method (i.e. you can use -ksp_type preonly, or
           KSPSetType(ksp,KSPPREONLY) for the Krylov method
 
 .seealso:  PCCreate(), PCSetType(), PCType (for list of available types), PC,
@@ -272,7 +272,7 @@ EXTERN_C_END
 M*/
 
 EXTERN_C_BEGIN
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PCCreate_LU"
 PetscErrorCode  PCCreate_LU(PC pc)
 {
@@ -290,7 +290,7 @@ PetscErrorCode  PCCreate_LU(PC pc)
   dir->nonzerosalongdiagonal    = PETSC_FALSE;
 
   ((PC_Factor*)dir)->info.fill           = 5.0;
-  ((PC_Factor*)dir)->info.dtcol          = 1.e-6; /* default to pivoting; this is only thing PETSc LU supports */    
+  ((PC_Factor*)dir)->info.dtcol          = 1.e-6; /* default to pivoting; this is only thing PETSc LU supports */
   ((PC_Factor*)dir)->info.shifttype      = (PetscReal)MAT_SHIFT_NONE;
   ((PC_Factor*)dir)->info.shiftamount    = 0.0;
   ((PC_Factor*)dir)->info.zeropivot      = 100.0*PETSC_MACHINE_EPSILON;
@@ -301,9 +301,9 @@ PetscErrorCode  PCCreate_LU(PC pc)
   ierr = PetscStrallocpy(MATSOLVERPETSC,&((PC_Factor*)dir)->solvertype);CHKERRQ(ierr); /* default SolverPackage */
   ierr = MPI_Comm_size(((PetscObject)pc)->comm,&size);CHKERRQ(ierr);
   if (size == 1) {
-    ierr = PetscStrallocpy(MATORDERINGND,&((PC_Factor*)dir)->ordering);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATORDERINGND,(char**)&((PC_Factor*)dir)->ordering);CHKERRQ(ierr);
   } else {
-    ierr = PetscStrallocpy(MATORDERINGNATURAL,&((PC_Factor*)dir)->ordering);CHKERRQ(ierr);
+    ierr = PetscStrallocpy(MATORDERINGNATURAL,(char**)&((PC_Factor*)dir)->ordering);CHKERRQ(ierr);
   }
   dir->reusefill        = PETSC_FALSE;
   dir->reuseordering    = PETSC_FALSE;

@@ -14,8 +14,8 @@
 #define _VEC1
 #endif
 
-/*  
-  MATSEQBAIJ format - Block compressed row storage. The i[] and j[] 
+/*
+  MATSEQBAIJ format - Block compressed row storage. The i[] and j[]
   arrays start at 0.
 */
 
@@ -133,7 +133,7 @@ extern PetscErrorCode MatSolveTranspose_SeqBAIJ_2_NaturalOrdering_inplace(Mat,Ve
 extern PetscErrorCode MatSolveTranspose_SeqBAIJ_2_NaturalOrdering(Mat,Vec,Vec);
 
 extern PetscErrorCode MatSolveTranspose_SeqBAIJ_3_inplace(Mat,Vec,Vec);
-extern PetscErrorCode MatSolveTranspose_SeqBAIJ_3(Mat,Vec,Vec); 
+extern PetscErrorCode MatSolveTranspose_SeqBAIJ_3(Mat,Vec,Vec);
 extern PetscErrorCode MatSolveTranspose_SeqBAIJ_3_NaturalOrdering_inplace(Mat,Vec,Vec);
 extern PetscErrorCode MatSolveTranspose_SeqBAIJ_3_NaturalOrdering(Mat,Vec,Vec);
 

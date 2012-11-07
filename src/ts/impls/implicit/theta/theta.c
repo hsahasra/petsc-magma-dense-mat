@@ -1,6 +1,7 @@
 /*
   Code for timestepping with implicit Theta method
 */
+#define PETSC_DESIRE_COMPLEX
 #include <petsc-private/tsimpl.h>                /*I   "petscts.h"   I*/
 #include <petscsnesfas.h>
 
@@ -24,15 +25,34 @@ static PetscErrorCode TSThetaGetX0AndXdot(TS ts,DM dm,Vec *X0,Vec *Xdot)
   PetscFunctionBegin;
   if (X0) {
     if (dm && dm != ts->dm) {
-      ierr = PetscObjectQuery((PetscObject)dm,"TSTheta_X0",(PetscObject*)X0);CHKERRQ(ierr);
-      if (!*X0) SETERRQ(((PetscObject)ts)->comm,PETSC_ERR_ARG_INCOMP,"TSTheta_X0 has not been composed with DM from SNES");
+      ierr = DMGetNamedGlobalVector(dm,"TSTheta_X0",X0);CHKERRQ(ierr);
     } else *X0 = ts->vec_sol;
   }
   if (Xdot) {
     if (dm && dm != ts->dm) {
-      ierr = PetscObjectQuery((PetscObject)dm,"TSTheta_Xdot",(PetscObject*)Xdot);CHKERRQ(ierr);
-      if (!*Xdot) SETERRQ(((PetscObject)ts)->comm,PETSC_ERR_ARG_INCOMP,"TSTheta_Xdot has not been composed with DM from SNES");
+      ierr = DMGetNamedGlobalVector(dm,"TSTheta_Xdot",Xdot);CHKERRQ(ierr);
     } else *Xdot = th->Xdot;
+  }
+  PetscFunctionReturn(0);
+}
+
+
+#undef __FUNCT__
+#define __FUNCT__ "TSThetaRestoreX0AndXdot"
+static PetscErrorCode TSThetaRestoreX0AndXdot(TS ts,DM dm,Vec *X0,Vec *Xdot)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  if (X0) {
+    if (dm && dm != ts->dm) {
+      ierr = DMRestoreNamedGlobalVector(dm,"TSTheta_X0",X0);CHKERRQ(ierr);
+    }
+  }
+  if (Xdot) {
+    if (dm && dm != ts->dm) {
+      ierr = DMRestoreNamedGlobalVector(dm,"TSTheta_Xdot",Xdot);CHKERRQ(ierr);
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -41,20 +61,8 @@ static PetscErrorCode TSThetaGetX0AndXdot(TS ts,DM dm,Vec *X0,Vec *Xdot)
 #define __FUNCT__ "DMCoarsenHook_TSTheta"
 static PetscErrorCode DMCoarsenHook_TSTheta(DM fine,DM coarse,void *ctx)
 {
-  Vec X0,Xdot;
-  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = DMCreateGlobalVector(coarse,&X0);CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(coarse,&Xdot);CHKERRQ(ierr);
-  /* Oh noes, this would create a loop because the Vec holds a reference to the DM.
-     Making a PetscContainer to hold these Vecs would make the following call succeed, but would create a reference loop.
-     Need to decide on a way to break the reference counting loop.
-   */
-  ierr = PetscObjectCompose((PetscObject)coarse,"TSTheta_X0",(PetscObject)X0);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject)coarse,"TSTheta_Xdot",(PetscObject)Xdot);CHKERRQ(ierr);
-  ierr = VecDestroy(&X0);CHKERRQ(ierr);
-  ierr = VecDestroy(&Xdot);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -73,6 +81,8 @@ static PetscErrorCode DMRestrictHook_TSTheta(DM fine,Mat restrct,Vec rscale,Mat 
   ierr = MatRestrict(restrct,Xdot,Xdot_c);CHKERRQ(ierr);
   ierr = VecPointwiseMult(X0_c,rscale,X0_c);CHKERRQ(ierr);
   ierr = VecPointwiseMult(Xdot_c,rscale,Xdot_c);CHKERRQ(ierr);
+  ierr = TSThetaRestoreX0AndXdot(ts,fine,&X0,&Xdot);CHKERRQ(ierr);
+  ierr = TSThetaRestoreX0AndXdot(ts,coarse,&X0_c,&Xdot_c);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -81,32 +91,47 @@ static PetscErrorCode DMRestrictHook_TSTheta(DM fine,Mat restrct,Vec rscale,Mat 
 static PetscErrorCode TSStep_Theta(TS ts)
 {
   TS_Theta            *th = (TS_Theta*)ts->data;
-  PetscInt            its,lits;
-  PetscReal           next_time_step;
+  PetscInt            its,lits,reject;
+  PetscReal           next_time_step = 0.0;
   SNESConvergedReason snesreason;
   PetscErrorCode      ierr;
 
   PetscFunctionBegin;
-  next_time_step = ts->time_step;
-  th->stage_time = ts->ptime + (th->endpoint ? 1. : th->Theta)*ts->time_step;
-  th->shift = 1./(th->Theta*ts->time_step);
+  if (ts->time_steps_since_decrease > 3 && ts->time_step < ts->time_step_orig) {
+    /* smaller time step has worked successfully for three time-steps, try increasing time step*/
+    ts->time_step = 2.0*ts->time_step;
+    ts->time_steps_since_decrease = 0; /* don't want to increase time step two time steps in a row */
+  }
+  for (reject=0; reject<ts->max_reject && !ts->reason; reject++,ts->reject++) {
+    next_time_step = ts->time_step;
+    th->stage_time = ts->ptime + (th->endpoint ? 1. : th->Theta)*ts->time_step;
+    th->shift = 1./(th->Theta*ts->time_step);
+    ierr = TSPreStep(ts);CHKERRQ(ierr);
+    ierr = TSPreStage(ts,th->stage_time);CHKERRQ(ierr);
 
-  if (th->endpoint) {           /* This formulation assumes linear time-independent mass matrix */
-    ierr = VecZeroEntries(th->Xdot);CHKERRQ(ierr);
-    if (!th->affine) {ierr = VecDuplicate(ts->vec_sol,&th->affine);CHKERRQ(ierr);}
-    ierr = TSComputeIFunction(ts,ts->ptime,ts->vec_sol,th->Xdot,th->affine,PETSC_FALSE);CHKERRQ(ierr);
-    ierr = VecScale(th->affine,(th->Theta-1.)/th->Theta);CHKERRQ(ierr);
+    if (th->endpoint) {           /* This formulation assumes linear time-independent mass matrix */
+      ierr = VecZeroEntries(th->Xdot);CHKERRQ(ierr);
+      if (!th->affine) {ierr = VecDuplicate(ts->vec_sol,&th->affine);CHKERRQ(ierr);}
+      ierr = TSComputeIFunction(ts,ts->ptime,ts->vec_sol,th->Xdot,th->affine,PETSC_FALSE);CHKERRQ(ierr);
+      ierr = VecScale(th->affine,(th->Theta-1.)/th->Theta);CHKERRQ(ierr);
+    }
+    if (th->extrapolate) {
+      ierr = VecWAXPY(th->X,1./th->shift,th->Xdot,ts->vec_sol);CHKERRQ(ierr);
+    } else {
+      ierr = VecCopy(ts->vec_sol,th->X);CHKERRQ(ierr);
+    }
+    ierr = SNESSolve(ts->snes,th->affine,th->X);CHKERRQ(ierr);
+    ierr = SNESGetIterationNumber(ts->snes,&its);CHKERRQ(ierr);
+    ierr = SNESGetLinearSolveIterations(ts->snes,&lits);CHKERRQ(ierr);
+    ierr = SNESGetConvergedReason(ts->snes,&snesreason);CHKERRQ(ierr);
+    ts->snes_its += its; ts->ksp_its += lits;
+    if (its < 10) ts->time_steps_since_decrease++;
+    else ts->time_steps_since_decrease = 0;
+    if (snesreason > 0) break;
+    ierr = PetscInfo3(ts,"Step=%D, Cutting time-step from %g to %g\n",ts->steps,(double)ts->time_step,(double).5*ts->time_step);CHKERRQ(ierr);
+    ts->time_step = .5*ts->time_step;
+    ts->time_steps_since_decrease = 0;
   }
-  if (th->extrapolate) {
-    ierr = VecWAXPY(th->X,1./th->shift,th->Xdot,ts->vec_sol);CHKERRQ(ierr);
-  } else {
-    ierr = VecCopy(ts->vec_sol,th->X);CHKERRQ(ierr);
-  }
-  ierr = SNESSolve(ts->snes,th->affine,th->X);CHKERRQ(ierr);
-  ierr = SNESGetIterationNumber(ts->snes,&its);CHKERRQ(ierr);
-  ierr = SNESGetLinearSolveIterations(ts->snes,&lits);CHKERRQ(ierr);
-  ierr = SNESGetConvergedReason(ts->snes,&snesreason);CHKERRQ(ierr);
-  ts->nonlinear_its += its; ts->linear_its += lits;
   if (snesreason < 0 && ts->max_snes_failures > 0 && ++ts->num_snes_failures >= ts->max_snes_failures) {
     ts->reason = TS_DIVERGED_NONLINEAR_SOLVE;
     ierr = PetscInfo2(ts,"Step=%D, nonlinear solve solve failures %D greater than current TS allowed, stopping solve\n",ts->steps,ts->num_snes_failures);CHKERRQ(ierr);
@@ -194,6 +219,7 @@ static PetscErrorCode SNESTSFormFunction_Theta(SNES snes,Vec x,Vec y,TS ts)
   ts->dm = dm;
   ierr = TSComputeIFunction(ts,th->stage_time,x,Xdot,y,PETSC_FALSE);CHKERRQ(ierr);
   ts->dm = dmsave;
+  ierr = TSThetaRestoreX0AndXdot(ts,dm,&X0,&Xdot);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -216,6 +242,7 @@ static PetscErrorCode SNESTSFormJacobian_Theta(SNES snes,Vec x,Mat *A,Mat *B,Mat
   ts->dm = dm;
   ierr = TSComputeIJacobian(ts,th->stage_time,x,Xdot,th->shift,A,B,str,PETSC_FALSE);CHKERRQ(ierr);
   ts->dm = dmsave;
+  ierr = TSThetaRestoreX0AndXdot(ts,dm,PETSC_NULL,&Xdot);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -268,7 +295,7 @@ static PetscErrorCode TSView_Theta(TS ts,PetscViewer viewer)
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"  Theta=%G\n",th->Theta);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  Extrapolation=%s\n",th->extrapolate?"yes":"no");CHKERRQ(ierr);
@@ -324,13 +351,40 @@ PetscErrorCode  TSThetaSetEndpoint_Theta(TS ts,PetscBool flg)
 }
 EXTERN_C_END
 
+#if defined(PETSC_HAVE_COMPLEX)
+#undef __FUNCT__
+#define __FUNCT__ "TSComputeLinearStability_Theta"
+static PetscErrorCode TSComputeLinearStability_Theta(TS ts,PetscReal xr,PetscReal xi,PetscReal *yr,PetscReal *yi)
+{
+  PetscComplex z = xr + xi*PETSC_i,f;
+  TS_Theta     *th = (TS_Theta*)ts->data;
+
+  PetscFunctionBegin;
+  f = (1.0 + (1.0 - th->Theta)*z)/(1.0 - th->Theta*z);
+  *yr = PetscRealPartComplex(f);
+  *yi = PetscImaginaryPartComplex(f);
+  PetscFunctionReturn(0);
+}
+#endif
+
+
 /* ------------------------------------------------------------ */
 /*MC
       TSTHETA - DAE solver using the implicit Theta method
 
    Level: beginner
 
+   Options Database:
+      -ts_theta_theta <Theta> - Location of stage (0<Theta<=1);  Theta = 1.0 (
+      -ts_theta_extrapolate <flg> Extrapolate stage solution from previous solution (sometimes unstable)
+      -ts_theta_endpoint <flag> - Use the endpoint instead of midpoint form of the Theta method
+
    Notes:
+$  -ts_type theta -ts_theta 1.0 corresponds to backward Euler (TSBEULER)
+$  -ts_type theta -ts_theta_theta 0.5 -ts_theta_endpoint corresponds to Crank-Nicholson (TSCN)
+
+
+
    This method can be applied to DAE.
 
    This method is cast as a 1-stage implicit Runge-Kutta method.
@@ -358,7 +412,7 @@ EXTERN_C_END
 
 $  Y_i = X + h sum_j a_ij Y'_j
 
-   is interpreted as a formula for Y'_i in terms of Y_i and known stuff (Y'_j, j<i)
+   is interpreted as a formula for Y'_i in terms of Y_i and known values (Y'_j, j<i)
 
 .seealso:  TSCreate(), TS, TSSetType(), TSCN, TSBEULER, TSThetaSetTheta(), TSThetaSetEndpoint()
 
@@ -372,15 +426,18 @@ PetscErrorCode  TSCreate_Theta(TS ts)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ts->ops->reset          = TSReset_Theta;
-  ts->ops->destroy        = TSDestroy_Theta;
-  ts->ops->view           = TSView_Theta;
-  ts->ops->setup          = TSSetUp_Theta;
-  ts->ops->step           = TSStep_Theta;
-  ts->ops->interpolate    = TSInterpolate_Theta;
-  ts->ops->setfromoptions = TSSetFromOptions_Theta;
-  ts->ops->snesfunction   = SNESTSFormFunction_Theta;
-  ts->ops->snesjacobian   = SNESTSFormJacobian_Theta;
+  ts->ops->reset           = TSReset_Theta;
+  ts->ops->destroy         = TSDestroy_Theta;
+  ts->ops->view            = TSView_Theta;
+  ts->ops->setup           = TSSetUp_Theta;
+  ts->ops->step            = TSStep_Theta;
+  ts->ops->interpolate     = TSInterpolate_Theta;
+  ts->ops->setfromoptions  = TSSetFromOptions_Theta;
+  ts->ops->snesfunction    = SNESTSFormFunction_Theta;
+  ts->ops->snesjacobian    = SNESTSFormJacobian_Theta;
+#if defined(PETSC_HAVE_COMPLEX)
+  ts->ops->linearstability = TSComputeLinearStability_Theta;
+#endif
 
   ierr = PetscNewLog(ts,TS_Theta,&th);CHKERRQ(ierr);
   ts->data = (void*)th;
@@ -531,6 +588,11 @@ static PetscErrorCode TSView_BEuler(TS ts,PetscViewer viewer)
       TSBEULER - ODE solver using the implicit backward Euler method
 
   Level: beginner
+
+  Notes:
+  TSCN is equivalent to TSTHETA with Theta=1.0
+
+$  -ts_type theta -ts_theta_theta 1.
 
 .seealso:  TSCreate(), TS, TSSetType(), TSEULER, TSCN, TSTHETA
 

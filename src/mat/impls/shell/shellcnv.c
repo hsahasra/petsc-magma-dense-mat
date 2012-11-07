@@ -1,10 +1,10 @@
 
 #include <petsc-private/matimpl.h>        /*I "petscmat.h" I*/
-#include <petsc-private/vecimpl.h>  
-  
-#undef __FUNCT__  
+#include <petsc-private/vecimpl.h>
+
+#undef __FUNCT__
 #define __FUNCT__ "MatConvert_Shell"
-PetscErrorCode MatConvert_Shell(Mat oldmat, const MatType newtype,MatReuse reuse,Mat *newmat)
+PetscErrorCode MatConvert_Shell(Mat oldmat, MatType newtype,MatReuse reuse,Mat *newmat)
 {
   Mat            mat;
   Vec            in,out;
@@ -26,8 +26,9 @@ PetscErrorCode MatConvert_Shell(Mat oldmat, const MatType newtype,MatReuse reuse
 
   ierr = MatCreate(comm,&mat);CHKERRQ(ierr);
   ierr = MatSetSizes(mat,m,M,M,M);CHKERRQ(ierr);
-  ierr = MatSetType(mat,MATSHELL);CHKERRQ(ierr);
+  ierr = MatSetType(mat,newtype);CHKERRQ(ierr);
   ierr = MatSetBlockSize(mat,oldmat->rmap->bs);CHKERRQ(ierr);
+  ierr = MatSetUp(mat);CHKERRQ(ierr);
 
   for (i=0; i<M; i++) {
     ierr = VecSet(in,zero);CHKERRQ(ierr);
@@ -36,9 +37,9 @@ PetscErrorCode MatConvert_Shell(Mat oldmat, const MatType newtype,MatReuse reuse
     ierr = VecAssemblyEnd(in);CHKERRQ(ierr);
 
     ierr = MatMult(oldmat,in,out);CHKERRQ(ierr);
-    
+
     ierr = VecGetArray(out,&array);CHKERRQ(ierr);
-    ierr = MatSetValues(mat,m,rows,1,&i,array,INSERT_VALUES);CHKERRQ(ierr); 
+    ierr = MatSetValues(mat,m,rows,1,&i,array,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecRestoreArray(out,&array);CHKERRQ(ierr);
 
   }

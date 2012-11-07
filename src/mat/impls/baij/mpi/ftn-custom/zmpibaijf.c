@@ -6,7 +6,7 @@
 #define matcreatebaij_                   MATCREATEBAIJ
 #define matmpibaijsetpreallocation_      MATMPIBAIJSETPREALLOCATION
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
-#define matmpibaijgetseqbaij_            matmpibaijgetseqbaij          
+#define matmpibaijgetseqbaij_            matmpibaijgetseqbaij
 #define matcreatebaij_                   matcreatebaij
 #define matmpibaijsetpreallocation_      matmpibaijsetpreallocation
 #endif
@@ -15,9 +15,9 @@ EXTERN_C_BEGIN
 
 void PETSC_STDCALL matmpibaijgetseqbaij_(Mat *A,Mat *Ad,Mat *Ao,PetscInt *ic,size_t *iic,PetscErrorCode *ierr)
 {
-  PetscInt *i;
+  const PetscInt *i;
   *ierr = MatMPIBAIJGetSeqBAIJ(*A,Ad,Ao,&i);if (*ierr) return;
-  *iic  = PetscIntAddressToFortran(ic,i);
+  *iic  = PetscIntAddressToFortran(ic,(PetscInt*)i);
 }
 
 void PETSC_STDCALL matcreatebaij_(MPI_Comm *comm,PetscInt *bs,PetscInt *m,PetscInt *n,PetscInt *M,PetscInt *N,

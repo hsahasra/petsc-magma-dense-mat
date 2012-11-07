@@ -31,8 +31,6 @@ The command line options include:\n\
 F*/
 
 /*
-    Program usage:  mpiexec -n <procs> ./pbratu [-help] [all PETSc options]
-     e.g.,
       mpiexec -n 2 ./ex15 -snes_monitor -ksp_monitor log_summary
 */
 
@@ -50,7 +48,7 @@ F*/
 #include <petscsnes.h>
 
 /*
-   User-defined application context - contains data needed by the 
+   User-defined application context - contains data needed by the
    application-provided call-back routines, FormJacobianLocal() and
    FormFunctionLocal().
 */
@@ -69,7 +67,7 @@ typedef struct {
 static PetscErrorCode FormInitialGuess(AppCtx*,DM,Vec);
 static PetscErrorCode FormFunctionLocal(DMDALocalInfo*,PetscScalar**,PetscScalar**,AppCtx*);
 static PetscErrorCode FormFunctionPicardLocal(DMDALocalInfo*,PetscScalar**,PetscScalar**,AppCtx*);
-static PetscErrorCode FormJacobianLocal(DMDALocalInfo*,PetscScalar**,Mat,Mat,MatStructure*,AppCtx*);
+static PetscErrorCode FormJacobianLocal(DMDALocalInfo*,PetscScalar**,Mat,AppCtx*);
 
 typedef struct _n_PreCheck *PreCheck;
 struct _n_PreCheck {
@@ -174,14 +172,15 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set local function evaluation routine
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  ierr = DMSetApplicationContext(da, &user);CHKERRQ(ierr);
   ierr = SNESSetDM(snes,da);CHKERRQ(ierr);
   if (user.picard) {
-    ierr = DMDASNESSetFunctionLocal(da,(DMDALocalFunction1)FormFunctionPicardLocal,&user);CHKERRQ(ierr);
-    ierr = SNESSetPicard(snes,r,SNESDMDAComputeFunction,A,B,SNESDMDAComputeJacobian,&user);CHKERRQ(ierr);
+    ierr = DMDASetLocalFunction(da,(DMDALocalFunction1)FormFunctionPicardLocal);CHKERRQ(ierr);
+    ierr = SNESSetPicard(snes,r,PETSC_NULL,A,B,PETSC_NULL,&user);CHKERRQ(ierr);
   } else {
-    ierr = DMDASNESSetFunctionLocal(da,(DMDALocalFunction1)FormFunctionLocal,&user);CHKERRQ(ierr);
+    ierr = DMDASetLocalFunction(da,(DMDALocalFunction1)FormFunctionLocal);CHKERRQ(ierr);
   }
-  ierr = DMDASNESSetJacobianLocal(da,(PetscErrorCode (*)(DMDALocalInfo*,void*,Mat,Mat,MatStructure*,void*))FormJacobianLocal,&user);CHKERRQ(ierr);
+ ierr = DMDASetLocalJacobian(da,(DMDALocalFunction1)FormJacobianLocal);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Customize nonlinear solver; set runtime options
@@ -313,9 +312,9 @@ static PetscErrorCode FormInitialGuess(AppCtx *user,DM da,Vec X)
 }
 
 /* p-Laplacian diffusivity */
-static inline PetscScalar eta(const AppCtx *ctx,PetscScalar ux,PetscScalar uy)
+PETSC_STATIC_INLINE PetscScalar eta(const AppCtx *ctx,PetscScalar ux,PetscScalar uy)
 {return pow(PetscSqr(ctx->epsilon)+0.5*(ux*ux + uy*uy),0.5*(ctx->p-2.));}
-static inline PetscScalar deta(const AppCtx *ctx,PetscScalar ux,PetscScalar uy)
+PETSC_STATIC_INLINE PetscScalar deta(const AppCtx *ctx,PetscScalar ux,PetscScalar uy)
 {
   return (ctx->p == 2)
     ? 0
@@ -379,7 +378,7 @@ static PetscErrorCode FormFunctionLocal(DMDALocalInfo *info,PetscScalar **x,Pets
 #undef __FUNCT__
 #define __FUNCT__ "FormFunctionPicardLocal"
 /*
-    This is the opposite sign of the part of FormFunctionLocal that excludes the A(x) x part of the operation, 
+    This is the opposite sign of the part of FormFunctionLocal that excludes the A(x) x part of the operation,
     that is FormFunction applies A(x) x - b(x) while this applies b(x) because for Picard we think of it as solving A(x) x = b(x)
 
 */
@@ -412,7 +411,7 @@ static PetscErrorCode FormFunctionPicardLocal(DMDALocalInfo *info,PetscScalar **
 /*
    FormJacobianLocal - Evaluates Jacobian matrix.
 */
-static PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,PetscScalar **x,Mat A,Mat B,MatStructure *mstr,AppCtx *user)
+static PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,PetscScalar **x,Mat B,AppCtx *user)
 {
   PetscErrorCode ierr;
   PetscInt       i,j;
@@ -548,7 +547,6 @@ static PetscErrorCode FormJacobianLocal(DMDALocalInfo *info,PetscScalar **x,Mat 
   */
   ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  *mstr = SAME_NONZERO_PATTERN;
 
   /*
      Tell the matrix we will never add a new nonzero location to the

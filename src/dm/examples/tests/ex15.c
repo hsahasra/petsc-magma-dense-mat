@@ -1,5 +1,5 @@
 
-static char help[] = "Tests DM interpolation.\n\n";
+static char help[] = "Tests DMDA interpolation.\n\n";
 
 #include <petscdmda.h>
 
@@ -7,16 +7,18 @@ static char help[] = "Tests DM interpolation.\n\n";
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  PetscInt       M1 = 3,M2,dof = 1,s = 1,ratio = 2,dim = 1;
-  PetscErrorCode ierr;
-  DM             da_c,da_f;
-  Vec            v_c,v_f;
-  Mat            I;
-  PetscScalar    one = 1.0;
-  PetscBool pt;
-  DMDABoundaryType bx = DMDA_BOUNDARY_NONE,by = DMDA_BOUNDARY_NONE,bz = DMDA_BOUNDARY_NONE;
- 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+
+  PetscInt         M1 = 3,M2,dof = 1,s = 1,ratio = 2,dim = 1;
+  PetscErrorCode   ierr;
+  DM               da_c,da_f;
+  Vec              v_c,v_f;
+  Mat              I;
+  PetscScalar      one = 1.0;
+  PetscBool        pt;
+  DMDABoundaryType bx = DMDA_BOUNDARY_NONE,by = DMDA_BOUNDARY_NONE;
+
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
+
 
   ierr = PetscOptionsGetInt(PETSC_NULL,"-dim",&dim,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-M",&M1,PETSC_NULL);CHKERRQ(ierr);
@@ -36,7 +38,7 @@ int main(int argc,char **argv)
     M2 = ratio*M1;
   }
 
-  /* Set up the array */ 
+  /* Set up the array */
   if (dim == 1) {
     ierr = DMDACreate1d(PETSC_COMM_WORLD,bx,M1,dof,s,PETSC_NULL,&da_c);CHKERRQ(ierr);
     ierr = DMDACreate1d(PETSC_COMM_WORLD,bx,M2,dof,s,PETSC_NULL,&da_f);CHKERRQ(ierr);
@@ -66,7 +68,7 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+
 
 
 

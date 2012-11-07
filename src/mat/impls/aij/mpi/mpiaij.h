@@ -8,12 +8,12 @@ typedef struct { /* used by MatCreateMPIAIJSumSeqAIJ for reusing the merged matr
   PetscLayout    rowmap;
   PetscInt       **buf_ri,**buf_rj;
   PetscMPIInt    *len_s,*len_r,*id_r; /* array of length of comm->size, store send/recv matrix values */
-  PetscMPIInt    nsend,nrecv;  
+  PetscMPIInt    nsend,nrecv;
   PetscInt       *bi,*bj; /* i and j array of the local portion of mpi C (matrix product) - rename to ci, cj! */
   PetscInt       *owners_co,*coi,*coj; /* i and j array of (p->B)^T*A*P - used in the communication */
   PetscErrorCode (*destroy)(Mat);
   PetscErrorCode (*duplicate)(Mat,MatDuplicateOption,Mat*);
-} Mat_Merge_SeqsToMPI; 
+} Mat_Merge_SeqsToMPI;
 
 typedef struct { /* used by MatPtAP_MPIAIJ_MPIAIJ() and MatMatMult_MPIAIJ_MPIAIJ() */
   PetscInt       *startsj_s,*startsj_r; /* used by MatGetBrowsOfAoCols_MPIAIJ */
@@ -24,6 +24,7 @@ typedef struct { /* used by MatPtAP_MPIAIJ_MPIAIJ() and MatMatMult_MPIAIJ_MPIAIJ
   MatReuse       reuse;        /* flag to skip MatGetBrowsOfAoCols_MPIAIJ() and MatMPIAIJGetLocalMat() in 1st call of MatPtAPNumeric_MPIAIJ_MPIAIJ() */
   PetscScalar    *apa;         /* tmp array for store a row of A*P used in MatMatMult() */
   Mat            A_loc;        /* used by MatTransposeMatMult(), contains api and apj */
+  Mat            Pt;           /* used by MatTransposeMatMult(), Pt = P^T */
 
   Mat_Merge_SeqsToMPI *merge;
   PetscErrorCode (*destroy)(Mat);
@@ -34,7 +35,7 @@ typedef struct {
   Mat           A,B;                   /* local submatrices: A (diag part),
                                            B (off-diag part) */
   PetscMPIInt   size;                   /* size of communicator */
-  PetscMPIInt   rank;                   /* rank of proc in communicator */ 
+  PetscMPIInt   rank;                   /* rank of proc in communicator */
 
   /* The following variables are used for matrix assembly */
   PetscBool     donotstash;             /* PETSC_TRUE if off processor entries dropped */
@@ -66,7 +67,14 @@ typedef struct {
 
   /* Used by MatMatMult() and MatPtAP() */
   Mat_PtAPMPI   *ptap;
+
+  /* Used by MPICUSP and MPICUSPARSE classes */
+  void * spptr;
 } Mat_MPIAIJ;
+
+EXTERN_C_BEGIN
+extern PetscErrorCode  MatCreate_MPIAIJ(Mat);
+EXTERN_C_END
 
 extern PetscErrorCode MatSetColoring_MPIAIJ(Mat,ISColoring);
 extern PetscErrorCode MatSetValuesAdic_MPIAIJ(Mat,void*);
@@ -91,16 +99,19 @@ extern PetscErrorCode MatMatMultSymbolic_MPIAIJ_MPIAIJ(Mat,Mat,PetscReal,Mat*);
 extern PetscErrorCode MatMatMultSymbolic_MPIAIJ_MPIAIJ_Scalable(Mat,Mat,PetscReal,Mat*);
 extern PetscErrorCode MatMatMultNumeric_MPIAIJ_MPIAIJ(Mat,Mat,Mat);
 
-extern PetscErrorCode MatPtAPSymbolic_MPIAIJ(Mat,Mat,PetscReal,Mat*);
-extern PetscErrorCode MatPtAPNumeric_MPIAIJ(Mat,Mat,Mat);
+extern PetscErrorCode MatPtAP_MPIAIJ_MPIAIJ(Mat,Mat,MatReuse,PetscReal,Mat*);
+extern PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat,Mat,PetscReal,Mat*);
+extern PetscErrorCode MatPtAPNumeric_MPIAIJ_MPIAIJ(Mat,Mat,Mat);
 extern PetscErrorCode MatPtAPSymbolic_MPIAIJ_MPIAIJ(Mat,Mat,PetscReal,Mat*);
 extern PetscErrorCode MatPtAPNumeric_MPIAIJ_MPIAIJ(Mat,Mat,Mat);
 extern PetscErrorCode MatDestroy_MPIAIJ_PtAP(Mat);
+extern PetscErrorCode MatDestroy_MPIAIJ(Mat);
 
 extern PetscErrorCode MatGetBrowsOfAoCols_MPIAIJ(Mat,Mat,MatReuse,PetscInt**,PetscInt**,MatScalar**,Mat*);
 extern PetscErrorCode MatSetValues_MPIAIJ(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar [],InsertMode);
 extern PetscErrorCode MatDestroy_MPIAIJ_MatMatMult(Mat);
 extern PetscErrorCode PetscContainerDestroy_Mat_MatMatMultMPI(void*);
+extern PetscErrorCode MatSetOption_MPIAIJ(Mat,MatOption,PetscBool);
 
 extern PetscErrorCode MatTransposeMatMult_MPIAIJ_MPIAIJ(Mat,Mat,MatReuse,PetscReal,Mat*);
 extern PetscErrorCode MatTransposeMatMultSymbolic_MPIAIJ_MPIAIJ(Mat,Mat,PetscReal,Mat*);

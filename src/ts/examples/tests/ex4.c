@@ -25,7 +25,7 @@ typedef struct
   PetscReal     dy;     /* the grid space in y-direction */
   PetscReal     a;      /* the convection coefficient    */
   PetscReal     epsilon; /* the diffusion coefficient    */
-  PetscReal     tfinal;  
+  PetscReal     tfinal;
 } Data;
 
 extern PetscErrorCode Monitor(TS,PetscInt,PetscReal,Vec,void *);
@@ -59,10 +59,10 @@ int main(int argc,char **argv)
   PC             pc;
   PetscViewer    viewer;
   char           pcinfo[120],tsinfo[120];
-  const TSType   tstype;
+  TSType         tstype;
   PetscBool      sundials;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&size);CHKERRQ(ierr);
 
   /* set data */
@@ -91,7 +91,7 @@ int main(int argc,char **argv)
   ierr = TSSetType(ts,TSEULER);CHKERRQ(ierr);
 #endif
   dt             = 0.1;
-  ftime_original = data.tfinal = 1.0; 
+  ftime_original = data.tfinal = 1.0;
   ierr = TSSetInitialTimeStep(ts,0.0,dt);CHKERRQ(ierr);
   ierr = TSSetDuration(ts,time_steps,ftime_original);CHKERRQ(ierr);
   ierr = TSSetSolution(ts,global);CHKERRQ(ierr);
@@ -151,7 +151,7 @@ int main(int argc,char **argv)
 
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
   ierr = TSSetUp(ts);CHKERRQ(ierr);
-  
+
   /* Test TSSetPostStep() */
   ierr = PetscOptionsHasName(PETSC_NULL,"-test_PostStep",&flg);CHKERRQ(ierr);
   if (flg){
@@ -176,9 +176,9 @@ int main(int argc,char **argv)
     ierr = PetscViewerDestroy(&viewfile);CHKERRQ(ierr);
   }
 
-  /* display solver info for Sundials */ 
+  /* display solver info for Sundials */
   ierr = TSGetType(ts,&tstype);CHKERRQ(ierr);
-  ierr = PetscTypeCompare((PetscObject)ts,TSSUNDIALS,&sundials);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)ts,TSSUNDIALS,&sundials);CHKERRQ(ierr);
   if (sundials){
     ierr = PetscViewerStringOpen(PETSC_COMM_WORLD,tsinfo,120,&viewer);CHKERRQ(ierr);
     ierr = TSView(ts,viewer);CHKERRQ(ierr);
@@ -273,7 +273,7 @@ PetscErrorCode Monitor(TS ts,PetscInt step,PetscReal time,Vec global,void *ctx)
 
   /* Set the index sets */
   ierr = PetscMalloc(n*sizeof(PetscInt),&idx);CHKERRQ(ierr);
-  for(i=0; i<n; i++) idx[i]=i;
+  for (i=0; i<n; i++) idx[i]=i;
 
   /* Create local sequential vectors */
   ierr = VecCreateSeq(PETSC_COMM_SELF,n,&tmp_vec);CHKERRQ(ierr);
@@ -352,7 +352,7 @@ PetscErrorCode RHSJacobian(TS ts,PetscReal t,Vec x,Mat *AA,Mat *BB,MatStructure 
     idx[0]=j*m+m-1; idx[1]=j*m+m-1-1; idx[2]=j*m+m-1-m; idx[3]=j*m+m-1+m;
     ierr = MatSetValues(A,1,&row,4,idx,v,INSERT_VALUES);CHKERRQ(ierr);
 
-    for(i=1; i<m-1; i++) {
+    for (i=1; i<m-1; i++) {
       row=j*m+i;
       v[0]=xc; v[1]=xl; v[2]=xr; v[3]=yl; v[4]=yr;
       idx[0]=j*m+i; idx[1]=j*m+i-1; idx[2]=j*m+i+1; idx[3]=j*m+i-m;
@@ -424,7 +424,7 @@ PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec globalin,Vec globalout,void *ct
 
   /* Set the index sets */
   ierr = PetscMalloc(len*sizeof(PetscInt),&idx);CHKERRQ(ierr);
-  for(i=0; i<len; i++) idx[i]=i;
+  for (i=0; i<len; i++) idx[i]=i;
 
   /* Create local sequential vectors */
   ierr = VecCreateSeq(PETSC_COMM_SELF,len,&tmp_in);CHKERRQ(ierr);
@@ -456,7 +456,7 @@ PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec globalin,Vec globalout,void *ct
       yl*inptr[j*m-m]+yr*inptr[j*m+m];
     outptr[j*m+m-1] = xc*inptr[j*m+m-1]+2.0*xl*inptr[j*m+m-1-1]+
       yl*inptr[j*m+m-1-m]+yr*inptr[j*m+m-1+m];
-    for(i=1; i<m-1; i++) {
+    for (i=1; i<m-1; i++) {
       outptr[j*m+i] = xc*inptr[j*m+i]+xl*inptr[j*m+i-1]+xr*inptr[j*m+i+1]
         +yl*inptr[j*m+i-m]+yr*inptr[j*m+i+m];
     }
@@ -487,7 +487,7 @@ PetscErrorCode RHSFunction(TS ts,PetscReal t,Vec globalin,Vec globalout,void *ct
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PostStep"
 PetscErrorCode PostStep(TS ts)
 {

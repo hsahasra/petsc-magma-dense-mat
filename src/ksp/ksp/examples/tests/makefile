@@ -8,7 +8,7 @@ NOADIC    = true
 EXAMPLESC       = ex1.c ex3.c ex4.c ex6.c ex7.c ex10.c ex11.c ex14.c \
                 ex15.c ex17.c ex18.c ex19.c ex20.c ex21.c ex22.c ex24.c \
                 ex25.c ex26.c ex27.c ex28.c ex29.c ex30.c ex31.c ex32.c \
-                ex33.c ex34.c ex35.c ex36.c ex37.c
+                ex33.c ex34.c ex35.c ex36.c ex37.c ex38.c ex39.c ex40.c ex41.c
 EXAMPLESCH      = 
 EXAMPLESF       = ex5f.F ex12f.F ex16f.F
 
@@ -149,6 +149,18 @@ ex36: ex36.o  chkopts
 ex37: ex37.o  chkopts
 	-${CLINKER} -o ex37 ex37.o  ${PETSC_KSP_LIB}
 	${RM} ex37.o
+ex38: ex38.o chkopts
+	-${CLINKER} -o ex38 ex38.o ${PETSC_KSP_LIB}
+	${RM} ex38.o
+ex39: ex39.o chkopts
+	-${CLINKER} -o ex39 ex39.o ${PETSC_KSP_LIB}
+	${RM} ex39.o
+ex40: ex40.o chkopts
+	-${CLINKER} -o ex40 ex40.o ${PETSC_KSP_LIB}
+	${RM} ex40.o
+ex41: ex41.o chkopts
+	-${CLINKER} -o ex41 ex41.o ${PETSC_KSP_LIB}
+	${RM} ex41.o
 #------------------------------------------------------------------------------------
 runex1:
 	-@${MPIEXEC} -n 1 ./ex1 -pc_type jacobi -ksp_monitor_short -ksp_gmres_cgs_refinement_type refine_always > ex1_1.tmp 2>&1;	  \
@@ -788,6 +800,35 @@ runex37_3:
 	   else echo ${PWD} ; echo "Possible problem with with ex37_3, diffs above \n========================================="; fi; \
 	   ${RM} -f ex37.tmp
 
+runex38:
+	-@${MPIEXEC} -n 8 ./ex38 -ksp_type fbcgs -ksp_rtol 1.e-6 -sub_ksp_type bcgs -sub_ksp_rtol 1.e-3 -pc_type bjacobi -ksp_converged_reason -n1 64 -n2 64 > ex38.tmp 2>&1;\
+	if (${DIFF} output/ex38.out ex38.tmp) then true; \
+	   else echo ${PWD} ; echo "Possible problem with with ex38_1, diffs above \n========================================="; fi; \
+	   ${RM} -f ex38.tmp
+
+runex39:
+	-@${MPIEXEC} -n 8 ./ex39 -ksp_type fbcgs -ksp_rtol 1.e-6 -sub_ksp_type bcgs -sub_ksp_rtol 1.e-3 -pc_type bjacobi -ksp_converged_reason -n1 32 -n2 32 -n3 32 > ex39.tmp 2>&1;\
+	if (${DIFF} output/ex39.out ex39.tmp) then true; \
+	   else echo ${PWD} ; echo "Possible problem with with ex39_1, diffs above \n========================================="; fi; \
+	   ${RM} -f ex39.tmp
+runex39_2:
+	-@${MPIEXEC} -n 8 ./ex39 -ksp_type ifbcgs -ksp_rtol 1.e-6 -sub_ksp_type bcgs -sub_ksp_rtol 1.e-3 -pc_type bjacobi -ksp_converged_reason -n1 32 -n2 32 -n3 32 > ex39.tmp 2>&1;\
+	if (${DIFF} output/ex39.out ex39.tmp) then true; \
+	   else echo ${PWD} ; echo "Possible problem with with ex39_1, diffs above \n========================================="; fi; \
+	   ${RM} -f ex39.tmp
+
+runex40:
+	-@${MPIEXEC} -n 6 ./ex40 -pc_type none  > ex40.tmp 2>&1;\
+	if (${DIFF} output/ex40.out ex40.tmp) then true; \
+	   else echo ${PWD} ; echo "Possible problem with with ex40_1, diffs above \n========================================="; fi; \
+	   ${RM} -f ex40.tmp
+runex40_2:
+	-@${MPIEXEC} -n 6 ./ex40 -pc_type lu -pc_factor_mat_solver_package elemental > ex40.tmp 2>&1;\
+	if (${DIFF} output/ex40_2.out ex40.tmp) then true; \
+	   else echo ${PWD} ; echo "Possible problem with with ex40_2, diffs above \n========================================="; fi; \
+	   ${RM} -f ex40.tmp
+
+
 TESTEXAMPLES_C		       = ex1.PETSc ex1.rm ex3.PETSc runex3 runex3_2 ex3.rm ex4.PETSc runex4 runex4_3 \
                                  runex4_5 ex4.rm ex7.PETSc ex7.rm ex19.PETSc runex19 runex19_2 ex19.rm \
                                  ex22.PETSc runex22 runex22_2 ex22.rm \
@@ -797,7 +838,8 @@ TESTEXAMPLES_C		       = ex1.PETSc ex1.rm ex3.PETSc runex3 runex3_2 ex3.rm ex4.P
                                  runex32_aij_sbaij_icc runex32_aij_sbaij_icc_lev1 runex32_aij_sbaij_icc_lev10 runex32_aij_sbaij_cholesky \
                                  runex32_inode2 runex32_inode2_nd runex32_inode3 runex32_inode3_nd runex32_inode4 runex32_inode4_nd \
                                  runex32_inode5 runex32_inode5_nd ex32.rm \
-				 ex35.PETSc runex35_1 runex35_2 runex35_inode ex35.rm 
+				 ex35.PETSc runex35_1 runex35_2 runex35_inode ex35.rm \
+                                 ex38.PETSc runex38 ex38.rm ex39.PETSc runex39 runex39_2 ex39.rm
 TESTEXAMPLES_C_X	       = ex10.PETSc runex10 ex10.rm ex15.PETSc ex15.rm 
 TESTEXAMPLES_C_NOCOMPLEX       = ex33.PETSc runex33 ex33.rm 
 TESTEXAMPLES_FORTRAN	       = ex5f.PETSc runex5f ex5f.rm ex12f.PETSc ex12f.rm 
@@ -813,5 +855,6 @@ TESTEXAMPLES_DATAFILESPATH     = ex6.PETSc runex6 runex6_2 runex6_3 ex6.rm ex11.
 TESTEXAMPLES_FORTRAN_NOCOMPLEX = 
 TESTEXAMPLES_13		       = ex18.PETSc ex18.rm ex20.PETSc runex20 ex20.rm ex5f.PETSc ex5f.rm
 TESTEXAMPLES_ML                = ex26.PETSc runex26_ml runex26_ml_2 runex26_ml_3 ex26.rm ex29.PETSc runex29 runex29_2 ex29.rm
+TESTEXAMPLES_ELEMENTAL         = ex40.PETSc runex40 runex40_2 ex40.rm
 
 include ${PETSC_DIR}/conf/test

@@ -1,17 +1,20 @@
 
 #include <petscsys.h>        /*I  "petscsys.h"   I*/
+#include <petscthreadcomm.h>
 
 
 #if defined(PETSC_USE_DEBUG)
 
 
+#if defined(PETSC_HAVE_PTHREADCLASSES)
 #if defined(PETSC_PTHREAD_LOCAL)
 PETSC_PTHREAD_LOCAL PetscStack  *petscstack = 0;
+#endif
 #else
 PetscStack *petscstack = 0;
 #endif
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackPublish"
 PetscErrorCode  PetscStackPublish(void)
 {
@@ -19,38 +22,46 @@ PetscErrorCode  PetscStackPublish(void)
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackDepublish"
 PetscErrorCode  PetscStackDepublish(void)
 {
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-  
-#undef __FUNCT__  
+
+PetscErrorCode PetscStackCreate_kernel(PetscInt trank)
+{
+  PetscStack *petscstack_in;
+  if(PetscStackActive) return 0;
+
+  petscstack_in = (PetscStack*)malloc(sizeof(PetscStack));
+  petscstack_in->currentsize = 0;
+  PetscThreadLocalSetValue(petscstack,petscstack_in);
+  return 0;
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackCreate"
 PetscErrorCode  PetscStackCreate(void)
 {
   PetscErrorCode ierr;
 
-  PetscStack *petscstack_in;
-  if (petscstack) return 0;
-  
-  ierr = PetscNew(PetscStack,&petscstack_in);CHKERRQ(ierr);
-  petscstack_in->currentsize = 0;
-  petscstack = petscstack_in;
-
+  ierr = PetscThreadCommRunKernel0(PETSC_COMM_SELF,(PetscThreadKernel)PetscStackCreate_kernel);CHKERRQ(ierr);
+  ierr = PetscThreadCommBarrier(PETSC_COMM_SELF);CHKERRQ(ierr);
   return 0;
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackView"
 PetscErrorCode  PetscStackView(PetscViewer viewer)
 {
   PetscErrorCode ierr;
   int  i;
   FILE *file;
+  PetscStack* petscstackp;
 
+  petscstackp = (PetscStack*)PetscThreadLocalGetValue(petscstack);
   if (!viewer) viewer = PETSC_VIEWER_STDOUT_SELF;
   ierr = PetscViewerASCIIGetPointer(viewer,&file);CHKERRQ(ierr);
 
@@ -58,43 +69,52 @@ PetscErrorCode  PetscStackView(PetscViewer viewer)
     (*PetscErrorPrintf)("Note: The EXACT line numbers in the stack are not available,\n");
     (*PetscErrorPrintf)("      INSTEAD the line number of the start of the function\n");
     (*PetscErrorPrintf)("      is given.\n");
-    for (i=petscstack->currentsize-1; i>=0; i--) {
+    for (i=petscstackp->currentsize-1; i>=0; i--) {
       (*PetscErrorPrintf)("[%d] %s line %d %s%s\n",PetscGlobalRank,
-                                                   petscstack->function[i],
-                                                   petscstack->line[i],
-                                                   petscstack->directory[i],
-                                                   petscstack->file[i]);
+                                                   petscstackp->function[i],
+                                                   petscstackp->line[i],
+                                                   petscstackp->directory[i],
+                                                   petscstackp->file[i]);
     }
   } else {
     fprintf(file,"Note: The EXACT line numbers in the stack are not available,\n");
     fprintf(file,"      INSTEAD the line number of the start of the function\n");
     fprintf(file,"      is given.\n");
-    for (i=petscstack->currentsize-1; i>=0; i--) {
+    for (i=petscstackp->currentsize-1; i>=0; i--) {
       fprintf(file,"[%d] %s line %d %s%s\n",PetscGlobalRank,
-                                            petscstack->function[i],
-                                            petscstack->line[i],
-                                            petscstack->directory[i],
-                                            petscstack->file[i]);
+                                            petscstackp->function[i],
+                                            petscstackp->line[i],
+                                            petscstackp->directory[i],
+                                            petscstackp->file[i]);
     }
   }
   return 0;
 }
 
-#undef __FUNCT__  
+PetscErrorCode PetscStackDestroy_kernel(PetscInt trank)
+{
+  if(PetscStackActive) {
+    PetscStack *petscstack_in;
+    petscstack_in = (PetscStack*)PetscThreadLocalGetValue(petscstack);
+    free(petscstack_in);
+    PetscThreadLocalSetValue(petscstack,(PetscStack*)0);
+  }
+  return 0;
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackDestroy"
 /*  PetscFunctionBegin;  so that make rule checkbadPetscFunctionBegin works */
 PetscErrorCode  PetscStackDestroy(void)
 {
   PetscErrorCode ierr;
-  if (petscstack){
-    PetscStack *petscstack_in = petscstack;
-    petscstack = 0;
-    ierr = PetscFree(petscstack_in);CHKERRQ(ierr);
-  }
+  ierr = PetscThreadCommRunKernel0(PETSC_COMM_SELF,(PetscThreadKernel)PetscStackDestroy_kernel);CHKERRQ(ierr);
+  ierr = PetscThreadCommBarrier(PETSC_COMM_SELF);CHKERRQ(ierr);
+  PetscThreadLocalDestroy(petscstack); /* Deletes pthread_key if it was used */
   return 0;
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackCopy"
 /*  PetscFunctionBegin;  so that make rule checkbadPetscFunctionBegin works */
 PetscErrorCode  PetscStackCopy(PetscStack* sint,PetscStack* sout)
@@ -115,7 +135,7 @@ PetscErrorCode  PetscStackCopy(PetscStack* sint,PetscStack* sout)
   return 0;
 }
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackPrint"
 /*  PetscFunctionBegin;  so that make rule checkbadPetscFunctionBegin works */
 PetscErrorCode  PetscStackPrint(PetscStack* sint,FILE *fp)
@@ -130,35 +150,35 @@ PetscErrorCode  PetscStackPrint(PetscStack* sint,FILE *fp)
 }
 
 #else
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackPublish"
 PetscErrorCode  PetscStackPublish(void)
 {
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackDepublish"
 PetscErrorCode  PetscStackDepublish(void)
 {
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackCreate"
 PetscErrorCode  PetscStackCreate(void)
 {
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackView"
 PetscErrorCode  PetscStackView(PetscViewer viewer)
 {
   PetscFunctionBegin;
   PetscFunctionReturn(0);
 }
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "PetscStackDestroy"
 PetscErrorCode  PetscStackDestroy(void)
 {

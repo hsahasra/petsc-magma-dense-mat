@@ -1,6 +1,4 @@
 
-/* np = 1 */
-
 static char help[] = "Compares BLAS dots on different machines. Input\n\
 arguments are\n\
   -n <length> : local vector length\n\n";
@@ -16,7 +14,7 @@ int main(int argc,char **argv)
   PetscScalar    v;
   Vec            x,y;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(PETSC_NULL,"-n",&n,PETSC_NULL);CHKERRQ(ierr);
   if (n < 5) n = 5;
 
@@ -43,4 +41,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

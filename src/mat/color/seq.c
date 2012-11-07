@@ -3,9 +3,9 @@
 
 #include <../src/mat/color/color.h>
 
-#undef __FUNCT__  
-#define __FUNCT__ "MINPACKseq" 
-PetscErrorCode MINPACKseq(PetscInt *n,PetscInt *indrow,PetscInt *jpntr,PetscInt *indcol,PetscInt *ipntr,PetscInt *list,PetscInt *ngrp,
+#undef __FUNCT__
+#define __FUNCT__ "MINPACKseq"
+PetscErrorCode MINPACKseq(PetscInt *n,const PetscInt *indrow,const PetscInt *jpntr,const PetscInt *indcol,const PetscInt *ipntr,PetscInt *list,PetscInt *ngrp,
                           PetscInt *maxgrp,PetscInt *iwa)
 {
     /* System generated locals */

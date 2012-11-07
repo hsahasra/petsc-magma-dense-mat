@@ -1,8 +1,20 @@
 
 #include <petscdraw.h>     /*I "petscdraw.h"  I*/
 
-#undef __FUNCT__  
-#define __FUNCT__ "PetscDrawZoom" 
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_X)
+#include <sys/types.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <setjmp.h>
+static jmp_buf PetscXIOErrorJumpBuf;
+static void PetscXIOHandler(Display *dpy)
+{
+  longjmp(PetscXIOErrorJumpBuf, 1);
+}
+#endif
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawZoom"
 /*@C
     PetscDrawZoom - Allows one to create a graphic that users may zoom into.
 
@@ -19,7 +31,7 @@
   Concepts: drawing^zooming
   Concepts: zooming^in graphics
 
-.seealso:  
+.seealso:
 @*/
 PetscErrorCode  PetscDrawZoom(PetscDraw draw,PetscErrorCode (*func)(PetscDraw,void *),void *ctx)
 {
@@ -32,18 +44,29 @@ PetscErrorCode  PetscDrawZoom(PetscDraw draw,PetscErrorCode (*func)(PetscDraw,vo
   ierr = PetscDrawIsNull(draw,&isnull);CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
 
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_X)
+  if (!setjmp(PetscXIOErrorJumpBuf)) XSetIOErrorHandler((XIOErrorHandler)PetscXIOHandler);
+  else {
+    XSetIOErrorHandler(PETSC_NULL);
+    ierr = PetscDrawSetType(draw,PETSC_DRAW_NULL);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+#endif
+
+  ierr = PetscDrawCheckResizedWindow(draw);CHKERRQ(ierr);
   ierr = PetscDrawSynchronizedClear(draw);CHKERRQ(ierr);
   ierr = (*func)(draw,ctx);CHKERRQ(ierr);
   ierr = PetscDrawSynchronizedFlush(draw);CHKERRQ(ierr);
 
   ierr = PetscDrawGetPause(draw,&dpause);CHKERRQ(ierr);
-  if (dpause >= 0) { 
+  if (dpause >= 0) {
     ierr = PetscSleep(dpause);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+    goto theend;
   }
+  if (dpause != -1) goto theend;
 
   ierr = PetscDrawCheckResizedWindow(draw);CHKERRQ(ierr);
-  ierr = PetscDrawSynchronizedGetMouseButton(draw,&button,&xc,&yc,0,0);CHKERRQ(ierr); 
+  ierr = PetscDrawSynchronizedGetMouseButton(draw,&button,&xc,&yc,0,0);CHKERRQ(ierr);
   ierr = PetscDrawGetCoordinates(draw,&xl,&yl,&xr,&yr);CHKERRQ(ierr);
   w    = xr - xl; xmin = xl; ymin = yl; xmax = xr; ymax = yr;
   h    = yr - yl;
@@ -62,11 +85,16 @@ PetscErrorCode  PetscDrawZoom(PetscDraw draw,PetscErrorCode (*func)(PetscDraw,vo
       ierr = PetscDrawSetCoordinates(draw,xl,yl,xr,yr);CHKERRQ(ierr);
 
       ierr = (*func)(draw,ctx);CHKERRQ(ierr);
+      ierr = PetscDrawSynchronizedFlush(draw);CHKERRQ(ierr);
       ierr = PetscDrawCheckResizedWindow(draw);CHKERRQ(ierr);
       ierr = PetscDrawSynchronizedGetMouseButton(draw,&button,&xc,&yc,0,0);CHKERRQ(ierr);
     }
   }
   ierr = PetscDrawSetCoordinates(draw,xmin,ymin,xmax,ymax);CHKERRQ(ierr);
+  theend:
+#if defined(PETSC_HAVE_SETJMP_H) && defined(PETSC_HAVE_X)
+  XSetIOErrorHandler(PETSC_NULL);
+#endif
   PetscFunctionReturn(0);
 }
 

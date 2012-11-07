@@ -16,7 +16,7 @@ T*/
 #include <petscmat.h>
 #include <petscksp.h>
 
-#undef __FUNCT__  
+#undef __FUNCT__
 #define __FUNCT__ "GetISs"
 static PetscErrorCode GetISs(Vec vecs[],IS is[])
 {
@@ -83,7 +83,7 @@ PetscErrorCode test_view( void )
   tmp_buf[0] = a;
   tmp_buf[1] = b;
   ierr = VecCreateNest(PETSC_COMM_WORLD,2,PETSC_NULL,tmp_buf,&X);CHKERRQ(ierr);
-  ierr = VecDestroy(&a);CHKERRQ(ierr); 
+  ierr = VecDestroy(&a);CHKERRQ(ierr);
 
   ierr = VecAssemblyBegin(X);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(X);CHKERRQ(ierr);
@@ -186,10 +186,10 @@ PetscErrorCode gen_test_vector( MPI_Comm comm, PetscInt length, PetscInt start_v
 
   ierr = VecCreate( comm, &v );CHKERRQ(ierr);
   ierr = VecSetSizes( v, PETSC_DECIDE, length );CHKERRQ(ierr);
-  if( nproc == 1 ) { ierr = VecSetType( v, VECSEQ );CHKERRQ(ierr); }
+  if ( nproc == 1 ) { ierr = VecSetType( v, VECSEQ );CHKERRQ(ierr); }
   else { ierr = VecSetType( v, VECMPI );CHKERRQ(ierr); }
 
-  for( i=0; i<length; i++ ) {
+  for ( i=0; i<length; i++ ) {
     vx = (PetscScalar)( start_value + i * stride );
     ierr = VecSetValue( v, i, vx, INSERT_VALUES );CHKERRQ(ierr);
   }
@@ -236,7 +236,7 @@ PetscErrorCode test_axpy_dot_max( void )
   ierr = VecCreateNest(PETSC_COMM_WORLD,2,PETSC_NULL,tmp_buf,&X);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(X);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(X);CHKERRQ(ierr);
-  ierr = VecDestroy(&x1);CHKERRQ(ierr);  
+  ierr = VecDestroy(&x1);CHKERRQ(ierr);
   ierr = VecDestroy(&x2);CHKERRQ(ierr);
 
 

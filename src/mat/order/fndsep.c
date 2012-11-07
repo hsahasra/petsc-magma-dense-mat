@@ -3,7 +3,6 @@
 */
 
 #include <../src/mat/order/order.h>
-extern PetscErrorCode SPARSEPACKfnroot(PetscInt*, PetscInt *, PetscInt *, PetscInt *, PetscInt *, PetscInt *, PetscInt *);
 
 /*****************************************************************/
 /*************     FNDSEP ..... FIND SEPARATOR       *************/
@@ -33,11 +32,13 @@ extern PetscErrorCode SPARSEPACKfnroot(PetscInt*, PetscInt *, PetscInt *, PetscI
 /*       FNROOT.                                                 */
 /*                                                               */
 /*****************************************************************/
-#undef __FUNCT__  
-#define __FUNCT__ "SPARSEPACKfndsep" 
-PetscErrorCode SPARSEPACKfndsep(PetscInt *root, PetscInt *xadj, PetscInt *adjncy, 
+#undef __FUNCT__
+#define __FUNCT__ "SPARSEPACKfndsep"
+PetscErrorCode SPARSEPACKfndsep(PetscInt *root,const PetscInt *inxadj,const PetscInt *adjncy,
 	                        PetscInt *mask, PetscInt *nsep, PetscInt *sep, PetscInt *xls, PetscInt *ls)
 {
+    PetscInt *xadj = (PetscInt*)inxadj; /* Used as temporary and reset within this function */
+
     /* System generated locals */
     PetscInt i__1, i__2;
 
@@ -113,4 +114,4 @@ L500:
 	xadj[node] = -xadj[node];
     }
     PetscFunctionReturn(0);
-} 
+}

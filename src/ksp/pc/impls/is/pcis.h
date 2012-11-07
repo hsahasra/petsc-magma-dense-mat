@@ -6,8 +6,8 @@
 #include <../src/mat/impls/is/matis.h>
 #include <petscksp.h>
 
-/* 
-   Context (data structure) common for all Iterative Substructuring preconditioners.  
+/*
+   Context (data structure) common for all Iterative Substructuring preconditioners.
 */
 
 typedef struct {
@@ -46,12 +46,14 @@ typedef struct {
   VecScatter      N_to_B     ;    /* scattering context from all local nodes to local interface nodes */
   VecScatter      global_to_B;    /* scattering context from global to local interface nodes */
   PetscBool       pure_neumann;
+  PetscScalar     scaling_factor;
+  PetscBool       use_stiffness_scaling;
 
   PetscBool  ISLocalToGlobalMappingGetInfoWasCalled;
   PetscInt   n_neigh;    /* number of neighbours this subdomain has (by now, INCLUDING OR NOT the subdomain itself). */
                          /* Once this is definitively decided, the code can be simplifies and some if's eliminated.  */
   PetscInt   *neigh;     /* list of neighbouring subdomains                                                          */
-  PetscInt   *n_shared;  /* n_shared[j] is the number of nodes shared with subdomain neigh[j]                        */ 
+  PetscInt   *n_shared;  /* n_shared[j] is the number of nodes shared with subdomain neigh[j]                        */
   PetscInt   **shared;   /* shared[j][i] is the local index of the i-th node shared with subdomain neigh[j]          */
                   /* It is necessary some consistency in the                                                  */
                   /* numbering of the shared edges from each side.                                            */
@@ -75,5 +77,6 @@ extern PetscErrorCode  PCISCreate(PC pc);
 extern PetscErrorCode  PCISApplySchur(PC pc, Vec v, Vec vec1_B, Vec vec2_B, Vec vec1_D, Vec vec2_D);
 extern PetscErrorCode  PCISScatterArrayNToVecB(PetscScalar *array_N, Vec v_B, InsertMode imode, ScatterMode smode, PC pc);
 extern PetscErrorCode  PCISApplyInvSchur(PC pc, Vec b, Vec x, Vec vec1_N, Vec vec2_N);
+extern PetscErrorCode  PCISSetSubdomainScalingFactor(PC pc, PetscScalar scal);
 
 #endif /* __pcis_h */

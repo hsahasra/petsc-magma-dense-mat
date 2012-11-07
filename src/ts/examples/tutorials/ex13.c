@@ -1,28 +1,23 @@
 
 static char help[] = "Time-dependent PDE in 2d. Simplified from ex7.c for illustrating how to use TS on a structured domain. \n";
-/* 
+/*
    u_t = uxx + uyy
-   0 < x < 1, 0 < y < 1; 
+   0 < x < 1, 0 < y < 1;
    At t=0: u(x,y) = exp(c*r*r*r), if r=PetscSqrtReal((x-.5)*(x-.5) + (y-.5)*(y-.5)) < .125
            u(x,y) = 0.0           if r >= .125
 
-Program usage:  
-   mpiexec -n <procs> ./ex13 [-help] [all PETSc options] 
-   e.g., mpiexec -n 2 ./ex13 -da_grid_x 40 -da_grid_y 40 -ts_max_steps 2 -use_coloring -snes_monitor -ksp_monitor 
-         ./ex13 -use_coloring -drawcontours 
-         ./ex13 -use_coloring -drawcontours -draw_pause -1
-         mpiexec -n 2 ./ex13 -drawcontours -ts_type sundials -ts_sundials_monitor_steps
+    mpiexec -n 2 ./ex13 -da_grid_x 40 -da_grid_y 40 -ts_max_steps 2 -use_coloring -snes_monitor -ksp_monitor
+         ./ex13 -use_coloring 
+         ./ex13 -use_coloring  -draw_pause -1
+         mpiexec -n 2 ./ex13 -ts_type sundials -ts_sundials_monitor_steps
 */
 
 #include <petscdmda.h>
 #include <petscts.h>
 
-/* 
+/*
    User-defined data structures and routines
 */
-typedef struct {
-   PetscBool drawcontours;   /* flag - 1 indicates drawing contours */
-} MonitorCtx;
 typedef struct {
   PetscReal      c;
 } AppCtx;
@@ -30,7 +25,6 @@ typedef struct {
 extern PetscErrorCode RHSFunction(TS,PetscReal,Vec,Vec,void*);
 extern PetscErrorCode RHSJacobian(TS,PetscReal,Vec,Mat*,Mat*,MatStructure*,void*);
 extern PetscErrorCode FormInitialSolution(DM,Vec,void*);
-extern PetscErrorCode MyTSMonitor(TS,PetscInt,PetscReal,Vec,void*);
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -42,12 +36,9 @@ int main(int argc,char **argv)
   PetscInt       steps,maxsteps = 1000;     /* iterations for convergence */
   PetscErrorCode ierr;
   DM             da;
-  ISColoring     iscoloring;
   PetscReal      ftime,dt;
-  MonitorCtx     usermonitor;       /* user-defined monitor context */
   AppCtx         user;              /* user-defined work context */
   PetscBool      coloring=PETSC_FALSE;
-  MatFDColoring  matfdcoloring;
 
   PetscInitialize(&argc,&argv,(char *)0,help);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -57,16 +48,13 @@ int main(int argc,char **argv)
                     1,1,PETSC_NULL,PETSC_NULL,&da);CHKERRQ(ierr);
 
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Extract global vectors from DMDA; 
+     Extract global vectors from DMDA;
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMCreateGlobalVector(da,&u);CHKERRQ(ierr);
   ierr = VecDuplicate(u,&r);CHKERRQ(ierr);
 
   /* Initialize user application context */
   user.c = -30.0;
-
-  usermonitor.drawcontours = PETSC_FALSE;
-  ierr = PetscOptionsHasName(PETSC_NULL,"-drawcontours",&usermonitor.drawcontours);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Create timestepping solver context
@@ -84,20 +72,13 @@ int main(int argc,char **argv)
   ierr = PetscOptionsGetBool(PETSC_NULL,"-use_coloring",&coloring,PETSC_NULL);CHKERRQ(ierr);
   if (coloring){
     SNES snes;
-    ierr = DMCreateColoring(da,IS_COLORING_GLOBAL,MATAIJ,&iscoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringCreate(J,iscoloring,&matfdcoloring);CHKERRQ(ierr);
-    ierr = MatFDColoringSetFromOptions(matfdcoloring);CHKERRQ(ierr);
-    ierr = ISColoringDestroy(&iscoloring);CHKERRQ(ierr);
-
-    ierr = MatFDColoringSetFunction(matfdcoloring,(PetscErrorCode (*)(void))SNESTSFormFunction,ts);CHKERRQ(ierr);
     ierr = TSGetSNES(ts,&snes);CHKERRQ(ierr);
-    ierr = SNESSetJacobian(snes,PETSC_NULL,PETSC_NULL,SNESDefaultComputeJacobianColor,matfdcoloring);CHKERRQ(ierr);
+    ierr = SNESSetJacobian(snes,PETSC_NULL,PETSC_NULL,SNESDefaultComputeJacobianColor,PETSC_NULL);CHKERRQ(ierr);
   }
 
   ftime = 1.0;
   ierr = TSSetDuration(ts,maxsteps,ftime);CHKERRQ(ierr);
-  ierr = TSMonitorSet(ts,MyTSMonitor,&usermonitor,PETSC_NULL);CHKERRQ(ierr);
- 
+
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Set initial conditions
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -117,14 +98,11 @@ int main(int argc,char **argv)
   ierr = TSGetTimeStepNumber(ts,&steps);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Free work space.  
+     Free work space.
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = MatDestroy(&J);CHKERRQ(ierr);
-  if (coloring){
-    ierr = MatFDColoringDestroy(&matfdcoloring);CHKERRQ(ierr);
-  }
-  ierr = VecDestroy(&u);CHKERRQ(ierr);    
-  ierr = VecDestroy(&r);CHKERRQ(ierr);    
+  ierr = VecDestroy(&u);CHKERRQ(ierr);
+  ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = DMDestroy(&da);CHKERRQ(ierr);
 
@@ -134,7 +112,7 @@ int main(int argc,char **argv)
 /* ------------------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "RHSFunction"
-/* 
+/*
    RHSFunction - Evaluates nonlinear function, F(u).
 
    Input Parameters:
@@ -147,7 +125,7 @@ int main(int argc,char **argv)
  */
 PetscErrorCode RHSFunction(TS ts,PetscReal ftime,Vec U,Vec F,void *ptr)
 {
-  PETSC_UNUSED AppCtx *user=(AppCtx*)ptr;
+  /* PETSC_UNUSED AppCtx *user=(AppCtx*)ptr; */
   DM             da;
   PetscErrorCode ierr;
   PetscInt       i,j,Mx,My,xs,ys,xm,ym;
@@ -190,7 +168,7 @@ PetscErrorCode RHSFunction(TS ts,PetscReal ftime,Vec U,Vec F,void *ptr)
       u       = uarray[j][i];
       uxx     = (-two*u + uarray[j][i-1] + uarray[j][i+1])*sx;
       uyy     = (-two*u + uarray[j-1][i] + uarray[j+1][i])*sy;
-      f[j][i] = uxx + uyy;                        
+      f[j][i] = uxx + uyy;
     }
   }
 
@@ -199,8 +177,8 @@ PetscErrorCode RHSFunction(TS ts,PetscReal ftime,Vec U,Vec F,void *ptr)
   ierr = DMDAVecRestoreArray(da,F,&f);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(da,&localU);CHKERRQ(ierr);
   ierr = PetscLogFlops(11.0*ym*xm);CHKERRQ(ierr);
-  PetscFunctionReturn(0); 
-} 
+  PetscFunctionReturn(0);
+}
 
 /* --------------------------------------------------------------------- */
 #undef __FUNCT__
@@ -301,25 +279,7 @@ PetscErrorCode FormInitialSolution(DM da,Vec U,void* ptr)
 
   /* Restore vectors */
   ierr = DMDAVecRestoreArray(da,U,&u);CHKERRQ(ierr);
-  PetscFunctionReturn(0); 
-} 
-
-#undef __FUNCT__  
-#define __FUNCT__ "MyTSMonitor"
-PetscErrorCode MyTSMonitor(TS ts,PetscInt step,PetscReal ptime,Vec v,void *ptr)
-{
-  PetscErrorCode ierr;
-  PetscReal      norm;
-  MPI_Comm       comm;
-  MonitorCtx     *user = (MonitorCtx*)ptr;
-
-  PetscFunctionBegin;
-  ierr = VecNorm(v,NORM_2,&norm);CHKERRQ(ierr);
-  ierr = PetscObjectGetComm((PetscObject)ts,&comm);CHKERRQ(ierr);
-  ierr = PetscPrintf(comm,"timestep %D: time %G, solution norm %G\n",step,ptime,norm);CHKERRQ(ierr);
-  if (user->drawcontours){
-    ierr = VecView(v,PETSC_VIEWER_DRAW_WORLD);CHKERRQ(ierr);
-  }
   PetscFunctionReturn(0);
 }
+
 

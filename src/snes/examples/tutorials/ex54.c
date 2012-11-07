@@ -54,13 +54,13 @@ int main(int argc, char **argv)
   /* Get physics and time parameters */
   ierr = GetParams(&user);CHKERRQ(ierr);
   /* Create a 2D DA with dof = 2 */
-  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,DMDA_STENCIL_STAR,-4,-4,PETSC_DECIDE,PETSC_DECIDE,2,1,PETSC_NULL,PETSC_NULL,&user.da);CHKERRQ(ierr);
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,DMDA_STENCIL_BOX,-4,-4,PETSC_DECIDE,PETSC_DECIDE,2,1,PETSC_NULL,PETSC_NULL,&user.da);CHKERRQ(ierr);
   /* Set Element type (triangular) */
   ierr = DMDASetElementType(user.da,DMDA_ELEMENT_P1);CHKERRQ(ierr);
 
   /* Set x and y coordinates */
   ierr = DMDASetUniformCoordinates(user.da,user.xmin,user.xmax,user.ymin,user.ymax,0.0,1.0);CHKERRQ(ierr);
-  
+
   /* Get global vector x from DM and duplicate vectors r,xl,xu */
   ierr = DMCreateGlobalVector(user.da,&x);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&r);CHKERRQ(ierr);
@@ -127,7 +127,7 @@ PetscErrorCode Update_q(Vec q,Vec u,Mat M_0,AppCtx *user)
   PetscErrorCode ierr;
   PetscScalar    *q_arr,*w_arr;
   PetscInt       i,n;
-  
+
   PetscFunctionBegin;
   ierr = PetscLogEventBegin(event_update_q,0,0,0,0);CHKERRQ(ierr);
   ierr = MatMult(M_0,u,user->work1);CHKERRQ(ierr);
@@ -135,7 +135,7 @@ PetscErrorCode Update_q(Vec q,Vec u,Mat M_0,AppCtx *user)
   ierr = VecGetLocalSize(u,&n);CHKERRQ(ierr);
   ierr = VecGetArray(q,&q_arr);CHKERRQ(ierr);
   ierr = VecGetArray(user->work1,&w_arr);CHKERRQ(ierr);
-  for(i=0;i<n;i++) {
+  for (i=0;i<n;i++) {
     q_arr[2*i]=q_arr[2*i+1] = w_arr[i];
   }
   ierr = VecRestoreArray(q,&q_arr);CHKERRQ(ierr);
@@ -163,12 +163,12 @@ PetscErrorCode SetInitialGuess(Vec X,AppCtx* user)
   ierr = VecDestroy(&rand);CHKERRQ(ierr);
   ierr = VecScale(user->u,0.05);CHKERRQ(ierr);
   ierr = VecShift(user->u,-0.4);CHKERRQ(ierr);
-  
+
   ierr = VecGetLocalSize(X,&n);CHKERRQ(ierr);
   ierr = VecGetArray(X,&x);CHKERRQ(ierr);
   ierr = VecGetArray(user->u,&u);CHKERRQ(ierr);
   /* Set initial guess, only set value for 2nd dof */
-  for(i=0;i<n/2;i++) {
+  for (i=0;i<n/2;i++) {
     x[2*i+1] = u[i];
   }
   ierr = VecRestoreArray(X,&x);CHKERRQ(ierr);
@@ -198,9 +198,9 @@ PetscErrorCode FormJacobian(SNES snes,Vec X,Mat *J,Mat *B,MatStructure *flg,void
   static PetscBool copied = PETSC_FALSE;
 
   PetscFunctionBegin;
-  /* for active set method the matrix does not get changed, so do not need to copy each time, 
+  /* for active set method the matrix does not get changed, so do not need to copy each time,
      if the active set remains the same for several solves the preconditioner does not need to be rebuilt*/
-  *flg = SAME_PRECONDITIONER;  
+  *flg = SAME_PRECONDITIONER;
   if (!copied) {
     ierr = MatCopy(user->M,*J,*flg);CHKERRQ(ierr);
     copied = PETSC_TRUE;
@@ -224,15 +224,15 @@ PetscErrorCode SetVariableBounds(DM da,Vec xl,Vec xu)
 
   ierr = DMDAGetCorners(da,&xs,&ys,PETSC_NULL,&xm,&ym,PETSC_NULL);CHKERRQ(ierr);
 
-  for(j=ys; j < ys+ym; j++) {
-    for(i=xs; i < xs+xm;i++) {
+  for (j=ys; j < ys+ym; j++) {
+    for (i=xs; i < xs+xm;i++) {
       l[j][i][0] = -SNES_VI_INF;
       l[j][i][1] = -1.0;
       u[j][i][0] = SNES_VI_INF;
       u[j][i][1] = 1.0;
     }
   }
-  
+
   ierr = DMDAVecRestoreArrayDOF(da,xl,&l);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArrayDOF(da,xu,&u);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -244,7 +244,7 @@ PetscErrorCode GetParams(AppCtx* user)
 {
   PetscErrorCode ierr;
   PetscBool      flg;
-  
+
   PetscFunctionBegin;
 
   /* Set default parameters */
@@ -266,7 +266,7 @@ PetscErrorCode GetParams(AppCtx* user)
 
   PetscFunctionReturn(0);
 }
-  
+
 static void Gausspoints(PetscScalar *xx,PetscScalar *yy,PetscScalar *w,PetscScalar *x,PetscScalar *y)
 {
 
@@ -331,21 +331,21 @@ PetscErrorCode SetUpMatrices(AppCtx* user)
 
   PetscFunctionBegin;
   /* Get ghosted coordinates */
-  ierr = DMDAGetGhostedCoordinates(user->da,&coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(user->da,&coords);CHKERRQ(ierr);
   ierr = VecGetArrayRead(coords,&_coords);CHKERRQ(ierr);
 
   /* Get local element info */
   ierr = DMDAGetElements(user->da,&nele,&nen,&ele);CHKERRQ(ierr);
-  for(i=0;i < nele;i++) {
+  for (i=0;i < nele;i++) {
     idx[0] = ele[3*i]; idx[1] = ele[3*i+1]; idx[2] = ele[3*i+2];
     x[0] = _coords[2*idx[0]]; y[0] = _coords[2*idx[0]+1];
     x[1] = _coords[2*idx[1]]; y[1] = _coords[2*idx[1]+1];
     x[2] = _coords[2*idx[2]]; y[2] = _coords[2*idx[2]+1];
-    
+
     ierr = PetscMemzero(xx,3*sizeof(PetscScalar));CHKERRQ(ierr);
     ierr = PetscMemzero(yy,3*sizeof(PetscScalar));CHKERRQ(ierr);
     Gausspoints(xx,yy,&w,x,y);
-    
+
     eM_0[0][0]=eM_0[0][1]=eM_0[0][2]=0.0;
     eM_0[1][0]=eM_0[1][1]=eM_0[1][2]=0.0;
     eM_0[2][0]=eM_0[2][1]=eM_0[2][2]=0.0;
@@ -354,23 +354,23 @@ PetscErrorCode SetUpMatrices(AppCtx* user)
     eM_2[2][0]=eM_2[2][1]=eM_2[2][2]=0.0;
 
 
-    for(m=0;m<3;m++) {
+    for (m=0;m<3;m++) {
       ierr = PetscMemzero(phi,3*sizeof(PetscScalar));CHKERRQ(ierr);
       phider[0][0]=phider[0][1]=0.0;
       phider[1][0]=phider[1][1]=0.0;
       phider[2][0]=phider[2][1]=0.0;
-      
+
       ShapefunctionsT3(phi,phider,xx[m],yy[m],x,y);
 
-      for(j=0;j<3;j++) {
-	for(k=0;k<3;k++) {
+      for (j=0;j<3;j++) {
+	for (k=0;k<3;k++) {
 	  eM_0[k][j] += phi[j]*phi[k]*w;
 	  eM_2[k][j] += phider[j][0]*phider[k][0]*w + phider[j][1]*phider[k][1]*w;
 	}
       }
     }
 
-    for(r=0;r<3;r++) {
+    for (r=0;r<3;r++) {
       row = 2*idx[r];
       cols[0] = 2*idx[0];     vals[0] = dt*eM_2[r][0];
       cols[1] = 2*idx[0]+1;   vals[1] = eM_0[r][0];
@@ -390,7 +390,7 @@ PetscErrorCode SetUpMatrices(AppCtx* user)
       cols[5] = 2*idx[2]+1;   vals[5] = gamma*eM_2[r][2]-theta_c*eM_2[r][2];
 
       /* Insert values in matrix M for 2nd dof */
-      ierr = MatSetValuesLocal(M,1,&row,6,cols,vals,ADD_VALUES);CHKERRQ(ierr);           
+      ierr = MatSetValuesLocal(M,1,&row,6,cols,vals,ADD_VALUES);CHKERRQ(ierr);
     }
   }
 

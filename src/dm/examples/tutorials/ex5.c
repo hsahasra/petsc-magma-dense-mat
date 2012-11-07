@@ -7,19 +7,19 @@ static char help[] = "Tests DMDAGetElements() and VecView() contour plotting for
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  PetscInt       M = 10,N = 8,m = PETSC_DECIDE,n = PETSC_DECIDE,ne,nc,i;
-  const PetscInt *e;
-  PetscErrorCode ierr;
-  PetscBool      flg = PETSC_FALSE;
-  DM             da;
-  PetscViewer    viewer;
-  Vec            local,global;
-  PetscScalar    value;
+  PetscInt         M = 10,N = 8,m = PETSC_DECIDE,n = PETSC_DECIDE,ne,nc,i;
+  const PetscInt   *e;
+  PetscErrorCode   ierr;
+  PetscBool        flg = PETSC_FALSE;
+  DM               da;
+  PetscViewer      viewer;
+  Vec              local,global;
+  PetscScalar      value;
   DMDABoundaryType bx = DMDA_BOUNDARY_NONE,by = DMDA_BOUNDARY_NONE;
   DMDAStencilType  stype = DMDA_STENCIL_BOX;
-  PetscScalar    *lv;
+  PetscScalar      *lv;
 
-  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr); 
+  ierr = PetscInitialize(&argc,&argv,(char*)0,help);CHKERRQ(ierr);
   ierr = PetscViewerDrawOpen(PETSC_COMM_WORLD,0,"",300,0,300,300,&viewer);CHKERRQ(ierr);
 
   /* Read options */
@@ -45,7 +45,7 @@ int main(int argc,char **argv)
   ierr = VecGetArray(local,&lv);CHKERRQ(ierr);
   for (i=0; i<ne; i++) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"i %D e[3*i] %D %D %D\n",i,e[3*i],e[3*i+1],e[3*i+2]);
-    lv[e[3*i]] = i; 
+    lv[e[3*i]] = i;
   }
   ierr = VecRestoreArray(local,&lv);CHKERRQ(ierr);
   ierr = DMDARestoreElements(da,&ne,&nc,&e);CHKERRQ(ierr);
@@ -64,4 +64,4 @@ int main(int argc,char **argv)
   ierr = PetscFinalize();
   return 0;
 }
- 
+

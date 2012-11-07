@@ -19,6 +19,7 @@ int main(int argc,char **argv) {
   ierr = MatCreate(PETSC_COMM_SELF,&A);CHKERRQ(ierr);
   ierr = MatSetSizes(A,3,3,3,3);CHKERRQ(ierr);
   ierr = MatSetType(A,MATSEQAIJ);CHKERRQ(ierr);
+  ierr = MatSetUp(A);CHKERRQ(ierr);
   ierr = MatSetOption(A,MAT_IGNORE_ZERO_ENTRIES,PETSC_TRUE);CHKERRQ(ierr);
   ierr = MatSetValues(A,3,ij,3,ij,a,ADD_VALUES);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -51,7 +52,7 @@ int main(int argc,char **argv) {
   /* Test PtAP routine. */
   ierr = MatDuplicate(A,MAT_COPY_VALUES,&B);CHKERRQ(ierr);      /* B = A */
   ierr = MatPtAP(A,B,MAT_INITIAL_MATRIX,fill,&C);CHKERRQ(ierr); /* C = B^T*A*B */
-  ierr = MatAXPY(D,none,C,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr); 
+  ierr = MatAXPY(D,none,C,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatNorm(D,NORM_FROBENIUS,&norm);
   if (norm > 1.e-15){
     ierr = PetscPrintf(PETSC_COMM_SELF,"Error in MatPtAP: %g\n",norm);
@@ -151,7 +152,7 @@ PetscErrorCode testPTAPRectangular(void)
   _ierr = MatSetValue(P, 2, 0,  3.0, INSERT_VALUES); PETSc_CHKERRQ(_ierr);
   _ierr = MatSetValue(P, 2, 1,  0.0, INSERT_VALUES); PETSc_CHKERRQ(_ierr);
   _ierr = MatSetValue(P, 2, 2, -3.0, INSERT_VALUES); PETSc_CHKERRQ(_ierr);
-  
+
   _ierr = MatAssemblyBegin(P,MAT_FINAL_ASSEMBLY);
   PETSc_CHKERRQ(_ierr);
   _ierr = MatAssemblyEnd(P,MAT_FINAL_ASSEMBLY);
@@ -173,15 +174,15 @@ PetscErrorCode testPTAPRectangular(void)
 
   blitz::Array<double,2> actualC(cols, cols);
   actualC = 0.0;
-  for (int i=0; i<cols; i++) { 
-    for (int j=0; j<cols; j++) { 
+  for (int i=0; i<cols; i++) {
+    for (int j=0; j<cols; j++) {
       _ierr = MatGetValues(C, 1, &i, 1, &j, &actualC(i,j) );
       PETSc_CHKERRQ(_ierr); ;
     }
   }
   blitz::Array<double,2> expectedC(cols, cols);
   expectedC = 0.0;
-         
+
   expectedC(0,0) = 10.0;
   expectedC(0,1) =  2.0;
   expectedC(0,2) = -9.0;
@@ -198,11 +199,11 @@ PetscErrorCode testPTAPRectangular(void)
   expectedC(3,1) = -2.0;
   expectedC(3,2) =  0.0;
   expectedC(3,3) =  1.0;
-  
+
   int check = areBlitzArrays2NumericallyEqual(actualC,expectedC);
   validateEqualsWithParams3(check, -1 , "testPTAPRectangular()", check, actualC(check), expectedC(check));
   */
-  
+
   _ierr = MatDestroy(&A);
   PETSc_CHKERRQ(_ierr);
   _ierr = MatDestroy(&P);
