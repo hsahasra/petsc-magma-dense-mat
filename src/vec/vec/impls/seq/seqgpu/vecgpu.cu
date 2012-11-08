@@ -1816,23 +1816,37 @@ PetscErrorCode kernReduceAbsSum(double * x, PetscReal* z){
 #undef __FUNCT__
 #define __FUNCT__ "VecGetArray_SeqGPU"
 PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
-  PetscFunctionBegin;
+#ifdef PETSC_USE_DEBUG
+  PetscInt flg1=0,flg2=0,flg3=0,flg4=0;
+#endif
   PetscErrorCode ierr;
   Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
+
+  PetscFunctionBegin;
   if(vd->syncState==VEC_UNALLOC){
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_MEM,"in VecGetArray_SeqGPU the vector has not been created.");
   }
   #if(DEBUGVEC && VERBOSE)
      printf("Call to VecGetArray_SeqGPU\n");
   #endif
-  PetscInt flg1=0,flg2=0;
+#ifdef PETSC_USE_DEBUG
   PetscStackCheckByName(4,"DMDAVecGetArray",flg1);
   PetscStackCheckByName(6,"DMGlobalToLocalBegin",flg2);
+  PetscStackCheckByName("SNESDefaultComputeJacobian",flg3);
+  PetscStackCheckByName("DMComputeJacobianDefault",flg4);
 
-  if((flg1 || flg2) && vd->syncState==VEC_GPU){
-    ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
+  if(flg1 || flg2 || flg3 || flg4) {
+    if (vd->syncState==VEC_GPU){
+      ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
+    }
     vd->syncState = VEC_CPU;
   }
+#else
+  if (vd->syncState==VEC_GPU){
+    ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
+  }
+  vd->syncState = VEC_CPU;
+#endif
   cudaDeviceSynchronize();
   *a=vd->cpuptr;
   PetscFunctionReturn(0);
@@ -1842,15 +1856,20 @@ PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
 #undef __FUNCT__
 #define __FUNCT__ "VecRestoreArray_SeqGPU"
 PetscErrorCode VecRestoreArray_SeqGPU(Vec v,PetscScalar **a){
-  PetscFunctionBegin;
-  #if(DEBUGVEC && VERBOSE)
-     printf("Call to VecRestoreArray_SeqGPU\n");
-  #endif
+
+#ifdef PETSC_USE_DEBUG
+  PetscInt flg1=0,flg2=0,flg3=0;
+#endif
   PetscErrorCode ierr;
   Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
-  PetscInt flg1=0;
+
+  PetscFunctionBegin;
+#ifdef PETSC_USE_DEBUG
   PetscStackCheckByName(1,"VecRestoreArrayRead",flg1);
-  if(!flg1){
+  PetscStackCheckByName("DMDAVecRestoreArray",flg2);
+  PetscStackCheckByName("DMGlobalToLocalBegin",flg3);
+
+  if(vd->syncState==VEC_CPU || !(flg1||flg2||flg3){
     if(a){
       ierr = VecCopyOverH2D(v,*a);CHKERRQ(ierr);
       vd->syncState=VEC_GPU;
@@ -1859,6 +1878,15 @@ PetscErrorCode VecRestoreArray_SeqGPU(Vec v,PetscScalar **a){
       vd->syncState=VEC_SYNCHED;
     }
   }
+#else
+  if(a){
+    ierr = VecCopyOverH2D(v,*a);CHKERRQ(ierr);
+    vd->syncState=VEC_GPU;
+  }else{
+    ierr = VecCopyOverH2D(v,vd->cpuptr);CHKERRQ(ierr);
+    vd->syncState=VEC_SYNCHED;
+  }
+#endif
   cudaDeviceSynchronize();
   PetscFunctionReturn(0);
 }
