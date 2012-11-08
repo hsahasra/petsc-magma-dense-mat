@@ -30,6 +30,7 @@ extern PetscErrorCode  PCCreate_LSC(PC);
 extern PetscErrorCode  PCCreate_Redistribute(PC);
 extern PetscErrorCode  PCCreate_SVD(PC);
 extern PetscErrorCode  PCCreate_GAMG(PC);
+extern PetscErrorCode  PCCreate_Polynomial(PC);
 
 #if defined(PETSC_HAVE_BOOST) && defined(PETSC_CLANGUAGE_CXX)
 extern PetscErrorCode  PCCreate_SupportGraph(PC);
@@ -116,6 +117,7 @@ PetscErrorCode  PCRegisterAll(const char path[])
   ierr = PCRegisterDynamic(PCREDISTRIBUTE ,path,"PCCreate_Redistribute",PCCreate_Redistribute);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCSVD          ,path,"PCCreate_SVD",PCCreate_SVD);CHKERRQ(ierr);
   ierr = PCRegisterDynamic(PCGAMG         ,path,"PCCreate_GAMG",PCCreate_GAMG);CHKERRQ(ierr);
+  ierr = PCRegisterDynamic(PCPOLYNOMIAL   ,path,"PCCreate_Polynomial",PCCreate_Polynomial);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_BOOST) && defined(PETSC_CLANGUAGE_CXX)
   ierr = PCRegisterDynamic(PCSUPPORTGRAPH ,path,"PCCreate_SupportGraph",PCCreate_SupportGraph);CHKERRQ(ierr);
 #endif
