@@ -29,6 +29,7 @@ PETSC_EXTERN PetscErrorCode PCCreate_LSC(PC);
 PETSC_EXTERN PetscErrorCode PCCreate_Redistribute(PC);
 PETSC_EXTERN PetscErrorCode PCCreate_SVD(PC);
 PETSC_EXTERN PetscErrorCode PCCreate_GAMG(PC);
+PETSC_EXTERN PetscErrorCode PCCreate_Polynomial(PC);
 
 #if defined(PETSC_HAVE_BOOST) && defined(PETSC_CLANGUAGE_CXX)
 PETSC_EXTERN PetscErrorCode PCCreate_SupportGraph(PC);
@@ -113,6 +114,7 @@ PetscErrorCode  PCRegisterAll(void)
   ierr = PCRegister(PCREDISTRIBUTE ,PCCreate_Redistribute);CHKERRQ(ierr);
   ierr = PCRegister(PCSVD          ,PCCreate_SVD);CHKERRQ(ierr);
   ierr = PCRegister(PCGAMG         ,PCCreate_GAMG);CHKERRQ(ierr);
+  ierr = PCRegister(PCPOLYNOMIAL   ,PCCreate_Polynomial);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_BOOST) && defined(PETSC_CLANGUAGE_CXX)
   ierr = PCRegister(PCSUPPORTGRAPH ,PCCreate_SupportGraph);CHKERRQ(ierr);
 #endif

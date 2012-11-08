@@ -77,6 +77,7 @@ typedef const char* PCType;
 #define PCREDISTRIBUTE    "redistribute"
 #define PCSVD             "svd"
 #define PCGAMG            "gamg"
+#define PCPOLYNOMIAL            "polynomial"
 #define PCSACUSP          "sacusp"        /* these four run on NVIDIA GPUs using CUSP */
 #define PCSACUSPPOLY      "sacusppoly"
 #define PCBICGSTABCUSP    "bicgstabcusp"
