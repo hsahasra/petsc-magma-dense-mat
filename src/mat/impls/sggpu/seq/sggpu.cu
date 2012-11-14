@@ -375,7 +375,8 @@ PetscErrorCode MatSetValuesBlocked_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt
 #if _TRACE
   printf("[SeqSGGPU] MatSetValuesBlocked_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatSetValuesBlocked_SeqSGGPU not implemented");
+
 }
 
 
@@ -557,7 +558,7 @@ PetscErrorCode MatZeroEntries_SeqSGGPU(Mat A)
 #if _TRACE
   printf("[SeqSGGPU] MatZeroEntries_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatZeroEntries_SeqSGGPU not implemented");
 }
 
 
@@ -569,7 +570,7 @@ PetscErrorCode MatGetDiagonal_SeqSGGPU(Mat A, Vec v)
 #if _TRACE
   printf("[SeqSGGPU] MatGetDiagonal_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatGetDiagonal_SeqSGGPU not implemented");
 }
 
 
@@ -581,7 +582,7 @@ PetscErrorCode MatDiagonalScale_SeqSGGPU(Mat A, Vec ll, Vec rr)
 #if _TRACE
   printf("[SeqSGGPU] MatDiagonalScale_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatDiagonalScale_SeqSGGPU not implemented");
 }
 
 
@@ -593,7 +594,7 @@ PetscErrorCode MatGetRow_SeqSGGPU(Mat A, PetscInt row, PetscInt * nz, PetscInt *
 #if _TRACE
   printf("[SeqSGGPU] MatGetRow_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatGetRow_SeqSGGPU not implemented");
 }
 
 
@@ -605,7 +606,7 @@ PetscErrorCode MatRestoreRow_SeqSGGPU(Mat A, PetscInt row, PetscInt *nz, PetscIn
 #if _TRACE
   printf("[SeqSGGPU] MatRestoreRow_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatRestoreRow_SeqSGGPU not implemented");
 }
 
 
@@ -617,7 +618,7 @@ PetscErrorCode MatGetRowMaxAbs_SeqSGGPU(Mat A, Vec v, PetscInt idx[])
 #if _TRACE
   printf("[SeqSGGPU] MatGetRowMaxAbs_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatGetRowMaxAbs_SeqSGGPU not implemented");
 }
 
 
@@ -629,7 +630,7 @@ PetscErrorCode MatView_SeqSGGPU(Mat A, PetscViewer viewer)
 #if _TRACE
   printf("[SeqSGGPU] MatView_SeqSGGPU\n");
 #endif
-  PetscFunctionReturn(0);
+  SETERRQ(PETSC_COMM_SELF,0,"MatView_SeqSGGPU not implemented");
 }
 
 
