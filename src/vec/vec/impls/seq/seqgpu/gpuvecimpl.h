@@ -1,67 +1,107 @@
+
 #ifndef __GPUVECIMPL
 #define __GPUVECIMPL
 
-#include <petsc-private/vecimpl.h>
-#include <petscconf.h>
-#include <petscsys.h>
-#include <petscvec.h>
 
+/* #include <petscsys.h>
+#include <petscvec.h>
+ #include <petscconf.h> */
+
+#include <petsc-private/vecimpl.h>
 #include <../src/vec/vec/impls/dvecimpl.h>
 
 EXTERN_C_BEGIN
+#include <sys/time.h>
+#include <math.h>
 #include <cuda.h>
 
+/*
+ These macros define debugging ane output needed for debugging
+ VTIMER only has implementation in WAXPY, VecMaxPWDivide,
+ NORM2 and DOT
+*/
 #undef  DEBUGVEC
 #define DEBUGVEC        0
-#undef  VERBOSE
-#define VERBOSE         0
-#define MPLIER          4.0
-#define CHUNKWIDTH      MPLIER*65536.0
-#define TCOUNT          128
-#define MAXTHREADS      1024
-#define MAXBLOCKS       65536
-#define THRDOTCNT       128
-#define THRDOTCNT2      32
-#define AXPYTCOUNT      128
-#define AXPBYPCZTCOUNT  128
-#define THRNRMCNT       128
-#define THRNRMCNT2      32
-#define PDIVTCOUNT      128
-#define PDIVTCOUNT2     32
-#define PMULTCOUNT      128
-#define CPYTCOUNT       128
-#define NNN		624
-#define MMM		397
-#define INIT_MULT	1812433253	/* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
-#define	ARRAY_SEED	19650218	/* Seed for initial setup before incorp array seed */
-#define MATRIX_A	0x9908b0df	/* Constant vector a */
-#define UPPER_MASK	0x80000000	/* Most significant w-r bits */
-#define LOWER_MASK	0x7fffffff	/* Least significant r bits */
-#define	TEMPER1		0x9d2c5680
-#define	TEMPER2		0xefc60000
+#undef  VVERBOSE
+#define VVERBOSE        0
+#undef  VTIMER
+#define VTIMER          0
+#define ITSHOW          4000 /* reduces the number of printfs */
 
-
-
-
-__shared__ int	mtNexts;			/* Start of next block of seeds */
-__shared__ uint	mtNexti;	/* Indirect on above to save one global read time/call */
-__device__ uint	s_seeds[NNN];
-
-
+/*
+  The macros below toggles the manual or Orio code for the
+  kernels DOT, NORM2, WAXPY, and AXPY
+  0 toggles Orio kernels, 1 toggles manual tuned kernels
+*/
+#define VMANDOT         1
+#define VMANNRM         1
+#define VMANWXP         1
+#define VMANXPY         1
 
 
 /*
-struct copyCounters{
-  PetscInt h2d_count;
-  PetscInt d2h_count;
-  PetscInt h2d_bytes;
-  PetscInt d2h_bytes;
-};
- */
+  These macros below control the tuning of the manual kernels
+*/
+#define CHUNKWIDTH      65536.0 /* active threads */
+#define TCOUNT          128
 
-static PetscErrorCode VecView_Seq_ASCII(Vec ,PetscViewer);
-static PetscErrorCode PinnedMalloc(PetscScalar** x,PetscInt n);
-static PetscErrorCode PinnedFree(PetscScalar* x);
+/* Hardware device maximums */
+#define MAXTHREADS      1024
+#define MAXBLOCKS       65536
+
+/* Dot product */
+#define DOTMPLIER       1.0 /* element-thread work multiplier */
+#define THRDOTCNT       256 /* first reduction */
+#define THRDOTCNT2      256 /* second reduction */
+
+/* AXPY, WAXPY, MAXPY, AXPBYPCZ */
+#define AXPYTCOUNT      256
+#define AXPBYPCZTCOUNT  128
+
+/* Norm2 and Infinity Norm */
+#define NRMMPLIER       8.0 /* element-thread work multiplier */
+#define THRNRMCNT       256 /* first reduction */
+#define THRNRMCNT2      256 /* second reduction */
+
+/* Max pointwise divide */
+#define MAXMPLIER       1.0 /* element-thread work multiplier */
+#define PDIVTCOUNT      256 /* first reduction */
+#define PDIVTCOUNT2     256 /* second reduction */
+
+/* Pointwise multiply */
+#define PMULTCOUNT      128
+
+/* Copy over (unused) */
+#define CPYTCOUNT       128
+/* --------------------- */
+
+
+/* Random number generator macros. Newer SDKs (4.1+)have cuRAND
+   libraries, which implement these routines, so this may be obsolete
+*/
+#define NNN		624
+#define MMM		397
+#define INIT_MULT	1812433253 /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
+#define	ARRAY_SEED	19650218   /* Seed for initial setup before incorp array seed */
+#define MATRIX_A	0x9908b0df /* Constant vector a */
+#define UPPER_MASK	0x80000000 /* Most significant w-r bits */
+#define LOWER_MASK	0x7fffffff /* Least significant r bits */
+#define	TEMPER1		0x9d2c5680
+#define	TEMPER2		0xefc60000
+
+__shared__ int	mtNexts;	   /* Start of next block of seeds */
+__shared__ uint	mtNexti;	   /* Indirect on above to save one global read time/call */
+__device__ uint	s_seeds[NNN];
+/* --------------------------------------------------------------------- */
+
+
+
+PetscErrorCode VecView_SeqGPU_ASCII(Vec ,PetscViewer);
+
+/* NVidia device mallocs specific for pinned memory, required for streaming */
+PetscErrorCode PinnedMalloc(PetscScalar** x,PetscInt n);
+PetscErrorCode PinnedFree(PetscScalar* x);
+
 extern PetscErrorCode VecDotNorm2_SeqGPU(Vec,Vec,PetscScalar *, PetscScalar *);
 extern PetscErrorCode VecPointwiseDivide_SeqGPU(Vec,Vec,Vec);
 extern PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec,Vec,PetscReal*);
@@ -83,7 +123,9 @@ extern PetscErrorCode VecAXPY_SeqGPU(Vec,PetscScalar,Vec);
 extern PetscErrorCode VecAXPBY_SeqGPU(Vec,PetscScalar,PetscScalar,Vec);
 extern PetscErrorCode VecDuplicate_SeqGPU(Vec,Vec *);
 extern PetscErrorCode VecNorm_SeqGPU(Vec,NormType,PetscReal*);
+
 extern PetscErrorCode VecCreate_SeqGPU(Vec);
+
 extern PetscErrorCode VecView_SeqGPU(Vec,PetscViewer);
 extern PetscErrorCode VecDestroy_SeqGPU(Vec);
 extern PetscErrorCode VecDestroyVecs_SeqGPU(PetscInt,Vec*);
@@ -107,29 +149,83 @@ extern PetscErrorCode VecGetLocalSize_SeqGPU(Vec , PetscInt *);
 extern PetscErrorCode VecGetSize_SeqGPU(Vec , PetscInt *);
 extern PetscErrorCode VecCompare_SeqGPU(Vec,Vec, PetscBool*, PetscInt, PetscInt);
 extern PetscErrorCode VecCheck_SeqGPU(Vec);
+
 extern __global__ void kernAXPBYPCZ(double*, double*, double*,int*);
 extern __global__ void kernCheck(double*, int*);
 extern __global__ void kernCopyLen(int*, int*);
 extern __global__ void kernCODevice(double*,double*, int*);
 extern __global__ void kernCompare(double*, double*,int*, int*, int*);
-extern __global__ void kernSet(double*, int*);
-extern __global__ void kernScale(double*, int*);
+extern __global__ void kernSet(double*,double, int);
+extern __global__ void kernAddValues(double* x, int n, int* xi, int ni,double *y);
+extern __global__ void kernScale(double*,double, int);
 extern __global__ void kernCopy(double*, double*, int*, int*);
-extern __global__ void kernDot(double*,double*,int*,int*,int*,double*);
-extern __global__ void kernRedDot(int*,double*,double*);
-extern __global__ void kernAXPY(double*, double*, int*,double*);
-extern __global__ void kernWAXPY(double*, double*, int*, double*);
-extern __global__ void kernWXPY(double*, double*, int*, double*);
-extern __global__ void kernWXMY(double*, double*, int*, double*);
-extern __global__ void kernXPY(double*, double*, int*);
-extern __global__ void kernNorm2(double*,int*,int*,int*,double*);
-extern __global__ void kernRedNorm(int*,double*,double*);
+
+extern __global__ void kernAXPY(double*, double*,double, int);
+extern __global__ void kernWYMX(double*, double*, int, double*);
+extern __global__ void kernXPY(double*, double*, int);
+
+
+
 extern __global__ void kernPDIV(double*,double*,int*,double* );
 extern __global__ void kernPMULT(double*,double*,int*,double* );
-extern __global__ void kernMAXPDIV(double*,double*,int*,int*,int*,double*);
-extern __global__ void kernMAX(int*,double*,double*);
+extern __global__ void kernMAXPDIV(double*,double*,int,int,int,double*);
+extern __global__ void kernMAX(int,double*);
 extern __global__ void kernRand(double*, int*);
 extern __global__ void kernRandS(uint *);
+
+
+__device__ void orcu_warpReduce32(int, volatile double*);
+__device__ void orcu_warpReduce64(int, volatile double*);
+
+
+#if(VMANDOT)
+extern __global__ void kernDot(double*,double*,int,int,int,double*);
+extern __global__ void kernRedDot(int,double*);
+#else
+extern __global__ void orcu_dotkernel_1e5(int, double*, double*, double*);
+extern __global__ void orcu_dotblksum_1e5(int, double*);
+extern __global__ void orcu_dotkernel_1e6(int, double*, double*, double*);
+extern __global__ void orcu_dotblksum_1e6(int, double*);
+extern __global__ void orcu_dotkernel_1e7(int, double*, double*, double*);
+extern __global__ void orcu_dotblksum_1e7(int, double*);
+#endif
+
+extern __global__ void kernInfNorm(double*,int,int,int,double*);
+extern __global__ void kernRedInfNorm(int,double*);
+#if(VMANNRM)
+extern __global__ void kernNorm2(double*,int,int,int,double*);
+extern __global__ void kernRedNorm(int,double*);
+
+#else
+extern __global__ void orcu_norm2kernel_1e5(const int , double*, double*);
+extern __global__ void orcu_norm2blksum_1e5(int, double*);
+extern __global__ void orcu_norm2kernel_1e6(const int, double*, double*);
+extern __global__ void orcu_norm2blksum_1e6(int, double*);
+extern __global__ void orcu_norm2kernel_1e7(const int, double*, double*);
+extern __global__ void orcu_norm2blksum_1e7(int, double*);
+#endif
+
+#if(VMANXPY)
+
+#else
+__global__ void orcu_axpykernel_1e5(const int , double , double* , double*);
+__global__ void orcu_axpykernel_1e6(const int , double , double* , double*);
+__global__ void orcu_axpykernel_1e7(const int , double , double* , double*);
+#endif
+
+#if(VMANWXP)
+extern __global__ void kernWAXPY(double*, double*,double, int, double*);
+extern __global__ void kernWXPY(double*, double*, int, double*);
+#else
+__global__ void orcu_waxpykernel_1e5(const int, double, double*, double*, double*);
+__global__ void orcu_waxpykernel_1e6(const int, double, double*, double*, double*);
+__global__ void orcu_waxpykernel_1e7(const int, double, double*, double*, double*);
+#endif
+
+
+__device__ void warpReduce(volatile double*, int);
+__device__ void warpDotReduce(volatile double*, int);
+__device__ void warpMaxReduce(volatile double*, int);
 
 __device__ void mt19937si(uint);
 __device__ void mt19937sai(uint*,uint);
@@ -140,31 +236,37 @@ __device__ uint mt19937sl(void);
 extern PetscBool  synchronizeGPU;
 
 
-
 #define CHKERRGPU(err) if (((int)err) != (int)CUBLAS_STATUS_SUCCESS) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUDA error %s",cudaGetErrorString(err))
 
-#define WaitForGPU() synchronizeGPU ? cudaThreadSynchronize() : 0
+#define WaitForGPU() synchronizeGPU ? cudaDeviceSynchronize() : 0
 
-
-typedef enum {VEC_SINGLE,VEC_PERSIST,VEC_DEALLOC,VEC_COLLECT} VecUsageGPUFlag;
+/* Flag used to indicate the state of the Vecotr type with regards to the 
+   location of the current uptodate data, if the memory has been allocated,
+   and if the arrays have been initialized.                               */
 typedef enum {VEC_UNALLOC,VEC_ALLOC,VEC_GPU, VEC_CPU,VEC_SYNCHED} VecGPUFlag;
 typedef struct{
   VECHEADER
-    //VecUsageGPUFlag     lifetime;
-  VecGPUFlag          syncState;
-  //PetscBool           dimsetflag;
-  PetscInt*           length;
-  PetscScalar*        scalar;
-  PetscScalar*        cpuptr;
-  PetscScalar*        devptr;
-  PetscScalar*        zval;
-  cudaStream_t        stream;
-  PetscInt*           offset;
-  PetscInt*           segment;
-  //struct copyCounters vstat;
+  VecGPUFlag          syncState; /* memory state */
+  PetscInt*           length;    /* local length of the vector */
+  PetscScalar*        scalar;    /* misc. on device scalar place holder */
+  PetscScalar*        cpuptr;    /* pointer to array on device */
+  PetscScalar*        devptr;    /* pointer to array on host   */
+  PetscScalar*        zval;      /* future usage for keeping reduction result on device */
+  cudaStream_t        streamid;  /* streamID created when Vector created */
+  PetscInt*           offset;    /* global array offset */
+  PetscInt*           segment;   /* something or other */
  }Vec_SeqGPU;
 
 
+
+
+
+
+/*
+  Below are legacy functions kept around to check compatability
+  All of them have been stripped of functionality, and only printf
+  to state they are called.
+*/
 
 
 #undef __FUNCT__
@@ -320,6 +422,7 @@ PETSC_STATIC_INLINE PetscErrorCode VecGPURestoreArrayWrite(Vec v,PetscScalar *va
 }
 
 EXTERN_C_END
+
 #endif
 
 

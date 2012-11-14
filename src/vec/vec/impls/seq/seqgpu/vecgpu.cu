@@ -1,9 +1,9 @@
 #include <petscconf.h>
 #include <petscsys.h>
-#include <petscerror.h>
+//#include <petscerror.h>
 PETSC_CUDA_EXTERN_C_BEGIN
 #include <string.h>
-#include <omp.h>
+
 #include <stdlib.h>
 #include <float.h>
 #include <petsc-private/vecimpl.h>          /*I "petscvec.h" I*/
@@ -13,7 +13,10 @@ PETSC_CUDA_EXTERN_C_END
 
 
 
+
 EXTERN_C_BEGIN
+
+/* Misc constant memory variables (rarely used) */
 __constant__ int     integerSymbol;
 __constant__ int2    integer2Symbol;
 __constant__ int3    integer3Symbol;
@@ -23,21 +26,72 @@ __constant__ double2 dblScalar2Value;/* utility var */
 __constant__ float   fltScalarValue;/* utility var */
 __constant__ float2  fltScalar2Value;/* utility var */
 
+/* error check variables */
+
 static cudaError_t ccs[16];
 static cudaError_t cms[16];
 
-/* Valid pointer check function (probably doesn't work) */
-PetscBool valid(void *p){
-  extern char _etext;
-  if((p != PETSC_NULL) && ((char*) p > &_etext)){
-    return PETSC_TRUE;
-  }else{
-    return PETSC_FALSE;
-  }
+/* timer for vector functions */
+#undef __FUNCT__
+#define __FUNCT__ "vec_clock"
+double vec_clock(){
+  struct timezone tzp;
+  struct timeval tp;
+  gettimeofday (&tp, &tzp);
+  return (tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
+
+__device__ void orcu_warpReduce32(int tid, volatile double* reducts) {
+  reducts[tid]+=reducts[tid+16];
+  reducts[tid]+=reducts[tid+8];
+  reducts[tid]+=reducts[tid+4];
+  reducts[tid]+=reducts[tid+2];
+  reducts[tid]+=reducts[tid+1];
+}
+
+__device__ void orcu_warpReduce64(int tid, volatile double* reducts) {
+  reducts[tid]+=reducts[tid+32];
+  reducts[tid]+=reducts[tid+16];
+  reducts[tid]+=reducts[tid+8];
+  reducts[tid]+=reducts[tid+4];
+  reducts[tid]+=reducts[tid+2];
+  reducts[tid]+=reducts[tid+1];
+}
+
+/* Function unrolls work of warp for reductions */
+__device__ void warpDotReduce(volatile double* sdata, int tid){
+  if(blockDim.x>=64)sdata[tid]+= sdata[tid+32];
+  if(blockDim.x>=32)sdata[tid]+= sdata[tid+16];
+  if(blockDim.x>=16)sdata[tid]+= sdata[tid+8];
+  if(blockDim.x>=8) sdata[tid]+= sdata[tid+4];
+  if(blockDim.x>=4) sdata[tid]+= sdata[tid+2];
+  if(blockDim.x>=2) sdata[tid]+= sdata[tid+1];
+}
+
+/* Function unrolls work of warp for reductions */
+__device__ void warpReduce(volatile double* sdata, int tid){
+  sdata[tid]+= sdata[tid+32];
+  sdata[tid]+= sdata[tid+16];
+  sdata[tid]+= sdata[tid+8];
+  sdata[tid]+= sdata[tid+4];
+  sdata[tid]+= sdata[tid+2];
+  sdata[tid]+= sdata[tid+1];
+}
+
+/* Function unrolls work of warp for reductions */
+__device__ void warpMaxReduce(volatile double* sdata, int tid){
+  sdata[tid]= fmax(sdata[tid],sdata[tid+32]);
+  sdata[tid]= fmax(sdata[tid],sdata[tid+16]);
+  sdata[tid]= fmax(sdata[tid],sdata[tid+8]);
+  sdata[tid]= fmax(sdata[tid],sdata[tid+4]);
+  sdata[tid]= fmax(sdata[tid],sdata[tid+2]);
+  sdata[tid]= fmax(sdata[tid],sdata[tid+1]);
+}
+
+
 /* ---------------------------------------------------------
-// helper function for error checking
+// helper function for error checking from kernel launches
 // pops the CUDA error stack and exits on nonzero error code
 // written by: dlowell ANL-MCS
 // --------------------------------------------------------- */
@@ -55,25 +109,29 @@ PetscErrorCode VecCheckCUDAError(const char *msg){
   PetscFunctionReturn(0);
 }
 
-
+/* ---------------------------------------------------------
+// helper function for error checking from status codes
+// exits on nonzero error code, else does nothing
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCheckCUDAStatus"
 PetscErrorCode VecCheckCUDAStatus(cudaError_t cs,const char *msg){
   PetscFunctionBegin;
     if(cs!=cudaSuccess){
-      fprintf(stderr, "Cuda error: %s: %s.\n",msg,cudaGetErrorString(cs));
-      fflush(NULL);
-      PetscFunctionReturn(PETSC_ERR_LIB);
+      SETERRQ2(PETSC_COMM_SELF,0,"Cuda error: %s: %s.\n",msg,cudaGetErrorString(cs));
     }
   PetscFunctionReturn(0);
 }
-
 /* -------------------- end error checkers ------------------- */
 
 
 
 
 /* ****************************************************************************
+ This code is now included in CUDA SDK 4.1+ as cuRAND, so it may be obsolete
+
+ *****************************************************************************
  * This is a shared memory implementation that keeps the full 625 words of state
  * in shared memory. Faster for heavy random work where you can afford 
  *  the shared memory. */
@@ -194,7 +252,6 @@ __device__ uint mt19937sl(void){
   return y;
 }
 
-
 #undef __FUNCT__
 #define __FUNCT__ "kernRandS"
 __global__ void kernRandS(uint* seeds){
@@ -224,9 +281,6 @@ PetscErrorCode VecSetRandom_SeqGPU(Vec x,PetscRandom r){
   PetscScalar rval;
   dim3 dimBlock,dimGrid;
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
-  #if(DEBUGVEC && VERBOSE)
-     printf("Call to VecSetRandom_SeqGPU\n");
-  #endif
   if(xd->syncState==VEC_ALLOC || xd->syncState==VEC_CPU){
     for(i=0; i<x->map->n; i++){
        ierr = PetscRandomGetValue(r,&xd->cpuptr[i]);CHKERRQ(ierr);
@@ -236,10 +290,6 @@ PetscErrorCode VecSetRandom_SeqGPU(Vec x,PetscRandom r){
   }else if(xd->syncState==VEC_SYNCHED || xd->syncState==VEC_GPU){
     dimGrid.x=ceil((float)x->map->n/(float)TCOUNT);
     dimBlock.x=TCOUNT;
-    while(dimGrid.x>MAXBLOCKS){
-      dimGrid.x/=2;
-      dimBlock.x*=2;
-    }
     ierr = PetscMalloc(dimGrid.x*sizeof(PetscInt),&seeds);CHKERRQ(ierr);
     for(i=0; i<dimGrid.x; i++){
        ierr = PetscRandomGetValue(r,&rval);CHKERRQ(ierr);
@@ -270,8 +320,7 @@ PetscErrorCode VecSetRandom_SeqGPU(Vec x,PetscRandom r){
   xd->syncState = VEC_GPU;
   PetscFunctionReturn(0);
 }
-
-/*------------------------end random generator ------------------------*/
+/*------------------------ end random generator ------------------------*/
 
 
 
@@ -295,10 +344,6 @@ PetscErrorCode VecCompare_SeqGPU(Vec x, Vec y, PetscBool *same, PetscInt offset,
     dimGrid.x=ceil((float)x->map->n/(float)TCOUNT);
   }
   dimBlock.x=TCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-      dimGrid.x/=2;
-      dimBlock.x*=2;
-  }
   cudaError_t cudastatus;
   int *devsame=PETSC_NULL;
   int cpusame=0;
@@ -353,14 +398,14 @@ __global__ void kernCompare(double* devX, double* devY, int* lx, int* ly, int* d
     chunkY[threadIdx.x]=devY[index];
     value = fabs(chunkX[threadIdx.x]-chunkY[threadIdx.x]);
     if(value>1e-16){
-      #if(DEBUGVEC && VERBOSE)
-      printf("In kernCompare found an element mismatch: %e\n",value);
+      #if(DEBUGVEC && VVERBOSE)
+         printf("In kernCompare found an element mismatch: %e\n",value);
       #endif
       blockflag=1;
     }
     if(*lx!=*ly){
-      #if(DEBUGVEC && VERBOSE)
-      printf("In kernCompare found length mismatch: lx: %d vs ly: %d\n",*lx,*ly);
+      #if(DEBUGVEC && VVERBOSE)
+         printf("In kernCompare found length mismatch: lx: %d vs ly: %d\n",*lx,*ly);
       #endif
       blockflag=1;
     }
@@ -389,11 +434,13 @@ PetscErrorCode VecView_SeqGPU(Vec x,PetscViewer viewer){
   }
   cudaDeviceSynchronize();
   int i;
+  ierr = PetscObjectPrintClassNamePrefixType((PetscObject)x,viewer,"Vector Object");CHKERRQ(ierr);
   for(i=0;i<x->map->n;i++){
-    if(xd->cpuptr[i]!=0)printf("cpu[%d]: %e\n",i,xd->cpuptr[i]);
+    PetscViewerASCIIPrintf(viewer,"%G\n",xd->cpuptr[i]);
   }
   /* ierr= PetscViewerSetType(viewer,PETSCVIEWERASCII);CHKERRQ(ierr);*/
   /* ierr =VecView_Seq_ASCII(x,viewer);CHKERRQ(ierr); */
+  ierr = PetscViewerFlush(viewer);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -401,8 +448,8 @@ PetscErrorCode VecView_SeqGPU(Vec x,PetscViewer viewer){
 #define __FUNCT__ "VecGetLocalSize_SeqGPU"
 PetscErrorCode VecGetLocalSize_SeqGPU(Vec x, PetscInt *localsize){
   PetscFunctionBegin;
-  #if(DEBUGVEC && VERBOSE)
-     printf("Call to VecGetLocalSize_SeqGPU\n"); 
+  #if(DEBUGVEC && VVERBOSE)
+     printf("Call to VecGetLocalSize_SeqGPU\n");
   #endif
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
   PetscValidIntPointer(localsize,2);
@@ -415,7 +462,7 @@ PetscErrorCode VecGetLocalSize_SeqGPU(Vec x, PetscInt *localsize){
 #define __FUNCT__ "VecGetSize_SeqGPU"
 PetscErrorCode VecGetSize_SeqGPU(Vec x, PetscInt *globalsize){
   PetscFunctionBegin;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecGetSize_SeqGPU\n");
   #endif
   PetscValidHeaderSpecific(x,VEC_CLASSID,1);
@@ -446,16 +493,22 @@ PetscErrorCode VecCheck_SeqGPU(Vec x){
 __global__ void kernCheck(double* x, int* n){
   int tid = threadIdx.x + blockDim.x*blockIdx.x;
   if(tid<*n){
-    #if(DEBUGVEC && VERBOSE)
-    printf("kernCheck: x[%d]: %e, length: %d\n",tid,x[tid],*n);
+    #if(DEBUGVEC && VVERBOSE)
+       printf("kernCheck: x[%d]: %e, length: %d\n",tid,x[tid],*n);
     #endif
   }
 }
-
 /*------------------------------ end info -------------------------------*/
 
-
 /*---------------------------- copy functions ---------------------------*/
+
+
+/* ---------------------------------------------------------
+// Copies a block of memory from one array to another both 
+// of which are on the device
+// *** Currently nonfunctional ***
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCopyBlockDevice"
 PetscErrorCode VecCopyBlockDevice(Vec d, Vec s, PetscInt doffset, PetscInt soffset, PetscInt blocksize){
@@ -464,117 +517,136 @@ PetscErrorCode VecCopyBlockDevice(Vec d, Vec s, PetscInt doffset, PetscInt soffs
   PetscFunctionReturn(0);
 }
 
+
+/* ---------------------------------------------------------
+// Copies all elements from one allocated array to another.
+// This is done asynchronously on the device Vec's streamID.
+// Both array must be allocated and be of the same size otherwise
+// PETSc will return an error.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCopyOverDevice"
 PetscErrorCode VecCopyOverDevice(Vec d,Vec s){
-  PetscFunctionBegin;
   PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscInfo(d,"Copying vector on device only\n"); CHKERRQ(ierr);
   Vec_SeqGPU* dd = (Vec_SeqGPU*)d->data;
   Vec_SeqGPU* sd = (Vec_SeqGPU*)s->data;
-  #if(DEBUGVEC && VERBOSE)
-     printf("Call to VecCopyOverDevice\n");
-  #endif
-  dim3 dimGrid;
-  dim3 dimBlock;
-
+  dim3 dimGrid;  dim3 dimBlock;
   if(s->map->n!=d->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
-  if(sd->syncState==VEC_CPU){/* synch y */
-    ierr = VecCopyOverH2D(s,sd->cpuptr);CHKERRQ(ierr);
-    sd->syncState=VEC_SYNCHED;
-    cudaStreamSynchronize(sd->stream);
-  }
   ccs[0]=cudaMemcpyAsync(dd->devptr,sd->devptr,
-               s->map->n*sizeof(PetscScalar),cudaMemcpyDeviceToDevice,dd->stream);
-  #if(DEBUGVEC)
-    ierr = VecCheckCUDAStatus(ccs[0],"on copy D2D in VecCopyOverDevice");CHKERRQ(ierr);
-    /*PetscBool same;
-    ierr = VecCompare_SeqGPU(d, s, &same,0,s->map->n);CHKERRQ(ierr);
-    printf("**** compare**** s and d the same?: %d\n",same); */
-  #endif
+                    s->map->n*sizeof(double),cudaMemcpyDeviceToDevice,dd->streamid);
   PetscFunctionReturn(0);
 }
 
-
+/* ---------------------------------------------------------
+// Helper function copies an integer array on device
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "kernCopyLen"
 __global__ void kernCopyLen(int* ly,int* lx){
   if(threadIdx.x==0)*ly=*lx;
 }
 
+
+/* ---------------------------------------------------------
+// Copies a block of elements from one host allocated array to an
+// array allocated on the device. Does not check for allocation,
+// only for failure if debugging is toggled.
+// Copy is done asynchronously on the destination's Vec type's
+// streamID.
+// Both array must be allocated and be of the same size otherwise
+// PETSc will return an error
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCopyBlockH2D"
 PetscErrorCode VecCopyBlockH2D(Vec v,PetscScalar *y, PetscInt offset, PetscInt blocksize){
+  PetscErrorCode ierr;
   PetscFunctionBegin;
   Vec_SeqGPU* vd = (Vec_SeqGPU*)v->data;
+  ierr = PetscInfo(v,"Copying vec: cpu -> gpu\n"); CHKERRQ(ierr);
   ccs[0]=cudaMemcpyAsync(&(vd->devptr[offset]),y,
-               blocksize*sizeof(PetscScalar),cudaMemcpyHostToDevice,vd->stream);
-  #if(DEBUGVEC)
-    #if(VERBOSE)
-       printf("Call to VecCopyBlockH2D\n");
-    #endif
-    PetscErrorCode ierr;
-    ierr = VecCheckCUDAStatus(ccs[0],"on copy H2D in VecCopyBlockH2D");CHKERRQ(ierr);
-  #endif
+               blocksize*sizeof(double),cudaMemcpyHostToDevice,vd->streamid);
   PetscFunctionReturn(0);
 }
 
-
+/* ---------------------------------------------------------
+// Copies all elements from one host allocated array to an
+// array allocated on the device. Does not check for allocation,
+// only for failure if debugging is toggled.
+// Copy is done asynchronously on the destination's Vec type's
+// streamID.
+// Both array must be allocated and be of the same size otherwise
+// PETSc will return an error
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCopyOverH2D"
 PetscErrorCode VecCopyOverH2D(Vec v,PetscScalar *y){
+  PetscErrorCode ierr;
   PetscFunctionBegin;
   Vec_SeqGPU* vd = (Vec_SeqGPU*)v->data;
-  /*
-  int i;
-  for(i=0;i<v->map->n;i++){
-    if(y[i]!=0)printf("y[%d]: %e\n",i,y[i]);
-  }
-  */
   ccs[0]=cudaMemcpyAsync(vd->devptr,y,
-               v->map->n*sizeof(PetscScalar),cudaMemcpyHostToDevice,vd->stream);
+               v->map->n*sizeof(double),cudaMemcpyHostToDevice,vd->streamid);
+  ierr = PetscInfo(v,"Copying vec: cpu -> gpu\n"); CHKERRQ(ierr);
   #if(DEBUGVEC)
-    #if(VERBOSE)
-       printf("Call to VecCopyOverH2D\n");
-    #endif
-    PetscErrorCode ierr;
     ierr = VecCheckCUDAStatus(ccs[0],"on copy H2D in VecCopyOverH2D");CHKERRQ(ierr);
   #endif
   PetscFunctionReturn(0);
 }
 
 
+/* ---------------------------------------------------------
+// Copies a block of elements from one device allocated array to an
+// array allocated on the host. Does not check for allocation,
+// only for failure if debugging is toggled.
+// Copy is done asynchronously on the destination's Vec type's
+// streamID.
+// Both array must be allocated and be of the same size otherwise
+// PETSc will return an error
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCopyBlockD2H"
 PetscErrorCode VecCopyBlockD2H(Vec v,PetscScalar *y,PetscInt offset, PetscInt blocksize){
+  PetscErrorCode ierr;
   PetscFunctionBegin;
+  ierr = PetscInfo(v,"Copying vec: gpu -> cpu\n"); CHKERRQ(ierr);
   Vec_SeqGPU* vd = (Vec_SeqGPU*)v->data;
   ccs[0]=cudaMemcpyAsync(y,&(vd->devptr[offset]),
-               blocksize*sizeof(PetscScalar),cudaMemcpyDeviceToHost,vd->stream);
+               blocksize*sizeof(double),cudaMemcpyDeviceToHost,vd->streamid);
   #if(DEBUGVEC)
-    #if(VERBOSE)
-       printf("Call to VecCopyBlockD2H\n");
-    #endif
-    PetscErrorCode ierr;
     ierr = VecCheckCUDAStatus(ccs[0],"on copy D2H in VecCopyBlockD2H");CHKERRQ(ierr);
   #endif
   PetscFunctionReturn(0);
 }
 
 
+/* ---------------------------------------------------------
+// Copies all elements from one device allocated array to an
+// array allocated on the host. Does not check for allocation,
+// only for failure if debugging is toggled.
+// Copy is done asynchronously on the destination's Vec type's
+// streamID.
+// Both array must be allocated and be of the same size otherwise
+// PETSc will return an error
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecCopyOverD2H"
 PetscErrorCode VecCopyOverD2H(Vec v,PetscScalar *y){
-  PetscFunctionBegin;
+  PetscErrorCode ierr;
   Vec_SeqGPU* vd = (Vec_SeqGPU*)v->data;
-  ccs[0]=cudaMemcpyAsync(y,vd->devptr,
-               v->map->n*sizeof(PetscScalar),cudaMemcpyDeviceToHost,vd->stream);
+  PetscFunctionBegin;
+  ierr = PetscInfo(v,"Copying vec: gpu -> cpu\n"); CHKERRQ(ierr);
+  ccs[0]=cudaMemcpyAsync(y,vd->devptr,v->map->n*sizeof(double),cudaMemcpyDeviceToHost,vd->streamid);
   #if(DEBUGVEC)
-    #if(VERBOSE)
-      printf("Call to VecCopyOverD2H\n");
-    #endif
-    PetscErrorCode ierr;
     ierr = VecCheckCUDAStatus(ccs[0],"on copy D2H in VecCopyOverD2H");CHKERRQ(ierr); 
   #endif
   PetscFunctionReturn(0);
@@ -582,21 +654,29 @@ PetscErrorCode VecCopyOverD2H(Vec v,PetscScalar *y){
 
 /*---------------------------- end copy functions --------------------------*/
 
+
+
+
+
 /*------------------------------ set functions -----------------------------*/
-EXTERN_C_BEGIN
+
+
+/* ---------------------------------------------------------
+// VecSetValues - Inserts or adds values into certain locations of a vector.
+// INSERT and ADD VALUES both are implemented
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecSetValues_SeqGPU"
-/*
-   VecSetValues - Inserts or adds values into certain locations of a vector.
-*/
 PetscErrorCode VecSetValues_SeqGPU(Vec x,PetscInt ni,const PetscInt ix[],const PetscScalar y[],InsertMode iora){
-  PetscFunctionBegin;
   PetscErrorCode ierr;
   PetscInt i;
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
-  #if(DEBUGVEC && VERBOSE)
-     printf("Call to VecSetValues_SeqGPU\n");
-  #endif
+  PetscInt *devix;
+  PetscScalar *devy;
+  dim3 grid,blocks;
+  PetscFunctionBegin;
+  ierr = PetscInfo(x,"setting gpu values\n"); CHKERRQ(ierr);
   if(xd->syncState==VEC_CPU || xd->syncState==VEC_SYNCHED){
     if(iora==INSERT_VALUES){
       for(i=0;i<ni;i++){
@@ -604,9 +684,22 @@ PetscErrorCode VecSetValues_SeqGPU(Vec x,PetscInt ni,const PetscInt ix[],const P
       }
       ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
       xd->syncState=VEC_SYNCHED;
-    }else{
-      /* ADD_VALUES not supported now */
-      printf("Call to VecSetValues_SeqGPU: ADD_VALUES (*** EMPTY ***)\n");
+    }else{/* ADD_VALUES */
+       ierr = VecCheckCUDAStatus(cudaMalloc((void**)&devix,ni*sizeof(PetscInt)),
+                     "cudaMalloc ADD_VALS");CHKERRQ(ierr);
+       ierr = VecCheckCUDAStatus(cudaMalloc((void**)&devy,ni*sizeof(PetscScalar)),
+                     "cudaMalloc ADD_VALS");CHKERRQ(ierr);
+       ierr = VecCheckCUDAStatus(cudaMemcpy(devix,ix,ni*sizeof(PetscInt),cudaMemcpyHostToDevice),
+                     "cudaMemcpy ADD_VALS");CHKERRQ(ierr);
+       ierr = VecCheckCUDAStatus(cudaMemcpy(devy,y,ni*sizeof(PetscScalar),cudaMemcpyHostToDevice),
+                     "cudaMemcpy ADD_VALS");CHKERRQ(ierr);
+       grid.x = ceil((float)ni/((float)TCOUNT));
+       blocks.x = TCOUNT;
+       kernAddValues<<<grid,blocks>>>(xd->devptr,x->map->n,devix,ni,devy);
+       cudaDeviceSynchronize();
+       ierr=VecCheckCUDAStatus(cudaFree(devy),"cudaFree devy");CHKERRQ(ierr);
+       ierr=VecCheckCUDAStatus(cudaFree(devix),"cudaFree devix");CHKERRQ(ierr);
+       printf("Call to VecSetValues_SeqGPU 1: ADD_VALUES\n");
     }
   }else{
       if(iora==INSERT_VALUES){/* not efficient */
@@ -615,15 +708,35 @@ PetscErrorCode VecSetValues_SeqGPU(Vec x,PetscInt ni,const PetscInt ix[],const P
           yval=y[i];
           ierr = VecCopyBlockH2D(x,&yval,ix[i],1);CHKERRQ(ierr);
         }
+      }else{/* ADD_VALUES */
+
+        ierr = VecCheckCUDAStatus(cudaMalloc((void**)&devix,ni*sizeof(PetscInt)),
+                                  "cudaMalloc ADD_VALS");CHKERRQ(ierr);
+        ierr = VecCheckCUDAStatus(cudaMalloc((void**)&devy,ni*sizeof(PetscScalar)),
+                                  "cudaMalloc ADD_VALS");CHKERRQ(ierr);
+        ierr = VecCheckCUDAStatus(cudaMemcpy(devix,ix,ni*sizeof(PetscInt),cudaMemcpyHostToDevice),
+                                  "cudaMemcpy ADD_VALS");CHKERRQ(ierr);
+        ierr = VecCheckCUDAStatus(cudaMemcpy(devy,y,ni*sizeof(PetscScalar),cudaMemcpyHostToDevice),
+                                  "cudaMemcpy ADD_VALS");CHKERRQ(ierr);
+        grid.x = ceil((float)ni/((float)TCOUNT));
+        blocks.x = TCOUNT;
+        kernAddValues<<<grid,blocks>>>(xd->devptr,x->map->n,devix,ni,devy);
+        ierr=VecCheckCUDAError("call to kernAddValues.");CHKERRQ(ierr);
+        cudaDeviceSynchronize();
+        ierr=VecCheckCUDAStatus(cudaFree(devy),"cudaFree devy");CHKERRQ(ierr);
+        ierr=VecCheckCUDAStatus(cudaFree(devix),"cudaFree devix");CHKERRQ(ierr);
+        printf("Call to VecSetValues_SeqGPU 2: ADD_VALUES\n");
       }
       xd->syncState=VEC_GPU;
   }
   PetscFunctionReturn(0);
 }
-EXTERN_C_END
 
-
-
+/* ---------------------------------------------------------
+// VecSet - Sets all values of an allocated device array to
+// a scalar alpha. Checks if deivce array is allocated.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecSet_SeqGPU"
 PetscErrorCode VecSet_SeqGPU(Vec xin,PetscScalar alpha){
@@ -634,47 +747,56 @@ PetscErrorCode VecSet_SeqGPU(Vec xin,PetscScalar alpha){
   dim3 dimGrid, dimBlock;
   dimGrid.x = ceil((float)xin->map->n/((float)TCOUNT));
   dimBlock.x = TCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-     dimGrid.x/=2;
-     dimBlock.x*=2;
-  }
   Vec_SeqGPU* xd = (Vec_SeqGPU*)xin->data;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecSet_SeqGPU, alpha: %e\n",alpha);
   #endif
   if(xd->syncState==VEC_UNALLOC){
     SETERRQ(PETSC_COMM_SELF,
             PETSC_ERR_MEM,"*** In VecSet_SeqGPU, Vec not allocated. ***\n");
   }else{
-    ccs[0]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha,sizeof(double),0,cudaMemcpyHostToDevice);
+    kernSet<<<dimGrid,dimBlock>>>(xd->devptr,alpha,xin->map->n);
     #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
-    #endif
-       kernSet<<<dimGrid,dimBlock,dimBlock.x*sizeof(double)>>>(xd->devptr,xd->length);
-    #if(DEBUGVEC)
-       #if(VERBOSE)
-          printf("In VecSet_SeqGPU: blocks: %d, threads: %d\n",dimGrid.x, dimBlock.x);
-       #endif
-       ierr = VecCheckCUDAError("Call to kernSet. "); CHKERRQ(ierr);
+      #if(VVERBOSE)
+         printf("In VecSet_SeqGPU: blocks: %d, threads: %d\n",dimGrid.x, dimBlock.x);
+      #endif
+      ierr = VecCheckCUDAError("Call to kernSet."); CHKERRQ(ierr);
     #endif
     xd->syncState=VEC_GPU;
   }
   PetscFunctionReturn(0);
 }
 
-extern __shared__ double sharedSet[];
+/* ---------------------------------------------------------
+// Device kernel called by VecSetValues when insert type is 
+// ADD VALUES.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
+#undef __FUNCT__
+#define __FUNCT__ "kernAddValues"
+__global__ void kernAddValues(double* x, int n, int* xi, int ni,double *y){
+  unsigned int tid = threadIdx.x + blockDim.x*blockIdx.x;
+  if(tid<ni) x[xi[tid]] += y[tid];
+}
+
+/* ---------------------------------------------------------
+// Called by VecSet and set all values of an allocated array
+// to a scalar alpha.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "kernSet"
-__global__ void kernSet(double* x, int* n){
-  int tid = threadIdx.x + blockDim.x*blockIdx.x;
-  double* setptr = sharedSet;
-  setptr[threadIdx.x] = dblScalarValue;
-  if(tid<*n) x[tid] = setptr[threadIdx.x];
+__global__ void kernSet(double* x, double alpha, int n){
+  unsigned int tid = threadIdx.x + blockDim.x*blockIdx.x;
+  if(tid<n) x[tid] = alpha;
 }
 
 
-
-
+/* ---------------------------------------------------------
+// VecScale - Scales all values of an allocated device array
+// by a scalar alpha. Checks if deivce array is allocated.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecScale_SeqGPU"
 PetscErrorCode VecScale_SeqGPU(Vec x, PetscScalar alpha){
@@ -683,12 +805,8 @@ PetscErrorCode VecScale_SeqGPU(Vec x, PetscScalar alpha){
   dim3 dimGrid,dimBlock;
   dimGrid.x=ceil((float)x->map->n/((float)TCOUNT));
   dimBlock.x=TCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("VecScale_SeqGPU...alpha: %e\n",alpha);
   #endif
   if(xd->syncState==VEC_UNALLOC){
@@ -701,16 +819,12 @@ PetscErrorCode VecScale_SeqGPU(Vec x, PetscScalar alpha){
   }
   cudaDeviceSynchronize();
   if(alpha==0.){
-    ccs[0] = cudaMemsetAsync(xd->devptr,0,x->map->n*sizeof(double),xd->stream);
+    ccs[0] = cudaMemset(xd->devptr,0,x->map->n*sizeof(double));
     #if(DEBUGVEC)
        ierr = VecCheckCUDAStatus(ccs[0],"error in cudaMemset");CHKERRQ(ierr);
     #endif
   }else if (alpha != 1.0){
-    ccs[0]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha,sizeof(double),0,cudaMemcpyHostToDevice);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
-    #endif
-       kernScale<<<dimGrid,dimBlock,dimBlock.x*sizeof(double),xd->stream>>>(xd->devptr,xd->length);
+    kernScale<<<dimGrid,dimBlock>>>(xd->devptr,alpha,x->map->n);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAError("Call to kernScale."); CHKERRQ(ierr);
     #endif
@@ -719,26 +833,26 @@ PetscErrorCode VecScale_SeqGPU(Vec x, PetscScalar alpha){
   PetscFunctionReturn(0);
 }
 
-extern __shared__ double sharedScale[];
+/* ---------------------------------------------------------
+// Device array scaling kernel called by VecScale
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "kernScale"
-__global__ void kernScale(double* x, int* n){
-  int tid = threadIdx.x + blockDim.x*blockIdx.x;
-  double* scaleptr = sharedScale;
-  __shared__ double scalar;
-  scalar=dblScalarValue;
-  if(tid<*n){
-    scaleptr[threadIdx.x] = x[tid];
-    scaleptr[threadIdx.x]*= scalar;
-    x[tid] = scaleptr[threadIdx.x];
-  }
+__global__ void kernScale(double* x, double alpha, int n){
+  unsigned int tid = threadIdx.x + blockDim.x*blockIdx.x;
+  if(tid<n) x[tid] *= alpha;
 }
-
 /*---------------------------- end set and scale ---------------------------*/
 
 
 /*-------------------------- dot product functions -------------------------*/
 
+/* ---------------------------------------------------------
+// Does the Dot product of a transposed vector yin...
+// *** Currently non-functional ***
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecTDot_SeqGPU"
 PetscErrorCode VecTDot_SeqGPU(Vec xin,Vec yin,PetscScalar *z){
@@ -747,191 +861,476 @@ PetscErrorCode VecTDot_SeqGPU(Vec xin,Vec yin,PetscScalar *z){
   PetscFunctionReturn(0);
 }
 
-
+/* ---------------------------------------------------------
+// Computes the dot product of two vectors
+// Checks for size mismatch and will synch the vectors to the
+// device if needed.
+// Orio tuned kernels are implemented for 3 size ranges:
+// Manual tuned kernels are also included.
+// Timers are available if toggled.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecDot_SeqGPU"
 PetscErrorCode VecDot_SeqGPU(Vec x,Vec y,PetscScalar *z){
+  PetscErrorCode ierr;
   PetscFunctionBegin;
   if(x->map->n!=y->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
-  PetscErrorCode ierr;
-  double *devScratch,*devPartial,*hostPartial;
-  PetscInt i,chunks=0,secondPhase,segment,partialsize,scratchsize;
-  cudaStream_t* dotstream;
-  dim3 dimGrid, dimBlock;
+#if(VTIMER)
+  double start,finish,elapsed;
+  static double mint,maxt=0.,cumt=0.,avg=0.;
+  static int ccnt=0;
+  //start = vec_clock();
+#endif
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
   if(xd->syncState==VEC_CPU){
-    #if(DEBUGVEC && VERBOSE)
+    #if(DEBUGVEC && VVERBOSE)
        printf("xd state VEC_CPU: copying to device.\n");
     #endif
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
   if(yd->syncState==VEC_CPU){
-    #if(DEBUGVEC && VERBOSE)
+    #if(DEBUGVEC && VVERBOSE)
        printf("yd state VEC_CPU: copying to device.\n");
     #endif
     ierr = VecCopyOverH2D(y,yd->cpuptr);CHKERRQ(ierr);
     yd->syncState=VEC_SYNCHED;
   }
+  double *devScratch;
+  dim3 dimGrid, dimBlock;
+#if(VMANDOT)
+cudaStream_t* dotstream;
+  PetscInt i,chunks=0,segment,scratchsize;
+  float threadscale =(DOTMPLIER*CHUNKWIDTH);
   /* figure out how many chunks will be needed */
-  chunks = ceil( ((float)x->map->n) /(float)(CHUNKWIDTH));
+  chunks = ceil( ((float)x->map->n) /threadscale);
   dotstream = (cudaStream_t*)malloc(chunks*sizeof(cudaStream_t));
   /* make sure the segment size for each chunk is correct */
-  if(chunks>1) segment = (int) CHUNKWIDTH;
+  if(chunks>1) segment = (int) threadscale;
   else segment = x->map->n;
   dimGrid.x=ceil(((float)segment)/(float)THRDOTCNT);
   dimBlock.x = THRDOTCNT;
   /* allocate gridwide scratch array */
-  scratchsize=chunks*dimGrid.x*sizeof(double);
-  cms[0] = cudaMalloc((void**)&devScratch,scratchsize);/* scratch pad */
-  ccs[0] = cudaMemsetAsync(devScratch,0,scratchsize,xd->stream);
-  ccs[1]=cudaMemcpyAsync(xd->segment,&segment,sizeof(int),cudaMemcpyHostToDevice,yd->stream);
+  scratchsize=chunks*dimGrid.x;
+  cms[0] = cudaMalloc((void**)&devScratch,scratchsize*sizeof(double));/* scratch pad */
   #if(DEBUGVEC)
-    #if(VERBOSE)
-      printf("Call to VecDot_SeqGPU\n");
+    #if(VVERBOSE)
+       printf("Call to VecDot_SeqGPU, chunks: %d segsize: %d grid: %d\n",chunks,segment,dimGrid.x);
     #endif
     ierr = VecCheckCUDAStatus(cms[0],"devScratch alloc in VecDot_SeqGPU");CHKERRQ(ierr);
-    ierr = VecCheckCUDAStatus(ccs[0],"devScratch memset in VecDot_SeqGPU");CHKERRQ(ierr);
-    ierr = VecCheckCUDAStatus(ccs[1],"on copy segment size H2D in VecDot_SeqGPU");CHKERRQ(ierr);
   #endif
-  cudaDeviceSynchronize();/* make sure everyone is ready */
+  cudaDeviceSynchronize();/* make sure everyone is ready  */
+  #if(VTIMER)
+    start = vec_clock();
+  #endif
   for(i=0;i<chunks;i++){  /* streaming async kernel calls */
     cudaStreamCreate(&(dotstream[i]));
-    cudaMemcpyAsync(xd->offset,&i,sizeof(int),cudaMemcpyHostToDevice,dotstream[i]);
     /* Overlapping execution */
     kernDot<<<dimGrid,dimBlock,0,dotstream[i]>>>(xd->devptr,yd->devptr,
-                                                          xd->segment,
-                                                          xd->length,
-                                                          xd->offset,
-                                                          (devScratch+i*dimGrid.x));
+                                                          segment,
+                                                          x->map->n,
+                                                          i,
+                                                          devScratch+i*dimGrid.x);
   }
-  secondPhase = scratchsize/sizeof(double);
-  if(secondPhase>1){/* begin next reduction */
-    dimGrid.x = ceil((float)secondPhase/(float)THRDOTCNT2);
-    dimBlock.x  = THRDOTCNT2;
-    /* allocate last reduction array */
-    partialsize=dimGrid.x*sizeof(double);
-    cms[1]=cudaMalloc((void**)&devPartial,partialsize);/* partial results to be combined */
-    ccs[2]=cudaMemsetAsync(devPartial,0,partialsize,yd->stream);
-    ccs[3] = cudaMemcpyAsync(xd->segment,&secondPhase,sizeof(int),cudaMemcpyHostToDevice,xd->stream);
-    #if(DEBUGVEC)
-       #if(VERBOSE)
-         printf("DOT phase2: blks: %d, partial: %d\n",dimGrid.x,partialsize/sizeof(double));
-       #endif
-       ierr = VecCheckCUDAStatus(cms[1],"devPartial alloc in VecDot_SeqGPU");CHKERRQ(ierr);
-       ierr = VecCheckCUDAStatus(ccs[2],"devPartial memset in VecDot_SeqGPU");CHKERRQ(ierr);
-       ierr = VecCheckCUDAStatus(ccs[3],"on cudaMemcpy(xd->segment)");CHKERRQ(ierr);
-    #endif
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    kernRedDot<<<dimGrid,dimBlock,dimBlock.x*sizeof(double)>>>(xd->segment,devScratch,devPartial);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAError("kernRedDot launch in VecDot_SeqGPU");CHKERRQ(ierr); 
-    #endif
-    /* setup copy back array while waiting for kernel to finish */
-    ierr = PetscMalloc(partialsize,&hostPartial);CHKERRQ(ierr);
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    ccs[4]=cudaMemcpy(hostPartial,devPartial,partialsize,cudaMemcpyDeviceToHost);/* copy back */
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[4],"on cudaMemcpy(devPartial)");CHKERRQ(ierr);
-    #endif
-    if(dimGrid.x>1){/* final reduction */
-      *z=0.;
-      for(i=0;i<dimGrid.x;i++)*z+=hostPartial[i];
-    }else{
-      *z=hostPartial[0];
-    }
-    ierr = PetscFree(hostPartial); CHKERRQ(ierr);
-    cms[2] = cudaFree(devPartial);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(cms[2],"on cudaFree(devPartial)");CHKERRQ(ierr);
-    #endif
-  }else{
-    ccs[4]=cudaMemcpy(z,devScratch,dimGrid.x*sizeof(double),cudaMemcpyDeviceToHost);/* copy back */
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[4],"on cudaMemcpy(devScratch)");CHKERRQ(ierr);
-    #endif
-  }
+  dimBlock.x  = THRDOTCNT2;
+  cudaDeviceSynchronize();
 
-  /* clean up resources */
+  while(scratchsize>1){/* begin next reduction */
+    dimGrid.x = ceil((float)scratchsize/(float)THRDOTCNT2);
+    if(dimGrid.x>MAXBLOCKS){
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_LIB,"Grid size too large for gpu capabilities.");
+    }
+    kernRedDot<<<dimGrid,dimBlock>>>(scratchsize,devScratch);
+    scratchsize = dimGrid.x;
+  }
   for(i=0;i<chunks;i++){
      cudaStreamDestroy(dotstream[i]);
   }
   free(dotstream);
+ 
+#else /* use Orio kernels */
+
+
+  if(y->map->n>=1e7){
+    int nthreads=320;
+    int nstreams=4;
+    /* Set per function L1 cache config */
+    cudaFuncSetCacheConfig(orcu_dotkernel_1e7,cudaFuncCachePreferL1);
+    dimBlock.x=nthreads;
+    dimGrid.x=112;
+    /*create streams*/
+    int istream, soffset, boffset;
+    cudaStream_t stream[nstreams+1];
+    for(istream=0;istream<=nstreams;istream++) cudaStreamCreate(&stream[istream]);
+    /* divide up stream work */
+    int chunklen=x->map->n/nstreams;
+    int chunkrem=x->map->n%nstreams;
+    int blks4chunk=dimGrid.x/nstreams;
+    if(dimGrid.x%nstreams!=0) blks4chunk++;
+    int blks4chunks=blks4chunk*nstreams;
+    /* allocate scratch pad memory */
+    cudaMalloc((void**)&devScratch,(dimGrid.x+1)*sizeof(double));
+
+    cudaDeviceSynchronize();
+    for(istream=0; istream<nstreams;istream++) {
+      soffset=istream*chunklen;
+      boffset=istream*blks4chunk;
+      orcu_dotkernel_1e7<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                        (chunklen,xd->devptr+soffset,yd->devptr+soffset,devScratch+boffset);
+    }
+    if(chunkrem!=0){/* do remaining work */
+      soffset=istream*chunklen;
+      boffset=istream*blks4chunk;
+      orcu_dotkernel_1e7<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                        (chunkrem,xd->devptr+soffset,yd->devptr+soffset,devScratch+boffset);
+      blks4chunks++ ;
+    }
+    int orcu_blks=blks4chunks;
+    int orcu_n;
+    while (orcu_blks>1){/* second stage reduction */
+      orcu_n=orcu_blks;
+      orcu_blks=(orcu_blks+319)/320;
+      orcu_dotblksum_1e7<<<orcu_blks,320>>>(orcu_n,devScratch);
+    }
+    /* destroy streams */
+    for (istream=0; istream<=nstreams; istream++)cudaStreamDestroy(stream[istream]);
+
+
+  }else if(y->map->n>=1e6){
+    int nthreads=160;
+    int nstreams=2;
+    cudaFuncSetCacheConfig(orcu_dotkernel_1e6,cudaFuncCachePreferL1);
+    dimBlock.x=nthreads;
+    dimGrid.x=112;
+    /*create streams*/
+    int istream, soffset, boffset;
+    cudaStream_t stream[nstreams+1];
+    for(istream=0;istream<=nstreams;istream++) cudaStreamCreate(&stream[istream]);
+    /* divide up stream work */
+    int chunklen=x->map->n/nstreams;
+    int chunkrem=x->map->n%nstreams;
+    int blks4chunk=dimGrid.x/nstreams;
+    if(dimGrid.x%nstreams!=0) blks4chunk++;
+    int blks4chunks=blks4chunk*nstreams;
+    /* allocate scratch pad memory */
+    cudaMalloc((void**)&devScratch,(dimGrid.x+1)*sizeof(double));
+
+    cudaDeviceSynchronize();
+    for(istream=0; istream<nstreams;istream++) {
+      soffset=istream*chunklen;
+      boffset=istream*blks4chunk;
+      orcu_dotkernel_1e6<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                        (chunklen,xd->devptr+soffset,yd->devptr+soffset,devScratch+boffset);
+    }
+    if(chunkrem!=0){/* do remaining work */
+      soffset=istream*chunklen;
+      boffset=istream*blks4chunk;
+      orcu_dotkernel_1e6<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                        (chunkrem,xd->devptr+soffset,yd->devptr+soffset,devScratch+boffset);
+      blks4chunks++ ;
+    }
+    int orcu_blks=blks4chunks;
+    int orcu_n;
+    while (orcu_blks>1){/* second stage reduction */
+      orcu_n=orcu_blks;
+      orcu_blks=(orcu_blks+159)/160;
+      orcu_dotblksum_1e6<<<orcu_blks,160>>>(orcu_n,devScratch);
+    }
+    /* kill streams */
+    for (istream=0; istream<=nstreams; istream++)cudaStreamDestroy(stream[istream]);
+ }else{
+      /*calculate device dimensions*/
+      dimBlock.x=256;
+      dimGrid.x=112;
+      /* allocate scratch pad memory */
+      cudaMalloc((void**)&devScratch,(dimGrid.x+1)*sizeof(double));
+      orcu_dotkernel_1e5<<<dimGrid,dimBlock>>>
+                 (y->map->n,yd->devptr,xd->devptr,devScratch);
+
+      int orcu_blks=dimGrid.x;
+      int orcu_n;
+      while (orcu_blks>1){/* second stage reduction */
+        orcu_n=orcu_blks;
+        orcu_blks=(orcu_blks+255)/256;
+        orcu_dotblksum_1e5<<<orcu_blks,256>>>(orcu_n,devScratch);
+      }
+  }/*end Orio vecsize if */
+#endif /* end VMANUAL */
+#if(VTIMER)
+  finish=vec_clock();
+#endif
+
+  ccs[4]=cudaMemcpy(z,devScratch,sizeof(double),cudaMemcpyDeviceToHost);/* copy back */
+  /* delete scratch memory */
   cms[3] = cudaFree(devScratch);
-  #if(DEBUGVEC)
-     #if(VERBOSE)
+#if(DEBUGVEC)
+  ierr = VecCheckCUDAStatus(ccs[4],"on cudaMemcpy(devScratch)");CHKERRQ(ierr);
+#endif
+
+ #if(DEBUGVEC)
+   #if(VVERBOSE)
        printf("Zdot: %e\n",*z);
-    #endif
+   #endif
     ierr = VecCheckCUDAStatus(cms[3],"on cudaFree(devScratch)");CHKERRQ(ierr);
+ #endif
+
+ #if(VTIMER)
+    // finish=vec_clock();
+    elapsed=finish-start;
+    cumt+=elapsed;
+    if(!ccnt++){
+      maxt=mint=avg=elapsed;
+    }else{
+      maxt=elapsed>maxt?elapsed:maxt;
+      mint=elapsed<mint?elapsed:mint;
+      avg=cumt/ccnt;
+      if(!(ccnt%ITSHOW)){
+        printf("VecDot_SeqGPU calls: %d, max: %e, min: %e, average: %e\n",
+               ccnt,maxt,mint,avg);
+      }
+    }
   #endif
   PetscFunctionReturn(0);
 }
 
-extern __shared__ double sharedRedDot[];
+#if(VMANDOT)
+/* ---------------------------------------------------------
+// Manual tuned second stage dot product parallel reduction.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "kernRedDot"
-__global__ void kernRedDot(int* size,double* scratch, double* z){/* reduction kernel */
+__global__ void kernRedDot(int n,double* scratch){/* reduction kernel */
   int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  int i = (blockDim.x+1)/2;
-  double* zDot = sharedRedDot;
-  zDot[threadIdx.x]=(tid<*size)?scratch[tid]:0.;
-  while(i>0){
-    if(threadIdx.x<i){
-      zDot[threadIdx.x]+=zDot[threadIdx.x+i];
-    }
-    __syncthreads();
-    i/=2;
-  }
+  __shared__ double chunk[THRDOTCNT2];
+  double mysum =(tid<n)?scratch[tid]:0.;
+  if(threadIdx.x>127)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<128)mysum+=chunk[threadIdx.x+128];
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<64)mysum+=chunk[threadIdx.x+64];
+  else return;
+  chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<32) warpReduce(chunk,threadIdx.x);
+  else return;
   if(threadIdx.x==0){
-    z[blockIdx.x]=zDot[0];
-    //printf("ZDOT block[%d]: %e\n",blockIdx.x,z[blockIdx.x]);
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
+}
+
+/* ---------------------------------------------------------
+// Manual tuned first stage dot product parallel reduction.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
+#undef __FUNCT__
+#define __FUNCT__ "kernDot"
+__global__ void kernDot(double* devX, double* devY,int segmentsize,
+                        int arrsize, int offset, double* scratch){
+  __shared__ double chunk[THRDOTCNT];
+  unsigned int item = segmentsize*offset+blockDim.x*blockIdx.x+threadIdx.x;
+  double mysum=(item<arrsize)?(devX[item]*devY[item]):0.;
+  if(threadIdx.x>127)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<128)mysum+=chunk[threadIdx.x+128];
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<64)mysum+=chunk[threadIdx.x+64];
+  else return;
+  chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<32) warpReduce(chunk,threadIdx.x);
+  else return;
+  if(threadIdx.x==0){
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
+}
+
+#else
+
+/* 1e5 tuned kernels */
+#undef __FUNCT__
+#define __FUNCT__ "orcu_dotkernel_1e5"
+__global__ void orcu_dotkernel_1e5(const int n, double* y, double* x, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  double orcu_var8193=0;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    orcu_var8193=orcu_var8193+x[i]*y[i];
   }
+  /*reduce single-thread results within a block*/
+  __shared__ double orcu_vec8194[256];
+  orcu_vec8194[threadIdx.x]=orcu_var8193;
+  __syncthreads();
+  if (threadIdx.x<128) 
+    orcu_vec8194[threadIdx.x]+=orcu_vec8194[threadIdx.x+128];
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec8194[threadIdx.x]+=orcu_vec8194[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec8194);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec8194[0];
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "kernDot"
-__global__ void kernDot(double* devX, double* devY,
-                        int* segmentsize, int* arrsize,
-                        int* offset, double* scratch){
-  __shared__ double chunkX[THRDOTCNT];
-  __shared__ double chunkY[THRDOTCNT];
-  __shared__ int n;    n   = *arrsize;
-
-  int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  int i = (blockDim.x+1)/2;
-  int item = *segmentsize**offset+tid;
-
-  if(item<n){/* read in values to shared mem */
-    chunkX[threadIdx.x]=devX[item]; /* offset values */
-    chunkY[threadIdx.x]=devY[item]; /* offset values */
-  }else{
-    chunkX[threadIdx.x]=0.;
-    chunkY[threadIdx.x]=0.;
-  }
-  chunkX[threadIdx.x]*=chunkY[threadIdx.x];
+#define __FUNCT__ "orcu_dotblksum_1e5"
+__global__ void orcu_dotblksum_1e5(int orcu_n, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double orcu_vec8194[256];
+  if (tid<orcu_n) 
+    orcu_vec8194[threadIdx.x]=reducts[tid];
+  else 
+    orcu_vec8194[threadIdx.x]=0;
   __syncthreads();
-  while(i>0){/* block level reduction */
-     if(threadIdx.x<i){
-       chunkX[threadIdx.x]+=chunkX[threadIdx.x+i];
-     }
-     __syncthreads();
-     i/=2;
-  }/* end while */
+  if (threadIdx.x<128) 
+    orcu_vec8194[threadIdx.x]+=orcu_vec8194[threadIdx.x+128];
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec8194[threadIdx.x]+=orcu_vec8194[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec8194);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec8194[0];
+}
 
-  if(threadIdx.x==0)  scratch[blockIdx.x]=chunkX[0];
+/* 1e6 tuned kernels */
+#undef __FUNCT__
+#define __FUNCT__ "orcu_dotkernel_1e6"
+__global__ void orcu_dotkernel_1e6(const int n, double* y, double* x, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[160];
+  __shared__ double shared_x[160];
+  double orcu_var16389=0;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    orcu_var16389=orcu_var16389+shared_x[threadIdx.x]*shared_y[threadIdx.x];
+  }
+  /*reduce single-thread results within a block*/
+  __shared__ double orcu_vec16390[160];
+  orcu_vec16390[threadIdx.x]=orcu_var16389;
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec16390[threadIdx.x]+=orcu_vec16390[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec16390);
+  if (threadIdx.x>=128&&threadIdx.x<144) 
+    orcu_warpReduce32(threadIdx.x,orcu_vec16390);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec16390[0]+orcu_vec16390[128];
 }
 
 
+#undef __FUNCT__
+#define __FUNCT__ "orcu_dotblksum_1e6"
+__global__ void orcu_dotblksum_1e6(int orcu_n, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double orcu_vec16390[160];
+  if (tid<orcu_n) 
+    orcu_vec16390[threadIdx.x]=reducts[tid];
+  else 
+    orcu_vec16390[threadIdx.x]=0;
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec16390[threadIdx.x]+=orcu_vec16390[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec16390);
+  if (threadIdx.x>=128&&threadIdx.x<144) 
+    orcu_warpReduce32(threadIdx.x,orcu_vec16390);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec16390[0]+orcu_vec16390[128];
+}
+
+
+
+/* 1e7 tuned kernels */
+#undef __FUNCT__
+#define __FUNCT__ "orcu_dotkernel_1e7"
+__global__ void orcu_dotkernel_1e7(const int n, double* y, double* x, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[160];
+  __shared__ double shared_x[160];
+  double orcu_var16389=0;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    orcu_var16389=orcu_var16389+shared_x[threadIdx.x]*shared_y[threadIdx.x];
+  }
+  /*reduce single-thread results within a block*/
+  __shared__ double orcu_vec16390[160];
+  orcu_vec16390[threadIdx.x]=orcu_var16389;
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec16390[threadIdx.x]+=orcu_vec16390[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec16390);
+  if (threadIdx.x>=128&&threadIdx.x<144) 
+    orcu_warpReduce32(threadIdx.x,orcu_vec16390);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec16390[0]+orcu_vec16390[128];
+}
+
+
+#undef __FUNCT__
+#define __FUNCT__ "orcu_dotblksum_1e7"
+__global__ void orcu_dotblksum_1e7(int orcu_n, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double orcu_vec16390[160];
+  if (tid<orcu_n) 
+    orcu_vec16390[threadIdx.x]=reducts[tid];
+  else 
+    orcu_vec16390[threadIdx.x]=0;
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec16390[threadIdx.x]+=orcu_vec16390[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec16390);
+  if (threadIdx.x>=128&&threadIdx.x<144) 
+    orcu_warpReduce32(threadIdx.x,orcu_vec16390);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec16390[0]+orcu_vec16390[128];
+}
+
+#endif /* end VMANDOT -#if */
+
+
+/* ---------------------------------------------------------
+// Computes multiple dot products over a single x and multiple y's
+// val[i] = x . y[i]
+// Just a for-loop wrapper call to VecDot_SeqGPU
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecMDot_SeqGPU"
 PetscErrorCode  VecMDot_SeqGPU(Vec x,PetscInt nv,const Vec y[],PetscScalar val[]){
   PetscFunctionBegin;
   PetscErrorCode ierr;
   PetscInt       i;
+  #if(DEBUGVEC && VVERBOSE)
+    printf("Call to VecMDot_SeqGPU\n");
+  #endif
   for (i=0; i<nv; i++) {
     ierr = VecDot_SeqGPU(x,y[i],&val[i]);CHKERRQ(ierr);
     if(PetscIsInfOrNanScalar(val[i])){
@@ -940,13 +1339,14 @@ PetscErrorCode  VecMDot_SeqGPU(Vec x,PetscInt nv,const Vec y[],PetscScalar val[]
   }
   PetscFunctionReturn(0);
 }
-
 /*----------------------------- end dot ----------------------------- */
 
 
 
-
-
+/* ---------------------------------------------------------
+// AXPBY currently not implemented
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecAXPBY_SeqGPU"
 PetscErrorCode VecAXPBY_SeqGPU(Vec yin,PetscScalar beta,PetscScalar alpha,Vec xin){
@@ -956,16 +1356,32 @@ PetscErrorCode VecAXPBY_SeqGPU(Vec yin,PetscScalar beta,PetscScalar alpha,Vec xi
   PetscFunctionReturn(0);
 }
 
+
+/* ---------------------------------------------------------
+// WAXPY
+// Checks for vector size mismatch for each vector.
+// Copies down the vector(s) to the GPU if needed
+// Manual implmentation and Orio tuned kernels can be toggled
+// Timers are available if toggled
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecWAXPY_SeqGPU"
 PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
+  /* w = y + alpha*x */
   PetscFunctionBegin;
+  #if(VTIMER)
+    double start,finish,elapsed;
+    static double mint,maxt=0.,cumt=0.,avg=0.;
+    static int ccnt=0;
+    start = vec_clock();
+  #endif
   PetscErrorCode ierr;
   Vec_SeqGPU *wd=(Vec_SeqGPU*)w->data;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
   dim3 dimGrid, dimBlock;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("VecWAXPY_SeqGPU...alpha: %e\n",alpha);
   #endif
   if(x->map->n!=y->map->n || w->map->n!=y->map->n || w->map->n!=x->map->n){
@@ -979,116 +1395,231 @@ PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
+
+#if(VMANWXP)
   dimGrid.x=ceil((float)y->map->n/(float)AXPYTCOUNT);
   dimBlock.x=AXPYTCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   cudaDeviceSynchronize();
   if(alpha==0.0){
     ierr = VecCopyOverDevice(w,y);CHKERRQ(ierr);
+    cudaDeviceSynchronize();
   }else if(alpha==1.0){
-    kernWXPY<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+    kernWXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,x->map->n,wd->devptr);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAError("kernel call to kernWXPY");CHKERRQ(ierr); 
     #endif
   }else if(alpha==-1.0){
-    kernWXMY<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+    kernWYMX<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,x->map->n,wd->devptr);
     #if(DEBUGVEC)
-       ierr = VecCheckCUDAError("kernel call to kernWXMY");CHKERRQ(ierr);
+       ierr = VecCheckCUDAError("kernel call to kernWYMX");CHKERRQ(ierr);
     #endif
   }else{
-    ccs[0]=cudaMemcpyToSymbol("dblScalarValue",(void*)&alpha,sizeof(double),0,cudaMemcpyHostToDevice);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
-    #endif
-    kernWAXPY<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+    kernWAXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,alpha,x->map->n,wd->devptr);
     #if(DEBUGVEC)
        ierr = VecCheckCUDAError("kernel call to kernWAXPY");CHKERRQ(ierr); 
     #endif
   }
+#else
+  if(w->map->n>=1e7){
+    int nthreads=352;
+    int nstreams=5;
+    cudaFuncSetCacheConfig(orcu_waxpykernel_1e7,cudaFuncCachePreferL1);
+    dimBlock.x=nthreads;
+    dimGrid.x=70;
+    /*create streams*/
+    int istream, soffset;
+    cudaStream_t stream[nstreams+1];
+    for (istream=0;istream<=nstreams;istream++) cudaStreamCreate(&stream[istream]);
+    int chunklen=x->map->n/nstreams;
+    int chunkrem=x->map->n%nstreams;
+
+
+    /*invoke device kernel*/
+    int blks4chunk=dimGrid.x/nstreams;
+    if (dimGrid.x%nstreams!=0) blks4chunk++ ;
+    for (istream=0; istream<nstreams; istream++ ) {
+      soffset=istream*chunklen;
+      orcu_waxpykernel_1e7<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                      (chunklen,alpha,xd->devptr+soffset,yd->devptr+soffset,wd->devptr+soffset);
+    }
+    if (chunkrem!=0) {
+      soffset=istream*chunklen;
+      orcu_waxpykernel_1e7<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                      (chunkrem,alpha,xd->devptr+soffset,yd->devptr+soffset,wd->devptr+soffset);
+    }
+    cudaDeviceSynchronize();
+    for (istream=0; istream<=nstreams; istream++) cudaStreamDestroy(stream[istream]);
+
+  }else if(w->map->n>=1e6){
+    int nthreads=512;
+    int nstreams=5;
+    /*calculate device dimensions*/
+    dimBlock.x=nthreads;
+    dimGrid.x=70;
+    /*create streams*/
+    int istream, soffset;
+    cudaStream_t stream[nstreams+1];
+    for (istream=0; istream<=nstreams; istream++) cudaStreamCreate(&stream[istream]);
+    int chunklen=x->map->n/nstreams;
+    int chunkrem=x->map->n%nstreams;
+    cudaFuncSetCacheConfig(orcu_waxpykernel_1e6,cudaFuncCachePreferL1);
+
+    /*invoke device kernel*/
+    int blks4chunk=dimGrid.x/nstreams;
+    if (dimGrid.x%nstreams!=0) blks4chunk++ ;
+    for (istream=0; istream<nstreams; istream++ ) {
+      soffset=istream*chunklen;
+      orcu_waxpykernel_1e6<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                          (chunklen,alpha,xd->devptr+soffset,yd->devptr+soffset,wd->devptr+soffset);
+    }
+    if (chunkrem!=0) {
+      soffset=istream*chunklen;
+      orcu_waxpykernel_1e6<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                          (chunklen,alpha,xd->devptr+soffset,yd->devptr+soffset,wd->devptr+soffset);
+    }
+    cudaDeviceSynchronize();
+    for (istream=0; istream<=nstreams; istream++ ) cudaStreamDestroy(stream[istream]);
+
+  }else{
+
+    cudaFuncSetCacheConfig(orcu_waxpykernel_1e5,cudaFuncCachePreferL1);
+    int nthreads=320;
+    dimBlock.x=nthreads;
+    dimGrid.x=112;
+    /*invoke device kernel*/
+    orcu_waxpykernel_1e5<<<dimGrid,dimBlock>>>(x->map->n,alpha,xd->devptr,yd->devptr,wd->devptr);
+
+    cudaError_t err=cudaGetLastError();
+    if (cudaSuccess!=err) {
+      printf("CUDA runtime error: %s@",cudaGetErrorString(err));
+    }
+ 
+
+  }
+#endif /* manual if */
   wd->syncState=VEC_GPU;
+#if(VTIMER)
+    cudaDeviceSynchronize();
+    finish=vec_clock();
+    elapsed=finish-start;
+    cumt+=elapsed;
+    if(!ccnt++){
+      maxt=mint=avg=elapsed;
+    }
+    maxt=elapsed>maxt?elapsed:maxt;
+    mint=elapsed<mint?elapsed:mint;
+    avg=cumt/ccnt;
+    printf("VecWAXPY_SeqGPU calls: %d, max: %e, min: %e, average: %e\n",
+             ccnt,maxt,mint,avg);
+#endif
   PetscFunctionReturn(0);
 }
 
 
-extern __shared__ double sharedWAXPY[];
+
+#if(VMANWXP)
 #undef __FUNCT__
 #define __FUNCT__ "kernWAXPY"
-__global__ void  kernWAXPY(double* devY,double* devX, int* vlen, double* devW){
- /* w <- y + alpha*x */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
-  __shared__ double alphaShared;
-  double* chunkX = sharedWAXPY;
-  double* chunkY = sharedWAXPY + blockDim.x;
-  double* chunkW = sharedWAXPY + 2*blockDim.x;
-  alphaShared = dblScalarValue;
-  if(tid<*vlen){
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkW[threadIdx.x]=chunkY[threadIdx.x]+(chunkX[threadIdx.x]*alphaShared);
-    devW[tid]=chunkW[threadIdx.x];
+__global__ void  kernWAXPY(double* devY,double* devX, double alpha, int vlen, double* devW){
+  /* w <- y + alpha*x */
+  unsigned int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  if(tid<vlen){
+    devW[tid]=devY[tid]+alpha*devX[tid];
   }
 }
 
-extern __shared__ double sharedWXPY[];
 #undef __FUNCT__
 #define __FUNCT__ "kernWXPY"
-__global__ void  kernWXPY(double* devY,double* devX, int* vlen, double* devW){
+__global__ void  kernWXPY(double* devY,double* devX, int vlen, double* devW){
  /* w <- y + x */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
-  double* chunkX = sharedWXPY;
-  double* chunkY = sharedWXPY + blockDim.x;
-  double* chunkW = sharedWXPY + 2*blockDim.x;
-  if(tid<*vlen){
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkW[threadIdx.x]=chunkY[threadIdx.x]+chunkX[threadIdx.x];
-    devW[tid]=chunkW[threadIdx.x];
+  unsigned int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  if(tid<vlen){
+    devW[tid]=devY[tid]+devX[tid];
   }
 }
 
-extern __shared__ double sharedWXMY[];
 #undef __FUNCT__
-#define __FUNCT__ "kernWXMY"
-__global__ void  kernWXMY(double* devY,double* devX, int* vlen, double* devW){
- /* w <- y + alpha*x */
-  int tid;
-  tid = blockIdx.x*blockDim.x+threadIdx.x;
-  double* chunkX = sharedWXMY;
-  double* chunkY = sharedWXMY + blockDim.x;
-  double* chunkW = sharedWXMY + 2*blockDim.x;
-  if(tid<*vlen){
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkW[threadIdx.x]=chunkY[threadIdx.x]-chunkX[threadIdx.x];
-    devW[tid]=chunkW[threadIdx.x];
+#define __FUNCT__ "kernWYMX"
+__global__ void  kernWYMX(double* devY,double* devX, int vlen, double* devW){
+ /* w <- y - x */
+  unsigned int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  if(tid<vlen){
+    devW[tid]=devY[tid]-devX[tid];
   }
 }
 
+#else
+
+__global__ void orcu_waxpykernel_1e7(const int n, double a, double* x, double* y, double* w) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[352];
+  __shared__ double shared_x[352];
+  __shared__ double shared_w[352];
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    shared_w[threadIdx.x]=a*shared_x[threadIdx.x]+shared_y[threadIdx.x];
+    w[i]=shared_w[threadIdx.x];
+  }
+}
+
+__global__ void orcu_waxpykernel_1e6(const int n, double a, double* x, double* y, double* w) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[512];
+  __shared__ double shared_x[512];
+  __shared__ double shared_w[512];
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    shared_w[threadIdx.x]=a*shared_x[threadIdx.x]+shared_y[threadIdx.x];
+    w[i]=shared_w[threadIdx.x];
+  }
+}
+
+__global__ void orcu_waxpykernel_1e5(const int n, double a, double* x, double* y, double* w) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[320];
+  __shared__ double shared_x[320];
+  __shared__ double shared_w[320];
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    shared_w[threadIdx.x]=a*shared_x[threadIdx.x]+shared_y[threadIdx.x];
+    w[i]=shared_w[threadIdx.x];
+  }
+}
+#endif
+
+
+
+
+
+
+
+/* ---------------------------------------------------------
+// MAXPY
+// Accumilation of AXPY on to x, currently only the manual
+// version is available. This is a simple loop over y[i] vectors.
+// The function checks each pairing for size mismatch and will
+// synch the vectors to the GPU is necessary.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecMAXPY_SeqGPU"
 PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y){
-  /* y = y + sum(a[i]*x[i]) */
+  /* x = x + sum(a[i]*y[i]) */
   PetscFunctionBegin;
-  if(DEBUGVEC && VERBOSE)printf("VecMAXPY_SeqGPU: alpha: %e\n",*alpha);
+  if(DEBUGVEC && VVERBOSE)printf("VecMAXPY_SeqGPU: alpha: %e\n",*alpha);
   PetscErrorCode ierr;
   PetscInt i;
-  PetscScalar *devW;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=PETSC_NULL;
-  cms[0] = cudaMalloc((void**)&devW,x->map->n*sizeof(double));
-  ccs[0] = cudaMemsetAsync(devW,0,x->map->n*sizeof(double),xd->stream);
   dim3 dimGrid;  dim3 dimBlock;
   dimGrid.x=ceil((float)x->map->n/(float)AXPYTCOUNT);
   dimBlock.x=AXPYTCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   #if(DEBUGVEC)
     #if(VERBOSE)
        printf("Number of vectors in MAXPY: %d, blocks: %d, threads: %d\n",nv,dimGrid.x,dimBlock.x);
@@ -1096,6 +1627,10 @@ PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y
     ierr = VecCheckCUDAStatus(cms[0],"error in device malloc VecMAXPY_SeqGPU");CHKERRQ(ierr);
     ierr = VecCheckCUDAStatus(ccs[0],"error in device memset VecMAXPY_SeqGPU");CHKERRQ(ierr);
   #endif
+  if(xd->syncState==VEC_CPU){/* synch x */
+    ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
+    xd->syncState=VEC_SYNCHED;
+  }
 
   for(i=0;i<nv;i++){
      if(y[i]->map->n!=x->map->n){
@@ -1104,57 +1639,59 @@ PetscErrorCode VecMAXPY_SeqGPU(Vec x,PetscInt nv,const PetscScalar* alpha,Vec *y
     yd=(Vec_SeqGPU*)y[i]->data;
     if(yd->syncState==VEC_CPU){/* synch x */
       ierr = VecCopyOverH2D(y[i],yd->cpuptr);CHKERRQ(ierr);
-      yd->syncState=VEC_SYNCHED;
+      xd->syncState=VEC_SYNCHED;
     }
-    ccs[1]=cudaMemcpy(yd->scalar,&alpha[i],sizeof(double),cudaMemcpyHostToDevice);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[1],"error in symbol copy to device");CHKERRQ(ierr); 
-    #endif
     cudaDeviceSynchronize();
     if(alpha[i]==0){
+      /* printf("no-op, continuing...\n"); */
       continue;
-    }else if(alpha[i]==1.){
-      kernXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(devW,yd->devptr,yd->length);
     }else{
-      kernAXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(devW,yd->devptr,yd->length,yd->scalar);
+      kernAXPY<<<dimGrid,dimBlock,0,xd->streamid>>>(xd->devptr,yd->devptr,alpha[i],y[i]->map->n);
+      #if(DEBUGVEC)
+        #if(VVERBOSE)
+           if(!xd->devptr){
+             printf("xd points to nothing.\n");
+           }else if(!yd->devptr){
+             printf("y[%d] points to nothing.\n",i);
+           }
+           printf("nv: %d, ylen[%d]: %d, alpha[%d]: %e, xlen: %d\n",nv,i,y[i]->map->n,i,alpha[i],x->map->n);
+        #endif
+        ierr = VecCheckCUDAError("kernel call to kernAXPY in VecMAXPY_SeqGPU");CHKERRQ(ierr);
+      #endif
     }
-    #if(DEBUGVEC)
-         ierr = VecCheckCUDAError("kernel call to kernAXPY or kernXPY in VecMAXPY_SeqGPU");CHKERRQ(ierr);
-    #endif
-  }/* end for */
-  if(xd->syncState==VEC_CPU){/* synch x */
-    ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
-    xd->syncState=VEC_SYNCHED;
   }
-  cudaDeviceSynchronize();
-  kernXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(xd->devptr,devW,xd->length);
-  #if(DEBUGVEC)
-     ierr = VecCheckCUDAError("kernel call to kernXPY");CHKERRQ(ierr);
-  #endif
-  cms[1] = cudaFree(devW);
-  #if(DEBUGVEC)
-     ierr = VecCheckCUDAStatus(cms[1],"on cudaFree");CHKERRQ(ierr);
-  #endif
   xd->syncState=VEC_GPU;
+  cudaDeviceSynchronize();
   PetscFunctionReturn(0);
 }
 
-extern __shared__ double sharedXPY[];
+
+/* ---------------------------------------------------------
+// Device function XPY: x = x + y
+// Labels are off, but this function is merely AXPY is alpha
+// is equal to 1.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "kernXPY"
-__global__ void  kernXPY(double* devY,double* devX, int* vlen){
+__global__ void  kernXPY(double* devY,double* devX, int vlen){
  /* y <- y + x */
-  int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  double* chunkX = sharedXPY;
-  double* chunkY = sharedXPY + blockDim.x;
-  if(tid<*vlen){
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkY[threadIdx.x]+=chunkX[threadIdx.x];
-    devY[tid]=chunkY[threadIdx.x];
+  unsigned int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  if(tid<vlen){
+    devY[tid]+=devX[tid];
   }
 }
 
+
+
+/* ---------------------------------------------------------
+// MAXPY
+// Accumilation of AXPY on to x, currently only the manual
+// version is available. This is a simple loop over y[i] vectors.
+// The function checks each pairing for size mismatch and will
+// synch the vectors to the GPU is necessary.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecAXPY_SeqGPU"
 PetscErrorCode VecAXPY_SeqGPU(Vec y,PetscScalar alpha,Vec x){
@@ -1173,59 +1710,147 @@ PetscErrorCode VecAXPY_SeqGPU(Vec y,PetscScalar alpha,Vec x){
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
-  #if(DEBUGVEC && VERBOSE)
-      printf("VecAXPY_SeqGPU\n");
+  #if(DEBUGVEC && VVERBOSE)
+     printf("VecAXPY_SeqGPU\n");
   #endif
-  dim3 dimGrid, dimBlock;
+  dim3 dimGrid,dimBlock;
+
+#if(VMANXPY)
   dimGrid.x=ceil((float)x->map->n/(float)AXPYTCOUNT);
   dimBlock.x=AXPYTCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   cudaDeviceSynchronize();
-  if(alpha==1.){
-    kernXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,yd->length);
-  }else if(alpha!=0.){
-    ccs[0]=cudaMemcpy(yd->scalar,&alpha,sizeof(double),cudaMemcpyHostToDevice);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[0],"error in symbol copy to device");CHKERRQ(ierr);
-    #endif
-    kernAXPY<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,yd->length,yd->scalar);
-  }
+  kernAXPY<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,alpha,y->map->n);
   #if(DEBUGVEC)
    ierr = VecCheckCUDAError("kernel call in VecAXPY_SeqGPU");CHKERRQ(ierr);
   #endif
+
+#else
+   if(x->map->n>=1e7){
+     int nthreads=352;
+     dimBlock.x=nthreads;
+     dimGrid.x=14;
+     cudaFuncSetCacheConfig(orcu_axpykernel_1e7,cudaFuncCachePreferL1);
+     /*copy data from host to device*/
+     orcu_axpykernel_1e7<<<dimGrid,dimBlock>>>(x->map->n,alpha,yd->devptr,xd->devptr);
+     cudaError_t err=cudaGetLastError();
+     if (cudaSuccess!=err) {
+       printf("orcuda axpy_1e7 kernel error: %s\n",cudaGetErrorString(err));
+       PetscFunctionReturn(PETSC_ERR_LIB);
+     }
+   }else if(x->map->n>=1e6){
+       int nthreads=288;
+       int nstreams=2;
+       /*calculate device dimensions*/
+       dimBlock.x=nthreads;
+       dimGrid.x=28;
+       /*create streams*/
+       int istream, soffset;
+       cudaStream_t stream[nstreams+1];
+       for (istream=0; istream<=nstreams;istream++)cudaStreamCreate(&stream[istream]);
+       int chunklen=x->map->n/nstreams;
+       int chunkrem=x->map->n%nstreams;
+
+       cudaFuncSetCacheConfig(orcu_axpykernel_1e6,cudaFuncCachePreferL1);
+       /*invoke device kernel*/
+       int blks4chunk=dimGrid.x/nstreams;
+       if(dimGrid.x%nstreams!=0) blks4chunk++ ;
+       for(istream=0; istream<nstreams; istream++ ) {
+         soffset=istream*chunklen;
+         orcu_axpykernel_1e6<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                             (chunklen,alpha,yd->devptr+soffset,xd->devptr+soffset);
+       }
+       if (chunkrem!=0) {
+         soffset=istream*chunklen;
+         orcu_axpykernel_1e6<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                             (chunkrem,alpha,yd->devptr+soffset,xd->devptr+soffset);
+       }
+       cudaDeviceSynchronize();
+       for (istream=0; istream<=nstreams; istream++ )  cudaStreamDestroy(stream[istream]);
+
+   }else{
+     /*calculate device dimensions*/
+     dimBlock.x=512;
+     dimGrid.x=112;
+     /*invoke device kernel*/
+     orcu_axpykernel_1e5<<<dimGrid,dimBlock>>>(x->map->n,alpha,yd->devptr,xd->devptr);
+   }
+
+#endif
+
   yd->syncState=VEC_GPU;
   PetscFunctionReturn(0);
 }
 
 
-extern __shared__ double sharedAXPY[];
-#undef __FUNCT__
-#define __FUNCT__ "kernAXPY"
-__global__ void  kernAXPY(double* devY,double* devX, int* vlen,double *scalar){
- /* y <- y + alpha*x */
-  __shared__ double alphaShared;
-  int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  double* chunkX = sharedAXPY;
-  double* chunkY = sharedAXPY + blockDim.x;
-  alphaShared = *scalar;
-  if(tid<*vlen){
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkY[threadIdx.x]+=chunkX[threadIdx.x]*alphaShared;
-    devY[tid]=chunkY[threadIdx.x];
+
+#if(VMANXPY)
+__global__ void orcu_axpykernel_1e5(const int n, double a, double* y, double* x) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    y[i]=y[i]+a*x[i];
   }
 }
 
+__global__ void orcu_axpykernel_1e6(const int n, double a, double* y, double* x) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[288];
+  __shared__ double shared_x[288];
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    shared_y[threadIdx.x]=shared_y[threadIdx.x]+a*shared_x[threadIdx.x];
+    y[i]=shared_y[threadIdx.x];
+  }
+}
+
+__global__ void orcu_axpykernel_1e7(const int n, double a, double* y, double* x) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_y[352];
+  __shared__ double shared_x[352];
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_y[threadIdx.x]=y[i];
+    shared_x[threadIdx.x]=x[i];
+    shared_y[threadIdx.x]=shared_y[threadIdx.x]+a*shared_x[threadIdx.x];
+    y[i]=shared_y[threadIdx.x];
+  }
+}
+#endif
+
+
+
+
+/* ---------------------------------------------------------
+// Device kernel for AXPY
+// Manual version
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
+#undef __FUNCT__
+#define __FUNCT__ "kernAXPY"
+__global__ void  kernAXPY(double* devY,double* devX,double alpha, int vlen){
+ /* y <- y + alpha*x */
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  if(tid<vlen){
+    devY[tid]+=alpha*devX[tid];
+  }
+}
+
+
+
+/* ---------------------------------------------------------
+// AXPBYPCZ: x = a*x + b*y + c*z
+// Implemented, but currently only used by bicgs
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecAXPBYPCZ_SeqGPU"
 PetscErrorCode VecAXPBYPCZ_SeqGPU(Vec x,PetscScalar alpha,PetscScalar beta,PetscScalar gamma,Vec y,Vec z){
   PetscFunctionBegin;
   #if(DEBUGVEC)
      PetscErrorCode ierr;
-     #if(VERBOSE)
+     #if(VVERBOSE)
         printf("Call to VecAXPBYPCZ_SeqGPU\n");
      #endif
   #endif
@@ -1236,10 +1861,6 @@ PetscErrorCode VecAXPBYPCZ_SeqGPU(Vec x,PetscScalar alpha,PetscScalar beta,Petsc
   dim3 dimGrid, dimBlock;
   dimGrid.x=ceil((float)x->map->n/(float)AXPBYPCZTCOUNT);
   dimBlock.x=AXPBYPCZTCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   ccs[0]=cudaMemcpyToSymbol("dblScalar2Value",(void*)&alphabeta,sizeof(double2),0,cudaMemcpyHostToDevice);
   ccs[1]=cudaMemcpyToSymbol("dblScalarValue",(void*)&gamma,sizeof(double),0,cudaMemcpyHostToDevice);
   #if(DEBUGVEC)
@@ -1247,54 +1868,57 @@ PetscErrorCode VecAXPBYPCZ_SeqGPU(Vec x,PetscScalar alpha,PetscScalar beta,Petsc
    ierr = VecCheckCUDAStatus(ccs[1],"error in symbol copy to device");CHKERRQ(ierr);
   #endif
   cudaDeviceSynchronize();
-  kernAXPBYPCZ<<<dimGrid,dimBlock,4*dimBlock.x*sizeof(double)>>>(devX->devptr,devY->devptr,devZ->devptr,devX->length);
+  kernAXPBYPCZ<<<dimGrid,dimBlock>>>(devX->devptr,devY->devptr,devZ->devptr,devX->length);
   #if(DEBUGVEC)
-     ierr = VecCheckCUDAError("launch kernAXPBYPCZ");CHKERRQ(ierr); 
+     ierr = VecCheckCUDAError("launch kernAXPBYPCZ");CHKERRQ(ierr);
   #endif
   PetscFunctionReturn(0);
 }
 
+
+/* ---------------------------------------------------------
+// Device kernel for AXPBYPCZ: x = a*x + b*y + c*z
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 extern __shared__ double sharedAXPBYPCZ[];
 #undef __FUNCT__
 #define __FUNCT__ "kernAXPBYPCZ"
 __global__ void kernAXPBYPCZ(double* devX, double* devY, double* devZ, int* len){
   /* x <- alpha*x + beta*y + gamma*z */
-  __shared__ int localn;
-  localn = *len;
+  int localn = *len;
   int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  double* work = sharedAXPBYPCZ;
-  double* chunkX = sharedAXPBYPCZ + blockDim.x;
-  double* chunkY = sharedAXPBYPCZ + 2*blockDim.x;
-  double* chunkZ = sharedAXPBYPCZ + 3*blockDim.x;
+  double work;
   if(tid<localn){
-    /* read in values to shared */
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkZ[threadIdx.x]=devZ[tid];
-
     /* do flops */
     if(dblScalarValue){
-      work[threadIdx.x]=dblScalarValue*chunkZ[threadIdx.x];
+      work=dblScalarValue*devZ[tid];
     }else{
-      work[threadIdx.x]=0.;
+      work=0.;
     }
 
     if(dblScalar2Value.y){
-      work[threadIdx.x]+=dblScalar2Value.y*chunkY[threadIdx.x];
+      work+=dblScalar2Value.y*devY[tid];
     }
     if(dblScalar2Value.x){
-      work[threadIdx.x]+=dblScalar2Value.x*chunkX[threadIdx.x];
+      work+=dblScalar2Value.x*devX[tid];
     }
-
     /* write back */
-    devX[tid]=work[threadIdx.x];
+    devX[tid]=work;
   }
   return;
 }
-
 /*---------------------------- end level 2 ------------------------------ */
 
+
+
 /*------------------------- pointwise functions ------------------------- */
+
+/* ---------------------------------------------------------
+// Function which multiplies elementwise two vectors X and Y
+// storing the result into a third vector W.
+// Checks for size mismatch and synchs to the device if needed
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecPointwiseMult_SeqGPU"
 PetscErrorCode VecPointwiseMult_SeqGPU(Vec w,Vec x,Vec y){
@@ -1320,56 +1944,66 @@ PetscErrorCode VecPointwiseMult_SeqGPU(Vec w,Vec x,Vec y){
   }
   dimGrid.x=ceil((float)y->map->n/(float)PMULTCOUNT);
   dimBlock.x=PMULTCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   cudaDeviceSynchronize();
-  kernPMULT<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+  kernPMULT<<<dimGrid,dimBlock>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
   #if(DEBUGVEC)
      ierr = VecCheckCUDAError("kernel call to kernPMULT");CHKERRQ(ierr);
   #endif
-
+  wd->syncState=VEC_GPU;
   PetscFunctionReturn(0);
 }
 
-extern __shared__ double sharedPMULT[];
+/* ---------------------------------------------------------
+// Device kernel for pointwise multiply
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "kernPMULT"
 __global__ void  kernPMULT(double* devY,double* devX, int* vlen, double* devW){
  /* w <- x./y */
-  int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  double* chunkX = sharedPMULT;
-  double* chunkY = sharedPMULT + blockDim.x;
-  double* chunkW = sharedPMULT + 2*blockDim.x;
+  unsigned int tid = blockIdx.x*blockDim.x+threadIdx.x;
   if(tid<*vlen){
-    chunkX[threadIdx.x]=devX[tid];
-    chunkY[threadIdx.x]=devY[tid];
-    chunkW[threadIdx.x]=chunkX[threadIdx.x]*chunkY[threadIdx.x];
-    devW[tid]=chunkW[threadIdx.x];
+    devW[tid]=devX[tid]*devY[tid];
   }
 }
 
-
+/* ---------------------------------------------------------
+// VecMaxPointwiseDivide_SeqGPU
+// Function which calculates the elementwise division of vector
+// X/Y, if one element is zero then X is just returned, the
+// maximum value of all the resulting elements is returned to
+// the host (max).
+// The function implements a two stage reduction.
+// Currently only the manual tuned version is implemented.
+// Checks for size mismatch of arrays and synchs to device if
+// needed.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecMaxPointwiseDivide_SeqGPU"
 PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
   PetscFunctionBegin;
-  #if(DEBUGVEC && VERBOSE)
-     printf("VecMaxPointwiseDivide_SeqGPU...");
-  #endif
   if(x->map->n!=y->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
+  #if(VTIMER)
+   double start,finish,elapsed;
+   static double mint,maxt=0.,cumt=0.,avg=0.;
+   static int ccnt=0;
+   start = vec_clock();
+  #endif
   PetscErrorCode ierr;
-  PetscScalar *devScratch,*devPartial,*hostPartial;
-  PetscInt i,chunks=0,segment,partialsize,scratchsize,secondPhase;
+  PetscScalar *devScratch;
+  PetscInt i,chunks=0,segment,scratchsize;
   cudaStream_t* pwdstream;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
-  dim3 dimGrid;  dim3 dimBlock;
+  dim3 dimGrid, dimBlock;
+  /* Size of workload for the kernels */
+  float threadscale = MAXMPLIER*CHUNKWIDTH;
+
   if(yd->syncState==VEC_CPU){/* synch up y */
-    #if(DEBUGVEC && VERBOSE)
+    #if(DEBUGVEC && VVERBOSE)
        printf("yd state VEC_CPU: copying to device.\n");
     #endif
     ierr = VecCopyOverH2D(y,yd->cpuptr);CHKERRQ(ierr);
@@ -1383,157 +2017,145 @@ PetscErrorCode VecMaxPointwiseDivide_SeqGPU(Vec x,Vec y,PetscReal *max){
     xd->syncState=VEC_SYNCHED;
   }
   /* figure out how many chunks will be needed */
-  chunks = ceil( ((float)x->map->n) /(float)(CHUNKWIDTH));
+  chunks = ceil( ((float)x->map->n) / threadscale);
   pwdstream = (cudaStream_t*)malloc(chunks*sizeof(cudaStream_t));
   /* make sure the segment size for each chunk is correct */
-  if(chunks>1)segment = (int) (CHUNKWIDTH);
+  if(chunks>1)segment = (int) threadscale;
   else segment = x->map->n;
   dimGrid.x=ceil(((float)segment)/(float)PDIVTCOUNT);
   dimBlock.x  = PDIVTCOUNT;
-
+  #if(DEBUGVEC && VVERBOSE)
+     printf("VecMaxPointwiseDivide_SeqGPU, chunks: %d segsize: %d\n",chunks,segment);
+  #endif
+  /* Divide up workload among streams and allocate scratch memory */
   scratchsize = chunks*dimGrid.x*sizeof(double);
   cms[0] = cudaMalloc((void**)&devScratch,scratchsize);
-  ccs[0] = cudaMemsetAsync(devScratch,0,scratchsize,yd->stream);
-  ccs[1]=cudaMemcpyAsync(xd->segment,&segment,sizeof(int),cudaMemcpyHostToDevice,xd->stream);
+  ccs[0] = cudaMemsetAsync(devScratch,0,scratchsize,yd->streamid);
   #if(DEBUGVEC)
     ierr = VecCheckCUDAStatus(cms[0],"devScratch alloc in VecMPWD_SeqGPU");CHKERRQ(ierr);
     ierr = VecCheckCUDAStatus(ccs[0],"devScratch memset in VecMPWD_SeqGPU");CHKERRQ(ierr);
-    ierr = VecCheckCUDAStatus(ccs[1],"on copy segment size H2D in VecMPWD_SeqGPU");CHKERRQ(ierr);
   #endif
-
   cudaDeviceSynchronize();
-  for(i=0;i<chunks;i++){
+  for(i=0;i<chunks;i++){/* first kernel */
     cudaStreamCreate(&(pwdstream[i]));
-    cudaMemcpyAsync(xd->offset,&i,sizeof(int),cudaMemcpyHostToDevice,pwdstream[i]);
     /* Overlapping execution */
     kernMAXPDIV<<<dimGrid,dimBlock,0,pwdstream[i]>>>(xd->devptr,yd->devptr,
-                                                     xd->segment,
-                                                     xd->length,
-                                                     xd->offset,
-                                                     (devScratch+i*dimGrid.x));
+                                                     segment,
+                                                     x->map->n,
+                                                     i,
+                                                     devScratch+i*dimGrid.x);
   }/* end for-loop */
-
-  secondPhase = scratchsize/sizeof(double);
-  if(secondPhase>1){/* begin next reduction */
-    dimGrid.x = ceil((float)secondPhase/(float)PDIVTCOUNT2);
-    dimBlock.x  = PDIVTCOUNT2;
-    /* allocate last reduction array */
-    partialsize = dimGrid.x*sizeof(double);
-    cms[1] = cudaMalloc((void**)&devPartial,partialsize);
-    ccs[2] = cudaMemsetAsync(devPartial,0,partialsize,yd->stream);
-    ccs[3] = cudaMemcpyAsync(xd->segment,&secondPhase,sizeof(int),cudaMemcpyHostToDevice,xd->stream);
-    #if(DEBUGVEC)
-       #if(VERBOSE)
-         printf("MAXDIV phase2: blks: %d, partial: %d\n",dimGrid.x,partialsize/sizeof(double));
-       #endif
-       ierr = VecCheckCUDAStatus(cms[1],"devPartial alloc in VecMPWD_SeqGPU"); CHKERRQ(ierr);
-       ierr = VecCheckCUDAStatus(ccs[2],"devPartial memset in VecMPWD_SeqGPU");CHKERRQ(ierr);
-       ierr = VecCheckCUDAStatus(ccs[3],"on copy chunks H2D in VecMPWD_SeqGPU");CHKERRQ(ierr);
-    #endif
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    kernMAX<<<dimGrid,dimBlock,dimBlock.x*sizeof(double)>>>(xd->segment,devScratch,devPartial);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAError("kernRedNorm_double launch in VecNorm_SeqGPU");CHKERRQ(ierr);
-    #endif
-    ierr = PetscMalloc(partialsize,&hostPartial);CHKERRQ(ierr);
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    ccs[4]=cudaMemcpy(hostPartial,devPartial,partialsize,cudaMemcpyDeviceToHost);/* copy back */
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[4],"on devPartial copy D2H");CHKERRQ(ierr);
-    #endif
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    /* final reduction */
-    if(dimGrid.x>1){
-      *max=0.;
-      for(i=0;i<dimGrid.x;i++){
-        *max=PetscMax(hostPartial[i],*max);
-      }
-    }else{
-      *max=hostPartial[0];
-    }
-    ierr = PetscFree(hostPartial); CHKERRQ(ierr);
-    cms[2] = cudaFree(devPartial);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(cms[2],"on cudaFree(devPartial)");CHKERRQ(ierr);
-    #endif
-
-  }else{
-    ccs[4]=cudaMemcpy(max,devScratch,sizeof(double),cudaMemcpyDeviceToHost);
-    #if(DEBUGVEC)
-       ierr = VecCheckCUDAStatus(ccs[4],"on max copy D2H");CHKERRQ(ierr);
-    #endif
+  dimBlock.x  = PDIVTCOUNT2;
+  scratchsize = chunks*dimGrid.x;
+  cudaDeviceSynchronize();
+  while(scratchsize>1){/* begin next reduction */
+    dimGrid.x = ceil((float)scratchsize/(float)PDIVTCOUNT2);
+    kernMAX<<<dimGrid,dimBlock>>>(scratchsize,devScratch);
+    scratchsize = dimGrid.x;
   }
+
+  /* copy back result */
+  ccs[4]=cudaMemcpy(max,devScratch,sizeof(double),cudaMemcpyDeviceToHost);/* copy back */
+  #if(DEBUGVEC)
+    ierr = VecCheckCUDAStatus(ccs[4],"on cudaMemcpy(devScratch)");CHKERRQ(ierr);
+  #endif
+
+  /* Free temp resources */
   cms[3] = cudaFree(devScratch);
   #if(DEBUGVEC)
      ierr = VecCheckCUDAStatus(cms[3],"on cudaFree(devScratch)");CHKERRQ(ierr);
   #endif
   for(i=0;i<chunks;i++) cudaStreamDestroy(pwdstream[i]);
 
-  #if(DEBUGVEC && VERBOSE)
-     printf("max: %e\n",*max);
+  #if(DEBUGVEC && VVERBOSE)
+    printf("max: %e\n",*max);
+  #endif
+  #if(VTIMER)
+    finish=vec_clock();
+    elapsed=finish-start;
+    cumt+=elapsed;
+    if(!ccnt++){
+      maxt=mint=avg=elapsed;
+    }else{
+      maxt=elapsed>maxt?elapsed:maxt;
+      mint=elapsed<mint?elapsed:mint;
+      avg=cumt/ccnt;
+      printf("VecMAXPWD_SeqGPU calls: %d, max: %e, min: %e, average: %e\n",
+               ccnt,maxt,mint,avg);
+    }
   #endif
   PetscFunctionReturn(0);
 }
 
-
-extern __shared__ double sharedMAX[];
 #undef __FUNCT__
 #define __FUNCT__ "kernMAX"
-__global__ void  kernMAX(int* size, double* maxlist,double* max){
-  int tid = blockDim.x*blockIdx.x+threadIdx.x;
-  int i = (blockDim.x+1)/2;
-  double* mlist = sharedMAX;
-  mlist[threadIdx.x]=(tid<*size)?maxlist[tid]:0.;
-  /* printf("mlist[%d]: %e\n",threadIdx.x,mlist[threadIdx.x]); */
+__global__ void  kernMAX(int n,double* scratch){
+  unsigned int tid = blockDim.x*blockIdx.x+threadIdx.x;
+  __shared__ double chunk[PDIVTCOUNT2];
+  double mymax;
+  mymax=(tid<n)?scratch[tid]:0.;
+  if(threadIdx.x>127)chunk[threadIdx.x]=mymax;
   __syncthreads();
-  while(i>0){
-    if(threadIdx.x<i){
-      mlist[threadIdx.x]=fmax(mlist[threadIdx.x],mlist[threadIdx.x+i]);
-    }
-    __syncthreads();
-    i/=2;
-  }
+  if(threadIdx.x<128)mymax=fmax(mymax,chunk[threadIdx.x+128]);
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<64)mymax=fmax(mymax,chunk[threadIdx.x+64]);
+  else return;
+  chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<32)warpMaxReduce(chunk,threadIdx.x);
+  else return;
   if(threadIdx.x==0){
-    max[blockIdx.x] = mlist[0];
-    //printf("MAXDIV block[%d]: %e\n",blockIdx.x,max[blockIdx.x]);
-  }
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
 }
-
 
 #undef __FUNCT__
 #define __FUNCT__ "kernMAXPDIV"
-__global__ void  kernMAXPDIV(double* devX,double* devY, int* segmentsize,
-                             int* arrsize,int* offset,double* scratch){
+__global__ void  kernMAXPDIV(double* devX,double* devY, int segmentsize,
+                             int n,int offset,double* scratch){
  /* w <- max(abs(x./y)) */
-  __shared__ double chunkY[PDIVTCOUNT];
-  __shared__ double chunkX[PDIVTCOUNT];
-  __shared__ double chunkW[PDIVTCOUNT];
-  __shared__ int n;    n   = *arrsize;
-  int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  int i = (blockDim.x+1)/2;
-  int item = *segmentsize**offset+tid;
+  __shared__ double chunk[PDIVTCOUNT];
+  double mymax;
+  unsigned int item = segmentsize*offset+blockDim.x*blockIdx.x+threadIdx.x;
   if(item<n){
-    chunkX[threadIdx.x]=devX[item];
-    chunkY[threadIdx.x]=devY[item];
+    mymax=devY[item];
+    if(mymax!=0.)mymax=fabs(devX[item]/mymax);//reusing register
+    else mymax=fabs(devX[item]);
   }else{
-    chunkX[threadIdx.x]=0.;
-    chunkY[threadIdx.x]=0.;
+    mymax=0.;
   }
-  if(chunkY[threadIdx.x]!=0.)chunkW[threadIdx.x]=fabs(chunkX[threadIdx.x]/chunkY[threadIdx.x]);
-  else chunkW[threadIdx.x]=fabs(chunkX[threadIdx.x]);
-  /* block Level reduction */
+  if(threadIdx.x>127)chunk[threadIdx.x]=mymax;
   __syncthreads();
-  while(i>0){
-    if(threadIdx.x<i){
-      chunkW[threadIdx.x]=fmax(chunkW[threadIdx.x],chunkW[threadIdx.x+i]);
-    }
-    __syncthreads();
-    i/=2;
-  }
-  if(threadIdx.x==0) scratch[blockIdx.x]=chunkW[0];
+  if(threadIdx.x<128)mymax=fmax(mymax,chunk[threadIdx.x+128]);
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<64)mymax=fmax(mymax,chunk[threadIdx.x+64]);
+  else return;
+  chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<32) warpReduce(chunk,threadIdx.x);
+  else return;
+  if(threadIdx.x==0){
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
 }
 
 
+
+
+/* ---------------------------------------------------------
+// VecPointwiseDivide_SeqGPU
+// Function which calculates the elementwise division of vector
+// X/Y and stores the results in a third array. If one element 
+// is zero then X is just returned. Currently only the manual
+// tuned version is implemented.
+// Checks for size mismatch of arrays and synchs to device if
+// needed.
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecPointwiseDivide_SeqGPU"
 PetscErrorCode VecPointwiseDivide_SeqGPU(Vec w,Vec x,Vec y){
@@ -1543,7 +2165,7 @@ PetscErrorCode VecPointwiseDivide_SeqGPU(Vec w,Vec x,Vec y){
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
   Vec_SeqGPU *wd=(Vec_SeqGPU*)y->data;
   dim3 dimGrid, dimBlock;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecPointwiseDivide_SeqGPU\n");
   #endif
   if(x->map->n!=y->map->n || w->map->n!=y->map->n || w->map->n!=x->map->n){
@@ -1559,43 +2181,45 @@ PetscErrorCode VecPointwiseDivide_SeqGPU(Vec w,Vec x,Vec y){
   }
   dimGrid.x=ceil((float)y->map->n/(float)PDIVTCOUNT);
   dimBlock.x=PDIVTCOUNT;
-  while(dimGrid.x>MAXBLOCKS){
-    dimGrid.x/=2;
-    dimBlock.x*=2;
-  }
   cudaDeviceSynchronize();
-  kernPDIV<<<dimGrid,dimBlock,3*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
-  #if(DEBUGVEC) 
-     ierr = VecCheckCUDAError("kernel call to kernPDIV");CHKERRQ(ierr); 
+  kernPDIV<<<dimGrid,dimBlock,2*dimBlock.x*sizeof(double)>>>(yd->devptr,xd->devptr,xd->length,wd->devptr);
+  #if(DEBUGVEC)
+    ierr = VecCheckCUDAError("kernel call to kernPDIV");CHKERRQ(ierr);
   #endif
+  wd->syncState=VEC_GPU;
   PetscFunctionReturn(0);
 }
-
 extern __shared__ double sharedPDIV[];
 #undef __FUNCT__
 #define __FUNCT__ "kernPDIV"
 __global__ void  kernPDIV(double* devY,double* devX, int* vlen, double* devW){
- /* w <- x./y */
+  /* w <- x./y */
   int tid = blockIdx.x*blockDim.x+threadIdx.x;
   double* chunkX = sharedPDIV;
   double* chunkY = sharedPDIV + blockDim.x;
-  double* chunkW = sharedPDIV + 2*blockDim.x;
+  double work;
   if(tid<*vlen){
     chunkX[threadIdx.x]=devX[tid];
     chunkY[threadIdx.x]=devY[tid];
-    if(chunkX[threadIdx.x]*chunkY[threadIdx.x]!=0){/* using intrinsic div op */
-      chunkW[threadIdx.x]=chunkX[threadIdx.x]/chunkY[threadIdx.x];
+    if(chunkX[threadIdx.x]*chunkY[threadIdx.x]!=0){
+      work=chunkX[threadIdx.x]/chunkY[threadIdx.x];
     }else{
-      chunkW[threadIdx.x]=0;
+      work=0;
     }
-    devW[tid]=chunkW[threadIdx.x];
+    devW[tid]=work;
   }
 }
 
 /*--------------------------- end pointwise ---------------------------- */
 
+/*--------------------------- norm functions --------------------------- */
 
-/*-------------------------- norm functions ---------------------------- */
+/* ---------------------------------------------------------
+// VecDotNorm2_SeqGPU
+// Simple wrapper function for two calls
+// Never seen this function called
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecDotNorm2_SeqGPU"
 PetscErrorCode VecDotNorm2_SeqGPU(Vec s, Vec t, PetscScalar *dp, PetscScalar *nm){
@@ -1609,210 +2233,478 @@ PetscErrorCode VecDotNorm2_SeqGPU(Vec s, Vec t, PetscScalar *dp, PetscScalar *nm
   PetscFunctionReturn(0);
 }
 
-
+/* ---------------------------------------------------------
+// VecNorm_SeqGPU
+// Function which computes the norm of a vector
+// Currently implements two norm types: infinity norm and norm2
+// Norm2 is implemented as a manually tuned kernel as well a
+// Orio tuned kernels for three vector size ranges
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecNorm_SeqGPU"
 PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
   /* NormType: NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4 */
-  /* dealing with NORM_2 for now... */
+  /* dealing with NORM_2 and NORM_INFINITY for now... */
   PetscFunctionBegin;
-  #if(DEBUGVEC && VERBOSE)
-     printf("Call to VecNorm_SeqGPU\n");
+  #if(VTIMER)
+    double start,finish,elapsed;
+    static double mint,maxt=0.,cumt=0.,avg=0.;
+    static int ccnt=0;
+    start = vec_clock();
   #endif
   PetscErrorCode ierr;
-  double *devScratch,*devPartial,*hostPartial,zhost;
-  PetscInt i,chunks=0,segment,partialsize,secondPhase,scratchsize;
+  double *devScratch,zhost;
+  PetscInt i,chunks=0,segment,scratchsize;
   cudaStream_t* nrmstream;
   dim3 dimGrid, dimBlock;
+  /* defining per-stream work load */
+  float threadscale = NRMMPLIER*CHUNKWIDTH;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   if(xd->syncState==VEC_CPU){
-    #if(DEBUGVEC && VERBOSE)
+    #if(DEBUGVEC && VVERBOSE)
        printf("xd state VEC_CPU: copying to device.\n");
     #endif
     ierr = VecCopyOverH2D(x,xd->cpuptr);CHKERRQ(ierr);
     xd->syncState=VEC_SYNCHED;
   }
 
+  if(type==NORM_INFINITY){
+    printf("Infinity NORM.\n");
+    /* figure out how many chunks will be needed */
+    chunks = ceil( ((float)x->map->n) / threadscale);
+    nrmstream = (cudaStream_t*)malloc(chunks*sizeof(cudaStream_t));
+    /* make sure the segment size for each chunk is correct */
+    if(chunks>1) segment = (int) threadscale;
+    else segment = x->map->n;
+    dimGrid.x=ceil(((float)segment)/(float)THRNRMCNT);
+    dimBlock.x  = THRNRMCNT;
+    #if(DEBUGVEC && VVERBOSE)
+      printf("Call to VecNorm_SeqGPU chunks: %d segsize: %d\n",chunks,segment);
+    #endif
+    /* allocate gridwide scratch array */
+    scratchsize = chunks*dimGrid.x;
+    cms[0] = cudaMalloc((void**)&devScratch,scratchsize*sizeof(double));
+    #if(DEBUGVEC)
+      #if(VVERBOSE)
+         printf("NORM2: chunks: %d, seg: %d, blks: %d\n",chunks,segment,dimGrid.x);
+      #endif
+      ierr = VecCheckCUDAStatus(cms[0],"devScratch alloc in VecNorm_SeqGPU"); CHKERRQ(ierr);
+    //ierr = VecCheckCUDAStatus(ccs[0],"devScratch memset in VecNorm_SeqGPU");CHKERRQ(ierr);
+    #endif
+    cudaDeviceSynchronize();
+    for(i=0;i<chunks;i++){/* streaming async kernel calls */
+      cudaStreamCreate(&(nrmstream[i]));
+      /* Overlapping execution */
+      kernInfNorm<<<dimGrid,dimBlock,0,nrmstream[i]>>>(xd->devptr,segment,x->map->n,i,
+                                                       devScratch+i*dimGrid.x);
+    }/* end for-loop */
+    dimBlock.x  = THRNRMCNT2;
+    cudaDeviceSynchronize();
+    while(scratchsize>1){/* begin next reduction */
+      /* printf("Seconds stage reduction.\n"); */
+      dimGrid.x = ceil((float)scratchsize/(float)THRNRMCNT2);
+      kernRedInfNorm<<<dimGrid,dimBlock>>>(scratchsize,devScratch);
+      scratchsize = dimGrid.x;
+    }
+  }else{/* NORM2 etc... */
+
+#if(VMANNRM)
   /* figure out how many chunks will be needed */
-  chunks = ceil( ((float)x->map->n) /(float)(CHUNKWIDTH));
+  chunks = ceil( ((float)x->map->n) / threadscale);
   nrmstream = (cudaStream_t*)malloc(chunks*sizeof(cudaStream_t));
   /* make sure the segment size for each chunk is correct */
-  if(chunks>1) segment = (int) (CHUNKWIDTH);
+  if(chunks>1) segment = (int) threadscale;
   else segment = x->map->n;
   dimGrid.x=ceil(((float)segment)/(float)THRNRMCNT);
   dimBlock.x  = THRNRMCNT;
+#if(DEBUGVEC && VVERBOSE)
+  printf("Call to VecNorm_SeqGPU chunks: %d segsize: %d\n",chunks,segment);
+#endif
   /* allocate gridwide scratch array */
-  scratchsize = chunks*dimGrid.x*sizeof(double);
-  cms[0] = cudaMalloc((void**)&devScratch,scratchsize);
-  ccs[0] = cudaMemsetAsync(devScratch,0,scratchsize,xd->stream);
-  ccs[1]=cudaMemcpy(xd->segment,&segment,sizeof(int),cudaMemcpyHostToDevice);
+  scratchsize = chunks*dimGrid.x;
+  cms[0] = cudaMalloc((void**)&devScratch,scratchsize*sizeof(double));
   #if(DEBUGVEC)
-    #if(VERBOSE)
-      printf("NORM: chunks: %d, seg: %d, blks: %d, scr: %d, chksize: %d, N: %d\n",
-            chunks,segment,dimGrid.x,scratchsize/8,(int)(CHUNKWIDTH),x->map->n);
+    #if(VVERBOSE)
+       printf("NORM2: chunks: %d, seg: %d, blks: %d\n",chunks,segment,dimGrid.x);
     #endif
     ierr = VecCheckCUDAStatus(cms[0],"devScratch alloc in VecNorm_SeqGPU"); CHKERRQ(ierr);
-    ierr = VecCheckCUDAStatus(ccs[0],"devScratch memset in VecNorm_SeqGPU");CHKERRQ(ierr);
-    ierr = VecCheckCUDAStatus(ccs[1],"on copy segment length H2D in VecNorm_SeqGPU");CHKERRQ(ierr);
+    //ierr = VecCheckCUDAStatus(ccs[0],"devScratch memset in VecNorm_SeqGPU");CHKERRQ(ierr);
   #endif
   cudaDeviceSynchronize();
-  for(i=0;i<chunks;i++){/* streaming async kernel calls */
-    cudaStreamCreate(&(nrmstream[i]));
-    cudaMemcpyAsync(xd->offset,&i,sizeof(int),cudaMemcpyHostToDevice,nrmstream[i]);
-    /* Overlapping execution */
-    kernNorm2<<<dimGrid,dimBlock,0,nrmstream[i]>>>(xd->devptr,
-                                                   xd->segment,
-                                                   xd->length,
-                                                   xd->offset,
-                                                   devScratch+i*dimGrid.x);
-  }/* end for-loop */
-
-  secondPhase = scratchsize/sizeof(double);
-  if(secondPhase>1){ /* begin next reduction */
-    dimGrid.x = ceil((float)secondPhase/(float)THRNRMCNT2);
+    for(i=0;i<chunks;i++){/* streaming async kernel calls */
+      cudaStreamCreate(&(nrmstream[i]));
+      /* Overlapping execution */
+      kernNorm2<<<dimGrid,dimBlock,0,nrmstream[i]>>>(xd->devptr,segment,x->map->n,i,
+                                                     devScratch+i*dimGrid.x);
+    }/* end for-loop */
     dimBlock.x  = THRNRMCNT2;
-    /* allocate last reduction array */
-    partialsize = dimGrid.x*sizeof(double);
-    cms[1] = cudaMalloc((void**)&devPartial,partialsize);
-    ccs[2] = cudaMemsetAsync(devPartial,0,partialsize,xd->stream);
-    ccs[3] = cudaMemcpy(xd->segment,&secondPhase,sizeof(int),cudaMemcpyHostToDevice);
-    #if(DEBUGVEC)
-      #if(VERBOSE)
-         printf("NORM phase2: blks: %d, partial: %d\n",dimGrid.x,partialsize/sizeof(double));
-      #endif
-      ierr = VecCheckCUDAStatus(cms[1],"devPartial alloc in VecNorm_SeqGPU"); CHKERRQ(ierr);
-      ierr = VecCheckCUDAStatus(ccs[2],"devPartial memset in VecNorm_SeqGPU");CHKERRQ(ierr);
-      ierr = VecCheckCUDAStatus(ccs[3],"on copy chunks H2D in VecNorm_SeqGPU");CHKERRQ(ierr);
-    #endif
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    kernRedNorm<<<dimGrid,dimBlock,dimBlock.x*sizeof(double)>>>(xd->segment,devScratch,devPartial);
-    #if(DEBUGVEC)
-      ierr = VecCheckCUDAError("kernRedNorm_double launch in VecNorm_SeqGPU");CHKERRQ(ierr);
-    #endif
-    ierr = PetscMalloc(partialsize,&hostPartial);CHKERRQ(ierr);
-
-    /* Copy back norm z */
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    ccs[4]=cudaMemcpy(hostPartial,devPartial,partialsize,cudaMemcpyDeviceToHost);/* copy back */
-    cudaDeviceSynchronize();/* make sure everyone is caught up */
-    #if(DEBUGVEC)
-      ierr = VecCheckCUDAStatus(ccs[4],"on devPartial copy D2H");CHKERRQ(ierr);
-    #endif
-    /* final reduction */
-    if(dimGrid.x>1){
-     zhost=0.;
-     for(i=0;i<dimGrid.x;i++)zhost+=hostPartial[i];
-    }else{
-     zhost=hostPartial[0];
+    cudaDeviceSynchronize();
+    while(scratchsize>1){/* begin next reduction */
+      /* printf("Seconds stage reduction.\n"); */
+      dimGrid.x = ceil((float)scratchsize/(float)THRNRMCNT2);
+      kernRedNorm<<<dimGrid,dimBlock>>>(scratchsize,devScratch);
+      scratchsize = dimGrid.x;
     }
-    ierr = PetscFree(hostPartial); CHKERRQ(ierr);
-    cms[2] = cudaFree(devPartial);
+
+    cudaDeviceSynchronize();
+    for(i=0;i<chunks;i++) cudaStreamDestroy(nrmstream[i]);
+    free(nrmstream);
+#else
+
+    if(x->map->n>=1e7){
+      cudaFuncSetCacheConfig(orcu_norm2kernel_1e7,cudaFuncCachePreferL1);
+      int nthreads=512;
+      int nstreams=2;
+      /*calculate device dimensions*/
+      dim3 dimGrid, dimBlock;
+      dimBlock.x=nthreads;
+      dimGrid.x=112;
+      cudaMalloc((void**)&devScratch,(dimGrid.x+1)*sizeof(double));
+      /*create streams*/
+      int istream, soffset, boffset;
+      cudaStream_t stream[nstreams+1];
+      for (istream=0; istream<=nstreams;istream++)cudaStreamCreate(&stream[istream]);
+      int chunklen=x->map->n/nstreams;
+      int chunkrem=x->map->n%nstreams;
+   
+      /*invoke device kernel*/
+      int blks4chunk=dimGrid.x/nstreams;
+      if(dimGrid.x%nstreams!=0)blks4chunk++ ;
+      int blks4chunks=blks4chunk*nstreams;
+      for(istream=0; istream<nstreams; istream++){
+        soffset=istream*chunklen;
+        boffset=istream*blks4chunk;
+        orcu_norm2kernel_1e7<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                           (chunklen,xd->devptr+soffset,devScratch+boffset);
+      }
+      if (chunkrem!=0) {
+        soffset=istream*chunklen;
+        boffset=istream*blks4chunk;
+        orcu_norm2kernel_1e7<<<blks4chunk,dimBlock,0,stream[istream]>>>
+                           (chunkrem,xd->devptr+soffset,devScratch+boffset);
+        blks4chunks++ ;
+      }
+      int orcu_blks=blks4chunks;
+      int orcu_n;
+      while (orcu_blks>1) {
+        orcu_n=orcu_blks;
+        orcu_blks=(orcu_blks+511)/512;
+        orcu_norm2blksum_1e7<<<orcu_blks,512>>>(orcu_n,devScratch);
+      }
+      for (istream=0; istream<=nstreams; istream++)cudaStreamDestroy(stream[istream]);
+    }else if(x->map->n>=1e6){
+      /*calculate device dimensions*/
+      dimBlock.x=228;
+      dimGrid.x=56;
+      cudaMalloc((void**)&devScratch,(dimGrid.x+1)*sizeof(double));
+      orcu_norm2kernel_1e6<<<dimGrid,dimBlock>>>(x->map->n,xd->devptr,devScratch);
+      int orcu_blks=dimGrid.x;
+      int orcu_n;
+      while (orcu_blks>1) {
+        orcu_n=orcu_blks;
+        orcu_blks=(orcu_blks+227)/228;
+        orcu_norm2blksum_1e6<<<orcu_blks,228>>>(orcu_n,devScratch);
+      }
+    }else{
+      /*calculate device dimensions*/
+      dimBlock.x=128;
+      dimGrid.x=112;
+      cudaMalloc((void**)&devScratch,(dimGrid.x+1)*sizeof(double));
+      orcu_norm2kernel_1e5<<<dimGrid,dimBlock>>>(x->map->n,xd->devptr,devScratch);
+      int orcu_blks=dimGrid.x;
+      int orcu_n;
+      while (orcu_blks>1) {
+        orcu_n=orcu_blks;
+        orcu_blks=(orcu_blks+127)/128;
+        orcu_norm2blksum_1e5<<<orcu_blks,128>>>(orcu_n,devScratch);
+      }
+    }
+#endif /* end VMANNRM norm2 */
+
+    ccs[4]=cudaMemcpy(&zhost,devScratch,sizeof(double),cudaMemcpyDeviceToHost);/* copy back */
     #if(DEBUGVEC)
-      ierr = VecCheckCUDAStatus(cms[2],"on cudaFree(devPartial)");CHKERRQ(ierr);
+      ierr = VecCheckCUDAStatus(ccs[4],"on cudaMemcpy(devScratch)");CHKERRQ(ierr);
     #endif
-  }else{/* only copy back necessary */
-     ccs[4]=cudaMemcpy(&zhost,devScratch,sizeof(double),cudaMemcpyDeviceToHost);/* copy back */
-     #if(DEBUGVEC)
-        ierr = VecCheckCUDAStatus(ccs[4],"on zhost copy D2H");CHKERRQ(ierr);
-     #endif
-  }
-  *z = PetscSqrtScalar(zhost);
+    cudaDeviceSynchronize();/* make sure everyone is caught up */
+    *z = PetscSqrtScalar(zhost);
+  }/* end NORMTYPE if */
 
 
   /* clean up resources */
-  for(i=0;i<chunks;i++){
-    cudaStreamDestroy(nrmstream[i]);
-  }
-  free(nrmstream);
+
   cms[3] = cudaFree(devScratch);
   #if(DEBUGVEC)
-     #if(VERBOSE)
+   #if(VVERBOSE)
         printf("Znorm: %e\n",*z);
-     #endif
+   #endif
      ierr = VecCheckCUDAStatus(cms[3],"on cudaFree(devScratch)");CHKERRQ(ierr);
+  #endif
+  #if(VTIMER)
+    finish=vec_clock();
+    elapsed=finish-start;
+    cumt+=elapsed;
+    if(!ccnt++){
+      maxt=mint=avg=elapsed;
+    }else{
+      maxt=elapsed>maxt?elapsed:maxt;
+      mint=elapsed<mint?elapsed:mint;
+      avg=cumt/ccnt;
+      if(!(ccnt%(ITSHOW/2))){
+        printf("VecNorm_SeqGPU calls: %d, max: %e, min: %e, average: %e\n",
+               ccnt,maxt,mint,avg);
+      }
+    }
   #endif
   PetscFunctionReturn(0);
 }
 
-extern __shared__ double sharedRedNorm[];
+/*-------------- Device kernels for infinite norm ----------------*/
 #undef __FUNCT__
-#define __FUNCT__ "kernRedNorm"
-__global__ void kernRedNorm(int* size,double* scratch,double* z){/* reduction kernel */
-  int i = (blockDim.x+1)/2;
-  int tid = blockDim.x*blockIdx.x+threadIdx.x;
-  double* zptr = sharedRedNorm;
-  zptr[threadIdx.x]=(tid<*size)?scratch[tid]:0.;
-  //printf("zptr[%d]: %e\n",threadIdx.x,zptr[threadIdx.x]);
+#define __FUNCT__ "kernRedInfNorm"
+__global__ void kernRedInfNorm(int n,double* scratch){/* reduction kernel */
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double chunk[THRNRMCNT2];
+  double mymax;
+  mymax=(tid<n)?scratch[tid]:0.;
+  if(threadIdx.x>127)chunk[threadIdx.x]=mymax;
   __syncthreads();
-  while(i>0){
-    if(threadIdx.x<i) zptr[threadIdx.x]+=zptr[threadIdx.x+i];
-    __syncthreads();
-    i/=2;
-  }/* end while */
+  if(threadIdx.x<128)mymax=fmax(mymax,chunk[threadIdx.x+128]);
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<64)mymax=fmax(mymax,chunk[threadIdx.x+64]);
+  else return;
+  chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<32)warpMaxReduce(chunk,threadIdx.x);
+  else return;
   if(threadIdx.x==0){
-    z[blockIdx.x]=zptr[0];
-    //printf("ZNorm block[%d]: %e\n",blockIdx.x,z[blockIdx.x]);
-  }
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "kernInfNorm"
+__global__ void kernInfNorm(double* devX,int segmentsize,
+                        int arrsize, int offset, double* scratch){
+  __shared__ double chunk[THRNRMCNT];
+  unsigned int item = segmentsize*offset+blockDim.x*blockIdx.x+threadIdx.x;
+  double mymax=0.;
+  mymax=(item<arrsize)?fabs(devX[item]):0.;
+
+  if(threadIdx.x>127)chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<128)mymax=fmax(mymax,chunk[threadIdx.x+128]);
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<64)mymax=fmax(mymax,chunk[threadIdx.x+64]);
+  else return;
+  chunk[threadIdx.x]=mymax;
+  __syncthreads();
+  if(threadIdx.x<32) warpMaxReduce(chunk,threadIdx.x);
+  else return;
+  if(threadIdx.x==0){
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
+}
+/*---------------------------------------------------------*/
+
+/*-------------- Device kernels for norm2 ----------------*/
+#undef __FUNCT__
+#define __FUNCT__ "kernRedNorm"
+__global__ void kernRedNorm(int n,double* scratch){/* reduction kernel */
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double chunk[THRNRMCNT2];
+  double mysum;
+  mysum=(tid<n)?scratch[tid]:0.;
+  if(threadIdx.x>127)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<128)mysum+=chunk[threadIdx.x+128];
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<64)mysum+=chunk[threadIdx.x+64];
+  else return;
+  chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<32)warpReduce(chunk,threadIdx.x);
+  else return;
+  if(threadIdx.x==0){
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "kernNorm2"
-__global__ void kernNorm2(double* devX,int* segmentsize,int* arrsize,
-                          int* offset,double *scratch){
-  __shared__ double chunkX[THRNRMCNT];
-  __shared__ int n;    n   = *arrsize;
-
-  int tid = blockIdx.x*blockDim.x+threadIdx.x;
-  int i = (blockDim.x+1)/2;
-  int item = *segmentsize**offset+tid;
-
-  /* read in values to shared */
-  chunkX[threadIdx.x]=(item<n)?devX[item]:0.;
-  chunkX[threadIdx.x]*=chunkX[threadIdx.x];
+__global__ void kernNorm2(double* devX,int segmentsize,
+                        int arrsize, int offset, double* scratch){
+  __shared__ double chunk[THRNRMCNT];
+  unsigned int item = segmentsize*offset+blockDim.x*blockIdx.x+threadIdx.x;
+  double mysum=0.;
+  mysum=(item<arrsize)?devX[item]:0.;
+  mysum*=mysum;
+  if(threadIdx.x>127)chunk[threadIdx.x]=mysum;
   __syncthreads();
+  if(threadIdx.x<128)mysum+=chunk[threadIdx.x+128];
+  else return;
+  if(threadIdx.x>63)chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<64)mysum+=chunk[threadIdx.x+64];
+  else return;
+  chunk[threadIdx.x]=mysum;
+  __syncthreads();
+  if(threadIdx.x<32) warpReduce(chunk,threadIdx.x);
+  else return;
+  if(threadIdx.x==0){
+    scratch[blockIdx.x]=chunk[0];
+  }else return;
+}
+/*---------------------------------------------------------*/
 
-  /* block level reduction */
-  while(i>0){
-     if(threadIdx.x<i){
-       chunkX[threadIdx.x]+=chunkX[threadIdx.x+i];
-     }
-     __syncthreads();
-     i/=2;
-  }/* end while */
-  if(threadIdx.x==0) scratch[blockIdx.x]=chunkX[0];
+
+/*------------------- Orio Norm2 kernels ------------------*/
+__global__ void orcu_norm2kernel_1e5(const int n, double* x, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  double orcu_var10241=0;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    orcu_var10241=orcu_var10241+x[i]*x[i];
+  }
+  /*reduce single-thread results within a block*/
+  __shared__ double orcu_vec10242[128];
+  orcu_vec10242[threadIdx.x]=orcu_var10241;
+  __syncthreads();
+  if (threadIdx.x<64) orcu_vec10242[threadIdx.x]+=orcu_vec10242[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) orcu_warpReduce64(threadIdx.x,orcu_vec10242);
+  __syncthreads();
+  if (threadIdx.x==0) reducts[blockIdx.x]=orcu_vec10242[0];
+}
+__global__ void orcu_norm2blksum_1e5(int orcu_n, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double orcu_vec10242[128];
+
+  if (tid<orcu_n) orcu_vec10242[threadIdx.x]=reducts[tid];
+  else  orcu_vec10242[threadIdx.x]=0;
+  __syncthreads();
+  if (threadIdx.x<64) orcu_vec10242[threadIdx.x]+=orcu_vec10242[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) orcu_warpReduce64(threadIdx.x,orcu_vec10242);
+  __syncthreads();
+  if (threadIdx.x==0) reducts[blockIdx.x]=orcu_vec10242[0];
 }
 
-
-/*
-#undef __FUNCT__
-#define __FUNCT__ "VecNorm1_SeqGPU"
-PetscErrorCode VecNorm1_SeqGPU(Vec xin,NormType type,PetscReal* z)
-{*/
-
-/* NormType: NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4 */
-/* dealing with NORM_2 for now... */
-/* z has 2 elements */
-
-/*
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-  printf("Call to VecNorm_SeqGPU\n");
-  ierr = VecDot_SeqGPU(xin,xin,&z[0]);CHKERRQ(ierr);
-  z[0]=PetscSqrtScalar(z[0]);
-  printf("ZNORM: %f\n\n",*z);
-  PetscFunctionReturn(0);
-}*/
-
-
-/*
-#undef __FUNCT__
-#define __FUNCT__ "kernReduceAbsSum"
-PetscErrorCode kernReduceAbsSum(double * x, PetscReal* z){
-
+__global__ void orcu_norm2kernel_1e6(const int n, double* x, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  double orcu_var20485=0;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    orcu_var20485=orcu_var20485+x[i]*x[i];
+  }
+  /*reduce single-thread results within a block*/
+  __shared__ double orcu_vec20486[288];
+  orcu_vec20486[threadIdx.x]=orcu_var20485;
+  __syncthreads();
+  if (threadIdx.x<128) 
+    orcu_vec20486[threadIdx.x]+=orcu_vec20486[threadIdx.x+128];
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec20486[threadIdx.x]+=orcu_vec20486[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec20486);
+  if (threadIdx.x>=256&&threadIdx.x<272) 
+    orcu_warpReduce32(threadIdx.x,orcu_vec20486);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec20486[0]+orcu_vec20486[256];
 }
-*/
-/* ------------------------------ end norms -------------------------------- */
+__global__ void orcu_norm2blksum_1e6(int orcu_n, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double orcu_vec20486[288];
+  if (tid<orcu_n) 
+    orcu_vec20486[threadIdx.x]=reducts[tid];
+  else 
+    orcu_vec20486[threadIdx.x]=0;
+  __syncthreads();
+  if (threadIdx.x<128) 
+    orcu_vec20486[threadIdx.x]+=orcu_vec20486[threadIdx.x+128];
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec20486[threadIdx.x]+=orcu_vec20486[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec20486);
+  if (threadIdx.x>=256&&threadIdx.x<272) 
+    orcu_warpReduce32(threadIdx.x,orcu_vec20486);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec20486[0]+orcu_vec20486[256];
+}
+
+__global__ void orcu_norm2kernel_1e7(const int n, double* x, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  const int gsize=gridDim.x*blockDim.x;
+  __shared__ double shared_x[512];
+  double orcu_var30729=0;
+  for (int i=tid; i<=n-1; i+=gsize) {
+    shared_x[threadIdx.x]=x[i];
+    orcu_var30729=orcu_var30729+shared_x[threadIdx.x]*shared_x[threadIdx.x];
+  }
+  /*reduce single-thread results within a block*/
+  __shared__ double orcu_vec30730[512];
+  orcu_vec30730[threadIdx.x]=orcu_var30729;
+  __syncthreads();
+  if (threadIdx.x<256) 
+    orcu_vec30730[threadIdx.x]+=orcu_vec30730[threadIdx.x+256];
+  __syncthreads();
+  if (threadIdx.x<128) 
+    orcu_vec30730[threadIdx.x]+=orcu_vec30730[threadIdx.x+128];
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec30730[threadIdx.x]+=orcu_vec30730[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec30730);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec30730[0];
+}
+__global__ void orcu_norm2blksum_1e7(int orcu_n, double* reducts) {
+  const int tid=blockIdx.x*blockDim.x+threadIdx.x;
+  __shared__ double orcu_vec30730[512];
+  if (tid<orcu_n) 
+    orcu_vec30730[threadIdx.x]=reducts[tid];
+  else 
+    orcu_vec30730[threadIdx.x]=0;
+  __syncthreads();
+  if (threadIdx.x<256) 
+    orcu_vec30730[threadIdx.x]+=orcu_vec30730[threadIdx.x+256];
+  __syncthreads();
+  if (threadIdx.x<128) 
+    orcu_vec30730[threadIdx.x]+=orcu_vec30730[threadIdx.x+128];
+  __syncthreads();
+  if (threadIdx.x<64) 
+    orcu_vec30730[threadIdx.x]+=orcu_vec30730[threadIdx.x+64];
+  __syncthreads();
+  if (threadIdx.x<32) 
+    orcu_warpReduce64(threadIdx.x,orcu_vec30730);
+  __syncthreads();
+  if (threadIdx.x==0) 
+    reducts[blockIdx.x]=orcu_vec30730[0];
+}
+/*---------------------------------------------------------*/
+/* --------------------- end norms ----------------------- */
+
+
+/* ---------------------------------------------------------
+// VecGetArray_SeqGPU
+// Grabs the pointer to the cpu memory, if necessary copies
+// that array up from the device
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecGetArray_SeqGPU"
 PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
@@ -1823,26 +2715,31 @@ PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
   Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
 
   PetscFunctionBegin;
+
   if(vd->syncState==VEC_UNALLOC){
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_MEM,"in VecGetArray_SeqGPU the vector has not been created.");
   }
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecGetArray_SeqGPU\n");
   #endif
 #ifdef PETSC_USE_DEBUG
-  PetscStackCheckByName(4,"DMDAVecGetArray",flg1);
-  PetscStackCheckByName(6,"DMGlobalToLocalBegin",flg2);
+  /* PETSc in debug mode uses a macro to VecValidValues
+     to test values before trying to use the vector. In order to
+     prevent these checks (which all require cudamemcpy), 
+     the stack is checked to make sure it's a real need for the values
+  */
+  PetscStackCheckByName("DMDAVecGetArray",flg1);
+  PetscStackCheckByName("DMGlobalToLocalBegin",flg2);
   PetscStackCheckByName("SNESDefaultComputeJacobian",flg3);
   PetscStackCheckByName("DMComputeJacobianDefault",flg4);
-
-  if(flg1 || flg2 || flg3 || flg4) {
-    if (vd->syncState==VEC_GPU){
+  if(flg1 || flg2 || flg3 || flg4 ){
+    if(vd->syncState==VEC_GPU){
       ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
     }
     vd->syncState = VEC_CPU;
   }
 #else
-  if (vd->syncState==VEC_GPU){
+  if(vd->syncState==VEC_GPU){
     ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
   }
   vd->syncState = VEC_CPU;
@@ -1853,23 +2750,32 @@ PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
 }
 
 
+/* ---------------------------------------------------------
+// VecRestoreArray_SeqGPU
+// Returns data back to the vector type and copying back
+// the memory to device only if necessary
+// written by: dlowell ANL-MCS
+// --------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "VecRestoreArray_SeqGPU"
 PetscErrorCode VecRestoreArray_SeqGPU(Vec v,PetscScalar **a){
-
+  PetscErrorCode ierr;
+  Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
 #ifdef PETSC_USE_DEBUG
   PetscInt flg1=0,flg2=0,flg3=0;
 #endif
-  PetscErrorCode ierr;
-  Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
-
   PetscFunctionBegin;
+
 #ifdef PETSC_USE_DEBUG
-  PetscStackCheckByName(1,"VecRestoreArrayRead",flg1);
+  /* PETSc in debug mode uses a macro to VecValidValues
+     to test values before trying to use the vector. In order to
+     prevent these checks (which all require cudamemcpy), 
+     the stack is checked to make sure it's a real need for the values
+  */
+  PetscStackCheckByName("VecRestoreArrayRead",flg1);
   PetscStackCheckByName("DMDAVecRestoreArray",flg2);
   PetscStackCheckByName("DMGlobalToLocalBegin",flg3);
-
-  if(vd->syncState==VEC_CPU || !(flg1||flg2||flg3){
+  if(vd->syncState==VEC_CPU||(!flg1||flg2||flg3)){
     if(a){
       ierr = VecCopyOverH2D(v,*a);CHKERRQ(ierr);
       vd->syncState=VEC_GPU;
@@ -1921,12 +2827,13 @@ PetscErrorCode VecCopy_SeqGPU(Vec s,Vec d){
       PetscFunctionReturn(0);/* nothing to do */
   }
   if(sd->syncState==VEC_CPU){
-    ierr = PetscMemcpy((void*)dd->cpuptr,(void*)sd->cpuptr,s->map->n*sizeof(PetscScalar));CHKERRQ(ierr);
+    ierr = PetscMemcpy((void*)dd->cpuptr,(void*)sd->cpuptr,s->map->n*sizeof(double));CHKERRQ(ierr);
+    dd->syncState = VEC_CPU;
     PetscFunctionReturn(0);
   }
   ierr = VecCopyOverDevice(d,s); CHKERRQ(ierr);
-  dd->syncState=sd->syncState;/* synch signal copy */
-  #if(DEBUGVEC && VERBOSE)
+  dd->syncState=VEC_GPU;
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecCopy_SeqGPU\n");
   #endif
   PetscFunctionReturn(0);
@@ -1977,7 +2884,7 @@ PetscErrorCode VecDuplicateVecs_SeqGPU(Vec vin, PetscInt m, Vec **Vlist){
   PetscFunctionBegin;
   PetscErrorCode ierr;
   PetscInt i=0;
-#if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecDuplicateVecs_SeqGPU\n"); 
   #endif
   PetscValidHeaderSpecific(vin,VEC_CLASSID,1);
@@ -1997,7 +2904,7 @@ PetscErrorCode  VecPlaceArray_SeqGPU(Vec x,const PetscScalar* array){
   PetscFunctionBegin;
   PetscErrorCode ierr;
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecPlaceArray_SeqGPU\n"); 
   #endif
   if(xd->syncState==VEC_UNALLOC){
@@ -2025,7 +2932,7 @@ PetscErrorCode  VecResetArray_SeqGPU(Vec x){
   PetscFunctionBegin;
   PetscErrorCode ierr;
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
-#if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecResetArray_SeqGPU\n"); 
   #endif
   if(xd->syncState==VEC_UNALLOC){
@@ -2049,7 +2956,7 @@ PetscErrorCode  VecReplaceArray_SeqGPU(Vec x,const PetscScalar* array){
   PetscFunctionBegin;
   PetscErrorCode ierr;
   Vec_SeqGPU* xd = (Vec_SeqGPU*)x->data;
-#if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VERBOSE)
      printf("Call to VecReplaceArray_SeqGPU\n"); 
   #endif
   if(xd->syncState==VEC_UNALLOC){
@@ -2068,24 +2975,29 @@ PetscErrorCode  VecReplaceArray_SeqGPU(Vec x,const PetscScalar* array){
 
 #undef __FUNCT__
 #define __FUNCT__ "PinnedMalloc"
-static PetscErrorCode  PinnedMalloc(PetscScalar** x,PetscInt n){
+PetscErrorCode  PinnedMalloc(PetscScalar** x,PetscInt n){
+  PetscErrorCode ierr;
   PetscFunctionBegin;
-#if(DEBUGVEC && VERBOSE)
+  ierr = PetscInfo1(0,"Allocating %d bytes on GPU\n",n); CHKERRQ(ierr);
+  ierr=VecCheckCUDAStatus(cms[0],"before PinnedMalloc");CHKERRQ(ierr);
+  //ierr = PetscPrintf(PETSC_COMM_SELF,"Allocating %d bytes on GPU\n",n); CHKERRQ(ierr);
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to PinnedMalloc\n"); 
   #endif
   cms[0]=cudaHostAlloc((void**)x,n,0);
-  #if(DEBUGVEC)
-     PetscErrorCode ierr;
-     ierr=VecCheckCUDAStatus(cms[0],"in PinnedMalloc");CHKERRQ(ierr);
-  #endif
+
+  ierr=VecCheckCUDAStatus(cms[0],"in PinnedMalloc");CHKERRQ(ierr);
+
+  //SETERRQ1(PETSC_COMM_SELF,0,"Error Allocating Memory -- %d bytes requested",n);
+
   PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
 #define __FUNCT__ "PinnedFree"
-static PetscErrorCode  PinnedFree(PetscScalar* x){
+PetscErrorCode  PinnedFree(PetscScalar* x){
   PetscFunctionBegin;
-#if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VERBOSE)
      printf("Call to PinnedFree\n"); 
   #endif
   cms[0]=cudaFreeHost(x);
@@ -2154,15 +3066,15 @@ PetscErrorCode  VecCreate_SeqGPU(Vec V){
   seqgpu->array_allocated=PETSC_NULL;
   seqgpu->array=PETSC_NULL;
   /* create an associated stream */
-  cms[0] = cudaStreamCreate(&(seqgpu->stream));
+  cms[0] = cudaStreamCreate(&(seqgpu->streamid));
   /* allocate the variable for vector size */
   cms[1]=cudaMalloc((void**)&(seqgpu->length),sizeof(int));
   /* send vec length size to device */
   ccs[0]=cudaMemcpyAsync((void*)seqgpu->length,
-               (void*)&(V->map->n),sizeof(int),cudaMemcpyHostToDevice,seqgpu->stream);
+               (void*)&(V->map->n),sizeof(int),cudaMemcpyHostToDevice,seqgpu->streamid);
   /* allocate the vector on device */
   cms[2]=cudaMalloc((void**)&(seqgpu->devptr),V->map->n*sizeof(double));
-  ccs[1]=cudaMemsetAsync((void*)seqgpu->devptr,0,V->map->n*sizeof(double),seqgpu->stream);
+  ccs[1]=cudaMemsetAsync((void*)seqgpu->devptr,0,V->map->n*sizeof(double),seqgpu->streamid);
   /* allocate the variable for vector offsets */
   cms[3]=cudaMalloc((void**)&(seqgpu->offset),sizeof(int));
   /* allocate the variable for vector segment length */
@@ -2170,15 +3082,15 @@ PetscErrorCode  VecCreate_SeqGPU(Vec V){
   /* allocate the variable for vector single value result */
   cms[5]=cudaMalloc((void**)&(seqgpu->zval),sizeof(double));
   cms[6]=cudaMalloc((void**)&(seqgpu->scalar),sizeof(double));
-  /* using pinned memory */
-  ierr = PinnedMalloc(&(seqgpu->cpuptr),V->map->n*sizeof(PetscScalar));CHKERRQ(ierr);
-  //ierr = PetscMalloc(V->map->n*sizeof(PetscScalar),&(seqgpu->cpuptr));
-  ierr = PetscMemzero(seqgpu->cpuptr,V->map->n*sizeof(PetscScalar));CHKERRQ(ierr);
+  /* using pinned memory (could be a resource hog with very large arrays) */
+  ierr = PinnedMalloc(&(seqgpu->cpuptr),V->map->n*sizeof(double));CHKERRQ(ierr);
+
+  /* ierr = PetscMalloc(V->map->n*sizeof(PetscScalar),&(seqgpu->cpuptr)); */
+  ierr = PetscMemzero(seqgpu->cpuptr,V->map->n*sizeof(double));CHKERRQ(ierr);
   seqgpu->syncState=VEC_ALLOC;
-
-
+  /* printf("VmapN: %d\n",V->map->n);*/
   #if(DEBUGVEC)
-    #if(VERBOSE)
+    #if(VVERBOSE)
        printf("Call to VecCreate_SeqGPU\n");
     #endif
     ierr = VecCheckCUDAStatus(cms[0],"on cudaStreamCreate VecCreate_SeqGPU");  CHKERRQ(ierr);
@@ -2202,7 +3114,7 @@ PetscErrorCode VecDestroy_SeqGPU(Vec v){
   PetscFunctionBegin;
   PetscErrorCode ierr;
   Vec_SeqGPU* vd = (Vec_SeqGPU*)v->data;
-#if(DEBUGVEC && VERBOSE)
+#if(DEBUGVEC && VVERBOSE)
      printf("Call to VecDestroyArray_SeqGPU\n"); 
   #endif
   PetscValidHeaderSpecific(v,VEC_CLASSID,1);
@@ -2212,9 +3124,9 @@ PetscErrorCode VecDestroy_SeqGPU(Vec v){
       cms[2]=cudaFree(vd->segment); vd->segment=PETSC_NULL;
       cms[3]=cudaFree(vd->zval);    vd->zval=PETSC_NULL;
       cms[4]=cudaFree(vd->scalar);  vd->scalar=PETSC_NULL;
-      cms[5] = cudaStreamDestroy(vd->stream);
+      cms[5] = cudaStreamDestroy(vd->streamid);
       ierr = PinnedFree(vd->cpuptr); CHKERRQ(ierr);
-      //ierr = PetscFree(vd->cpuptr);CHKERRQ(ierr);
+      /* ierr = PetscFree(vd->cpuptr);CHKERRQ(ierr); */
       #if(DEBUGVEC)
         ierr=VecCheckCUDAStatus(cms[0],"destroying devptr in VecDestroy_SeqGPU"); CHKERRQ(ierr);
         ierr=VecCheckCUDAStatus(cms[1],"destroying length in VecDestroy_SeqGPU"); CHKERRQ(ierr);
@@ -2238,7 +3150,7 @@ PetscErrorCode VecDestroy_SeqGPU(Vec v){
 #define __FUNCT__ "VecDestroyVecs_SeqGPU"
 PetscErrorCode  VecDestroyVecs_SeqGPU(PetscInt m,Vec *vv){
   PetscFunctionBegin;
-  #if(DEBUGVEC && VERBOSE)
+  #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecDestroyVecs_SeqGPU\n");
   #endif
   PetscErrorCode ierr;
@@ -2247,16 +3159,16 @@ PetscErrorCode  VecDestroyVecs_SeqGPU(PetscInt m,Vec *vv){
   for(i=0;i<m;i++){
     ierr = VecDestroy(&vv[i]);CHKERRQ(ierr);
   }
+  ierr = PetscFree(vv); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__  
-#define __FUNCT__ "VecView_Seq_ASCII"
-static PetscErrorCode VecView_Seq_ASCII(Vec xin,PetscViewer viewer){
+#undef __FUNCT__
+#define __FUNCT__ "VecView_SeqGPU_ASCII"
+PetscErrorCode VecView_SeqGPU_ASCII(Vec xin,PetscViewer viewer){
   PetscFunctionBegin;
   printf("VecView_Seq_ASCII() (***EMPTY***)\n");
   PetscFunctionReturn(0);
 }
 
 EXTERN_C_END
-
