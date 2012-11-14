@@ -1,13 +1,14 @@
+#requirespackage 'PETSC_HAVE_CUDA'
 
 ALL: lib
 
-CFLAGS   =
+CPPFLAGS   =
 FFLAGS   =
 SOURCEC  =
 SOURCECU = vecgpu.cu
 SOURCEF  =
 SOURCEH  = gpuvecimpl.h
-OBJSC    = vecgpu.o
+OBJSCU   = vecgpu.o
 OBJSF    =
 LIBBASE  = libpetscvec
 MANSEC   = Vec
