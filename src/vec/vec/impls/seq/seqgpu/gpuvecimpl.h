@@ -10,6 +10,24 @@
 #include <petsc-private/vecimpl.h>
 #include <../src/vec/vec/impls/dvecimpl.h>
 
+#define MyPetscStackCheckByName(str,flg)                                 \
+  do{ \
+    if(PetscStackActive){                                                    \
+       flg=0;                                                          \
+       int ss = petscstack->currentsize;                               \
+       int i=0;                                                        \
+       while(i<ss && ss>0){                                           \
+         if(strcmp(petscstack->function[i],str) == 0){              \
+           flg = 1;                            \
+           break;                              \
+         }                                     \
+         i++;                                  \
+       }                                       \
+ }else{                                        \
+  printf(">>>>>> No petscstack present!!!\n"); \
+ }                                             \
+ }while(0)
+
 EXTERN_C_BEGIN
 #include <sys/time.h>
 #include <math.h>
@@ -238,7 +256,7 @@ extern PetscBool  synchronizeGPU;
 
 #define CHKERRGPU(err) if (((int)err) != (int)CUBLAS_STATUS_SUCCESS) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"CUDA error %s",cudaGetErrorString(err))
 
-#define WaitForGPU() synchronizeGPU ? cudaDeviceSynchronize() : 0
+/* #define WaitForGPU() synchronizeGPU ? cudaDeviceSynchronize() : 0 */
 
 /* Flag used to indicate the state of the Vecotr type with regards to the 
    location of the current uptodate data, if the memory has been allocated,

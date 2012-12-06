@@ -23,11 +23,14 @@ typedef struct {
   PetscInt      n;          //< Grid size (y)
   PetscInt      p;          //< Grid size (z)
   PetscInt      dim;        //< Dimensionality
+  PetscInt      stencil_type; /*0 for star, 1 for box */
+  PetscInt      *ja, *ia;
 
   PetscInt      non_zeros;  //< Count of non-zero entries
 
   PetscScalar * deviceData; //< Device data
 
+  PetscInt *diag_offsets;
   std::map<int, int> * diag_starts;
   std::vector<int> * diagonals;
 

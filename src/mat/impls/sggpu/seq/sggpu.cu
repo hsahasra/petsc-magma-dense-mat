@@ -51,6 +51,10 @@ PetscErrorCode MatGetRowMaxAbs_SeqSGGPU(Mat A, Vec v, PetscInt idx[]);
 PetscErrorCode MatView_SeqSGGPU(Mat A, PetscViewer viewer);
 PetscErrorCode MatAssemblyBegin_SeqSGGPU(Mat A, MatAssemblyType type);
 PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type);
+PetscErrorCode MatView_SeqSGGPU_ASCII(Mat,PetscViewer);
+extern PetscErrorCode MatFDColoringApply_SeqSGGPU(Mat,MatFDColoring,Vec,MatStructure*,void*);
+extern PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat,ISColoring,MatFDColoring);
+extern PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);
 
 
 // ----------------------------------------------------------
@@ -127,17 +131,17 @@ static struct _MatOps MatOps_Values = {
 /*10*/0,0,0,0,0,
 /*15*/0,0,MatGetDiagonal_SeqSGGPU,MatDiagonalScale_SeqSGGPU,0,
 /*20*/MatAssemblyBegin_SeqSGGPU,MatAssemblyEnd_SeqSGGPU,0,MatZeroEntries_SeqSGGPU,0,
-/*25*/0,0,0,0,MatSetUpPreallocation_SeqSGGPU,
+/*25*/0,0,0,0,MatSetUp_SeqSGGPU,
 /*30*/0,0,0,0,0,
 /*35*/0,0,0,0,0,
 /*40*/0,0,0,0,0,
 /*45*/0,0,0,0,0,
-/*50*/0,0,0,0,0,
+/*50*/0,0,MatGetColumnIJ_SeqSGGPU,0,MatFDColoringCreate_SeqSGGPU,
 /*55*/0,0,0,MatSetValuesBlocked_SeqSGGPU,0,
 /*60*/MatDestroy_SeqSGGPU,MatView_SeqSGGPU,0,0,0,
 /*65*/0,0,MatSetValues_SeqSGGPU,0,MatGetRowMaxAbs_SeqSGGPU,
 /*70*/0,0,0,0,0,
-/*75*/0,0,0,0,0,
+/*75*/MatFDColoringApply_SeqSGGPU,0,0,0,0,
 /*80*/0,0,0,0,0,
 /*85*/0,0,MatSetValuesBlocked_SeqSGGPU,0,0,
 /*90*/0,0,0,0,0,
@@ -150,7 +154,7 @@ static struct _MatOps MatOps_Values = {
 /*125*/0,0,0,0,0,
 /*130*/0,0,0,0,0,
 /*135*/0,0,0,0,0,
-/*140*/0,MatSetStencil_SeqSGGPU,
+/*140*/0,0,
 /*142*/MatSetGrid_SeqSGGPU
 };
 
@@ -214,6 +218,7 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
   if (mat->diag_starts) {
     delete mat->diag_starts;
   }
+  ierr = PetscFree(mat->diag_offsets); CHKERRQ(ierr);
   if (mat->diagonals) {
     delete mat->diagonals;
   }
@@ -226,7 +231,8 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
   if (mat->deviceDiags) {
     cudaFree(mat->deviceDiags);
   }
-
+  if(mat->ja)       { ierr = PetscFree(mat->ja); CHKERRQ(ierr);       }
+  if(mat->ia)       { ierr = PetscFree(mat->ia); CHKERRQ(ierr);       }
   checkCudaError(cudaStreamDestroy(mat->stream));
   PetscFree(mat); CHKERRQ(ierr);
 
@@ -256,7 +262,7 @@ PetscErrorCode MatSetGrid_SeqSGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p)
 PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 {
   Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
-  PetscBool iscusp,isseqgpu;
+  PetscBool isseqcusp,isseqgpu,ismpicusp,iscusp;
   PetscErrorCode ierr;
   PetscInt mat_size;
   CUSPARRAY *xgpu,*ygpu;
@@ -269,7 +275,9 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   // Initialize y to zero
   ierr = VecSet(y, 0.0); CHKERRQ(ierr);
 
-  ierr = PetscObjectTypeCompare((PetscObject)x,VECCUSP,&iscusp);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQCUSP,&isseqcusp);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)x,VECMPICUSP,&ismpicusp);CHKERRQ(ierr);
+  iscusp = (isseqcusp || ismpicusp) ? PETSC_TRUE : PETSC_FALSE;
   ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQGPU,&isseqgpu);CHKERRQ(ierr);
   if (isseqgpu) {
     dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
@@ -387,10 +395,12 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
 {
   int i, j;
   PetscErrorCode ierr;
+  PetscBool resizegpu = PETSC_FALSE;
   Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
 
   PetscFunctionBegin;
   SGTrace;
+
 
   // Handle each element
   for (i = 0; i < nrow; i++) {
@@ -415,6 +425,7 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
       int diag_offset = 0;
       if (I == diag_starts.end()) {
         printf("WARNING: malloc() in MatSetValues\n");
+        resizegpu = PETSC_TRUE;
         // The diagonal does not yet exist, so add a new diagonal
         int num_diags = diag_starts.size() + 1;
         int size = num_diags * mat->m * mat->n * mat->p * mat->dof * mat->dof;
@@ -449,74 +460,127 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
       mat->non_zeros++;
     }
   }
-
-  PetscFunctionReturn(0);
-}
-
-
-#undef __FUNCT__
-#define __FUNCT__ "MatSetStencil_SeqSGGPU"
-PetscErrorCode MatSetStencil_SeqSGGPU(Mat A, PetscInt dim, const PetscInt dims[], const PetscInt starts[], PetscInt dof)
-{
-  Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  SGTrace;
-
-  if (dim < 1 || dim > 3) {
-    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Dim must be between 1 and 3.");
-  }
-
-  mat->m = dims[0];
-  if (dim > 1) {
-    mat->n = dims[1];
-    if (dim > 2) {
-      mat->p = dims[2];
-    } else {
-      mat->p = 1;
+  if (resizegpu) {
+    int size,mat_size;
+    // Create GPU buffer
+    if (mat->deviceData) {
+      cudaFree(mat->deviceData);
     }
-  } else {
-    mat->n = 1;
-    mat->p = 1;
-  }
+    size = mat->diag_starts->size() * mat->m * mat->n * mat->p * mat->dof * mat->dof;
+    checkCudaError(cudaMalloc(&mat->deviceData, sizeof(PetscScalar) * size));
 
-  mat->dof = dof;
-  mat->dim = dim;
+    // Copy data to device
+    checkCudaError(cudaMemcpy(mat->deviceData, mat->hostData, sizeof(PetscScalar) * size, cudaMemcpyHostToDevice));
 
-#if _TRACE
-  printf("- m: %d  n: %d  p: %d  dof: %d\n", mat->m, mat->n, mat->p, mat->dof);
-#endif
 
-  // It appears that we are responsible for pre-allocating
-  if (!A->preallocated) {
-    ierr = MatSetUpPreallocation_SeqSGGPU(A); CHKERRQ(ierr);
+    mat_size = mat->m * mat->n * mat->p * mat->dof;
+
+    if (mat->deviceX) {
+      cudaFree(mat->deviceX);
+    }
+    if (mat->deviceY) {
+      cudaFree(mat->deviceY);
+    }
+    if (mat->deviceDiags) {
+      cudaFree(mat->deviceDiags);
+    }
+    // We know the expected size of x, y, so go ahead and allocate them now
+    checkCudaError(cudaMalloc(&mat->deviceX, mat_size * sizeof(PetscScalar)));
+    checkCudaError(cudaMalloc(&mat->deviceY, mat_size * sizeof(PetscScalar)));
+
+    // We also know how many diagonals we have, and their indices
+    checkCudaError(cudaMalloc(&mat->deviceDiags, sizeof(int) * mat->diagonals->size()));
   }
 
   PetscFunctionReturn(0);
 }
 
 
-#undef __FUNCT__
-#define __FUNCT__ "MatSetUpPreallocation_SeqSGGPU"
-PetscErrorCode MatSetUpPreallocation_SeqSGGPU(Mat A)
+#undef __FUNCT__  
+#define __FUNCT__ "MatFDColoringView_Private"
+PetscErrorCode MatFDColoringView_Private(MatFDColoring fd)
 {
-  Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
+  PetscErrorCode ierr;
+  PetscBool      flg = PETSC_FALSE;
+  PetscViewer    viewer;
+
+  PetscFunctionBegin;
+  ierr = PetscViewerASCIIGetStdout(((PetscObject)fd)->comm,&viewer);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_fd_coloring_view",&flg,PETSC_NULL);CHKERRQ(ierr);
+  if (flg) {
+    ierr = MatFDColoringView(fd,viewer);CHKERRQ(ierr);
+  }
+  flg  = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_fd_coloring_view_info",&flg,PETSC_NULL);CHKERRQ(ierr);
+  if (flg) {
+    ierr = PetscViewerPushFormat(viewer,PETSC_VIEWER_ASCII_INFO);CHKERRQ(ierr);
+    ierr = MatFDColoringView(fd,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerPopFormat(viewer);CHKERRQ(ierr);
+  }
+  flg  = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_fd_coloring_view_draw",&flg,PETSC_NULL);CHKERRQ(ierr);
+  if (flg) {
+    ierr = MatFDColoringView(fd,PETSC_VIEWER_DRAW_(((PetscObject)fd)->comm));CHKERRQ(ierr);
+    ierr = PetscViewerFlush(PETSC_VIEWER_DRAW_(((PetscObject)fd)->comm));CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
+
+
+#undef __FUNCT__
+#define __FUNCT__ "MatSetUp_SeqSGGPU"
+PetscErrorCode MatSetUp_SeqSGGPU(Mat A)
+{
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   SGTrace;
+  //  ierr =  MatSeqSGGPUSetPreallocation(A,PETSC_DEFAULT,0);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "MatSeqSGGPUSetPreallocation"
+PetscErrorCode MatSeqSGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt dof)
+{
+  PetscErrorCode ierr;
+  Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
+  PetscInt dim,diag_size,size,num_diags,i,vecsize;
+
+  if(A->preallocated)PetscFunctionReturn(0);
+  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
+  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
+
+  dim = mat->stencil.dim;
+  mat->m = mat->n = mat->p = mat->dof = 1;
+  if (mat->dim > 0) mat->m = A->stencil.dims[0];
+  if (mat->dim > 1) mat->n = A->stencil.dims[1];
+  if (mat->dim > 2) mat->p = A->stencil.dims[2];
+
+  mat->dim = dim;
+  mat->dof = dof;
+  mat->stencil_type = stencil_type;
+  if (stencil_type == 0) {
+    /* star stencil */
+    num_diags = 2*mat->dim + 1;
+  } else {
+    /* box stencil */
+    num_diags =  1;
+    for (i=0;i<b->dim;i++) num_diags*=3;
+  }
+
+  diag_size = mat->m * mat->n * mat->p * mat->dof * mat->dof;
+  size = num_diags * diag_size;
 
   if (mat->m == 0 || mat->n == 0 || mat->p == 0 || mat->dof == 0) {
-    printf("MatSetPreallocation_SeqSGGPU called without valid m, n, p, and dof!");
-    exit(0);
+    SETERRQ(PETSC_COMM_SELF,"MatSetPreallocation_SeqSGGPU called without valid m, n, p, and dof!");
   }
 
-  // Determine how many diagonals we should pre-allocate
-  int num_diags = (2*mat->dim+1);
-  int diag_size = mat->m * mat->n * mat->p * mat->dof * mat->dof;
-  int size = num_diags * diag_size;
 
+  ierr = PetscMalloc(sizeof(PetscInt)*num_diags,&mat->diag_offsets);
   ierr = PetscMalloc(size * sizeof(PetscScalar), &mat->hostData); CHKERRQ(ierr);
   memset(mat->hostData, 0, size * sizeof(PetscScalar));
 
@@ -526,20 +590,60 @@ PetscErrorCode MatSetUpPreallocation_SeqSGGPU(Mat A)
   (*mat->diagonals).push_back(1);
   (*mat->diag_starts)[-1] = 2 * diag_size;
   (*mat->diagonals).push_back(-1);
-  if (mat->dim > 1) {
-    (*mat->diag_starts)[mat->m] = 3 * diag_size;
-    (*mat->diagonals).push_back(mat->m);
-    (*mat->diag_starts)[-mat->m] = 4 * diag_size;
-    (*mat->diagonals).push_back(-mat->m);
-  }
-  if (mat->dim > 2) {
-    (*mat->diag_starts)[mat->m*mat->n] = 5 * diag_size;
-    (*mat->diagonals).push_back(mat->m*mat->n);
-    (*mat->diag_starts)[-mat->m*mat->n] = 6 * diag_size;
-    (*mat->diagonals).push_back(-mat->m*mat->n);
+  if (mat->stencil_type == 0) {
+    if (mat->dim == 2) {
+      (*mat->diag_starts)[mat->n] = 3 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n] = 4 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+    } else if (mat->dim == 3) {
+      (*mat->diag_starts)[mat->m] = 3 * diag_size;
+      (*mat->diagonals).push_back(mat->n);
+      (*mat->diag_starts)[-mat->m] = 4 * diag_size;
+      (*mat->diagonals).push_back(-mat->n);
+
+      (*mat->diag_starts)[mat->m*mat->n] = 5 * diag_size;
+      (*mat->diagonals).push_back(mat->m*mat->n);
+      (*mat->diag_starts)[-mat->m*mat->n] = 6 * diag_size;
+      (*mat->diagonals).push_back(-mat->m*mat->n);
+    }
+  } else {
+    if (mat->dim == 2) {
+      (*mat->diag_starts)[mat->n-1] = 3 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n-1] = 4 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+      (*mat->diag_starts)[mat->n] = 5 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n] = 6 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+      (*mat->diag_starts)[mat->n+1] = 7 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n+1] = 8 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+    }
   }
 
-  A->preallocated = PETSC_TRUE;
+  
+  // Create GPU buffer
+  if (mat->deviceData) {
+    cudaFree(mat->deviceData);
+  }
+  checkCudaError(cudaMalloc(&mat->deviceData, sizeof(PetscScalar) * size));
+
+  // Copy data to device
+  checkCudaError(cudaMemcpy(mat->deviceData, mat->hostData, sizeof(PetscScalar) * size, cudaMemcpyHostToDevice));
+
+
+  vec_size = mat->m * mat->n * mat->p * mat->dof;
+
+  // We know the expected size of x, y, so go ahead and allocate them now
+  checkCudaError(cudaMalloc(&mat->deviceX, vec_size * sizeof(PetscScalar)));
+  checkCudaError(cudaMalloc(&mat->deviceY, vec_size * sizeof(PetscScalar)));
+
+  // We also know how many diagonals we have, and their indices
+  checkCudaError(cudaMalloc(&mat->deviceDiags, sizeof(int) * mat->diagonals->size()));
+
 
   PetscFunctionReturn(0);
 }
@@ -549,9 +653,14 @@ PetscErrorCode MatSetUpPreallocation_SeqSGGPU(Mat A)
 #define __FUNCT__ "MatZeroEntries_SeqSGGPU"
 PetscErrorCode MatZeroEntries_SeqSGGPU(Mat A)
 {
+  Mat_SeqSGGPU *mat = (Mat_SeqSGGPU*)A->data;
+  PetscInt size;
   PetscFunctionBegin;
   SGTrace;
-  SETERRQ(PETSC_COMM_SELF,0,"MatZeroEntries_SeqSGGPU not implemented");
+  size = mat->diag_starts->size() * mat->m * mat->n * mat->p * mat->dof * mat->dof;
+  memset(mat->hostData, 0, size * sizeof(PetscScalar));
+  
+  PetscFunctionReturn(0);
 }
 
 
@@ -604,15 +713,100 @@ PetscErrorCode MatGetRowMaxAbs_SeqSGGPU(Mat A, Vec v, PetscInt idx[])
   SETERRQ(PETSC_COMM_SELF,0,"MatGetRowMaxAbs_SeqSGGPU not implemented");
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "MatView_SeqSGGPU_ASCII"
+PetscErrorCode MatView_SeqSGGPU_ASCII(Mat A, PetscViewer viewer)
+{
+  Mat_SeqSGGPU *a = (Mat_SeqSGGPU*)A->data;
+  PetscErrorCode ierr;
+  PetscInt nrows,ndiag,dof,i,j,iblock,col,index,offset;
+  std::map<int, int> &diag_starts = *(a->diag_starts);
+  
+
+  PetscFunctionBegin;  
+  cudaDeviceSynchronize();
+  ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = PetscObjectPrintClassNamePrefixType((PetscObject)A,viewer,"Matrix Object");CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"MatView_SeqSGGPU_ASCII still in development\n");
+
+  nrows = a->m * a->n * a->p * a->dof;
+  ndiag = a->diagonals->size();
+  dof = a->dof;
+
+  ierr = PetscViewerASCIIPrintf(viewer,"offsets: \n"); CHKERRQ(ierr);
+  for (std::map<int, int>::iterator I = diag_starts.begin(),
+         E = diag_starts.end(); I != E; ++I) {
+    PetscViewerASCIIPrintf(viewer,"- Diag %d:%d\n", I->first, I->second);
+  }
+  ierr = PetscViewerASCIIPrintf(viewer,"\n"); CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"hostData:\n"); CHKERRQ(ierr);
+  for (i=0;i<nrows;i++) {
+    ierr = PetscViewerASCIIPrintf(viewer,"row %2.2D:",i); CHKERRQ(ierr);
+    for (j=0;j<ndiag*dof;j++) {
+      ierr = PetscViewerASCIIPrintf(viewer," %4G ",a->hostData[i+j*nrows]);CHKERRQ(ierr);
+    }
+    ierr = PetscViewerASCIIPrintf(viewer,"\n");
+  }
+  ierr = PetscViewerASCIIPrintf(viewer,"\n\n");
+
+
+
+  for (iblock=0;iblock<nrows/dof;iblock++)  {
+    for (i=iblock*dof;i<(iblock+1)*dof;i++) {
+      ierr = PetscViewerASCIIPrintf(viewer,"row %D:",i);CHKERRQ(ierr);
+      for (std::map<int, int>::iterator I = a->diag_starts->begin(),
+             E = a->diag_starts->end(); I != E; ++I) {
+        /* Ignore 0 padding */
+        offset = I->first;
+        if (offset + iblock < 0) {
+          continue;
+        }
+        if (offset + iblock >= (nrows/dof)) {
+          break;
+        }
+        
+        for (j=0;j<dof;j++) {
+          index = i + I->second*dof + j*nrows*dof; // column-major
+          col = offset*dof+(iblock*dof) + (j*dof);
+#if defined(PETSC_USE_COMPLEX)
+          if (PetscImaginaryPart(a->hostData[index]) > 0.0) {
+            ierr = PetscViewerASCIIPrintf(viewer," (%D, %G + %G i)",col,PetscRealPart(a->hostData[index]),PetscImaginaryPart(a->hostData[index]));CHKERRQ(ierr);
+          } else if (PetscImaginaryPart(a->hostData[index]) < 0.0) {
+            ierr = PetscViewerASCIIPrintf(viewer," (%D, %G - %G i)",col,PetscRealPart(a->hostData[index]),-PetscImaginaryPart(a->hostData[index]));CHKERRQ(ierr);
+          } else {
+            ierr = PetscViewerASCIIPrintf(viewer," (%D, %G) ",col,PetscRealPart(a->hostData[index]));CHKERRQ(ierr);
+          }
+#else
+          ierr = PetscViewerASCIIPrintf(viewer," (%D, %G) ",col,a->hostData[index]);CHKERRQ(ierr);
+#endif
+        }
+      }
+      ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+    }
+  }
+
+  ierr = PetscViewerASCIIUseTabs(viewer,PETSC_TRUE);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 
 #undef __FUNCT__
 #define __FUNCT__ "MatView_SeqSGGPU"
 PetscErrorCode MatView_SeqSGGPU(Mat A, PetscViewer viewer)
 {
+  PetscErrorCode ierr;
+  PetscBool isascii;
   PetscFunctionBegin;
+
   SGTrace;
-  SETERRQ(PETSC_COMM_SELF,0,"MatView_SeqSGGPU not implemented");
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
+  if (isascii) {
+    ierr = MatView_SeqSGGPU_ASCII(A,viewer);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
 }
+
 
 
 #undef __FUNCT__
@@ -647,27 +841,410 @@ PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type)
   }
 #endif
 
-  // Create GPU buffer
-  if (mat->deviceData) {
-    cudaFree(mat->deviceData);
-  }
-  int size = mat->diag_starts->size() * mat->m * mat->n * mat->p * mat->dof * mat->dof;
-  checkCudaError(cudaMalloc(&mat->deviceData, sizeof(PetscScalar) * size));
-
-  // Copy data to device
-  checkCudaError(cudaMemcpy(mat->deviceData, mat->hostData, sizeof(PetscScalar) * size, cudaMemcpyHostToDevice));
-
-
-  int mat_size = mat->m * mat->n * mat->p * mat->dof;
-
-  // We know the expected size of x, y, so go ahead and allocate them now
-  checkCudaError(cudaMalloc(&mat->deviceX, mat_size * sizeof(PetscScalar)));
-  checkCudaError(cudaMalloc(&mat->deviceY, mat_size * sizeof(PetscScalar)));
-
-  // We also know how many diagonals we have, and their indices
-  checkCudaError(cudaMalloc(&mat->deviceDiags, sizeof(int) * mat->diagonals->size()));
   checkCudaError(cudaMemcpyAsync(mat->deviceDiags, &(*mat->diagonals)[0], sizeof(int) * mat->diagonals->size(), cudaMemcpyHostToDevice, mat->stream));
 
   PetscFunctionReturn(0);
+
 }
+
+
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatFDColoringApply_SeqSGGPU"
+PetscErrorCode  MatFDColoringApply_SeqSGGPU(Mat J,MatFDColoring coloring,Vec x1,MatStructure *flag,void *sctx)
+{
+  PetscErrorCode (*f)(void*,Vec,Vec,void*) = (PetscErrorCode (*)(void*,Vec,Vec,void *))coloring->f;
+  PetscErrorCode ierr;
+  PetscInt       k,start,end,l,row,col,srow,**vscaleforrow;
+  PetscScalar    dx,*y,*xx,*w3_array;
+  PetscScalar    *vscale_array;
+  PetscReal      epsilon = coloring->error_rel,umin = coloring->umin,unorm; 
+  Vec            w1,w2,w3;
+  void           *fctx = coloring->fctx;
+  PetscBool      flg = PETSC_FALSE;
+  PetscInt       ctype=coloring->ctype,N,col_start=0,col_end=0;
+  Vec            x1_tmp;
+
+  PetscFunctionBegin;    
+  PetscValidHeaderSpecific(J,MAT_CLASSID,1);
+  PetscValidHeaderSpecific(coloring,MAT_FDCOLORING_CLASSID,2);
+  PetscValidHeaderSpecific(x1,VEC_CLASSID,3);
+  if (!f) SETERRQ(((PetscObject)J)->comm,PETSC_ERR_ARG_WRONGSTATE,"Must call MatFDColoringSetFunction()");
+
+  ierr = PetscLogEventBegin(MAT_FDColoringApply,coloring,J,x1,0);CHKERRQ(ierr);
+
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_fd_coloring_dont_rezero",&flg,PETSC_NULL);CHKERRQ(ierr);
+  if (flg) {
+    ierr = PetscInfo(coloring,"Not calling MatZeroEntries()\n");CHKERRQ(ierr);
+  } else {
+    PetscBool  assembled;
+    ierr = MatAssembled(J,&assembled);CHKERRQ(ierr);
+    if (assembled) {
+      ierr = MatZeroEntries(J);CHKERRQ(ierr);
+    }
+  }
+
+  x1_tmp = x1; 
+  if (!coloring->vscale){ 
+    ierr = VecDuplicate(x1_tmp,&coloring->vscale);CHKERRQ(ierr);
+  }
+
+  if (coloring->htype[0] == 'w') { /* tacky test; need to make systematic if we add other approaches to computing h*/
+    ierr = VecNorm(x1_tmp,NORM_2,&unorm);CHKERRQ(ierr);
+  }
+
+  if (!coloring->w3) {
+    /*
+    ierr = VecDestroy(&coloring->w1); CHKERRQ(ierr);
+    ierr = VecDestroy(&coloring->w2); CHKERRQ(ierr);
+    ierr = VecDuplicate(x1_tmp,&coloring->w1);CHKERRQ(ierr);
+     ierr = VecDuplicate(x1_tmp,&coloring->w2);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent(coloring,coloring->w1);CHKERRQ(ierr);
+     ierr = PetscLogObjectParent(coloring,coloring->w2);CHKERRQ(ierr);*/
+    ierr = VecDuplicate(x1_tmp,&coloring->w3);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent(coloring,coloring->w3);CHKERRQ(ierr);
+  }
+  w1 = coloring->w1;
+  w2 = coloring->w2;
+  w3 = coloring->w3;
+  ierr = VecGetOwnershipRange(w1,&start,&end);CHKERRQ(ierr); /* OwnershipRange is used by ghosted x! */
+
+  /* Set w1 = F(x1) */
+  if (!coloring->fset) {
+    ierr = PetscLogEventBegin(MAT_FDColoringFunction,0,0,0,0);CHKERRQ(ierr);
+    ierr = (*f)(sctx,x1_tmp,w1,fctx);CHKERRQ(ierr);
+    ierr = PetscLogEventEnd(MAT_FDColoringFunction,0,0,0,0);CHKERRQ(ierr);
+  } else {
+    coloring->fset = PETSC_FALSE;
+  }
+
+
+    /* Compute all the local scale factors, including ghost points */
+  ierr = VecGetLocalSize(x1_tmp,&N);CHKERRQ(ierr);
+  ierr = VecGetArray(x1_tmp,&xx);CHKERRQ(ierr);
+  ierr = VecGetArray(coloring->vscale,&vscale_array);CHKERRQ(ierr);
+  if (ctype == IS_COLORING_GHOSTED){
+    col_start = 0; col_end = N;
+  } else if (ctype == IS_COLORING_GLOBAL){
+    xx = xx - start;
+    vscale_array = vscale_array - start;
+    col_start = start; col_end = N + start;
+  }
+  for (col=col_start; col<col_end; col++){ 
+    /* Loop over each local column, vscale[col] = 1./(epsilon*dx[col]) */      
+    if (coloring->htype[0] == 'w') {
+      dx = 1.0 + unorm;
+    } else {
+      dx  = xx[col];
+    }
+    if (dx == (PetscScalar)0.0) dx = 1.0;
+#if !defined(PETSC_USE_COMPLEX)
+    if (dx < umin && dx >= 0.0)      dx = umin;
+    else if (dx < 0.0 && dx > -umin) dx = -umin;
+#else
+    if (PetscAbsScalar(dx) < umin && PetscRealPart(dx) >= 0.0)     dx = umin;
+    else if (PetscRealPart(dx) < 0.0 && PetscAbsScalar(dx) < umin) dx = -umin;
+#endif
+    dx               *= epsilon;
+    vscale_array[col] = (PetscScalar)1.0/dx;
+  } 
+  if (ctype == IS_COLORING_GLOBAL)  vscale_array = vscale_array + start;      
+  ierr = VecRestoreArray(coloring->vscale,&vscale_array);CHKERRQ(ierr);
+  if (ctype == IS_COLORING_GLOBAL){
+    ierr = VecGhostUpdateBegin(coloring->vscale,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+    ierr = VecGhostUpdateEnd(coloring->vscale,INSERT_VALUES,SCATTER_FORWARD);CHKERRQ(ierr);
+  }
+    
+  if (coloring->vscaleforrow) {
+    vscaleforrow = coloring->vscaleforrow;
+  } else SETERRQ(((PetscObject)J)->comm,PETSC_ERR_ARG_NULL,"Null Object: coloring->vscaleforrow");
+
+  /*
+    Loop over each color
+  */
+  ierr = VecGetArray(coloring->vscale,&vscale_array);CHKERRQ(ierr);
+  for (k=0; k<coloring->ncolors; k++) { 
+    coloring->currentcolor = k;
+    ierr = VecCopy(x1_tmp,w3);CHKERRQ(ierr);
+    ierr = VecGetArray(w3,&w3_array);CHKERRQ(ierr);
+    if (ctype == IS_COLORING_GLOBAL) w3_array = w3_array - start;
+    /*
+      Loop over each column associated with color 
+      adding the perturbation to the vector w3.
+    */
+    for (l=0; l<coloring->ncolumns[k]; l++) {
+      col = coloring->columns[k][l];    /* local column of the matrix we are probing for */
+      if (coloring->htype[0] == 'w') {
+        dx = 1.0 + unorm;
+      } else {
+        dx  = xx[col];
+      }
+      if (dx == (PetscScalar)0.0) dx = 1.0;
+#if !defined(PETSC_USE_COMPLEX)
+      if (dx < umin && dx >= 0.0)      dx = umin;
+      else if (dx < 0.0 && dx > -umin) dx = -umin;
+#else
+      if (PetscAbsScalar(dx) < umin && PetscRealPart(dx) >= 0.0)     dx = umin;
+      else if (PetscRealPart(dx) < 0.0 && PetscAbsScalar(dx) < umin) dx = -umin;
+#endif
+      dx            *= epsilon;
+      if (!PetscAbsScalar(dx)) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Computed 0 differencing parameter");
+      w3_array[col] += dx;
+
+    } 
+    if (ctype == IS_COLORING_GLOBAL) w3_array = w3_array + start;
+    ierr = VecRestoreArray(w3,&w3_array);CHKERRQ(ierr);
+
+    /*
+      Evaluate function at w3 = x1 + dx (here dx is a vector of perturbations)
+                           w2 = F(x1 + dx) - F(x1)
+    */
+    ierr = PetscLogEventBegin(MAT_FDColoringFunction,0,0,0,0);CHKERRQ(ierr);
+    ierr = (*f)(sctx,w3,w2,fctx);CHKERRQ(ierr);        
+    ierr = PetscLogEventEnd(MAT_FDColoringFunction,0,0,0,0);CHKERRQ(ierr);
+    ierr = VecAXPY(w2,-1.0,w1);CHKERRQ(ierr); 
+        
+    /*
+      Loop over rows of vector, putting results into Jacobian matrix
+    */
+    ierr = VecGetArray(w2,&y);CHKERRQ(ierr);
+    for (l=0; l<coloring->nrows[k]; l++) {
+      row    = coloring->rows[k][l];             /* local row index */
+      col    = coloring->columnsforrow[k][l];    /* global column index */
+      y[row] *= vscale_array[vscaleforrow[k][l]];
+      srow   = row + start;
+      ierr   = MatSetValues(J,1,&srow,1,&col,y+row,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    ierr = VecRestoreArray(w2,&y);CHKERRQ(ierr);
+  } /* endof for each color */
+  if (ctype == IS_COLORING_GLOBAL) xx = xx + start; 
+  ierr = VecRestoreArray(coloring->vscale,&vscale_array);CHKERRQ(ierr);
+  ierr = VecRestoreArray(x1_tmp,&xx);CHKERRQ(ierr);
+   
+  coloring->currentcolor = -1;
+  ierr  = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr  = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = PetscLogEventEnd(MAT_FDColoringApply,coloring,J,x1,0);CHKERRQ(ierr);
+
+  flg  = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_null_space_test",&flg,PETSC_NULL);CHKERRQ(ierr);
+  if (flg) {
+    ierr = MatNullSpaceTest(J->nullsp,J,PETSC_NULL);CHKERRQ(ierr);
+  }
+  ierr = MatFDColoringView_Private(coloring);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatGetColumnIJ_SeqSGGPU"
+PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat A,PetscInt oshift,PetscBool  symmetric,PetscBool  inodecompressed,PetscInt *nn, const PetscInt *ia[], const PetscInt *ja[],PetscBool  *done)
+{
+  Mat_SeqSGGPU     *a = (Mat_SeqSGGPU*)A->data;
+  PetscErrorCode ierr;
+  PetscInt       n = A->cmap->n;
+  PetscInt       ndiag = a->diagonals->size();
+  PetscInt       nrows = a->m*a->n*a->p*a->dof;
+  PetscInt       nz=a->dof*ndiag*nrows;
+  PetscInt       iblock,i,j,col,index,colblock,offset;
+
+  PetscFunctionBegin;  
+  *nn = nrows;
+
+  if (!ia) PetscFunctionReturn(0);
+  if (a->ja) {
+    ierr = PetscFree(a->ja); CHKERRQ(ierr);
+  }
+  if (a->ia) {
+    ierr = PetscFree(a->ia); CHKERRQ(ierr);
+  }
+  ierr = PetscMalloc((n+1)*sizeof(PetscInt),&a->ia);CHKERRQ(ierr);
+  ierr = PetscMalloc((nz+1)*sizeof(PetscInt),&a->ja);CHKERRQ(ierr);
+
+  /* Assuming symmetric nonzero structure */
+  index=0;
+  for (iblock=0;iblock<nrows/a->dof;iblock++) {
+    for (i=iblock*a->dof;i<(iblock+1)*a->dof;i++) {
+      a->ia[i] = index;
+      for (std::map<int, int>::iterator I = a->diag_starts->begin(),
+             E = a->diag_starts->end(); I != E; ++I) {
+        offset = I->first;
+        colblock = offset + iblock;
+        /* Ignore 0 padding */
+        if (colblock < 0) {
+          continue;
+        }
+        if (colblock >= (nrows/a->dof)) {
+          break;
+        }
+        /* skip some blocks for nonperiodic da */
+        if (/*star stencil &&*/ a->dim==2 && 
+            ((colblock - iblock == 1 && !(colblock % a->n)) ||
+             (iblock - colblock == 1 && !(iblock % a->n)))) {
+          continue;
+
+        }
+      
+        for (j=0;j<a->dof;j++) {
+          col = (colblock + j)*a->dof;
+          a->ja[index++] = col;
+	}
+      }
+    }
+  }
+  a->ia[nrows] = index;
+
+  *ia = a->ia; *ja = a->ja;
+
+  PetscFunctionReturn(0); 
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "MatFDColoringCreate_SeqSGGPU"
+PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat mat,ISColoring iscoloring,MatFDColoring c)
+{
+  PetscErrorCode ierr;
+  PetscInt       i,n,nrows,N,j,k,m,ncols,col;
+  const PetscInt *is,*ci,*cj,*rows;
+  PetscInt       nis = iscoloring->n,*rowhit,*columnsforrow,l,bs = 1;
+  IS             *isa;
+  PetscBool      done,flg = PETSC_FALSE;
+
+  PetscFunctionBegin;
+  if (!mat->assembled) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Matrix must be assembled by calls to MatAssemblyBegin/End();");
+
+  ierr = ISColoringGetIS(iscoloring,PETSC_IGNORE,&isa);CHKERRQ(ierr);
+  /* this is ugly way to get blocksize but cannot call MatGetBlockSize() because AIJ can have bs > 1 */
+
+  N          = mat->cmap->N/bs;
+  c->M       = mat->rmap->N/bs;  /* set total rows, columns and local rows */
+  c->N       = mat->cmap->N/bs;
+  c->m       = mat->rmap->N/bs;
+  c->rstart  = 0;
+
+  c->ncolors = nis;
+  ierr       = PetscMalloc(nis*sizeof(PetscInt),&c->ncolumns);CHKERRQ(ierr);
+  ierr       = PetscMalloc(nis*sizeof(PetscInt*),&c->columns);CHKERRQ(ierr); 
+  ierr       = PetscMalloc(nis*sizeof(PetscInt),&c->nrows);CHKERRQ(ierr);
+  ierr       = PetscMalloc(nis*sizeof(PetscInt*),&c->rows);CHKERRQ(ierr);
+  ierr       = PetscMalloc(nis*sizeof(PetscInt*),&c->columnsforrow);CHKERRQ(ierr);
+
+  ierr = MatGetColumnIJ(mat,0,PETSC_FALSE,PETSC_FALSE,&ncols,&ci,&cj,&done);CHKERRQ(ierr);
+  if (!done) SETERRQ1(((PetscObject)mat)->comm,PETSC_ERR_SUP,"MatGetColumnIJ() not supported for matrix type %s",((PetscObject)mat)->type_name);
+
+  /*
+     Temporary option to allow for debugging/testing
+  */
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-matfdcoloring_slow",&flg,PETSC_NULL);CHKERRQ(ierr);
+
+  ierr = PetscMalloc((N+1)*sizeof(PetscInt),&rowhit);CHKERRQ(ierr);
+  ierr = PetscMalloc((N+1)*sizeof(PetscInt),&columnsforrow);CHKERRQ(ierr);
+
+  for (i=0; i<nis; i++) {
+    ierr = ISGetLocalSize(isa[i],&n);CHKERRQ(ierr);
+    ierr = ISGetIndices(isa[i],&is);CHKERRQ(ierr);
+    c->ncolumns[i] = n;
+    if (n) {
+      ierr = PetscMalloc(n*sizeof(PetscInt),&c->columns[i]);CHKERRQ(ierr);
+      ierr = PetscMemcpy(c->columns[i],is,n*sizeof(PetscInt));CHKERRQ(ierr);
+    } else {
+      c->columns[i]  = 0;
+    }
+
+    if (!flg) { /* ------------------------------------------------------------------------------*/
+      /* fast, crude version requires O(N*N) work */
+      ierr = PetscMemzero(rowhit,N*sizeof(PetscInt));CHKERRQ(ierr);
+      /* loop over columns*/
+      for (j=0; j<n; j++) {
+        col  = is[j];
+        rows = cj + ci[col]; 
+        m    = ci[col+1] - ci[col];
+        /* loop over columns marking them in rowhit */
+        for (k=0; k<m; k++) {
+          rowhit[*rows++] = col + 1;
+        }
+      }
+      /* count the number of hits */
+      nrows = 0;
+      for (j=0; j<N; j++) {
+        if (rowhit[j]) nrows++;
+      }
+      c->nrows[i] = nrows;
+      ierr        = PetscMalloc((nrows+1)*sizeof(PetscInt),&c->rows[i]);CHKERRQ(ierr);
+      ierr        = PetscMalloc((nrows+1)*sizeof(PetscInt),&c->columnsforrow[i]);CHKERRQ(ierr);
+      nrows       = 0;
+      for (j=0; j<N; j++) {
+        if (rowhit[j]) {
+          c->rows[i][nrows]          = j;
+          c->columnsforrow[i][nrows] = rowhit[j] - 1;
+          nrows++;
+        }
+      }
+    } else {  /*-------------------------------------------------------------------------------*/
+      /* slow version, using rowhit as a linked list */
+      PetscInt currentcol,fm,mfm;
+      rowhit[N] = N;
+      nrows     = 0;
+      /* loop over columns */
+      for (j=0; j<n; j++) {
+        col   = is[j];
+        rows  = cj + ci[col]; 
+        m     = ci[col+1] - ci[col];
+        /* loop over columns marking them in rowhit */
+        fm    = N; /* fm points to first entry in linked list */
+        for (k=0; k<m; k++) {
+          currentcol = *rows++;
+	  /* is it already in the list? */
+          do {
+            mfm  = fm;
+            fm   = rowhit[fm];
+          } while (fm < currentcol);
+          /* not in list so add it */
+          if (fm != currentcol) {
+            nrows++;
+            columnsforrow[currentcol] = col;
+            /* next three lines insert new entry into linked list */
+            rowhit[mfm]               = currentcol;
+            rowhit[currentcol]        = fm;
+            fm                        = currentcol; 
+            /* fm points to present position in list since we know the columns are sorted */
+          } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Detected invalid coloring");
+        }
+      }
+      c->nrows[i] = nrows;
+      ierr        = PetscMalloc((nrows+1)*sizeof(PetscInt),&c->rows[i]);CHKERRQ(ierr);
+      ierr        = PetscMalloc((nrows+1)*sizeof(PetscInt),&c->columnsforrow[i]);CHKERRQ(ierr);
+      /* now store the linked list of rows into c->rows[i] */
+      nrows       = 0;
+      fm          = rowhit[N];
+      do {
+        c->rows[i][nrows]            = fm;
+        c->columnsforrow[i][nrows++] = columnsforrow[fm];
+        fm                           = rowhit[fm];
+      } while (fm < N);
+    } /* ---------------------------------------------------------------------------------------*/
+    ierr = ISRestoreIndices(isa[i],&is);CHKERRQ(ierr);  
+  }
+  ierr = MatRestoreColumnIJ(mat,0,PETSC_FALSE,PETSC_FALSE,&ncols,&ci,&cj,&done);CHKERRQ(ierr);
+
+  ierr = PetscFree(rowhit);CHKERRQ(ierr);
+  ierr = PetscFree(columnsforrow);CHKERRQ(ierr);
+
+  /* Optimize by adding the vscale, and scaleforrow[][] fields */
+  /*
+       see the version for MPIAIJ
+  */
+  ierr = VecCreateGhost(((PetscObject)mat)->comm,mat->rmap->n,PETSC_DETERMINE,0,PETSC_NULL,&c->vscale);CHKERRQ(ierr);
+  ierr = PetscMalloc(c->ncolors*sizeof(PetscInt*),&c->vscaleforrow);CHKERRQ(ierr);
+  for (k=0; k<c->ncolors; k++) { 
+    ierr = PetscMalloc((c->nrows[k]+1)*sizeof(PetscInt),&c->vscaleforrow[k]);CHKERRQ(ierr);
+    for (l=0; l<c->nrows[k]; l++) {
+      col = c->columnsforrow[k][l];
+      c->vscaleforrow[k][l] = col;
+    }
+  }
+  ierr = ISColoringRestoreIS(iscoloring,&isa);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
 
