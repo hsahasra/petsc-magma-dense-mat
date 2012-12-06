@@ -502,6 +502,7 @@ extern PetscErrorCode DMCreateMatrix_DA_2d_MPIBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_2d_MPISBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_3d_MPISBAIJ(DM,Mat);
+extern PetscErrorCode DMCreateMatrix_DA_3d_SEQSGGPU(DM,Mat);
 
 extern PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM,Mat);
 extern PetscErrorCode MatSetValuesBlocked_StructGrid(Mat,PetscScalar*,InsertMode);
@@ -795,6 +796,9 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
       ierr = DMCreateMatrix_DA_3d_MPISBAIJ(da,A);CHKERRQ(ierr);
     } else SETERRQ3(PetscObjectComm((PetscObject)da),PETSC_ERR_SUP,"Not implemented for %D dimension and Matrix Type: %s in %D dimension! Send mail to petsc-maint@mcs.anl.gov for code",dim,Atype,dim);
   } else if (sg) {
+  } else if (sg) {
+    ierr = DMCreateMatrix_DA_SeqSGGPU(da,A);CHKERRQ(ierr);
+  
   /* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
     ierr = DMGetMatrix_DA_3d_StructGrid(da,A);CHKERRQ(ierr);
   } else {
@@ -1470,6 +1474,9 @@ PetscErrorCode DMCreateMatrix_DA_2d_MPIBAIJ(DM da,Mat J)
   PetscFunctionReturn(0);
 }
 
+
+#undef __FUNCT__
+#define __FUNCT__ "DM
 #undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_DA_3d_MPIBAIJ"
 PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM da,Mat J)
@@ -1580,6 +1587,46 @@ PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM da,Mat J)
   PetscFunctionReturn(0);
 }
 
+
+#undef __FUNCT__
+#define __FUNCT__ "DMGetMatrix_DA_SeqSGGPU"
+PetscErrorCode DMGetMatrix_DA_SeqSGGPU(DM da,Mat J){
+
+#ifdef PETSC_HAVE_CUDA
+  PetscErrorCode         ierr;
+  PetscInt               xs,ys,zs,nx,ny,nz;//,i,j,slot,gxs,gys,gnx,gny;
+  PetscInt               m,n,dim,s,*rows,dof,p,*dnz,*onz;//l,k,cnt
+  PetscInt               dims[3],starts[3]; //dof
+  MPI_Comm               comm;
+  DMDABoundaryType       bx,by,bz;;
+  DMDAStencilType        st;
+
+  PetscFunctionBegin;
+  /*
+         dof - number of components per grid point
+  */
+  ierr = DMDAGetInfo(da,&dim,&m,&n,&p,0,0,0,&dof,&s,&bx,&by,&bz,&st);CHKERRQ(ierr);
+  ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
+
+
+  /* doing without MPI for now */
+  ierr = MatSetStencil(J,dim,dims,starts,dof);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(da,&xs,&ys,&zs,&nx,&ny,&nz);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
+  ierr = MatPreallocateInitialize(comm,nx*ny*nz,dof*nx*ny*nz,dnz,onz);CHKERRQ(ierr);
+  if (st == DMDA_STENCIL_STAR) {
+    ierr = MatSeqSGGPUSetPreallocation(J,0,dof);CHKERRQ(ierr);
+  } else { /* DMDA_STENCIL_BOX */
+    ierr = MatSeqSGGPUSetPreallocation(J,1,dof);CHKERRQ(ierr);
+  }
+  ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
+  ierr = MatZeroEntries(J); CHKERRQ(ierr);
+#else
+  PetscFunctionBegin;
+  SETERRQ(PETSC_COMM_WORLD,1,"Must configure with cuda to use DIA Mat");
+#endif
+  PetscFunctionReturn(0);
+}
 
 
 

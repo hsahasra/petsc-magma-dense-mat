@@ -2728,10 +2728,10 @@ PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
      prevent these checks (which all require cudamemcpy), 
      the stack is checked to make sure it's a real need for the values
   */
-  PetscStackCheckByName("DMDAVecGetArray",flg1);
-  PetscStackCheckByName("DMGlobalToLocalBegin",flg2);
-  PetscStackCheckByName("SNESDefaultComputeJacobian",flg3);
-  PetscStackCheckByName("DMComputeJacobianDefault",flg4);
+   MyPetscStackCheckByName("DMDAVecGetArray",flg1);
+   MyPetscStackCheckByName("DMGlobalToLocalBegin",flg2);
+   MyPetscStackCheckByName("SNESDefaultComputeJacobian",flg3);
+   MyPetscStackCheckByName("DMComputeJacobianDefault",flg4);
   if(flg1 || flg2 || flg3 || flg4 ){
     if(vd->syncState==VEC_GPU){
       ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
@@ -2772,9 +2772,9 @@ PetscErrorCode VecRestoreArray_SeqGPU(Vec v,PetscScalar **a){
      prevent these checks (which all require cudamemcpy), 
      the stack is checked to make sure it's a real need for the values
   */
-  PetscStackCheckByName("VecRestoreArrayRead",flg1);
-  PetscStackCheckByName("DMDAVecRestoreArray",flg2);
-  PetscStackCheckByName("DMGlobalToLocalBegin",flg3);
+  MyPetscStackCheckByName("VecRestoreArrayRead",flg1);
+  MyPetscStackCheckByName("DMDAVecRestoreArray",flg2);
+  MyPetscStackCheckByName("DMGlobalToLocalBegin",flg3);
   if(vd->syncState==VEC_CPU||(!flg1||flg2||flg3)){
     if(a){
       ierr = VecCopyOverH2D(v,*a);CHKERRQ(ierr);
