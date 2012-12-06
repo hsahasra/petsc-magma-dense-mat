@@ -213,6 +213,9 @@ static PetscErrorCode PCApply_Polynomial(PC pc,Vec x,Vec y)
 
     ierr = MatMult(pc->pmat,x,pcpoly->z[1]);CHKERRQ(ierr);
     tmp = theta*theta - delta*delta/2.0;
+    if (tmp == 0.0) {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_CONV_FAILED,"Bad eigenvalue estimates; max == min\n");
+    }
     ierr = VecScale(pcpoly->z[1],-1.0/tmp);CHKERRQ(ierr);
     ierr = VecAXPY(pcpoly->z[1],2*theta/tmp,x);CHKERRQ(ierr);
 
