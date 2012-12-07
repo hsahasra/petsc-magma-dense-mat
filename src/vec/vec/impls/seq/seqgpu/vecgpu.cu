@@ -2832,6 +2832,7 @@ PetscErrorCode VecCopy_SeqGPU(Vec s,Vec d){
     PetscFunctionReturn(0);
   }
   ierr = VecCopyOverDevice(d,s); CHKERRQ(ierr);
+  ierr = cudaDeviceSynchronize();
   dd->syncState=VEC_GPU;
   #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecCopy_SeqGPU\n");
