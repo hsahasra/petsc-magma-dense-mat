@@ -469,7 +469,7 @@ extern PetscErrorCode DMCreateMatrix_DA_2d_MPIBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_2d_MPISBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_3d_MPISBAIJ(DM,Mat);
-extern PetscErrorCode DMCreateMatrix_DA_3d_SEQSGGPU(DM,Mat);
+extern PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM,Mat);
 
 
 extern PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM,Mat);
@@ -722,7 +722,9 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
       if (!sbaij) {
         ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSBAIJSetPreallocation_C",&sbaij);CHKERRQ(ierr);
       }
-      ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSGGPUSetPreallocation_C",&sg);CHKERRQ(ierr);
+      if (!sbaij) {
+        ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSGGPUSetPreallocation_C",&sg);CHKERRQ(ierr);
+      }
     }
   }
   if (aij) {
@@ -759,17 +761,12 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
     }
   } else if (sg) {
     ierr = DMCreateMatrix_DA_SeqSGGPU(da,A);CHKERRQ(ierr);
-  }
-  
-/* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
-else if(!aij && !baij && !sbaij)
-    {
-     ierr = DMGetMatrix_DA_3d_StructGrid(da,A); CHKERRQ(ierr);
-    }
 
-  else {
+  } else if(!aij && !baij && !sbaij) {
+    /* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
+    ierr = DMGetMatrix_DA_3d_StructGrid(da,A); CHKERRQ(ierr);
 
-
+  } else {
     ISLocalToGlobalMapping ltog,ltogb;
     ierr = DMGetLocalToGlobalMapping(da,&ltog);CHKERRQ(ierr);
     ierr = DMGetLocalToGlobalMappingBlock(da,&ltogb);CHKERRQ(ierr);
@@ -1303,8 +1300,6 @@ PetscErrorCode DMCreateMatrix_DA_2d_MPIBAIJ(DM da,Mat J)
 
 
 #undef __FUNCT__
-#define __FUNCT__ "DM
-#undef __FUNCT__
 #define __FUNCT__ "DMCreateMatrix_DA_3d_MPIBAIJ"
 PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM da,Mat J)
 {
@@ -1416,13 +1411,13 @@ PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM da,Mat J)
 
 
 #undef __FUNCT__
-#define __FUNCT__ "DMGetMatrix_DA_SeqSGGPU"
-PetscErrorCode DMGetMatrix_DA_SeqSGGPU(DM da,Mat J){
+#define __FUNCT__ "DMCreateMatrix_DA_SeqSGGPU"
+PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM da,Mat J){
 
 #ifdef PETSC_HAVE_CUDA
   PetscErrorCode         ierr;
   PetscInt               xs,ys,zs,nx,ny,nz;//,i,j,slot,gxs,gys,gnx,gny;
-  PetscInt               m,n,dim,s,*rows,dof,p,*dnz,*onz;//l,k,cnt
+  PetscInt               m,n,dim,s,dof,p,*dnz,*onz;//l,k,cnt
   PetscInt               dims[3],starts[3]; //dof
   MPI_Comm               comm;
   DMDABoundaryType       bx,by,bz;;
@@ -1464,14 +1459,12 @@ PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM da,Mat J)
   PetscErrorCode         ierr;
   PetscInt               xs,ys,nx,ny,i,j,slot,gxs,gys,gnx,gny;
   PetscInt               l,m,n,dim,s,*rows,*cols,k,nc,col,cnt,p,*dnz,*onz;
-  PetscInt              dof,dims[3],starts[3];
+  PetscInt               dims[3],starts[3];
   PetscInt               istart,iend,jstart,jend,kstart,kend,zs,nz,gzs,gnz,ii,jj,kk;
   MPI_Comm               comm;
-  PetscScalar            *values;
   DMDABoundaryType       bx,by,bz;;
   DMDAStencilType        st;
   ISLocalToGlobalMapping ltog,ltogb;
-  DM_DA                  *dd = (DM_DA*)da->data;
 
   PetscFunctionBegin;
   /*     

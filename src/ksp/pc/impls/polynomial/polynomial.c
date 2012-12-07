@@ -32,8 +32,9 @@ static PetscErrorCode PCSetUp_Polynomial(PC pc)
 {
   PC_Polynomial  *pcpoly = (PC_Polynomial*)pc->data;
   PetscInt       i;
-  PetscBool      isgpu1,isgpu2;
+  PetscBool      isgpu1,isgpu2,dmvecflag,isseqgpu;
   PetscErrorCode ierr;
+  char vectype[20];
 
   PetscFunctionBegin;
   if (!pc->setupcalled) {
@@ -52,8 +53,16 @@ static PetscErrorCode PCSetUp_Polynomial(PC pc)
     ierr = PetscObjectTypeCompare((PetscObject)pc->pmat,MATAIJCUSP,&isgpu1);CHKERRQ(ierr);
     ierr = PetscObjectTypeCompare((PetscObject)pc->pmat,MATSEQSGGPU,&isgpu2);CHKERRQ(ierr);
     if (isgpu1 || isgpu2) {
-      ierr = VecSetType(pcpoly->xplusy,VECCUSP); CHKERRQ(ierr);
-      ierr = VecSetType(pcpoly->tempvec,VECCUSP); CHKERRQ(ierr);
+      /* TODO - better way of setting vec type */
+      ierr = PetscOptionsGetString(PETSC_NULL,"-dm_vec_type",vectype,20,&dmvecflag);CHKERRQ(ierr);
+      ierr = PetscStrncmp(vectype,"seqgpu",6,&isseqgpu); CHKERRQ(ierr);
+      if (isseqgpu) {
+        ierr = VecSetType(pcpoly->xplusy,VECSEQGPU); CHKERRQ(ierr);
+        ierr = VecSetType(pcpoly->tempvec,VECSEQGPU); CHKERRQ(ierr);
+      } else {
+        ierr = VecSetType(pcpoly->xplusy,VECCUSP); CHKERRQ(ierr);
+        ierr = VecSetType(pcpoly->tempvec,VECCUSP); CHKERRQ(ierr);
+      }
     }
     if (pcpoly->polytype == PCPOLYNOMIAL_CHEBYSHEV) {
       for (i=0;i<=pcpoly->order;i++) {
@@ -204,6 +213,9 @@ static PetscErrorCode PCApply_Polynomial(PC pc,Vec x,Vec y)
     PetscReal tmp;
     theta = (pcpoly->min_eig + pcpoly->max_eig)/2.0;
     delta = (pcpoly->max_eig - pcpoly->min_eig)/2.0;
+    if (delta == 0.0) {
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_CONV_FAILED,"Bad eigenvalue estimates; max == min\n");
+    }
     pcpoly->kcoeff[0] = 1.0;
     pcpoly->kcoeff[1] = theta/delta;
     pcpoly->kcoeff[2] = 2*pcpoly->kcoeff[1]*theta/delta
@@ -214,7 +226,7 @@ static PetscErrorCode PCApply_Polynomial(PC pc,Vec x,Vec y)
     ierr = MatMult(pc->pmat,x,pcpoly->z[1]);CHKERRQ(ierr);
     tmp = theta*theta - delta*delta/2.0;
     if (tmp == 0.0) {
-      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_CONV_FAILED,"Bad eigenvalue estimates; max == min\n");
+      SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_CONV_FAILED,"Bad eigenvalue estimates; theta^2 == .5*delta^2\n");
     }
     ierr = VecScale(pcpoly->z[1],-1.0/tmp);CHKERRQ(ierr);
     ierr = VecAXPY(pcpoly->z[1],2*theta/tmp,x);CHKERRQ(ierr);
