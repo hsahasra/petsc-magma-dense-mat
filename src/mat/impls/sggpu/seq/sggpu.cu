@@ -348,7 +348,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     double start, end;
     start = getclock();
 #endif
-    MatMultKernel<<<grid, block, shared_size, mat->stream>>>(mat->deviceData, devY, mat_size, mat->diagonals->size(), mat->deviceDiags, mat->dof);
+      MatMultKernel<<<grid, block, shared_size, mat->stream>>>(mat->deviceData, devY, mat_size, mat->diagonals->size(), mat->deviceDiags, mat->dof);
 #if _TIME
     checkCudaError(cudaStreamSynchronize(mat->stream));
     end = getclock();
@@ -373,6 +373,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     ierr = VecCUSPRestoreArrayRead(x, &xgpu); CHKERRQ(ierr);
     ierr = VecCUSPRestoreArrayWrite(y, &ygpu); CHKERRQ(ierr);
     ierr = WaitForGPU() ; CHKERRCUSP(ierr);
+    cudaDeviceSynchronize();
   } else {
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vec must be seqgpu or cusp type");
   }
@@ -1127,6 +1128,9 @@ PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
     }
   }
   a->ia[nrows] = index;
+  *ia = a->ia;
+  *ja = a->ja;
+
   PetscFunctionReturn(0); 
 }
 
