@@ -5,7 +5,7 @@
 #ifdef __AVX__ //Use 256 AVX intrinsics
 #include <immintrin.h>
 #define _VEC4
-#elif defined(__SSE2__) //Use 128 bit SSE intrinsics
+#elif defined(__SSE3__) //Use 128 bit SSE intrinsics
 #include <emmintrin.h>
 #define _VEC2
 #else
