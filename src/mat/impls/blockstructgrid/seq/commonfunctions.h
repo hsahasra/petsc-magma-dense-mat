@@ -11,11 +11,7 @@ PetscInt BSG_MatMult_5(PetscScalar **, const PetscScalar *, PetscScalar *,PetscI
 PetscInt BSG_MatMult_6(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 PetscInt BSG_MatMult_Neven(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 PetscInt BSG_MatMult_Nodd(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
-PetscInt BSG_MatMult_2_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
-PetscInt BSG_MatMult_3_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *);
-PetscInt BSG_MatMult_4_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
-PetscInt BSG_MatMult_5_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
-PetscInt BSG_MatMult_6_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
+
 PetscInt BSG_MatMult_8(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
 PetscInt BSG_MatMult_10(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
 PetscInt BSG_MatMult_12(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
@@ -28,15 +24,14 @@ PetscInt BSG_MatMult_24(PetscScalar **, const PetscScalar *, PetscScalar *, Pets
 PetscInt BSG_MatMult_26(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
 PetscInt BSG_MatMult_28(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
 PetscInt BSG_MatMult_30(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
-PetscInt BSG_MatMult_Neven_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt ,const PetscInt *);
-PetscInt BSG_MatMult_Nodd_1(PetscScalar **, const PetscScalar *, PetscScalar *, PetscInt *, PetscInt *, PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt, const PetscInt * );
 
 PetscErrorCode GetValues_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], PetscScalar*);
 
 PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], const PetscInt[], const  PetscScalar[], InsertMode );
+
 PetscErrorCode SetValuesBlocked_Matrix_SeqBSG(Mat_SeqBSG *, PetscInt , const PetscInt[], const PetscInt[], const  PetscScalar[], InsertMode );
 
-PetscErrorCode MatGetSetValues_SeqBSG(Mat , PetscInt ,const PetscInt[], PetscInt,const PetscInt[],PetscScalar *, InsertMode , PetscBool, PetscBool );
+PetscErrorCode MatGetSetValues_SeqBSG(Mat , PetscInt ,const PetscInt[], PetscInt,const PetscInt[],const PetscScalar *, InsertMode , PetscBool, PetscBool );
 
 PetscErrorCode MatSetUpPreallocation_SubMatrix_SeqBSG(Mat);
 

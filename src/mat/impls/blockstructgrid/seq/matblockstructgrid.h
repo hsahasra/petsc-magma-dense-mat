@@ -7,7 +7,7 @@
 #ifdef __AVX__ //Use 256 AVX intrinsics
 #include <immintrin.h>
 #define _VEC4
-#elif defined(__SSE2__) //Use 128 bit SSE intrinsics
+#elif defined(__SSE3__) //Use 128 bit SSE intrinsics
 #include <emmintrin.h>
 #define _VEC2
 #else
@@ -52,9 +52,7 @@ PetscInt stencil_cend; // offset from normal matrix assuming stride 1 +ve if 4 i
 PetscInt stencil_stride; // stride of submatrix
 PetscBool sub_matrix;
 
-#ifdef  _VEC4
 PetscInt * block_arrangement;
-#endif
 
 }Mat_SeqBSG;
 

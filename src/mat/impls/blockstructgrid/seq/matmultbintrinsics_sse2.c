@@ -1,7 +1,6 @@
 #include <string.h>
-#include <immintrin.h>
-#include "../src/mat/impls/blockstructgrid/matblockstructgrid.h"
-#include "../src/mat/impls/blockstructgrid/commonfunctions.h"
+#include "../src/mat/impls/blockstructgrid/seq/matblockstructgrid.h"
+#include "../src/mat/impls/blockstructgrid/seq/commonfunctions.h"
 
 #define min(a,b) (a) < (b) ? (a) : (b)
 
@@ -105,6 +104,10 @@
                  _mm_storeu_pd(y + t1 + 2,msum2);\
                  _mm_storeu_pd(y + t1 + 4,msum4);\
                  _mm_storeu_pd(y + t1 + 6,msum6)
+
+
+#ifdef _VEC2
+
 
 PetscErrorCode BSG_MatMult_8(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * idx, PetscInt * idy, PetscInt * idz, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset){
     PetscInt k, k1, it, l, t1, t2;
@@ -7022,4 +7025,5 @@ PetscErrorCode BSG_MatMult_30(PetscScalar ** ctl,const PetscScalar * x, PetscSca
 PetscFunctionReturn(0);
 }
 
+#endif
 

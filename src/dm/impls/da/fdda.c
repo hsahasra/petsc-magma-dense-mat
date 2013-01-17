@@ -1422,7 +1422,7 @@ PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM da,Mat J){
   MPI_Comm               comm;
   DMDABoundaryType       bx,by,bz;;
   DMDAStencilType        st;
-
+  
   PetscFunctionBegin;
   /*
          dof - number of components per grid point
@@ -1445,7 +1445,7 @@ PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM da,Mat J){
   ierr = MatZeroEntries(J); CHKERRQ(ierr);
 #else
   PetscFunctionBegin;
-  SETERRQ(PETSC_COMM_WORLD,1,"Must configure with cuda to use DIA Mat");
+  SETERRQ(PETSC_COMM_WORLD,1,"Must configure with cuda to use SGGPU Matrix");
 #endif
   PetscFunctionReturn(0);
 }
@@ -1455,6 +1455,7 @@ PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM da,Mat J){
 #define __FUNCT__ "DMGetMatrix_DA_3d_StructGrid" 
 PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM da,Mat J)
 {
+#if (defined __SSE3__ || defined __AVX__)
 
   PetscErrorCode         ierr;
   PetscInt               xs,ys,nx,ny,i,j,slot,gxs,gys,gnx,gny;
@@ -1478,6 +1479,8 @@ PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM da,Mat J)
         {
                 ierr = (*J->ops->setgrid)(J,m,n,p); CHKERRQ(ierr);
         }
+
+
   ierr = MatSetStencil(J,dim,dims,starts,nc);CHKERRQ(ierr);
   col    = 2*s + 1;
 
@@ -1485,13 +1488,15 @@ PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM da,Mat J)
   ierr = DMDAGetGhostCorners(da,&gxs,&gys,&gzs,&gnx,&gny,&gnz);CHKERRQ(ierr);
   ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
 
- ierr = PetscMalloc2(nc,PetscInt,&rows,col*col*col*nc*nc,PetscInt,&cols);CHKERRQ(ierr);
+  ierr = PetscMalloc2(nc,PetscInt,&rows,col*col*col*nc*nc,PetscInt,&cols);CHKERRQ(ierr);
   ierr = DMGetLocalToGlobalMapping(da,&ltog);CHKERRQ(ierr);
   ierr = DMGetLocalToGlobalMappingBlock(da,&ltogb);CHKERRQ(ierr);
 
   /* determine the matrix preallocation information */
 
-ierr = MatPreallocateInitialize(comm,nc*nx*ny*nz,nc*nx*ny*nz,dnz,onz);CHKERRQ(ierr);
+  ierr = MatPreallocateInitialize(comm,nc*nx*ny*nz,nc*nx*ny*nz,dnz,onz);CHKERRQ(ierr);
+
+
   for (i=xs; i<xs+nx; i++) {
     istart = (bx == DMDA_BOUNDARY_PERIODIC) ? -s : (PetscMax(-s,-i));
     iend   = (bx == DMDA_BOUNDARY_PERIODIC) ?  s : (PetscMin(s,m-i-1));
@@ -1522,12 +1527,22 @@ ierr = MatPreallocateInitialize(comm,nc*nx*ny*nz,nc*nx*ny*nz,dnz,onz);CHKERRQ(ie
     }
   }
 
+  ierr = MatSetUpPreallocation_SeqBSG(J);
+
   ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
   ierr = MatSetLocalToGlobalMapping(J,ltog,ltog);CHKERRQ(ierr);
   ierr = MatSetLocalToGlobalMappingBlock(J,ltogb,ltogb);CHKERRQ(ierr);
   ierr = MatZeroEntries(J); CHKERRQ(ierr);
   ierr = PetscFree2(rows,cols);CHKERRQ(ierr);
   PetscFunctionReturn(0);
+
+#else
+
+  PetscFunctionBegin;
+  SETERRQ(PETSC_COMM_WORLD,1,"Must support SSE3 or AVX to use blockstructgrid Matrix");
+
+#endif
+
 }
 
 
