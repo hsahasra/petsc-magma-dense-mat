@@ -1,16 +1,14 @@
 #include <string.h>
 
-//#define SPREFETCH
 #define min(a,b) (a)<(b) ? (a) : (b)
 
 //#define _mm_maskstore_pd(a,b,c) _mm_storeu_pd(a,c)
 
-#include <omp.h>
-extern int OPENMPB;
-
-
 #include "../src/mat/impls/blockstructgrid/seq/matblockstructgrid.h"
 #include "../src/mat/impls/blockstructgrid/seq/commonfunctions.h"
+
+#include <omp.h>
+extern int OPENMPB;
 
 
 #define setupct(pos, iter)	count = stpoffset[pos] + iter*nos;\
@@ -51,6 +49,7 @@ extern int OPENMPB;
                   msum0 = _mm256_hadd_pd(msum0, msum1);\
                   _mm256_maskstore_pd(y + t1 + 0,xtemp,msum0)
 
+
 PetscErrorCode BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt *ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset, PetscInt nregion, const PetscInt * lbeg, const PetscInt *lend , const PetscInt *rstart){
     PetscInt k, k1, it, l, t1, t2, l1;
     const PetscInt lda3 = m ;
@@ -81,6 +80,7 @@ PetscErrorCode BSG_MatMult_2(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 PetscFunctionReturn(0);
 }
 
+
 #define inline_4(l,m) \
                     mx0 = _mm256_loadu_pd(xt##l + t1 + 0);\
                     mx1 = _mm256_permute2f128_pd(mx0, mx0, 0x01);\
@@ -106,145 +106,6 @@ PetscFunctionReturn(0);
                   msum0 = _mm256_hadd_pd(msum0, msum2);\
                   _mm256_storeu_pd(y + t1 + 0,msum0)
 
-PetscInt BSG_MatMult_4_11(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y, PetscInt * ioff, PetscInt m, PetscInt n, PetscInt p,PetscInt dof, PetscInt nos, PetscInt dim , PetscInt bs, const PetscInt * stpoffset)
-{
-	PetscInt k,l,k1, it, t1, t2;
-	const PetscInt lda3 = m;
-	const PetscInt lda2 = lda3 * n;
-	const PetscInt lda1 = lda2 * p;
-	const PetscInt mnos = 3;
-	PetscInt l3threshold = WORKINGSETSIZE / bs;
-	PetscInt count, endval;
-	__m256d mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3;
-	const PetscScalar *xt0,*xt1,*xt2,*xt3,*xt4,*xt5,*xt6,*ct0,*ct1,*ct2,*ct3,*ct4,*ct5,*ct6,*xt7,*ct7;
-		xt0 = x + (ioff[0] )*dof;
-		xt1 = x + (ioff[1] )*dof;
-		xt2 = x + (ioff[2] )*dof;
-		xt3 = x + (ioff[3] )*dof;
-		xt4 = x + (ioff[4] )*dof;
-		xt5 = x + (ioff[5] )*dof;
-		xt6 = x + (ioff[6] )*dof;
-	for(k1 = 0, it =0; k1 < 1; k1+=l3threshold, it++)
-	{
-		setupct(0,it);
-		endval = min(1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(0);
-		inline_4(3,4);
-		inline_4(4,5);
-		inline_4(5,6);
-		inline_4(6,7);
-		save_4();
-		}
-	}
-		for(k1 = 1, it =0; k1 < lda3; k1+=l3threshold, it++)
-		{
-		setupct(1,it);
-		endval = min(lda3,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(1);
-		inline_4(2,3);
-		inline_4(3,4);
-		inline_4(4,5);
-		inline_4(5,6);
-		inline_4(6,7);
-		save_4();
-		}
-		}
-
-		for(k1 = lda3, it =0; k1 < lda2; k1+=l3threshold, it++)
-		{
-		setupct(2,it);
-		endval = min(lda2,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(lda3);
-		inline_4(1,2);
-		inline_4(2,3);
-		inline_4(3,4);
-		inline_4(4,5);
-		inline_4(5,6);
-		inline_4(6,7);
-		save_4();
-		}
-		}
-
-		for(k1 = lda2, it =0; k1 < lda1-lda2; k1+=l3threshold, it++)
-		{
-		setupct(3,it);
-		endval = min(lda1-lda2,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(lda2);
-		inline_4(0,1);
-		inline_4(1,2);
-		inline_4(2,3);
-		inline_4(3,4);
-		inline_4(4,5);
-		inline_4(5,6);
-		inline_4(6,7);
-		save_4();
-		}
-		}
-
-		for(k1 = lda1-lda2, it =0; k1 < lda1-lda3; k1+=l3threshold, it++)
-		{
-		setupct(4,it);
-		endval = min(lda1-lda3,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(lda1-lda2);
-		inline_4(0,1);
-		inline_4(1,2);
-		inline_4(2,3);
-		inline_4(3,4);
-		inline_4(4,5);
-		inline_4(5,6);
-		save_4();
-		}
-		}
-
-		for(k1 = lda1-lda3, it =0; k1 < lda1-1; k1+=l3threshold, it++)
-		{
-		setupct(5,it);
-		endval = min(lda1-1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(lda1-lda3);
-		inline_4(0,1);
-		inline_4(1,2);
-		inline_4(2,3);
-		inline_4(3,4);
-		inline_4(4,5);
-		save_4();
-		}
-		}
-
-		for(k1 = lda1-1, it =0; k1 < lda1; k1+=l3threshold, it++)
-		{
-		setupct(6,it);
-		endval = min(lda1,k1+l3threshold);
-#pragma omp parallel for if(OPENMPB) shared(xt0,xt1,xt2,xt3,xt4,xt5,xt6,ct0,ct1,ct2,ct3,ct4,ct5,ct6,xt7,ct7,y) private(t1,t2,mx0, mx1, msum0, msum1, msum2, msum3, mc0, mc1, mc2, mc3)
-		for(k = k1; k < endval; k++)
-		{
-		setup_4(lda1-1);
-		inline_4(0,1);
-		inline_4(1,2);
-		inline_4(2,3);
-		inline_4(3,4);
-		save_4();
-		}
-		}
-	PetscFunctionReturn(0);
-}
 
 #define ninline_4() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
@@ -301,6 +162,7 @@ PetscErrorCode BSG_MatMult_4(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
 PetscFunctionReturn(0);
 }
+
 
 #define ninline_6() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
@@ -392,6 +254,8 @@ PetscErrorCode BSG_MatMult_6(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
 PetscFunctionReturn(0);
 }
+
+
 
 #define nsetup_Neven()	for(i=0;i<dofby4;i++){\
 				 msum[i] = _mm256_set_pd(0,0,0,0);\
@@ -503,6 +367,8 @@ PetscErrorCode BSG_MatMult_Neven(PetscScalar ** ctl,const PetscScalar * x, Petsc
 PetscFunctionReturn(0);
 }
 
+
+
 #define ninline_3() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
                     mx0 = _mm256_loadu_pd(xt[l] + t1 + 0);\
@@ -566,6 +432,9 @@ PetscErrorCode BSG_MatMult_3(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
 PetscFunctionReturn(0);
 }
+
+
+
 
 #define ninline_5() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
@@ -644,6 +513,8 @@ PetscErrorCode BSG_MatMult_5(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
 PetscFunctionReturn(0);
 }
+
+
 
 #define ninline_7() \
                     for(l = lbeg[k1]; l < lend[k1]; l++){ \
@@ -755,6 +626,9 @@ PetscErrorCode BSG_MatMult_7(PetscScalar ** ctl,const PetscScalar * x, PetscScal
 
 PetscFunctionReturn(0);
 }
+
+
+
 
 #define nsetup_Nodd()   for(i=0;i<dofby4;i++){\
                                  msum[i] = _mm256_set_pd(0,0,0,0);\
@@ -923,7 +797,11 @@ PetscErrorCode BSG_MatMult_Nodd(PetscScalar ** ctl,const PetscScalar * x, PetscS
 
 PetscFunctionReturn(0);
 }
-#endif
+
+
+
+
+
 
 #define ninline_1_av2() for(l = lbeg[k1] ; l < lend[k1] ; l++){\
                     mx0 = _mm256_loadu_pd(xt[l] + t1 + 0);\
@@ -1010,4 +888,7 @@ PetscInt BSG_MatMult_1(PetscScalar ** ctl,const PetscScalar * x, PetscScalar * y
 	PetscFunctionReturn(0);
 }
 
+
+
+#endif
 
