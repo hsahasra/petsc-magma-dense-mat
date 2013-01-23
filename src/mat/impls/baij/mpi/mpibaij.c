@@ -208,7 +208,7 @@ PetscErrorCode MatCreateColmap_MPIBAIJ_Private(Mat mat)
       } \
       if (a->nonew == 1) goto a_noinsert; \
       if (a->nonew == -1) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Inserting a new nonzero (%D, %D) into matrix", row, col); \
-      MatSeqXAIJReallocateAIJ(A,a->mbs,bs2,nrow,brow,bcol,rmax,aa,ai,aj,rp,ap,aimax,a->nonew,MatScalar); \
+      MatSeqXAIJReallocateAIJ(A,a->mbs,bs2,nrow,brow,bcol,rmax,aa,ai,aj,rp,ap,aimax,a->nonew,MatScalar); \   
       N = nrow++ - 1;  \
       /* shift up all the later entries in this row */ \
       for (ii=N; ii>=_i; ii--) { \
@@ -219,7 +219,7 @@ PetscErrorCode MatCreateColmap_MPIBAIJ_Private(Mat mat)
       rp[_i]                      = bcol;  \
       ap[bs2*_i + bs*cidx + ridx] = value;  \
       a_noinsert:; \
-    ailen[brow] = nrow; \
+    ailen[brow] = nrow; \ 
 }
 
 #define  MatSetValues_SeqBAIJ_B_Private(row,col,value,addv) \
@@ -259,7 +259,6 @@ PetscErrorCode MatCreateColmap_MPIBAIJ_Private(Mat mat)
       ap[bs2*_i + bs*cidx + ridx] = value;  \
       b_noinsert:; \
     bilen[brow] = nrow; \
-
 } 
 #endif
 #undef __FUNCT__  
