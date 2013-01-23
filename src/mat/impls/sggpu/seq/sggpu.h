@@ -41,4 +41,28 @@ typedef struct {
   int         * deviceDiags;  //< Device pointer to diagonals specifier
 } Mat_SeqSGGPU;
 
+// Prototypes
+PetscErrorCode MatDestroy_SeqSGGPU(Mat A);
+PetscErrorCode MatSetGrid_SeqSGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p);
+PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y);
+PetscErrorCode MatSetValuesBlocked_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is);
+PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is);
+PetscErrorCode MatSetStencil_SeqSGGPU(Mat A, PetscInt dim, const PetscInt dims[], const PetscInt starts[], PetscInt dof);
+PetscErrorCode MatSetUp_SeqSGGPU(Mat mat);
+PetscErrorCode MatZeroEntries_SeqSGGPU(Mat A);
+PetscErrorCode MatGetDiagonal_SeqSGGPU(Mat A, Vec v);
+PetscErrorCode MatDiagonalScale_SeqSGGPU(Mat A, Vec ll, Vec rr);
+PetscErrorCode MatGetRow_SeqSGGPU(Mat A, PetscInt row, PetscInt * nz, PetscInt **idx , PetscScalar ** v);
+PetscErrorCode MatRestoreRow_SeqSGGPU(Mat A, PetscInt row, PetscInt *nz, PetscInt **idx, PetscScalar **v);
+PetscErrorCode MatGetRowMaxAbs_SeqSGGPU(Mat A, Vec v, PetscInt idx[]);
+PetscErrorCode MatView_SeqSGGPU(Mat A, PetscViewer viewer);
+PetscErrorCode MatAssemblyBegin_SeqSGGPU(Mat A, MatAssemblyType type);
+PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type);
+PetscErrorCode MatView_SeqSGGPU_ASCII(Mat,PetscViewer);
+extern PetscErrorCode MatFDColoringApply_SeqSGGPU(Mat,MatFDColoring,Vec,MatStructure*,void*);
+extern PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat,ISColoring,MatFDColoring);
+extern PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);
+EXTERN_C_BEGIN
+extern PetscErrorCode MatSeqSGGPUSetPreallocation_SeqSGGPU(Mat A,PetscInt nz, const PetscInt nnz[]);
+EXTERN_C_END
 #endif

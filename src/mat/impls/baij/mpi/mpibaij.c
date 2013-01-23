@@ -220,7 +220,7 @@ PetscErrorCode MatCreateColmap_MPIBAIJ_Private(Mat mat)
     rp[_i]                      = bcol;  \
     ap[bs2*_i + bs*cidx + ridx] = value;  \
 a_noinsert:; \
-    ailen[brow] = nrow; \
+    ailen[brow] = nrow; \ 
   }
 
 #define  MatSetValues_SeqBAIJ_B_Private(row,col,value,addv) \

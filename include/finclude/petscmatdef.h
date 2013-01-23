@@ -152,7 +152,8 @@
 */
 
 #define MATSTRUCTGRID          'structgrid'
-#define MATSEQSGGPU            'seqsggpu'
+#define MATSEQSGGPU            	'seqsggpu'
+#define MATMPISGGPU		'mpisggpu'
 
 !
 ! GPU Storage Formats for CUSP and CUSPARSE
