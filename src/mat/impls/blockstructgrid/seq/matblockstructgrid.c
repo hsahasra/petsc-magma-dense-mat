@@ -262,7 +262,7 @@ PetscErrorCode MatGetSetValues_SeqBSG(Mat A, PetscInt nrow,const PetscInt irow[]
 	}
 	else
 	{
-			ierr = GetValues_Matrix_SeqBSG(mat,nrow*ncol,ipos,ioffsets,y); CHKERRQ(ierr);
+          ierr = GetValues_Matrix_SeqBSG(mat,nrow*ncol,ipos,ioffsets,(PetscScalar*)y); CHKERRQ(ierr);
 	}
 	ierr = PetscFree(ioffsets);CHKERRQ(ierr);
 	ierr = PetscFree(ipos);CHKERRQ(ierr);
@@ -1114,9 +1114,10 @@ PetscErrorCode MatZeroEntries_SeqBSG(Mat A)
 	PetscFunctionBegin;
 	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->bs*a->stpoints);
 	memset(a->diag, 0,sizeof(PetscScalar)*a->nz*a->bs);
+#ifdef PETSC_HAVE_CUSP
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
-
+#endif
 	PetscFunctionReturn(0);
 }
 

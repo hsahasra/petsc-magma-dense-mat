@@ -11,7 +11,6 @@
 //#include <immintrin.h>
 
 #include <stdio.h>
-
 static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_SeqSG,MatGetRow_SeqSG,MatRestoreRow_SeqSG,MatMult_SeqSG,0,
 /*5*/0,0,0,0,0,
@@ -40,8 +39,9 @@ static struct _MatOps MatOps_Values = {
 /*120*/0,0,0,0,0,
 /*125*/0,0,0,0,0,
 /*130*/0,0,0,0,0,
-/*135*/0,0,0,0,MatSetStencil_SeqSG,
-/*140*/MatSetGrid_SeqSG
+/*135*/0,0,0,0,0,0,
+/*141*/MatSetStencil_SeqSG,
+/*142*/MatSetGrid_SeqSG
 };
 
 
@@ -371,12 +371,13 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 	ierr = PetscFree(idy);CHKERRQ(ierr);
 	ierr = PetscFree(idz);CHKERRQ(ierr);
 
-	
+#ifdef PETSC_HAVE_CUSP	
 	//Set the flag that indicates that matrix has changed on the CPU side.
         //This flag is used while copying the matrix to GPU.
         //Added by Chekuri S. Choudary 
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
+#endif
 
 	PetscFunctionReturn(0);
 }
@@ -550,9 +551,10 @@ PetscErrorCode MatZeroEntries_SeqSG(Mat A)
 	Mat_SeqSG * a = (Mat_SeqSG *)A->data;
 	PetscFunctionBegin;
 	memset(a->a,0,sizeof(PetscScalar)*a->nz*a->stpoints);
+#ifdef PETSC_HAVE_CUSP
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
-
+#endif
 	PetscFunctionReturn(0);
 }
 

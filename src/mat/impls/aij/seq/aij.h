@@ -1,16 +1,17 @@
 
 #if !defined(__AIJ_H)
 #define __AIJ_H
+#include <petsc-private/matimpl.h>
 
 
+#ifdef PETSC_HAVE_CUDA
 #include <petscconf.h>
 #include <cuda.h>
 #include <cusparse.h>
-#include <petsc-private/matimpl.h>
 EXTERN_C_BEGIN
 #include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
 EXTERN_C_END 
-
+#endif
 
 
 
@@ -102,6 +103,7 @@ extern PetscErrorCode MatLUFactorNumeric_SeqAIJ_Inode_inplace(Mat,Mat,const MatF
 extern PetscErrorCode MatLUFactorNumeric_SeqAIJ_Inode(Mat,Mat,const MatFactorInfo*);
 
 
+#ifdef PETSC_HAVE_CUDA
 typedef struct{
   cusparseHandle_t   handle;
   cusparseMatDescr_t descrip;
@@ -109,7 +111,7 @@ typedef struct{
   PetscInt           *dev_csrIndices;
   PetscScalar        *dev_dataA;
 }CudaSparseVars;
-
+#endif
 
 
 typedef struct {
