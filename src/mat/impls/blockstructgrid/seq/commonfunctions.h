@@ -9,6 +9,7 @@ PetscInt BSG_MatMult_3(PetscScalar **, const PetscScalar *, PetscScalar *,PetscI
 PetscInt BSG_MatMult_4(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 PetscInt BSG_MatMult_5(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 PetscInt BSG_MatMult_6(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
+PetscInt BSG_MatMult_7(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 PetscInt BSG_MatMult_Neven(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 PetscInt BSG_MatMult_Nodd(PetscScalar **, const PetscScalar *, PetscScalar *,PetscInt *, PetscInt, PetscInt, PetscInt,PetscInt, PetscInt, PetscInt , PetscInt , const PetscInt *, PetscInt , const PetscInt * , const PetscInt * , const PetscInt * );
 
