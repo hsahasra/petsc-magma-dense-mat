@@ -154,7 +154,8 @@
 #define MATSTRUCTGRID          'structgrid'
 
 
-#define MATSEQSGGPU            'seqsggpu'
+#define MATSEQSGGPU            	'seqsggpu'
+#define MATMPISGGPU		'mpisggpu'
 
 
 !

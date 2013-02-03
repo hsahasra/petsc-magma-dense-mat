@@ -125,3 +125,7 @@ src/snes/examples/tutorials/ex31\.h
 src/snes/examples/tutorials/ex72_gpu_inline\.h
 src/snes/examples/tutorials/ex72_gpu\.h
 src/snes/examples/tutorials/ex72\.h
+src/mat/impls/aij/mpi/tags
+src/mat/impls/aij/seq/tags
+src/mat/impls/sggpu/mpi/tags
+src/mat/impls/sggpu/seq/tags
