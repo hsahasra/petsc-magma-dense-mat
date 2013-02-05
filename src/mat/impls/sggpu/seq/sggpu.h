@@ -14,6 +14,15 @@ extern PetscErrorCode MatCreate_SeqSGGPU(Mat);
 EXTERN_C_END
 
 
+#if _TRACE
+#define SGTrace printf("[SeqSGGPU] %s\n",__FUNCT__);
+#else
+#define SGTrace
+#endif
+
+
+
+
 // Matrix type container
 typedef struct {
   PetscScalar * hostData;   //< Host data

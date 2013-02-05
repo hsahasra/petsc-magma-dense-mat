@@ -43,6 +43,7 @@ extern PetscErrorCode  MatCreate_IJ(Mat);
 extern PetscErrorCode  MatCreate_SeqAIJCUSP(Mat);
 extern PetscErrorCode  MatCreate_MPIAIJCUSP(Mat);
 extern PetscErrorCode  MatCreate_SeqSGGPU(Mat);
+extern PetscErrorCode  MatCreate_MPISGGPU(Mat);
 #endif
 
 #if defined PETSC_HAVE_TXPETSCGPU
@@ -152,6 +153,7 @@ PetscErrorCode  MatRegisterAll(const char path[])
   ierr = MatRegisterDynamic(MATSEQAIJCUSP,     path,"MatCreate_SeqAIJCUSP",  MatCreate_SeqAIJCUSP);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATMPIAIJCUSP,     path,"MatCreate_MPIAIJCUSP",  MatCreate_MPIAIJCUSP);CHKERRQ(ierr);
   ierr = MatRegisterDynamic(MATSEQSGGPU,     path,"MatCreate_SeqSGGPU",MatCreate_SeqSGGPU);CHKERRQ(ierr);
+  ierr = MatRegisterDynamic(MATMPISGGPU,     path,"MatCreate_MPISGGPU",MatCreate_MPISGGPU);CHKERRQ(ierr);
 #endif
 
 #if defined PETSC_HAVE_TXPETSCGPU
