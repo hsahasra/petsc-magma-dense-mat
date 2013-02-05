@@ -2,8 +2,8 @@ ALL: lib
 
 CFLAGS   =
 FFLAGS   =
-SOURCEC  = mpisggpu.c
-SOURCECU =
+SOURCEC  = 
+SOURCECU = mpisggpu.cu
 SOURCEF  =
 SOURCEH  = mpisggpu.h
 OBJSC    = mpisggpu.o

@@ -2,7 +2,20 @@
 #define __MPI_SGGPU_H__
 
 #include "petsc-private/matimpl.h"
+
 #include <../src/mat/impls/sggpu/seq/sggpu.h>
+
+
+// External decls
+EXTERN_C_BEGIN
+extern PetscErrorCode MatCreate_MPISGGPU(Mat);
+extern PetscErrorCode checkCudaError(cudaError_t err);
+EXTERN_C_END
+
+
+
+
+
 
 typedef struct {
   //Mat		A;			// Column major storage of diagonals */

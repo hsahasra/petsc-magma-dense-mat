@@ -34,17 +34,23 @@
 #define BLOCKWIDTH_X 128
 #define BLOCKWIDTH_Y 1
 
+
 // ----------------------------------------------------------
 // helper function for error checking
 // pops the CUDA error stack and exits on nonzero error code
 // written by: dlowell ANL-MCS
 // ----------------------------------------------------------
+EXTERN_C_BEGIN
 void checkCudaError(cudaError_t err) {
   if(cudaSuccess != err) {
     fprintf(stderr, "Cuda error: %s.\n", cudaGetErrorString(err));
     exit(EXIT_FAILURE);
   }
 }
+EXTERN_C_END
+// ----------------------------------------------------------
+
+
 
 //------------------------------------------------------
 // general timer function using unix system call
@@ -135,6 +141,8 @@ static struct _MatOps MatOps_Values = {
 };
 
 
+
+
 EXTERN_C_BEGIN
 #undef __FUNCT__
 #define __FUNCT__ "MatCreate_SeqSGGPU"
@@ -146,6 +154,9 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
 
   PetscFunctionBegin;
   SGTrace;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatCreate_SeqSGGPU\n");
+	
 
   ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
   if (size > 1)
@@ -185,6 +196,9 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
 
   PetscFunctionBegin;
   SGTrace;
+
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatDestroy_SeqSGGPU\n");
 
   mat = (Mat_SeqSGGPU*)A->data;
 
@@ -229,6 +243,8 @@ PetscErrorCode MatSetGrid_SeqSGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p)
   PetscFunctionBegin;
   SGTrace;
 
+		PetscPrintf(PETSC_COMM_WORLD,"MatSetGrid_SeqSGGPU\n");
+
   mat->m = m;
   mat->n = n;
   mat->p = p;
@@ -250,6 +266,10 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 
   PetscFunctionBegin;
   SGTrace;
+
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatMult_SeqSGGPU\n");
+
 
   // Initialize y to zero
   ierr = VecSet(y, 0.0); CHKERRQ(ierr);
@@ -380,6 +400,9 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
   SGTrace;
 
 
+	PetscPrintf(PETSC_COMM_WORLD,"MatSetValues_SeqSGGPU\n");
+
+
   // Handle each element
   for (i = 0; i < nrow; i++) {
     for (j = 0; j < ncol; j++) {
@@ -480,6 +503,10 @@ PetscErrorCode MatFDColoringView_Private(MatFDColoring fd)
   PetscViewer    viewer;
 
   PetscFunctionBegin;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatFDColoringView_Private\n");
+
+
   ierr = PetscViewerASCIIGetStdout(((PetscObject)fd)->comm,&viewer);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_fd_coloring_view",&flg,PETSC_NULL);CHKERRQ(ierr);
   if (flg) {
@@ -510,6 +537,10 @@ PetscErrorCode MatSetUp_SeqSGGPU(Mat A)
 
   PetscFunctionBegin;
   SGTrace;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatSetUP_SeqSGGPU\n");
+
+
   //  ierr =  MatSeqSGGPUSetPreallocation(A,PETSC_DEFAULT,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -521,6 +552,10 @@ PetscErrorCode MatSeqSGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt
   PetscErrorCode ierr;
   Mat_SeqSGGPU *mat = (Mat_SeqSGGPU*)A->data;
   PetscFunctionBegin;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatSeqSGGPUSetPreallocation\n");
+
+
   mat->stencil_type = stencil_type;
   mat->dof = dof;
   if(A->preallocated)PetscFunctionReturn(0);
@@ -539,6 +574,8 @@ extern PetscErrorCode MatSeqSGGPUSetPreallocation_SeqSGGPU(Mat A,PetscInt nz, co
   PetscErrorCode ierr;
   Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
   PetscInt dim,diag_size,size,num_diags,i,vecsize;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MateqSGGPUSetPreallocation_SeqSGGPU\n");
 
 
   ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
@@ -662,6 +699,10 @@ PetscErrorCode MatZeroEntries_SeqSGGPU(Mat A)
   PetscInt size;
   PetscFunctionBegin;
   SGTrace;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatZeroEntries_SeqSGGPU\n");
+
+
   size = mat->diag_starts->size() * mat->m * mat->n * mat->p * mat->dof * mat->dof;
   memset(mat->hostData, 0, size * sizeof(PetscScalar));
   
@@ -729,6 +770,9 @@ PetscErrorCode MatView_SeqSGGPU_ASCII(Mat A, PetscViewer viewer)
   
 
   PetscFunctionBegin;  
+
+
+
   cudaDeviceSynchronize();
   ierr = PetscViewerASCIIUseTabs(viewer,PETSC_FALSE);CHKERRQ(ierr);
   ierr = PetscObjectPrintClassNamePrefixType((PetscObject)A,viewer,"Matrix Object");CHKERRQ(ierr);
@@ -820,6 +864,9 @@ PetscErrorCode MatAssemblyBegin_SeqSGGPU(Mat A, MatAssemblyType type)
 {
   PetscFunctionBegin;
   SGTrace;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatAssemblyBegin_SeqSGGPU\n");
+
   PetscFunctionReturn(0);
 }
 
@@ -831,6 +878,10 @@ PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type)
   Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
   PetscInt size;
   PetscFunctionBegin;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatAssemblyEnd_SeqSGGPU\n");
+
+
 #if _TRACE
   printf("[SeqSGGPU] MatAssemblyEnd_SeqSGGPU\n");
 
@@ -876,6 +927,10 @@ PetscErrorCode  MatFDColoringApply_SeqSGGPU(Mat J,MatFDColoring coloring,Vec x1,
   Vec            x1_tmp;
 
   PetscFunctionBegin;    
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatFDColoringApply_SeqSGGPU\n");
+
+
   PetscValidHeaderSpecific(J,MAT_CLASSID,1);
   PetscValidHeaderSpecific(coloring,MAT_FDCOLORING_CLASSID,2);
   PetscValidHeaderSpecific(x1,VEC_CLASSID,3);
@@ -1058,6 +1113,10 @@ PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
   PetscInt       iblock,i,j,col,index,colblock,offset;
 
   PetscFunctionBegin;  
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatGetColumnIJ_SeqSGGPU\n");
+
+
   *nn = nrows;
 
   if (!ia) PetscFunctionReturn(0);
@@ -1121,6 +1180,9 @@ PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat mat,ISColoring iscoloring,MatFDC
   PetscBool      done,flg = PETSC_FALSE;
 
   PetscFunctionBegin;
+
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatFDColoringCreate_SeqSGGPU\n");
 
 
   ierr = ISColoringGetIS(iscoloring,PETSC_IGNORE,&isa);CHKERRQ(ierr);
