@@ -1485,7 +1485,12 @@ PetscErrorCode SetValues_Matrix_SeqBSG(Mat_SeqBSG *  mat, PetscInt n , const Pet
 				finalpos = pos - start[k];
 				//ioff = count + ioffsets[i];// for submatrix - lbeg[k];
 				ioff = k*mat->stpoints + ioffsets[i];// for submatrix - lbeg[k];
-				mat->coeff[ioff][(finalpos)*bs+mat->block_arrangement[rdis*dof+cdis]] += data[i];
+                                if (is == ADD_VALUES) {
+                                  mat->coeff[ioff][(finalpos)*bs+mat->block_arrangement[rdis*dof+cdis]] += data[i];
+                                } else {
+                                  mat->coeff[ioff][(finalpos)*bs+mat->block_arrangement[rdis*dof+cdis]] = data[i];
+                                }
+                                  
 			/*	if(rdis +4 <= dof){
 					if(cdis +4 <= dof){
 						strtval = rdis*4*dof + cdis*4*4; 
