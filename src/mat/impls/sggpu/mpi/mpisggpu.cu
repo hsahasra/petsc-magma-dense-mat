@@ -1,13 +1,92 @@
 #include <../src/mat/impls/sggpu/mpi/mpisggpu.h>
 
 
+// Matrix function table
+static struct _MatOps MatOps_Values = {
+/*0*/ MatSetValues_MPISGGPU,MatGetRow_MPISGGPU,MatRestoreRow_MPISGGPU,MatMult_MPISGGPU,0,
+/*5*/0,0,0,0,0,
+/*10*/0,0,0,0,0,
+/*15*/0,0,MatGetDiagonal_MPISGGPU,MatDiagonalScale_MPISGGPU,0,
+/*20*/MatAssemblyBegin_MPISGGPU,MatAssemblyEnd_MPISGGPU,0,MatZeroEntries_MPISGGPU,0,
+/*25*/0,0,0,0,MatSetUp_MPISGGPU,
+/*30*/0,0,0,0,0,
+/*35*/0,0,0,0,0,
+/*40*/0,0,0,0,0,
+/*45*/0,0,0,0,0,
+/*50*/0,0,MatGetColumnIJ_MPISGGPU,0,MatFDColoringCreate_MPISGGPU,
+/*55*/0,0,0,MatSetValuesBlocked_MPISGGPU,0,
+/*60*/MatDestroy_MPISGGPU,MatView_MPISGGPU,0,0,0,
+/*65*/0,0,MatSetValues_MPISGGPU,0,MatGetRowMaxAbs_MPISGGPU,
+/*70*/0,0,0,0,0,
+/*75*/MatFDColoringApply_MPISGGPU,0,0,0,0,
+/*80*/0,0,0,0,0,
+/*85*/0,0,MatSetValuesBlocked_MPISGGPU,0,0,
+/*90*/0,0,0,0,0,
+/*95*/0,0,0,0,0,
+/*100*/0,0,0,0,0,
+/*105*/0,0,0,0,0,
+/*110*/0,0,0,0,0,
+/*115*/MatCreate_MPISGGPU,0,0,0,0,
+/*120*/0,0,0,0,0,
+/*125*/0,0,0,0,0,
+/*130*/0,0,0,0,0,
+/*135*/0,0,0,0,0,
+/*140*/0,0,
+/*142*/MatSetGrid_MPISGGPU
+};
+
+
+
+EXTERN_C_BEGIN
+#undef __FUNCT__
+#define __FUNCT__ "MatCreate_MPISGGPU"
+PetscErrorCode MatCreate_MPISGGPU(Mat A)
+{
+  Mat_SeqSGGPU * mat;
+  PetscErrorCode ierr;
+  PetscMPIInt size;
+
+  PetscFunctionBegin;
+  SGTrace;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatCreate_MPISGGPU\n");
+	
+
+  ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
+  if (size > 1)
+    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
+
+  // Create internal matrix structure
+  ierr = PetscMalloc(sizeof(Mat_SeqSGGPU), &mat); CHKERRQ(ierr);
+  memset(mat, 0, sizeof(Mat_SeqSGGPU));
+  mat->diag_starts = new std::map<int, int>();
+  mat->diagonals = new std::vector<int>();
+
+  checkCudaError(cudaStreamCreate(&mat->stream));
+
+  // Fill out PETSc matrix structure
+  A->data = mat;
+  memcpy(A->ops, &MatOps_Values, sizeof(struct _MatOps));
+  A->same_nonzero= PETSC_FALSE;
+  A->spptr = 0;
+
+  // Set object type
+  ierr = PetscObjectChangeTypeName((PetscObject)A, MATMPISGGPU); CHKERRQ(ierr);
+
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
+        "MatSeqSGGPUSetPreallocation_C","MatSeqSGGPUSetPreallocation_SeqDIA",
+        MatSeqSGGPUSetPreallocation_SeqSGGPU);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+EXTERN_C_END
+
 
 
 
 #undef __FUNCT__
 #define __FUNCT__ "MatDestroy_MPISGGPU"
 PetscErrorCode MatDestroy_MPISGGPU(Mat A) {
-  MatDestroy_MPISGGPU(A);
+  MatDestroy_SeqSGGPU(A);
   PetscFunctionReturn(0);
 }
 
@@ -23,7 +102,7 @@ PetscErrorCode MatSetGrid_MPISGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p) {
 #undef __FUNCT__
 #define __FUNCT__ "MatMult_MPISGGPU"
 PetscErrorCode MatMult_MPISGGPU(Mat mat, Vec x, Vec y) {
-  MatMult_MPISGGPU(mat, x, y); 
+  MatMult_SeqSGGPU(mat, x, y); 
   PetscFunctionReturn(0);
 }
 
@@ -39,17 +118,17 @@ PetscErrorCode MatSetValuesBlocked_MPISGGPU(Mat A, PetscInt nrow, const PetscInt
 #undef __FUNCT__
 #define __FUNCT__ "MatSetValues_MPISGGPU"
 PetscErrorCode MatSetValues_MPISGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is) {
-  MatSetValues_MPISGGPU(A, nrow, irow, ncol, icol, y, is);
+  MatSetValues_SeqSGGPU(A, nrow, irow, ncol, icol, y, is);
   PetscFunctionReturn(0);
 }
 
 
-#undef __FUNCT__
-#define __FUNCT__ "MatSetStencil_MPISGGPU"
-PetscErrorCode MatSetStencil_MPISGGPU(Mat A, PetscInt dim, const PetscInt dims[], const PetscInt starts[], PetscInt dof) {
-  MatSetStencil_MPISGGPU(A, dim, dims, starts, dof);
-  PetscFunctionReturn(0);
-}
+//#undef __FUNCT__
+//#define __FUNCT__ "MatSetStencil_MPISGGPU"
+//PetscErrorCode MatSetStencil_MPISGGPU(Mat A, PetscInt dim, const PetscInt dims[], const PetscInt starts[], PetscInt dof) {
+//  MatSetStencil_SeqSGGPU(A, dim, dims, starts, dof);
+//  PetscFunctionReturn(0);
+//}
 
 
 #undef __FUNCT__
