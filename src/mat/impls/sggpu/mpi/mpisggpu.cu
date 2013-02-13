@@ -1,6 +1,5 @@
 #include <../src/mat/impls/sggpu/mpi/mpisggpu.h>
 
-
 // Matrix function table
 static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_MPISGGPU,MatGetRow_MPISGGPU,MatRestoreRow_MPISGGPU,MatMult_MPISGGPU,0,
@@ -51,10 +50,9 @@ PetscErrorCode MatCreate_MPISGGPU(Mat A)
 
 	PetscPrintf(PETSC_COMM_WORLD,"MatCreate_MPISGGPU\n");
 	
-
-  ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
-  if (size > 1)
-    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
+//  ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
+//  if (size > 1)
+//    SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
 
   // Create internal matrix structure
   ierr = PetscMalloc(sizeof(Mat_SeqSGGPU), &mat); CHKERRQ(ierr);
@@ -74,8 +72,8 @@ PetscErrorCode MatCreate_MPISGGPU(Mat A)
   ierr = PetscObjectChangeTypeName((PetscObject)A, MATMPISGGPU); CHKERRQ(ierr);
 
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
-        "MatSeqSGGPUSetPreallocation_C","MatSeqSGGPUSetPreallocation_SeqDIA",
-        MatSeqSGGPUSetPreallocation_SeqSGGPU);CHKERRQ(ierr);
+        "MatMPISGGPUSetPreallocation_C","MatMPISGGPUSetPreallocation_MPIDIA",
+        MatMPISGGPUSetPreallocation_MPISGGPU);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 EXTERN_C_END
@@ -102,7 +100,9 @@ PetscErrorCode MatSetGrid_MPISGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p) {
 #undef __FUNCT__
 #define __FUNCT__ "MatMult_MPISGGPU"
 PetscErrorCode MatMult_MPISGGPU(Mat mat, Vec x, Vec y) {
+
   MatMult_SeqSGGPU(mat, x, y); 
+
   PetscFunctionReturn(0);
 }
 
@@ -241,3 +241,155 @@ PetscErrorCode MatGetColumnIJ_MPISGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
   MatGetColumnIJ_SeqSGGPU(A, oshift, symmetric, inodecompressed, nn, ia, ja, done);
   PetscFunctionReturn(0);
 }
+
+
+EXTERN_C_BEGIN
+#undef __FUNCT__
+#define __FUNCT__ "MatMPISGGPUSetPreallocation"
+PetscErrorCode MatMPISGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt dof)
+{
+  PetscErrorCode ierr;
+  Mat_SeqSGGPU *mat = (Mat_SeqSGGPU*)A->data;
+
+  PetscFunctionBegin;
+
+	PetscPrintf(PETSC_COMM_WORLD,"MatMPISGGPUSetPreallocation\n");
+
+  mat->stencil_type = stencil_type;
+  mat->dof = dof;
+  if(A->preallocated)PetscFunctionReturn(0);
+  PetscValidHeaderSpecific(A,MAT_CLASSID,1);
+  
+  ierr = PetscTryMethod(A,"MatMPISGGPUSetPreallocation_C",(Mat,PetscInt,const PetscInt []),(A,0,0));CHKERRQ(ierr);
+  A->preallocated=PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+EXTERN_C_END
+
+
+EXTERN_C_BEGIN
+#undef __FUNCT__
+#define __FUNCT__ "MatMPISGGPUSetPreallocation_MPISGGPU"
+extern PetscErrorCode MatMPISGGPUSetPreallocation_MPISGGPU(Mat A,PetscInt nz, const PetscInt nnz[])
+{
+  PetscErrorCode ierr;
+  Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
+
+  PetscInt dim,diag_size,size,num_diags,i,vecsize;
+
+  PetscPrintf(PETSC_COMM_WORLD,"MatMPISGGPUSetPreallocation_MPISGGPU\n");
+
+  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
+  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
+  ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
+
+  dim = A->stencil.dim;
+  if (mat->dof > 1) {
+    dim--;
+  }
+
+  mat->m = mat->n = mat->p = 1;
+  mat->dim = dim;
+  if (mat->dim > 0) mat->m = A->stencil.dims[dim-1];
+  if (mat->dim > 1) mat->n = A->stencil.dims[dim-2];
+  if (mat->dim > 2) mat->p = A->stencil.dims[dim-3];
+
+  if (mat->stencil_type == 0) {
+    /* star stencil */
+    num_diags = 2*mat->dim + 1;
+  } else {
+    /* box stencil */
+    num_diags =  1;
+    for (i=0;i<mat->dim;i++) num_diags*=3;
+  }
+
+  diag_size = mat->m * mat->n * mat->p * mat->dof * mat->dof;
+  size = num_diags * diag_size;
+
+  fprintf(stdout,"mat->m: %d\tmat->n %d\tmat->p: %d\tmat->dof: %d \n\n",mat->m,mat->n,mat->p,mat->dof); 
+
+  if (mat->m == 0 || mat->n == 0 || mat->p == 0 || mat->dof == 0) {
+    SETERRQ(PETSC_COMM_SELF,0,"MatSetPreallocation_SeqSGGPU called without valid m, n, p, and dof!");
+  }
+
+
+  ierr = PetscMalloc(sizeof(PetscInt)*num_diags,&mat->diag_offsets);
+  ierr = PetscMalloc(size * sizeof(PetscScalar), &mat->hostData); CHKERRQ(ierr);
+  memset(mat->hostData, 0, size * sizeof(PetscScalar));
+
+  (*mat->diag_starts)[0]  = 0 * diag_size;
+  (*mat->diagonals).push_back(0);
+  (*mat->diag_starts)[1]  = 1 * diag_size;
+  (*mat->diagonals).push_back(1);
+  (*mat->diag_starts)[-1] = 2 * diag_size;
+  (*mat->diagonals).push_back(-1);
+  if (mat->stencil_type == 0) {
+    if (mat->dim == 2) {
+      (*mat->diag_starts)[mat->m] = 3 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->m] = 4 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+    } else if (mat->dim == 3) {
+      (*mat->diag_starts)[mat->m] = 3 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->m] = 4 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+
+      (*mat->diag_starts)[mat->m*mat->n] = 5 * diag_size;
+      (*mat->diagonals).push_back(mat->m*mat->n);
+      (*mat->diag_starts)[-mat->m*mat->n] = 6 * diag_size;
+      (*mat->diagonals).push_back(-mat->m*mat->n);
+    }
+  } else {
+    if (mat->dim == 2) {
+      (*mat->diag_starts)[mat->n-1] = 3 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n-1] = 4 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+      (*mat->diag_starts)[mat->n] = 5 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n] = 6 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+      (*mat->diag_starts)[mat->n+1] = 7 * diag_size;
+      (*mat->diagonals).push_back(mat->m);
+      (*mat->diag_starts)[-mat->n+1] = 8 * diag_size;
+      (*mat->diagonals).push_back(-mat->m);
+    }
+  }
+  /*
+  printf("Diagonals preallocated:\n");
+  for (std::map<int, int>::iterator I = mat->diag_starts->begin(),
+         E = mat->diag_starts->end(); I != E; ++I) {
+    printf("%4d --> %4d\n",I->first,I->second);
+  }
+   */
+  
+  
+  // Create GPU buffer
+  if (mat->deviceData) {
+    cudaFree(mat->deviceData);
+  }
+  checkCudaError(cudaMalloc(&mat->deviceData, sizeof(PetscScalar) * size));
+  checkCudaError(cudaMemset(mat->deviceData,0.0,sizeof(PetscScalar)*size));
+
+  // Copy data to device
+  checkCudaError(cudaMemcpy(mat->deviceData, mat->hostData, sizeof(PetscScalar) * size, cudaMemcpyHostToDevice));
+
+
+  vecsize = mat->m * mat->n * mat->p * mat->dof;
+
+  // We know the expected size of x, y, so go ahead and allocate them now
+  checkCudaError(cudaMalloc(&mat->deviceX, vecsize * sizeof(PetscScalar)));
+  checkCudaError(cudaMalloc(&mat->deviceY, vecsize * sizeof(PetscScalar)));
+
+  // We also know how many diagonals we have, and their indices
+  checkCudaError(cudaMalloc(&mat->deviceDiags, sizeof(int) * mat->diagonals->size()));
+  A->preallocated = PETSC_TRUE;
+  ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  
+
+  PetscFunctionReturn(0);
+}
+EXTERN_C_END

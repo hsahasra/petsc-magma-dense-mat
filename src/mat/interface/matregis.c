@@ -170,7 +170,8 @@ PetscErrorCode  MatRegisterAll(const char path[])
  ierr = MatRegisterDynamic(MATBLOCKSTRUCTGRID,     path,"MatCreate_SeqBSG",MatCreate_SeqBSG);CHKERRQ(ierr);
  //ierr = MatRegisterDynamic(MATMPIBSG,     path,"MatCreate_MPIBSG",MatCreate_MPIBSG);CHKERRQ(ierr);
  ierr = MatRegisterDynamic(MATSTRUCTGRID,     path,"MatCreate_SeqSG",MatCreate_SeqSG);CHKERRQ(ierr);
-
+ 
+ 
 
 #if defined PETSC_HAVE_ELEMENTAL
   ierr = MatRegisterDynamic(MATELEMENTAL,      path,"MatCreate_Elemental",    MatCreate_Elemental);CHKERRQ(ierr);

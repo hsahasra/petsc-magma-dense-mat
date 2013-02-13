@@ -470,7 +470,7 @@ extern PetscErrorCode DMCreateMatrix_DA_3d_MPIBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_2d_MPISBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_3d_MPISBAIJ(DM,Mat);
 extern PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM,Mat);
-
+extern PetscErrorCode DMCreateMatrix_DA_MPISGGPU(DM,Mat);
 
 extern PetscErrorCode DMGetMatrix_DA_3d_StructGrid(DM,Mat);
 extern PetscErrorCode MatSetValuesBlocked_StructGrid(Mat,PetscScalar*,InsertMode);
@@ -595,7 +595,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
   MPI_Comm       comm;
   MatType        Atype;
   PetscSection   section, sectionGlobal;
-  void           (*aij)(void)=PETSC_NULL,(*baij)(void)=PETSC_NULL,(*sbaij)(void)=PETSC_NULL,(*sg)(void)=PETSC_NULL;
+  void           (*aij)(void)=PETSC_NULL,(*baij)(void)=PETSC_NULL,(*sbaij)(void)=PETSC_NULL,(*sg)(void)=PETSC_NULL,(*mpisg)(void)=PETSC_NULL;
   MatType        ttype[256];
   PetscBool      flg;
   PetscMPIInt    size;
@@ -704,7 +704,7 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
    more low-level than matrices. This is kind of cheating but, cause sometimes
    we think of DMDA has higher level than matrices.
 
-     We could switch based on Atype (or mtype), but we do not since the
+   We could switch based on Atype (or mtype), but we do not since the
    specialized setting routines depend only the particular preallocation
    details of the matrix, not the type itself.
   */
@@ -724,6 +724,9 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
       }
       if (!sbaij) {
         ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSGGPUSetPreallocation_C",&sg);CHKERRQ(ierr);
+      }
+      if (!sg) {
+        ierr = PetscObjectQueryFunction((PetscObject)A,"MatMPISGGPUSetPreallocation_C",&mpisg);CHKERRQ(ierr);
       }
     }
   }
@@ -761,6 +764,9 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
     }
   } else if (sg) {
     ierr = DMCreateMatrix_DA_SeqSGGPU(da,A);CHKERRQ(ierr);
+
+  } else if (mpisg) {
+    ierr = DMCreateMatrix_DA_MPISGGPU(da,A);CHKERRQ(ierr);
 
   } else if(!aij && !baij && !sbaij) {
     /* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
@@ -1449,6 +1455,59 @@ PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM da,Mat J){
 #endif
   PetscFunctionReturn(0);
 }
+
+
+
+#undef __FUNCT__
+#define __FUNCT__ "DMCreateMatrix_DA_MPISGGPU"
+PetscErrorCode DMCreateMatrix_DA_MPISGGPU(DM da,Mat J){
+
+#ifdef PETSC_HAVE_CUDA
+  PetscErrorCode         ierr;
+  PetscInt               xs,ys,zs,nx,ny,nz;//,i,j,slot,gxs,gys,gnx,gny;
+  PetscInt               m,n,dim,s,dof,p,*dnz,*onz;//l,k,cnt
+  PetscInt               dims[3],starts[3]; //dof
+  MPI_Comm               comm;
+  DMDABoundaryType       bx,by,bz;;
+  DMDAStencilType        st;
+  ISLocalToGlobalMapping ltog;
+
+  PetscFunctionBegin;
+
+  /*
+         dof - number of components per grid point
+  */
+  ierr = DMDAGetInfo(da,&dim,&m,&n,&p,0,0,0,&dof,&s,&bx,&by,&bz,&st);CHKERRQ(ierr);
+  ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
+
+
+  /* doing without MPI for now */
+  ierr = MatSetStencil(J,dim,dims,starts,dof);CHKERRQ(ierr);
+  ierr = DMDAGetCorners(da,&xs,&ys,&zs,&nx,&ny,&nz);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
+  
+  ierr = DMGetLocalToGlobalMapping(da, &ltog); CHKERRQ(ierr);
+
+  ierr = MatPreallocateInitialize(comm,nx*ny*nz,dof*nx*ny*nz,dnz,onz);CHKERRQ(ierr);
+  if (st == DMDA_STENCIL_STAR) {
+    ierr = MatMPISGGPUSetPreallocation(J,0,dof);CHKERRQ(ierr);
+  } else { /* DMDA_STENCIL_BOX */
+    ierr = MatMPISGGPUSetPreallocation(J,1,dof);CHKERRQ(ierr);
+  }
+  ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
+  ierr = MatZeroEntries(J); CHKERRQ(ierr);
+
+  ierr = MatSetLocalToGlobalMapping(J,ltog,ltog);CHKERRQ(ierr);
+
+#else
+  PetscFunctionBegin;
+  SETERRQ(PETSC_COMM_WORLD,1,"Must configure with cuda to use SGGPU Matrix");
+#endif
+  PetscFunctionReturn(0);
+}
+
+
+
 
 
 #undef __FUNCT__  
