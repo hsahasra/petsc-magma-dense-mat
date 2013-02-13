@@ -14,9 +14,6 @@ EXTERN_C_END
 
 
 
-
-
-
 typedef struct {
   //Mat		A;			// Column major storage of diagonals */
   Mat_SeqSGGPU  *mat_seq;

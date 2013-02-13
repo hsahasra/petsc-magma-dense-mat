@@ -177,7 +177,8 @@ PetscErrorCode  MatRegisterAll(void)
   // ierr = MatRegisterDynamic(MATBLOCKSTRUCTGRID,     path,"MatCreate_SeqBSG",MatCreate_SeqBSG);CHKERRQ(ierr);
  ierr = MatRegister(MATMPIBSG,    MatCreate_MPIBSG);CHKERRQ(ierr);
  ierr = MatRegister(MATSTRUCTGRID,     MatCreate_SeqSG);CHKERRQ(ierr);
-
+ 
+ 
 
 
  PetscFunctionReturn(0);

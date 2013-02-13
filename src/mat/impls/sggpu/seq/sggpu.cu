@@ -399,9 +399,7 @@ PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[]
   PetscFunctionBegin;
   SGTrace;
 
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatSetValues_SeqSGGPU\n");
-
+	//PetscPrintf(PETSC_COMM_WORLD,"MatSetValues_SeqSGGPU\n");
 
   // Handle each element
   for (i = 0; i < nrow; i++) {
@@ -702,7 +700,6 @@ PetscErrorCode MatZeroEntries_SeqSGGPU(Mat A)
 
 	PetscPrintf(PETSC_COMM_WORLD,"MatZeroEntries_SeqSGGPU\n");
 
-
   size = mat->diag_starts->size() * mat->m * mat->n * mat->p * mat->dof * mat->dof;
   memset(mat->hostData, 0, size * sizeof(PetscScalar));
   
@@ -865,8 +862,6 @@ PetscErrorCode MatAssemblyBegin_SeqSGGPU(Mat A, MatAssemblyType type)
   PetscFunctionBegin;
   SGTrace;
 
-	PetscPrintf(PETSC_COMM_WORLD,"MatAssemblyBegin_SeqSGGPU\n");
-
   PetscFunctionReturn(0);
 }
 
@@ -878,9 +873,6 @@ PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type)
   Mat_SeqSGGPU * mat = (Mat_SeqSGGPU*)A->data;
   PetscInt size;
   PetscFunctionBegin;
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatAssemblyEnd_SeqSGGPU\n");
-
 
 #if _TRACE
   printf("[SeqSGGPU] MatAssemblyEnd_SeqSGGPU\n");
