@@ -86,7 +86,6 @@ typedef const char* MatType;
 #define MATNEST            "nest"
 #define MATIJ              "ij"
 
-
 #define MATSTRUCTGRID      "structgrid"
 
 #define MATSEQSGGPU        "seqsggpu"
@@ -345,7 +344,7 @@ typedef struct {
 PETSC_EXTERN PetscErrorCode MatSetValuesStencil(Mat,PetscInt,const MatStencil[],PetscInt,const MatStencil[],const PetscScalar[],InsertMode);
 PETSC_EXTERN PetscErrorCode MatSetValuesBlockedStencil(Mat,PetscInt,const MatStencil[],PetscInt,const MatStencil[],const PetscScalar[],InsertMode);
 PETSC_EXTERN PetscErrorCode MatSetStencil(Mat,PetscInt,const PetscInt[],const PetscInt[],PetscInt);
-
+PETSC_EXTERN PetscErrorCode MatSetGrid(Mat,const PetscInt m,const PetscInt n, const PetscInt p);
 PETSC_EXTERN PetscErrorCode MatSetColoring(Mat,ISColoring);
 PETSC_EXTERN PetscErrorCode MatSetValuesAdic(Mat,void*);
 PETSC_EXTERN PetscErrorCode MatSetValuesAdifor(Mat,PetscInt,void*);

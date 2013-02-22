@@ -1489,6 +1489,25 @@ PetscErrorCode  MatSetStencil(Mat mat,PetscInt dim,const PetscInt dims[],const P
   PetscFunctionReturn(0);
 }
 
+
+
+#undef __FUNCT__
+#define __FUNCT__ "MatSetGrid"
+PetscErrorCode  MatSetGrid(Mat mat,const PetscInt m,const PetscInt n, const PetscInt p)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+
+  if(*mat->ops->setgrid)
+    {
+      ierr = (*mat->ops->setgrid)(mat,m,n,p);CHKERRQ(ierr);
+    }
+
+  PetscFunctionReturn(0);
+}
+
+
+
 #undef __FUNCT__
 #define __FUNCT__ "MatSetValuesBlocked"
 /*@

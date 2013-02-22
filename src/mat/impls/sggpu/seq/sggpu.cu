@@ -244,8 +244,6 @@ PetscErrorCode MatSetGrid_SeqSGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p)
   PetscFunctionBegin;
   SGTrace;
 
-		PetscPrintf(PETSC_COMM_WORLD,"MatSetGrid_SeqSGGPU\n");
-
   mat->m = m;
   mat->n = n;
   mat->p = p;
@@ -267,10 +265,6 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 
   PetscFunctionBegin;
   SGTrace;
-
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatMult_SeqSGGPU\n");
-
 
   // Initialize y to zero
   ierr = VecSet(y, 0.0); CHKERRQ(ierr);

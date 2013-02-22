@@ -1470,7 +1470,7 @@ PetscErrorCode DMCreateMatrix_DA_MPISGGPU(DM da,Mat J){
   MPI_Comm               comm;
   DMDABoundaryType       bx,by,bz;;
   DMDAStencilType        st;
-  ISLocalToGlobalMapping ltog;
+  ISLocalToGlobalMapping ltog, ltogb;
 
   PetscFunctionBegin;
 
@@ -1478,16 +1478,14 @@ PetscErrorCode DMCreateMatrix_DA_MPISGGPU(DM da,Mat J){
          dof - number of components per grid point
   */
   ierr = DMDAGetInfo(da,&dim,&m,&n,&p,0,0,0,&dof,&s,&bx,&by,&bz,&st);CHKERRQ(ierr);
+
+  ierr = DMDAGetCorners(da,&xs,&ys,&zs,&nx,&ny,&nz);CHKERRQ(ierr);
   ierr = DMDAGetGhostCorners(da,&starts[0],&starts[1],&starts[2],&dims[0],&dims[1],&dims[2]);CHKERRQ(ierr);
 
-
-  /* doing without MPI for now */
   ierr = MatSetStencil(J,dim,dims,starts,dof);CHKERRQ(ierr);
-  ierr = DMDAGetCorners(da,&xs,&ys,&zs,&nx,&ny,&nz);CHKERRQ(ierr);
-  ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
-  
-  ierr = DMGetLocalToGlobalMapping(da, &ltog); CHKERRQ(ierr);
+  ierr = MatSetGrid(J,m,n,p);CHKERRQ(ierr);
 
+  ierr = PetscObjectGetComm((PetscObject)da,&comm);CHKERRQ(ierr);
   ierr = MatPreallocateInitialize(comm,nx*ny*nz,dof*nx*ny*nz,dnz,onz);CHKERRQ(ierr);
   if (st == DMDA_STENCIL_STAR) {
     ierr = MatMPISGGPUSetPreallocation(J,0,dof);CHKERRQ(ierr);
@@ -1495,9 +1493,17 @@ PetscErrorCode DMCreateMatrix_DA_MPISGGPU(DM da,Mat J){
     ierr = MatMPISGGPUSetPreallocation(J,1,dof);CHKERRQ(ierr);
   }
   ierr = MatPreallocateFinalize(dnz,onz);CHKERRQ(ierr);
+
   ierr = MatZeroEntries(J); CHKERRQ(ierr);
 
+  ierr = DMGetLocalToGlobalMapping(da, &ltog); CHKERRQ(ierr);
+  ierr = DMGetLocalToGlobalMapping(da, &ltogb); CHKERRQ(ierr);
+
   ierr = MatSetLocalToGlobalMapping(J,ltog,ltog);CHKERRQ(ierr);
+  ierr = MatSetLocalToGlobalMappingBlock(J,ltogb,ltogb);CHKERRQ(ierr);
+
+  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
 #else
   PetscFunctionBegin;
