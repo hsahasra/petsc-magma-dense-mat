@@ -1787,12 +1787,9 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu(Mat A,Vec bb,Vec xx)
       int offset0 = center_diag*dof*numElements + (chunk*chunkSize + block)*dof;
       int offset2 = (chunk*chunkSize + block)*dof;
       // solve diagBlock * x = beta
-      if ( dof > 1 ) {
-	PetscMemcpy( beta, &(x[offset2]), dof*sizeof(PetscScalar) );
-	for ( j = 1; j < dof; j++ ) {
-	  for ( k = 0; k < j; k++ )
-	    x[offset2 + j] += ( a->hostData[offset0 + k*numElements + j] * beta[k] );
-	}
+      for ( j = 1; j < dof; j++ ) {
+	for ( k = 0; k < j; k++ )
+	  x[offset2 + j] += ( a->hostData[offset0 + k*numElements + j] * x[offset2 + k] );
       }
 
       // update blocks below this diag block
@@ -1900,11 +1897,11 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu(Mat A,Vec bb,Vec xx)
       int offset0 = center_diag*dof*numElements + (chunk*chunkSize + block)*dof;
       int offset2 = (chunk*chunkSize + block)*dof;
       // solve diagBlock * x = beta
-      PetscMemcpy( beta, &(x[offset2]), dof*sizeof(PetscScalar) );
+      //PetscMemcpy( beta, &(x[offset2]), dof*sizeof(PetscScalar) );
       for ( j = dof-1; j >= 0; j-- ) {
 	x[offset2 + j] *= a->hostData[offset0 + j*numElements + j];
 	for ( k = j+1; k < dof; k++ )
-	  x[offset2 + j] += ( a->hostData[offset0 + k*numElements + j] * beta[k] );
+	  x[offset2 + j] += ( a->hostData[offset0 + k*numElements + j] * x[offset2 + k] );
       }
 
       // update blocks above this diag block
