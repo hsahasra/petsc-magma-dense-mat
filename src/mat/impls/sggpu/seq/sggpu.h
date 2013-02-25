@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include <cuda.h>
+#include <cuda_runtime.h>
 
 // External decls
 EXTERN_C_BEGIN
@@ -19,8 +20,6 @@ EXTERN_C_END
 #else
 #define SGTrace
 #endif
-
-
 
 
 // Matrix type container
