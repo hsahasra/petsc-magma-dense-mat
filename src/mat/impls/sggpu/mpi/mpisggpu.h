@@ -23,14 +23,6 @@ typedef struct {
   PetscMPIInt   size;                   /* size of communicator */
   PetscMPIInt   rank; 			/* rank of proc in communicator */
 
-  /* The following variables are used for matrix assembly */
-  PetscBool     donotstash;             /* PETSC_TRUE if off processor entries dropped */
-  MPI_Request   *send_waits;            /* array of send requests */
-  MPI_Request   *recv_waits;            /* array of receive requests */
-  PetscInt      nsends,nrecvs;          /* numbers of sends and receives */
-  PetscScalar   *svalues,*rvalues;      /* sending and receiving data */
-  PetscInt      rmax;                   /* maximum message length */
-
   /* The following variables are used for matrix-vector products */
   Vec           lvec;              	/* local vector */
   Vec           diag;
