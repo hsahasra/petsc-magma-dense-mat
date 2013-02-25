@@ -66,11 +66,21 @@ PetscErrorCode MatGetRowMaxAbs_SeqSGGPU(Mat A, Vec v, PetscInt idx[]);
 PetscErrorCode MatView_SeqSGGPU(Mat A, PetscViewer viewer);
 PetscErrorCode MatAssemblyBegin_SeqSGGPU(Mat A, MatAssemblyType type);
 PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type);
+PetscErrorCode MatLoad_SeqSGGPU(Mat newmat,PetscViewer viewer);
+PetscErrorCode MatILUFactor_SeqSGGPU(Mat inA,IS row,IS col,const MatFactorInfo *info);
+PetscErrorCode MatGetInfo_SeqSGGPU(Mat A,MatInfoType flag,MatInfo *info);
+PetscErrorCode MatSolve_SeqSGGPU(Mat A,Vec bb,Vec xx);
+PetscErrorCode MatSolve_SeqSGGPU_cpu(Mat A,Vec bb,Vec xx);
+PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx);
+PetscErrorCode MatSolve_SeqSGGPU_compare(Mat A,Vec bb,Vec xx);
 PetscErrorCode MatView_SeqSGGPU_ASCII(Mat,PetscViewer);
 extern PetscErrorCode MatFDColoringApply_SeqSGGPU(Mat,MatFDColoring,Vec,MatStructure*,void*);
 extern PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat,ISColoring,MatFDColoring);
 extern PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);
 EXTERN_C_BEGIN
 extern PetscErrorCode MatSeqSGGPUSetPreallocation_SeqSGGPU(Mat A,PetscInt nz, const PetscInt nnz[]);
+extern PetscErrorCode  MatConvert_SeqSGGPU_SeqAIJ(Mat, const MatType, MatReuse, Mat*);
+extern PetscErrorCode  MatGetFactor_seqsggpu_petsc(Mat,MatFactorType,Mat*);
+extern PetscErrorCode  MatConvertLU_SeqSGGPU_SeqAIJ(Mat A, Mat *AIJ_L, Mat *AIJ_U );
 EXTERN_C_END
 #endif

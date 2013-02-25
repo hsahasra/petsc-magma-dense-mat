@@ -4,7 +4,7 @@ OSKILIBS_DIR = ${OSKI_DIR}/lib/oski
 
 CFLAGS 	        =
 
-CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include 
+CFLAGS 	        = -fopenmp -I/data/software/PAPI/include -I${OSKI_DIR}/include 
 FFLAGS	        =
 CPPFLAGS        =
 FPPFLAGS        =
@@ -29,6 +29,11 @@ exbSG: exbSG.o chkopts
 	-${CLINKER} -o exbSG exbSG.o ${PETSC_MAT_LIB}
 	${RM} exbSG.o
 
+exSG4: exSG4.o  chkopts
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o exSG4 exSG4.o ${PETSC_MAT_LIB} 
+	${RM} exSG4.o
+
+
 exbSG: exbSG.o chkopts
 	-${CLINKER} -o exbSG exbSG.o ${PETSC_MAT_LIB}
 	${RM} exbSG.o
@@ -46,12 +51,12 @@ exbSG2: exbSG2.o chkopts
 	${RM} exbSG2.o
 
 oski: exbSG_oski.o chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o oski exbSG_oski.o ${CLDFLAGS_STATIC} ${PETSC_MAT_LIB}
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o oski exbSG_oski.o ${CLDFLAGS_STATIC} ${PETSC_MAT_LIB}
 	${RM} exbSG_oski.o
 
 
 exbSG3: exbSG3.o chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG3 exbSG3.o ${PETSC_MAT_LIB}
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o exbSG3 exbSG3.o ${PETSC_MAT_LIB}
 	${RM} exbSG3.o
 
 ex1: ex1.o  chkopts
@@ -110,6 +115,17 @@ ex17: ex17.o  chkopts
 
 # See http://www.mcs.anl.gov/petsc/documentation/faq.html#datafiles for how to obtain the datafiles used below
 	-@${MPIEXEC}  ./exSG -m 2 -n 2 -p 2 -dof 2
+	      ${PETSC_KSP_LIB}  ## -lmpiP -lm -lbfd -liberty
+	${RM} exSG5.o
+
+exSG6: exSG6.o  chkopts
+	-${CLINKER}  -o exSG6 exSG6.o ${PETSC_MAT_LIB} -L/data/software/PAPI/lib -lpapi \
+	      ${PETSC_KSP_LIB}  ## -lmpiP -lm -lbfd -liberty
+	${RM} exSG6.o
+
+
+runexSG4: 
+	-@${MPIEXEC}  ./exSG4 
 
 runexbSG_mpi: 
 	-@${MPIEXEC} -np 4  ./exbSG_mpi
