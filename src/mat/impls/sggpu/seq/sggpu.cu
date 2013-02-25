@@ -14,7 +14,6 @@
 #endif
 
 #include "petsc-private/matimpl.h"
-#include "sggpu.h"
 
 // Direct access to seqgpu vector type
 #include "../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h"
@@ -29,6 +28,7 @@
 // C++ library headers
 #include <map>
 
+#include "sggpu.h"
 
 // Hard-coded block size
 #define BLOCKWIDTH_X 128
@@ -62,49 +62,55 @@ double getclock() {
   return (tp.tv_sec + tp.tv_usec*1.0e-6);
 }
 
+
+
+
 //===-- CUDA Device Code -------------------------------------------------===//
-
+ 
 texture<int2, 1> vector_x;
-
+     
 static __inline__ __device__ double fetch_double(texture<int2, 1> tex, int i)
-{
-  int2 v = tex1Dfetch(tex, i);
-  return __hiloint2double(v.y, v.x);
-}
-
+     {
+       int2 v = tex1Dfetch(tex, i);
+       return __hiloint2double(v.y, v.x);
+     }
+     
 __global__ void MatMultKernel(PetscScalar * coeff, PetscScalar * y, PetscInt mat_size, PetscInt num_diags, int * diagonals, PetscInt dof) {
-  int idx = blockDim.x * blockIdx.x * 1 + threadIdx.x * 1;
-
-  if (idx >= mat_size)
-    return;
-
-  int diag_size = mat_size * dof;
-
-  PetscScalar yval0 = 0.0;
-  int idx0 = idx;
-
-  //#pragma unroll 4
-  for (int i = 0; i < num_diags; ++i) {
+       
+int idx = blockDim.x * blockIdx.x * 1 + threadIdx.x * 1;
+     
+if (idx >= mat_size)
+      return;
+     
+int diag_size = mat_size * dof;
+     
+PetscScalar yval0 = 0.0;
+int idx0 = idx;
+     
+//#pragma unroll 4
+for (int i = 0; i < num_diags; ++i) {
     int d = diagonals[i];
-
+     
     int offset0 = diag_size * i + idx0;
     int block0 = (idx0 / dof + d) * dof;
-
+     
     //#pragma unroll 12
     for (int j = 0; j < dof; ++j) {
       // Get coefficient
       PetscScalar aval0 = coeff[offset0 + mat_size*j];
       // Get X value
       PetscScalar xval0 = fetch_double(vector_x, block0 + j);
-
+     
       yval0 += aval0 * xval0;
-    }
-  }
-
-  y[idx0] = yval0;
-}
-
+           }
+         }
+   
+      y[idx0] = yval0;
+      }
+    
 //===-- Host Code --------------------------------------------------------===//
+
+
 
 
 // Matrix function table
@@ -198,9 +204,6 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A)
   PetscFunctionBegin;
   SGTrace;
 
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatDestroy_SeqSGGPU\n");
-
   mat = (Mat_SeqSGGPU*)A->data;
 
   if (mat->hostData) {
@@ -262,7 +265,6 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   CUSPARRAY *xgpu,*ygpu;
   PetscScalar *devX,*devY;
 
-
   PetscFunctionBegin;
   SGTrace;
 
@@ -300,10 +302,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     MatMultKernel<<<grid, block, shared_size, mat->stream>>>(mat->deviceData, devY, mat_size, mat->diagonals->size(), mat->deviceDiags, mat->dof);
 
     cudaUnbindTexture(vector_x);
-    cudaDeviceSynchronize();
-
-
-    
+    cudaDeviceSynchronize();    
 
   } else if (iscusp) {
     dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
@@ -367,6 +366,11 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   } else {
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vec must be seqgpu or cusp type");
   }
+
+	VecView(x,PETSC_VIEWER_STDOUT_WORLD);
+	VecView(y,PETSC_VIEWER_STDOUT_WORLD);
+
+
   PetscFunctionReturn(0);
 }
 
@@ -692,10 +696,8 @@ PetscErrorCode MatZeroEntries_SeqSGGPU(Mat A)
   PetscInt size;
   PetscFunctionBegin;
   SGTrace;
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatZeroEntries_SeqSGGPU\n");
-
-  size = mat->diag_starts->size() * mat->m * mat->n * mat->p * mat->dof * mat->dof;
+  
+  size = mat->diag_starts->size() * (mat->m * mat->n * mat->p * mat->dof * mat->dof);
   memset(mat->hostData, 0, size * sizeof(PetscScalar));
   
   PetscFunctionReturn(0);

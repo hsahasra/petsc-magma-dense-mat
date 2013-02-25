@@ -15,6 +15,8 @@ EXTERN_C_END
 
 
 typedef struct {
+
+  PetscInt nvec; 
   //Mat		A;			// Column major storage of diagonals */
   Mat_SeqSGGPU  *mat_seq;
 
@@ -60,6 +62,7 @@ PetscErrorCode MatView_MPISGGPU_ASCII(Mat,PetscViewer);
 extern PetscErrorCode MatFDColoringApply_MPISGGPU(Mat,MatFDColoring,Vec,MatStructure*,void*);
 extern PetscErrorCode MatFDColoringCreate_MPISGGPU(Mat,ISColoring,MatFDColoring);
 extern PetscErrorCode MatGetColumnIJ_MPISGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);
+extern PetscErrorCode MatSetUpMultiply_MPISGGPU(Mat);
 EXTERN_C_BEGIN
 extern PetscErrorCode MatMPISGGPUSetPreallocation_MPISGGPU(Mat A,PetscInt nz, const PetscInt nnz[]);
 EXTERN_C_END
