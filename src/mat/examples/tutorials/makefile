@@ -4,14 +4,14 @@ OSKILIBS_DIR = ${OSKI_DIR}/lib/oski
 
 OSKILIBS_STATIC = -Wl,--whole-archive `cat $(OSKILIBS_DIR)/site-modules-static.txt` -Wl,--no-whole-archive
 
-CFLAGS 	        = -fopenmp -I/opt/software/papi/4.2.0/include -I${OSKI_DIR}/include 
+CFLAGS 	        = -fopenmp -I/data/software/PAPI/include -I${OSKI_DIR}/include 
 FFLAGS	        = 
 CPPFLAGS        = 
 FPPFLAGS        =
 LOCDIR          = src/mat/examples/tutorials/
 
 
-EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c ex14.c ex15.c ex16.c ex17.c exSG.c exSG2.c exbSG.c exbSG2.c exbSG3.c exbSG_oski.c exbSG_mpi.c
+EXAMPLESC       = ex1.c ex2.c ex4.c ex5.c ex6.c ex8.c ex9.c ex10.c ex11.c ex12.c ex13.c ex14.c ex15.c ex16.c ex17.c exSG.c exSG2.c exSG4.c exbSG.c exbSG2.c exbSG3.c exbSG_oski.c exbSG_mpi.c
 
 EXAMPLESF       =
 MANSEC          = Mat
@@ -24,8 +24,13 @@ exSG: exSG.o  chkopts
 	${RM} exSG.o
 
 exSG2: exSG2.o  chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exSG2 exSG2.o ${PETSC_MAT_LIB} 
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o exSG2 exSG2.o ${PETSC_MAT_LIB} 
 	${RM} exSG2.o
+
+
+exSG4: exSG4.o  chkopts
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o exSG4 exSG4.o ${PETSC_MAT_LIB} 
+	${RM} exSG4.o
 
 
 exbSG: exbSG.o chkopts
@@ -41,16 +46,16 @@ exbSG_mpi: exbSG_mpi.o chkopts
 	${RM} exbSG_mpi.o
 
 exbSG2: exbSG2.o chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o exbSG2 exbSG2.o ${PETSC_MAT_LIB}
 	${RM} exbSG2.o
 
 oski: exbSG_oski.o chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o oski exbSG_oski.o ${CLDFLAGS_STATIC} ${PETSC_MAT_LIB}
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o oski exbSG_oski.o ${CLDFLAGS_STATIC} ${PETSC_MAT_LIB}
 	${RM} exbSG_oski.o
 
 
 exbSG3: exbSG3.o chkopts
-	-${CLINKER} -L/opt/software/papi/4.2.0/lib/ -lpapi -o exbSG3 exbSG3.o ${PETSC_MAT_LIB}
+	-${CLINKER} -L/data/software/PAPI/lib/ -lpapi -o exbSG3 exbSG3.o ${PETSC_MAT_LIB}
 	${RM} exbSG3.o
 
 ex1: ex1.o  chkopts
@@ -108,6 +113,16 @@ ex17: ex17.o  chkopts
 	-${CLINKER}  -o ex17 ex17.o ${PETSC_MAT_LIB}
 	${RM} ex17.o
 
+exSG5: exSG5.o  chkopts
+	-${CLINKER}  -o exSG5 exSG5.o ${PETSC_MAT_LIB} -L/data/software/PAPI/lib -lpapi \
+	      ${PETSC_KSP_LIB}  ## -lmpiP -lm -lbfd -liberty
+	${RM} exSG5.o
+
+exSG6: exSG6.o  chkopts
+	-${CLINKER}  -o exSG6 exSG6.o ${PETSC_MAT_LIB} -L/data/software/PAPI/lib -lpapi \
+	      ${PETSC_KSP_LIB}  ## -lmpiP -lm -lbfd -liberty
+	${RM} exSG6.o
+
 # See http://www.mcs.anl.gov/petsc/petsc-as/documentation/faq.html#datafiles for how to obtain the datafiles used below
 
 runexSG: 
@@ -115,6 +130,9 @@ runexSG:
 
 runexSG2: 
 	-@${MPIEXEC}  ./exSG2 
+
+runexSG4: 
+	-@${MPIEXEC}  ./exSG4 
 
 runexbSG_mpi: 
 	-@${MPIEXEC} -np 4  ./exbSG_mpi

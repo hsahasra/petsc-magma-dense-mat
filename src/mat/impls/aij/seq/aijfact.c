@@ -3604,3 +3604,94 @@ PetscErrorCode  MatILUDTFactorNumeric_SeqAIJ(Mat fact,Mat A,const MatFactorInfo 
   ierr = PetscLogFlops(C->cmap->n);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+EXTERN_C_BEGIN
+#undef __FUNCT__
+#define __FUNCT__ "MatConvertLU_SeqAIJ_SeqAIJ"
+/*
+  MatConvertLU_SeqAIJ_SeqAIJ - Converts from an LU-factored aij format to two seqaij.
+  John Eisenlohr*/
+PetscErrorCode MatConvertLU_SeqAIJ_SeqAIJ(Mat A, Mat *AIJ_L, Mat *AIJ_U ){
+  //printf(".................MatConvertLU_SeqAIJ_SeqAIJ() called\n");
+  PetscFunctionBegin;
+  Mat_SeqAIJ * a = (Mat_SeqAIJ *) A->data;
+  Mat B,C;
+  PetscInt i,j, kl, ku;
+  PetscInt m = A->rmap->n,n = A->cmap->n;
+  PetscScalar *vals_l, *vals_u;
+  PetscInt *cols_l, *cols_u, *vi;
+  PetscErrorCode ierr;
+  PetscInt *nnz_l, *nnz_u, nnz;
+  PetscInt *ai = a->i, *aj = a->j, *adiag = a->diag;
+  const MatScalar   *aa = a->a,*v;
+
+  // arrays to hold number of zeros in lower and upper portions of each row
+  ierr = PetscMalloc(m*sizeof(PetscInt),&nnz_l); CHKERRQ(ierr);
+  ierr = PetscMalloc(m*sizeof(PetscInt),&nnz_u); CHKERRQ(ierr);
+
+  // workspace for holding the upper and lower portions of each row
+  // these are reused for each row
+  ierr = PetscMalloc(n*sizeof(PetscInt),&cols_l); CHKERRQ(ierr);
+  ierr = PetscMalloc(n*sizeof(PetscInt),&cols_u); CHKERRQ(ierr);
+  ierr = PetscMalloc(n*sizeof(PetscScalar),&vals_l); CHKERRQ(ierr);
+  ierr = PetscMalloc(n*sizeof(PetscScalar),&vals_u); CHKERRQ(ierr);
+
+  // count non-zeros in upper and lower triangles
+  nnz_l[0] = 1;
+  for(i=1;i<m;i++){
+    nnz_l[i] = ai[i+1] - ai[i] + 1;
+  }
+  for ( i = m-1; i >= 0; i-- ) {
+    nnz_u[i] = adiag[i]-adiag[i+1];
+  }
+
+  printf("m: %d, n: n: %d\n",m,n);
+  ierr = MatCreateSeqAIJ(((PetscObject)A)->comm,m,n,PETSC_NULL,nnz_l,&B);CHKERRQ(ierr);
+  ierr = MatCreateSeqAIJ(((PetscObject)A)->comm,m,n,PETSC_NULL,nnz_u,&C);CHKERRQ(ierr);
+
+  // get each row from factored aij, divide into L and R pieces,
+  // set values in L and R matrices
+  v = aa;
+  vi = aj;
+  for(i=0;i<m;i++){
+    kl = 0;
+    ku = 0;
+    for ( j = 0; j < nnz_l[i]-1; j++ ) {
+      vals_l[j] = v[j];
+      cols_l[j] = vi[j];
+    }
+    vals_l[nnz_l[i]-1] = 1.0;
+    cols_l[nnz_l[i]-1] = i;
+    ierr = MatSetValues(B,1,&i,nnz_l[i],cols_l,vals_l,INSERT_VALUES);
+    v  += (nnz_l[i]-1);
+    vi += (nnz_l[i]-1);
+  }
+
+  for (i=m-1; i>=0; i--){
+    v = aa + adiag[i+1]+1;
+    vi  = aj + adiag[i+1]+1;
+    for ( j = 0; j < nnz_u[i]; j++ ) {
+      vals_u[j] = (j < nnz_u[i]-1) ? v[j] : 1/v[j];
+      cols_u[j] = vi[j];
+    }
+    ierr = MatSetValues(C,1,&i,nnz_u[i],cols_u,vals_u,INSERT_VALUES);
+  }
+
+  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  ierr=PetscFree(nnz_l);CHKERRQ(ierr);
+  ierr=PetscFree(nnz_u);CHKERRQ(ierr);
+  ierr=PetscFree(cols_l);CHKERRQ(ierr);
+  ierr=PetscFree(cols_u);CHKERRQ(ierr);
+  ierr=PetscFree(vals_l);CHKERRQ(ierr);
+  ierr=PetscFree(vals_u);CHKERRQ(ierr);
+
+  *AIJ_L = B;
+  *AIJ_U = C;
+
+  PetscFunctionReturn(0);
+}
+EXTERN_C_END

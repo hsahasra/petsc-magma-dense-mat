@@ -29,6 +29,7 @@
 #include <map>
 
 #include "sggpu.h"
+#include "../src/mat/impls/aij/seq/aij.h"  
 
 // Hard-coded block size
 #define BLOCKWIDTH_X 128
@@ -118,11 +119,11 @@ static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_SeqSGGPU,MatGetRow_SeqSGGPU,MatRestoreRow_SeqSGGPU,MatMult_SeqSGGPU,0,
 /*5*/0,0,0,0,0,
 /*10*/0,0,0,0,0,
-/*15*/0,0,MatGetDiagonal_SeqSGGPU,MatDiagonalScale_SeqSGGPU,0,
+/*15*/MatGetInfo_SeqSGGPU,0,MatGetDiagonal_SeqSGGPU,MatDiagonalScale_SeqSGGPU,0,
 /*20*/MatAssemblyBegin_SeqSGGPU,MatAssemblyEnd_SeqSGGPU,0,MatZeroEntries_SeqSGGPU,0,
 /*25*/0,0,0,0,MatSetUp_SeqSGGPU,
 /*30*/0,0,0,0,0,
-/*35*/0,0,0,0,0,
+/*35*/0,0,MatILUFactor_SeqSGGPU,0,0,
 /*40*/0,0,0,0,0,
 /*45*/0,0,0,0,0,
 /*50*/0,0,MatGetColumnIJ_SeqSGGPU,0,MatFDColoringCreate_SeqSGGPU,
@@ -131,7 +132,7 @@ static struct _MatOps MatOps_Values = {
 /*65*/0,0,MatSetValues_SeqSGGPU,0,MatGetRowMaxAbs_SeqSGGPU,
 /*70*/0,0,0,0,0,
 /*75*/MatFDColoringApply_SeqSGGPU,0,0,0,0,
-/*80*/0,0,0,0,0,
+/*80*/0,0,0,MatLoad_SeqSGGPU,0,
 /*85*/0,0,MatSetValuesBlocked_SeqSGGPU,0,0,
 /*90*/0,0,0,0,0,
 /*95*/0,0,0,0,0,
@@ -185,6 +186,14 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
 
   // Set object type
   ierr = PetscObjectChangeTypeName((PetscObject)A, MATSEQSGGPU); CHKERRQ(ierr);
+
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,"MatConvert_seqsggpu_seqaij_C",
+                                     "MatConvert_SeqSGGPU_SeqAIJ",
+                                      MatConvert_SeqSGGPU_SeqAIJ);CHKERRQ(ierr);
+
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
+					   "MatGetFactor_petsc_C","MatGetFactor_seqsggpu_petsc",
+					   MatGetFactor_seqsggpu_petsc);CHKERRQ(ierr);
 
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
         "MatSeqSGGPUSetPreallocation_C","MatSeqSGGPUSetPreallocation_SeqDIA",
@@ -283,7 +292,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     Vec_SeqGPU *vx = (Vec_SeqGPU*) x->data;
     Vec_SeqGPU *vy = (Vec_SeqGPU*) y->data;
     /* Make sure y is also VECSEQGPU */
-    ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQGPU,&isseqgpu);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)y,VECSEQGPU,&isseqgpu);CHKERRQ(ierr);
     if (!isseqgpu) {
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Both x and y must be same type");
     }
@@ -310,7 +319,9 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 
     int shared_size = 0;
     /* Make sure y is also VECCUSP */
-    ierr = PetscObjectTypeCompare((PetscObject)x,VECCUSP,&isseqgpu);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)y,VECSEQCUSP,&isseqcusp);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)y,VECMPICUSP,&ismpicusp);CHKERRQ(ierr);
+    iscusp = (isseqcusp || ismpicusp) ? PETSC_TRUE : PETSC_FALSE;
     if (!iscusp) {
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Both x and y must be same type");
     }
@@ -366,10 +377,6 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   } else {
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vec must be seqgpu or cusp type");
   }
-
-	VecView(x,PETSC_VIEWER_STDOUT_WORLD);
-	VecView(y,PETSC_VIEWER_STDOUT_WORLD);
-
 
   PetscFunctionReturn(0);
 }
@@ -724,23 +731,81 @@ PetscErrorCode MatDiagonalScale_SeqSGGPU(Mat A, Vec ll, Vec rr)
 }
 
 
+/** MatGetRow_SeqSGGPU : Returns the element corresponding to a single row in the matrix*/
 #undef __FUNCT__
 #define __FUNCT__ "MatGetRow_SeqSGGPU"
 PetscErrorCode MatGetRow_SeqSGGPU(Mat A, PetscInt row, PetscInt * nz, PetscInt **idx , PetscScalar ** v)
 {
-  PetscFunctionBegin;
-  SGTrace;
-  SETERRQ(PETSC_COMM_SELF,0,"MatGetRow_SeqSGGPU not implemented");
+	Mat_SeqSGGPU * a = (Mat_SeqSGGPU *) A->data;
+        // printf("grA\n");
+        PetscErrorCode ierr;
+	PetscInt blockRow = row / a->dof;
+	PetscInt numBlocks = a->m * a->n * a->p;
+	PetscFunctionBegin;
+
+	if (row < 0 || row >= A->rmap->n) 
+          SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"Row %D out of range",row);
+        // printf("grB\n");
+
+	// count the non-zeros in this row
+	*nz = 0;
+	for (int i = 0; i < a->diagonals->size(); ++i) {
+	  int d = (*a->diagonals)[i];
+	  if ( ((d + blockRow) >= 0) && ((d + blockRow) < numBlocks) )
+	    (*nz)++;
+	}
+        *nz = (*nz) * a->dof;
+
+        if(idx!=PETSC_NULL){
+          //  printf("in idx PetscMalloc start.\n");
+          ierr = PetscMalloc( sizeof(PetscInt)*(*nz), idx);CHKERRQ(ierr);
+	}
+
+        if(v!=PETSC_NULL){
+          //  printf("in v PetscMalloc start.\n");
+	  ierr = PetscMalloc(sizeof(PetscScalar)*(*nz), v);CHKERRQ(ierr);
+	}
+
+	int count = 0;
+	std::map<int, int> &diag_starts = *(a->diag_starts);
+	for ( std::map<int, int>::iterator I = diag_starts.begin();
+	      I != diag_starts.end(); I++ ) {
+	  int d = I->first;
+	  int tempCount = count;
+	  if ( ((d + blockRow) >= 0) && ((d + blockRow) < numBlocks) ) {
+	    // we have a non-zero block from this diagonal in the row
+
+	    if(idx!=PETSC_NULL) {
+	      for ( int j = 0; j < a->dof; j++ )
+		(*idx)[tempCount++] = (d + blockRow) * a->dof + j;
+	    }
+
+	    if(v!=PETSC_NULL){
+	      int dStart = I->second;
+	      int numElements = numBlocks * a->dof;
+	      for ( int j = 0; j < a->dof; j++ )
+		(*v)[count++] = a->hostData[dStart + row + j*numElements];
+	    }
+	  }
+	}
+
+        //  printf("grE\n");
+	PetscFunctionReturn(0);
 }
 
 
+/** MatRestoreRow_SeqSGGPU : Used in conjunction with MatGetRow to clear temporary data */
 #undef __FUNCT__
 #define __FUNCT__ "MatRestoreRow_SeqSGGPU"
+
 PetscErrorCode MatRestoreRow_SeqSGGPU(Mat A, PetscInt row, PetscInt *nz, PetscInt **idx, PetscScalar **v)
 {
+  //printf("..........MatRestoreRow_SeqSGGPU() called\n");
+  PetscErrorCode ierr;
   PetscFunctionBegin;
-  SGTrace;
-  SETERRQ(PETSC_COMM_SELF,0,"MatRestoreRow_SeqSGGPU not implemented");
+  ierr = PetscFree(*idx);CHKERRQ(ierr);
+  ierr = PetscFree(*v);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 
@@ -834,22 +899,151 @@ PetscErrorCode MatView_SeqSGGPU_ASCII(Mat A, PetscViewer viewer)
 }
 
 
+#undef __FUNCT__  
+#define __FUNCT__ "MatView_SeqSGGPU_Binary"
+static PetscErrorCode MatView_SeqSGGPU_Binary(Mat A,PetscViewer viewer)
+{
+  Mat_SeqSGGPU    *a = (Mat_SeqSGGPU*)A->data;
+  PetscErrorCode ierr;
+  PetscInt       num_diags, diag_size, nnz;
+  PetscInt       int_data[10];
+  int            fd;
+  FILE           *file;
+
+  PetscFunctionBegin;
+  ierr        = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
+  int_data[0] = MAT_FILE_CLASSID;
+
+  // next three items are global N, local n and number of non-zero entries
+  int_data[1] = A->rmap->N;
+  int_data[2] = A->cmap->n;
+  num_diags = 2*a->dim+1;
+  diag_size = a->m * a->n * a->p * a->dof * a->dof;
+  nnz = num_diags * diag_size;
+  int_data[3] = nnz;
+
+  /* store sggpu-specific data and write (including header) to file */
+  int_data[4] = a->stpoints;
+  int_data[5] = a->dof;
+  int_data[6] = a->m;
+  int_data[7] = a->n;
+  int_data[8] = a->p;
+  int_data[9] = a->dim;
+
+  ierr = PetscBinaryWrite(fd,int_data,10,PETSC_INT,PETSC_TRUE);CHKERRQ(ierr);
+
+  /* store nonzero values */
+  ierr = PetscBinaryWrite(fd,a->hostData,nnz,PETSC_SCALAR,PETSC_FALSE);CHKERRQ(ierr);
+
+  ierr = PetscViewerBinaryGetInfoPointer(viewer,&file);CHKERRQ(ierr);
+  if (file) {
+    fprintf(file,"-matload_block_size %d\n",(int)A->rmap->bs);
+  }
+  PetscFunctionReturn(0);
+}
+
 #undef __FUNCT__
 #define __FUNCT__ "MatView_SeqSGGPU"
 PetscErrorCode MatView_SeqSGGPU(Mat A, PetscViewer viewer)
 {
   PetscErrorCode ierr;
-  PetscBool isascii;
+  PetscBool isascii,isbinary,isdraw;
   PetscFunctionBegin;
 
   SGTrace;
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&isascii);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);
+
   if (isascii) {
     ierr = MatView_SeqSGGPU_ASCII(A,viewer);CHKERRQ(ierr);
+  } else 
+
+  if (isbinary) {
+    ierr = MatView_SeqSGGPU_Binary(A,viewer);CHKERRQ(ierr);
   }
+  /*else if (isdraw) {
+    ierr = MatView_SeqSGGPU_Draw(A,viewer);CHKERRQ(ierr);
+    } */
+  else {
+    Mat B;
+    ierr = MatConvert(A,MATSEQAIJ,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
+    ierr = MatView(B,viewer);CHKERRQ(ierr);
+    ierr = MatDestroy(&B);CHKERRQ(ierr);
+  }
+
   PetscFunctionReturn(0);
 }
 
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatLoad_SeqSGGPU"
+PetscErrorCode MatLoad_SeqSGGPU(Mat newmat,PetscViewer viewer)
+{
+  Mat_SeqSGGPU    *a;
+  PetscErrorCode ierr;
+  PetscInt       header[4],sggpu_int_data[6],M,N,bs=1;
+  PetscInt       dims[3], *starts, rows, cols;
+  PetscMPIInt    size, nz;
+  int            fd;
+  MPI_Comm       comm = ((PetscObject)viewer)->comm;
+
+  PetscFunctionBegin;
+  ierr = PetscOptionsBegin(comm,PETSC_NULL,"Options for loading SEQBAIJ matrix","Mat");CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-matload_block_size","Set the blocksize used to store the matrix","MatLoad",bs,&bs,PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsEnd();CHKERRQ(ierr);
+
+  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+  if (size > 1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"view must have one processor");
+  ierr = PetscViewerBinaryGetDescriptor(viewer,&fd);CHKERRQ(ierr);
+  ierr = PetscBinaryRead(fd,header,4,PETSC_INT);CHKERRQ(ierr);
+  if (header[0] != MAT_FILE_CLASSID) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"not Mat object");
+  M = header[1]; N = header[2];
+  nz = header[3];
+
+  if (header[3] < 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Matrix stored in special format, cannot load as SeqSGGPU");
+  if (M != N) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Can only do square matrices");
+
+  /* Set global sizes if not already set */
+  if (newmat->rmap->n < 0 && newmat->rmap->N < 0 && newmat->cmap->n < 0 && newmat->cmap->N < 0) {
+    ierr = MatSetSizes(newmat,M,N,M,N);CHKERRQ(ierr);
+  } else { /* Check if the matrix global sizes are correct */
+    ierr = MatGetSize(newmat,&rows,&cols);CHKERRQ(ierr);
+    if (rows < 0 && cols < 0){ /* user might provide local size instead of global size */
+      ierr = MatGetLocalSize(newmat,&rows,&cols);CHKERRQ(ierr);
+    } 
+    if (M != rows ||  N != cols) SETERRQ4(PETSC_COMM_SELF,PETSC_ERR_FILE_UNEXPECTED,"Matrix in file of different length (%d, %d) than the input matrix (%d, %d)",M,N,rows,cols);
+  }
+
+  a = (Mat_SeqSGGPU*)newmat->data;
+ 
+  /* read in sggpu integer data */
+  ierr = PetscBinaryRead(fd,sggpu_int_data,6,PETSC_INT);CHKERRQ(ierr);
+  a->stpoints = sggpu_int_data[0];
+  a->dof = sggpu_int_data[1];
+  a->m = sggpu_int_data[2];
+  a->n = sggpu_int_data[3];
+  a->p = sggpu_int_data[4];
+  a->dim = sggpu_int_data[5];
+
+
+  dims[0] = a->m;
+  dims[1] = a->n;
+  dims[2] = a->p;
+
+  MatSetType(newmat,MATSEQSGGPU);
+
+  starts = (PetscInt*)malloc(sizeof(PetscInt)*a->dim);
+  ierr = MatSetStencil(newmat,a->dim,dims,starts,a->dof);CHKERRQ(ierr);
+  ierr = MatSeqSGGPUSetPreallocation(newmat,0,a->dof);CHKERRQ(ierr);
+
+  ierr = PetscBinaryRead(fd,a->hostData,nz,PETSC_SCALAR);CHKERRQ(ierr);
+
+  ierr = MatAssemblyBegin(newmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(newmat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatView_Private(newmat);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 
 #undef __FUNCT__
@@ -1308,5 +1502,128 @@ PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat mat,ISColoring iscoloring,MatFDC
   PetscFunctionReturn(0);
 }
 
+EXTERN_C_BEGIN
+#undef __FUNCT__
+#define __FUNCT__ "MatConvert_SeqSGGPU_SeqAIJ"
+/*
+  MatConvert_SeqSGGPU_SeqAIJ - Converts from any inputSeqstructgrid format to seqaij.
+  John Eisenlohr*/
+PetscErrorCode MatConvert_SeqSGGPU_SeqAIJ(Mat A, const MatType newtype, MatReuse reuse, Mat *AIJ){
+  //printf(".................MatConvert_SeqSGGPU_SeqAIJ() called\n");
+  PetscFunctionBegin;
+  Mat_SeqSGGPU * a = (Mat_SeqSGGPU *) A->data;
+  Mat B;
+  PetscInt i,j;
+  PetscInt m = A->rmap->n,n = A->cmap->n;
+  PetscScalar *vals;
+  PetscInt *cols;
+  PetscErrorCode ierr;
+  PetscInt *nnz;
+  PetscInt blockRow;
+  PetscInt numBlocks = a->m * a->n * a->p;
+  ierr = PetscMalloc(m*sizeof(PetscInt),&nnz); CHKERRQ(ierr);
+
+  // count non-zeros
+  for(i=0;i<m;i++){
+    blockRow = i / a->dof;
+    nnz[i]=0;
+    for (j = 0; j < a->diagonals->size(); ++j) {
+      int d = (*a->diagonals)[j];
+      if ( ((d + blockRow) >= 0) && ((d + blockRow) < numBlocks) )
+	nnz[i]++;
+    }
+    nnz[i] = nnz[i] * a->dof;
+  }
 
 
+  printf("m: %d, n: n: %d\n",m,n);
+  ierr = MatCreateSeqAIJ(((PetscObject)A)->comm,m,n,PETSC_NULL,nnz,&B);CHKERRQ(ierr);
+
+  for(i=0;i<m;i++){
+      nnz[i]=0;
+      ierr = MatGetRow_SeqSGGPU(A,i,&nnz[i],&cols,&vals); CHKERRQ(ierr);
+      ierr = MatSetValues(B,1,&i,nnz[i],cols,vals,INSERT_VALUES);
+      ierr = MatRestoreRow_SeqSGGPU(A,i,&nnz[i],&cols,&vals);CHKERRQ(ierr);
+  }
+  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr=PetscFree(nnz);CHKERRQ(ierr);
+  *AIJ = B;
+  PetscFunctionReturn(0);
+}
+EXTERN_C_END
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatDuplicateNoCreate_SeqSGGPU"
+/*
+    Given a matrix generated with MatGetFactor() duplicates all the information in A into B
+*/
+PetscErrorCode MatDuplicateNoCreate_SeqSGGPU(Mat C,Mat A,MatDuplicateOption cpvalues,PetscBool  mallocmatspace)
+{
+  Mat_SeqSGGPU     *c,*a = (Mat_SeqSGGPU*)A->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  c = (Mat_SeqSGGPU*)C->data;
+
+  C->factortype     = A->factortype;
+  C->assembled      = PETSC_TRUE;
+ 
+  c->diag_starts = new std::map<int, int>(*(a->diag_starts));
+  c->diagonals   = new std::vector<int>(*(a->diagonals));
+  c->stpoints    = a->stpoints;
+  c->dof         = a->dof;     
+  c->m           = a->m;       
+  c->n           = a->n;       
+  c->p           = a->p;       
+  c->dim         = a->dim;
+  c->non_zeros   = a->non_zeros;
+
+
+  /* allocate the matrix space */
+  if (mallocmatspace){
+    int num_diags = (a->diag_starts)->size() + 1;
+    int size = num_diags * a->m * a->n * a->p * a->dof * a->dof;
+    ierr = PetscMalloc(size * sizeof(PetscScalar), &(c->hostData) ); CHKERRQ(ierr);
+    ierr = PetscLogObjectMemory(C, size*(sizeof(PetscScalar)));CHKERRQ(ierr);
+    
+    if (cpvalues == MAT_COPY_VALUES) {
+      ierr = PetscMemcpy(c->hostData,a->hostData,size*sizeof(PetscScalar));CHKERRQ(ierr);
+    } else {
+      ierr = PetscMemzero(c->hostData,size*sizeof(PetscScalar));CHKERRQ(ierr);
+    }
+  }
+
+  C->same_nonzero = A->same_nonzero;
+  //ierr = MatDuplicate_SeqSGGPU_Inode(A,cpvalues,&C);CHKERRQ(ierr);
+  
+  ierr = PetscFListDuplicate(((PetscObject)A)->qlist,&((PetscObject)C)->qlist);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatGetInfo_SeqSGGPU"
+PetscErrorCode MatGetInfo_SeqSGGPU(Mat A,MatInfoType flag,MatInfo *info)
+{
+  Mat_SeqSGGPU *a = (Mat_SeqSGGPU*)A->data;
+
+  PetscFunctionBegin;
+  info->block_size     = (double)(a->dof * a->dof);
+  info->nz_allocated   = (double)(a->m * a->n * a->p * a->dof * a->dof * a->stpoints);
+  info->nz_used        = (double)a->non_zeros;
+  info->nz_unneeded    = info->nz_allocated - info->nz_used;
+  info->assemblies     = (double)A->num_ass;
+  info->mallocs        = (double)A->info.mallocs;
+  info->memory         = ((PetscObject)A)->mem;
+  if (A->factortype) {
+    info->fill_ratio_given  = A->info.fill_ratio_given;
+    info->fill_ratio_needed = A->info.fill_ratio_needed;
+    info->factor_mallocs    = A->info.factor_mallocs;
+  } else {
+    info->fill_ratio_given  = 0;
+    info->fill_ratio_needed = 0;
+    info->factor_mallocs    = 0;
+  }
+  PetscFunctionReturn(0);
+}

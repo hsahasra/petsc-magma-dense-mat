@@ -3,10 +3,10 @@ ALL: lib
 CFLAGS   =
 FFLAGS   =
 SOURCEC  =
-SOURCECU = sggpu.cu
+SOURCECU = sggpu.cu sggpufact.cu
 SOURCEF  =
 SOURCEH  = sggpu.h
-OBJSC    = sggpu.o
+OBJSC    = sggpu.o sggpufact.o
 OBJSF    =
 LIBBASE  = libpetscmat
 DIRS     =
