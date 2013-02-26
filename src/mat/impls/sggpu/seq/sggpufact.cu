@@ -1545,7 +1545,9 @@ PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx)
     dim3 grid((int)ceil((float)(a->m * a->n * a->p * a->dof)/(float)BLOCKWIDTH_X / 1.0), 1);
 
     /* Make sure y is also VECCUSP */
-    ierr = PetscObjectTypeCompare((PetscObject)bb,VECCUSP,&iscusp);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)bb,VECSEQCUSP,&isseqcusp);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)bb,VECMPICUSP,&ismpicusp);CHKERRQ(ierr);
+    iscusp = (isseqcusp || ismpicusp) ? PETSC_TRUE : PETSC_FALSE;
     if (!iscusp) {
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Both x and b must be same type");
     }
