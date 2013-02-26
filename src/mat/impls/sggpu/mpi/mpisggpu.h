@@ -25,7 +25,6 @@ typedef struct {
 
   /* The following variables are used for matrix-vector products */
   Vec           lvec;              	/* local vector */
-  Vec           diag;
   VecScatter    Mvctx;             	/* scatter context for vector */
   PetscBool     roworiented;       	/* if true, row-oriented input, default true */
 
