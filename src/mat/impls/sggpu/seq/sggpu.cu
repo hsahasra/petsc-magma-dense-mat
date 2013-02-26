@@ -165,7 +165,6 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
 
 	PetscPrintf(PETSC_COMM_WORLD,"MatCreate_SeqSGGPU\n");
 	
-
   ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
   if (size > 1)
     SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Comm must be size 1");
@@ -541,9 +540,6 @@ PetscErrorCode MatSetUp_SeqSGGPU(Mat A)
 
   PetscFunctionBegin;
   SGTrace;
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatSetUP_SeqSGGPU\n");
-
 
   //  ierr =  MatSeqSGGPUSetPreallocation(A,PETSC_DEFAULT,0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1299,7 +1295,6 @@ PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
 
 	PetscPrintf(PETSC_COMM_WORLD,"MatGetColumnIJ_SeqSGGPU\n");
 
-
   *nn = nrows;
 
   if (!ia) PetscFunctionReturn(0);
@@ -1364,9 +1359,7 @@ PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat mat,ISColoring iscoloring,MatFDC
 
   PetscFunctionBegin;
 
-
 	PetscPrintf(PETSC_COMM_WORLD,"MatFDColoringCreate_SeqSGGPU\n");
-
 
   ierr = ISColoringGetIS(iscoloring,PETSC_IGNORE,&isa);CHKERRQ(ierr);
   /* this is ugly way to get blocksize but cannot call MatGetBlockSize() because AIJ can have bs > 1 */
