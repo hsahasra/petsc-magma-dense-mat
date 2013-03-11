@@ -7,6 +7,7 @@ PETSC_CUDA_EXTERN_C_BEGIN
 #include <stdlib.h>
 #include <float.h>
 #include <petsc-private/vecimpl.h>          /*I "petscvec.h" I*/
+#include <petscblaslapack.h>
 #include <../src/vec/vec/impls/dvecimpl.h>
 #include <../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h>
 PETSC_CUDA_EXTERN_C_END
@@ -1356,7 +1357,18 @@ PetscErrorCode VecAXPBY_SeqGPU(Vec yin,PetscScalar beta,PetscScalar alpha,Vec xi
   PetscFunctionReturn(0);
 }
 
-
+#undef __FUNCT__
+#define __FUNCT__ "VecAYPX_SeqGPU"
+PetscErrorCode VecAYPX_SeqGPU(Vec Y, PetscScalar alpha, Vec X)
+{
+  /* Y = X + alpha Y */
+  /* reference implementation -- not optimized */
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = VecScale(Y,alpha);CHKERRQ(ierr);
+  ierr = VecAXPY(Y,1.0,X);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 /* ---------------------------------------------------------
 // WAXPY
 // Checks for vector size mismatch for each vector.
@@ -1493,6 +1505,7 @@ PetscErrorCode VecWAXPY_SeqGPU(Vec w,PetscScalar alpha,Vec x,Vec y){
     if (cudaSuccess!=err) {
       printf("CUDA runtime error: %s@",cudaGetErrorString(err));
     }
+    cudaDeviceSynchronize();
  
 
   }
@@ -1837,6 +1850,17 @@ __global__ void  kernAXPY(double* devY,double* devX,double alpha, int vlen){
   }
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "kernSwap"
+__global__ void kernSwap(int n, double *devx, double *devy, double *devscratch)
+{
+  int tid = blockIdx.x*blockDim.x+threadIdx.x;
+  if (tid<n) {
+    devscratch[tid] = devx[tid];
+    devx[tid] = devy[tid];
+    devy[tid] = devscratch[tid];
+  }
+}
 
 
 /* ---------------------------------------------------------
@@ -1929,7 +1953,7 @@ PetscErrorCode VecPointwiseMult_SeqGPU(Vec w,Vec x,Vec y){
   PetscErrorCode ierr;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
-  Vec_SeqGPU *wd=(Vec_SeqGPU*)y->data;
+  Vec_SeqGPU *wd=(Vec_SeqGPU*)w->data;
   dim3 dimGrid, dimBlock;
   if(x->map->n!=y->map->n || w->map->n!=y->map->n || w->map->n!=x->map->n){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
@@ -2163,7 +2187,7 @@ PetscErrorCode VecPointwiseDivide_SeqGPU(Vec w,Vec x,Vec y){
   PetscErrorCode ierr;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
   Vec_SeqGPU *yd=(Vec_SeqGPU*)y->data;
-  Vec_SeqGPU *wd=(Vec_SeqGPU*)y->data;
+  Vec_SeqGPU *wd=(Vec_SeqGPU*)w->data;
   dim3 dimGrid, dimBlock;
   #if(DEBUGVEC && VVERBOSE)
      printf("Call to VecPointwiseDivide_SeqGPU\n");
@@ -2844,16 +2868,43 @@ PetscErrorCode VecCopy_SeqGPU(Vec s,Vec d){
 #undef __FUNCT__
 #define __FUNCT__ "VecSwap_SeqGPU"
 PetscErrorCode VecSwap_SeqGPU(Vec xin,Vec yin){
-  /* PetscErrorCode ierr; */
+  PetscErrorCode ierr;
+  Vec_SeqGPU *x=(Vec_SeqGPU*)xin->data;
+  Vec_SeqGPU *y=(Vec_SeqGPU*)yin->data;
+  PetscBLASInt one=1,bn=PetscBLASIntCast(xin->map->n);
+  PetscScalar *devScratch;
+  dim3 dimGrid,dimBlock;
   PetscFunctionBegin;
-  printf("VecSwap_SeqGPU (***EMPTY***)\n");
+  dimGrid.x=ceil((float)xin->map->n/(float)AXPYTCOUNT);
+  dimBlock.x=AXPYTCOUNT;
   if (xin != yin) {
-#if defined(PETSC_USE_REAL_SINGLE)
-    //////// cublasSswap(bn,VecCUSPCastToRawPtr(*xarray),one,VecCUSPCastToRawPtr(*yarray),one);
-#else
-    //////   cublasDswap(bn,VecCUSPCastToRawPtr(*xarray),one,VecCUSPCastToRawPtr(*yarray),one);
-#endif
+    if ((x->syncState == VEC_GPU && y->syncState == VEC_GPU) ||
+        (x->syncState == VEC_SYNCHED && y->syncState == VEC_GPU) ||
+        (x->syncState == VEC_GPU && y->syncState == VEC_SYNCHED)) {
 
+      /* If both vectors current on GPU */
+      cms[0] = cudaMalloc((void**)&devScratch,xin->map->n*sizeof(PetscScalar));
+      ierr = VecCheckCUDAStatus(cms[0],"devScratch alloc in VecSwap_SeqGPU");CHKERRQ(ierr);
+      kernSwap<<<dimGrid,dimBlock>>>(xin->map->n,x->devptr,y->devptr,devScratch);
+      x->syncState = VEC_GPU;
+      y->syncState = VEC_GPU;
+      cms[1] = cudaFree(devScratch);
+      ierr = VecCheckCUDAStatus(cms[1],"on VecSwap(devScratch)");CHKERRQ(ierr);
+      cudaDeviceSynchronize();
+
+    } else {
+      if (y->syncState != VEC_CPU) {
+        ierr = VecCopyOverD2H(yin,y->cpuptr); CHKERRQ(ierr);
+        cudaDeviceSynchronize();
+      } else if (x->syncState != VEC_CPU) {
+        ierr = VecCopyOverD2H(xin,x->cpuptr); CHKERRQ(ierr);
+        cudaDeviceSynchronize();
+      }
+      BLASswap_(&bn,x->cpuptr,&one,y->cpuptr,&one);
+      x->syncState = VEC_CPU;
+      y->syncState = VEC_CPU;
+
+    }
   }
   PetscFunctionReturn(0);
 }
@@ -2973,6 +3024,85 @@ PetscErrorCode  VecReplaceArray_SeqGPU(Vec x,const PetscScalar* array){
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "VecMax_SeqGPU"
+PetscErrorCode VecMax_SeqGPU(Vec xin,PetscInt* idx,PetscReal * z)
+{
+  PetscInt          i,j=0,n = xin->map->n;
+  PetscReal         max,tmp;
+  Vec_SeqGPU*       xd = (Vec_SeqGPU*)xin->data;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+
+  if(xd->syncState==VEC_GPU){
+    ierr = VecCopyOverD2H(xin,xd->cpuptr);CHKERRQ(ierr);
+    xd->syncState=VEC_SYNCHED;
+    cudaDeviceSynchronize();
+  }
+
+  if (!n) {
+    max = PETSC_MIN_REAL;
+    j   = -1;
+  } else {
+#if defined(PETSC_USE_COMPLEX)
+      max = PetscRealPart(xd->cpuptr[0]); j = 0;
+#else
+      max = xd->cpuptr[0]; j = 0;
+#endif
+    for (i=1; i<n; i++) {
+#if defined(PETSC_USE_COMPLEX)
+      if ((tmp = PetscRealPart(xd->cpuptr[i])) > max) { j = i; max = tmp;}
+#else
+      if ((tmp = xd->cpuptr[i]) > max) { j = i; max = tmp; }
+#endif
+    }
+  }
+  *z   = max;
+  if (idx) *idx = j;
+
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "VecMin_SeqGPU"
+PetscErrorCode VecMin_SeqGPU(Vec xin,PetscInt* idx,PetscReal * z)
+{
+  PetscInt          i,j=0,n = xin->map->n;
+  PetscReal         min,tmp;
+  Vec_SeqGPU*       xd = (Vec_SeqGPU*)xin->data;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+
+  if(xd->syncState==VEC_GPU){
+    ierr = VecCopyOverD2H(xin,xd->cpuptr);CHKERRQ(ierr);
+    xd->syncState=VEC_SYNCHED;
+  }
+
+  if (!n) {
+    min = PETSC_MAX_REAL;
+    j   = -1;
+  } else {
+#if defined(PETSC_USE_COMPLEX)
+      min = PetscRealPart(xd->cpuptr[0]); j = 0;
+#else
+      min = xd->cpuptr[0]; j = 0;
+#endif
+    for (i=1; i<n; i++) {
+#if defined(PETSC_USE_COMPLEX)
+      if ((tmp = PetscRealPart(xd->cpuptr[i])) < min) { j = i; min = tmp;}
+#else
+      if ((tmp = xd->cpuptr[i]) < min) { j = i; min = tmp; }
+#endif
+    }
+  }
+  *z   = min;
+  if (idx) *idx = j;
+
+  PetscFunctionReturn(0);
+}
+
 
 #undef __FUNCT__
 #define __FUNCT__ "PinnedMalloc"
@@ -3046,7 +3176,7 @@ PetscErrorCode  VecCreate_SeqGPU(Vec V){
   V->ops->norm_local      = VecNorm_SeqGPU;
   V->ops->maxpy           = VecMAXPY_SeqGPU;
   V->ops->mdot            = VecMDot_SeqGPU;
-  /* V->ops->aypx            = VecAYPX_SeqGPU; */
+  V->ops->aypx            = VecAYPX_SeqGPU; 
   V->ops->waxpy           = VecWAXPY_SeqGPU;
   V->ops->dotnorm2        = VecDotNorm2_SeqGPU;
   V->ops->placearray      = VecPlaceArray_SeqGPU;
@@ -3061,6 +3191,8 @@ PetscErrorCode  VecCreate_SeqGPU(Vec V){
   V->ops->getlocalsize    = VecGetLocalSize_SeqGPU;
   V->ops->getsize         = VecGetSize_SeqGPU;
   V->ops->view            = VecView_SeqGPU;
+  V->ops->max             = VecMax_SeqGPU;
+  V->ops->min             = VecMin_SeqGPU;
   V->petscnative=PETSC_FALSE;
   seqgpu->syncState      = VEC_UNALLOC;
   seqgpu->unplacedarray=PETSC_NULL;

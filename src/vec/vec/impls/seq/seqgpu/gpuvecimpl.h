@@ -141,7 +141,7 @@ extern PetscErrorCode VecAXPY_SeqGPU(Vec,PetscScalar,Vec);
 extern PetscErrorCode VecAXPBY_SeqGPU(Vec,PetscScalar,PetscScalar,Vec);
 extern PetscErrorCode VecDuplicate_SeqGPU(Vec,Vec *);
 extern PetscErrorCode VecNorm_SeqGPU(Vec,NormType,PetscReal*);
-
+extern PetscErrorCode VecSwap_SeqGPU(Vec,Vec);
 extern PetscErrorCode VecCreate_SeqGPU(Vec);
 
 extern PetscErrorCode VecView_SeqGPU(Vec,PetscViewer);
@@ -167,6 +167,9 @@ extern PetscErrorCode VecGetLocalSize_SeqGPU(Vec , PetscInt *);
 extern PetscErrorCode VecGetSize_SeqGPU(Vec , PetscInt *);
 extern PetscErrorCode VecCompare_SeqGPU(Vec,Vec, PetscBool*, PetscInt, PetscInt);
 extern PetscErrorCode VecCheck_SeqGPU(Vec);
+extern PetscErrorCode VecAXPY(Vec,PetscReal,Vec);
+extern PetscErrorCode VecMax_SeqGPU(Vec,PetscInt*,PetscScalar*);
+extern PetscErrorCode VecMin_SeqGPU(Vec,PetscInt*,PetscScalar*);
 
 extern __global__ void kernAXPBYPCZ(double*, double*, double*,int*);
 extern __global__ void kernCheck(double*, int*);
@@ -177,7 +180,7 @@ extern __global__ void kernSet(double*,double, int);
 extern __global__ void kernAddValues(double* x, int n, int* xi, int ni,double *y);
 extern __global__ void kernScale(double*,double, int);
 extern __global__ void kernCopy(double*, double*, int*, int*);
-
+extern __global__ void kernSwap(int,double*,double*,double*);
 extern __global__ void kernAXPY(double*, double*,double, int);
 extern __global__ void kernWYMX(double*, double*, int, double*);
 extern __global__ void kernXPY(double*, double*, int);
