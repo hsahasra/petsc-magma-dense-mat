@@ -4,7 +4,8 @@ PETSC_EXTERN PetscErrorCode VecCreate_Seq(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_MPI(Vec);
 PETSC_EXTERN PetscErrorCode VecCreate_Standard(Vec);
 #if defined(PETSC_HAVE_CUDA)
-PETSC_EXTERN PetscErrorCode VecCreate_SeqGPU(Vec);
+extern PetscErrorCode  VecCreate_GPU(Vec);
+extern PetscErrorCode  VecCreate_MPIGPU(Vec);
 #endif
 PETSC_EXTERN PetscErrorCode VecCreate_Shared(Vec);
 #if defined(PETSC_HAVE_CUSP)
@@ -47,7 +48,9 @@ PetscErrorCode  VecRegisterAll(void)
   ierr = VecRegister(VECSTANDARD,   VecCreate_Standard);CHKERRQ(ierr);
   ierr = VecRegister(VECSHARED,     VecCreate_Shared);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_CUDA)
+  ierr = VecRegisterDynamic(VECGPU,      path, "VecCreate_GPU",      VecCreate_GPU);CHKERRQ(ierr);
   ierr = VecRegisterDynamic(VECSEQGPU,   path, "VecCreate_SeqGPU",   VecCreate_SeqGPU);CHKERRQ(ierr);
+  ierr = VecRegisterDynamic(VECMPIGPU,   path, "VecCreate_MPIGPU",   VecCreate_MPIGPU);CHKERRQ(ierr);
 #endif
 #if defined PETSC_HAVE_CUSP
   ierr = VecRegister(VECSEQCUSP,    VecCreate_SeqCUSP);CHKERRQ(ierr);
