@@ -65,12 +65,13 @@ y
      an array of vectors, which is often more convenient than
      duplicating individual ones.
   */
-  ierr = VecDuplicateVecs(x,3,&z);CHKERRQ(ierr);
   /*
      Set the vectors to entries to a constant value.
   */
   ierr = VecSet(x,one);CHKERRQ(ierr);
   ierr = VecSet(y,two);CHKERRQ(ierr);
+
+  ierr = VecDuplicateVecs(x,3,&z);CHKERRQ(ierr);
   ierr = VecSet(z[0],one);CHKERRQ(ierr);
   ierr = VecSet(z[1],two);CHKERRQ(ierr);
   ierr = VecSet(z[2],three);CHKERRQ(ierr);
@@ -117,7 +118,8 @@ y
   v = norm-18.0*sqrt((double)n); if (v > -PETSC_SMALL && v < PETSC_SMALL) v = 0.0;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"VecAYPX %g\n",(double)v);CHKERRQ(ierr);
 
-  ierr = VecSwap(x,y);CHKERRQ(ierr);
+   ierr = VecSwap(x,y);CHKERRQ(ierr);
+ 
   ierr = VecNorm(y,NORM_2,&norm);CHKERRQ(ierr);
   v = norm-2.0*sqrt((double)n); if (v > -PETSC_SMALL && v < PETSC_SMALL) v = 0.0;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"VecSwap  %g\n",(double)v);CHKERRQ(ierr);

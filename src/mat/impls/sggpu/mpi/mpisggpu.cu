@@ -915,7 +915,7 @@ PetscErrorCode MatGetColumnIJ_MPISGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
 }
 
 
-EXTERN_C_BEGIN
+
 #undef __FUNCT__
 #define __FUNCT__ "MatMPISGGPUSetPreallocation"
 PetscErrorCode MatMPISGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt dof)
@@ -935,7 +935,7 @@ PetscErrorCode MatMPISGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt
   A->preallocated=PETSC_TRUE;
   PetscFunctionReturn(0);
 }
-EXTERN_C_END
+
 
 
 EXTERN_C_BEGIN

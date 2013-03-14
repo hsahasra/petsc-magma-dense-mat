@@ -2944,7 +2944,7 @@ PetscErrorCode VecDuplicateVecs_SeqGPU(Vec vin, PetscInt m, Vec **Vlist){
   if (m <= 0) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_ARG_OUTOFRANGE,"m must be > 0: m = %D",m);
   ierr = PetscMalloc(m*sizeof(Vec),Vlist);CHKERRQ(ierr);
   for(i=0;i<m;i++){
-    ierr = VecDuplicate_SeqGPU(vin,*Vlist+i);CHKERRQ(ierr);
+    ierr = vin->ops->duplicate(vin,*Vlist+i);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
