@@ -916,7 +916,7 @@ PetscErrorCode  PetscFinalize(void)
   }
 #endif
 
-#if defined(PETSC_HAVE_SERVER)
+#if defined(PETSC_USE_SERVER)
   flg1 = PETSC_FALSE;
   ierr = PetscOptionsGetBool(NULL,"-server",&flg1,NULL);CHKERRQ(ierr);
   if (flg1) {
