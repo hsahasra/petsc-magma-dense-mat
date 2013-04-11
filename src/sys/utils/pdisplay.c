@@ -106,7 +106,7 @@ static PetscErrorCode PetscWorldIsSingleHost(PetscBool  *onehost)
 #undef __FUNCT__
 #define __FUNCT__ "PetscSetDisplay"
 /*
-        -draw_x_virtual - starts a xvfb (virtual X framebuffer) in which X graphics will be performed
+        -draw_x_virtual - starts a Xvfb (virtual X framebuffer) in which X graphics will be performed
 */
 PetscErrorCode  PetscSetDisplay(void)
 {
@@ -122,9 +122,9 @@ PetscErrorCode  PetscSetDisplay(void)
   if (virtualX) {
     FILE *fp;
 
-    ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"pkill -9 xvfb","r",NULL);CHKERRQ(ierr);
+    ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"pkill -9 Xvfb","r",NULL);CHKERRQ(ierr);
     ierr = PetscSleep(1);CHKERRQ(ierr);
-    ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"xvfb :3 +bs -tst -xinerama  -extension XVideo  -extension XTEST -extension Composite -extension DAMAGE -extension  DOUBLE-BUFFER -extension DPMS -extension MIT-SCREEN-SAVER -extension  MIT-SHM -extension   RANDR -extension  RENDER -extension    X-Resource -extension   XFIXES -extension  XTEST -extension XVideo","r",&fp);CHKERRQ(ierr);
+    ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"Xvfb :3 +bs -tst -xinerama  -extension XVideo  -extension XTEST -extension Composite -extension DAMAGE -extension  DOUBLE-BUFFER -extension DPMS -extension MIT-SCREEN-SAVER -extension  MIT-SHM -extension   RANDR -extension  RENDER -extension    X-Resource -extension   XFIXES -extension  XTEST -extension XVideo","r",&fp);CHKERRQ(ierr);
     ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
     if (!rank) {
       ierr = PetscGetHostName(display,sizeof(display));CHKERRQ(ierr);

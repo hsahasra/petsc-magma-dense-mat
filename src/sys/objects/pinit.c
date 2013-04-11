@@ -929,7 +929,7 @@ PetscErrorCode  PetscFinalize(void)
   ierr = PetscOptionsGetBool(NULL,"-draw_x_virtual",&flg1,NULL);CHKERRQ(ierr);
   if (flg1) {
     /*  this is a crude hack, but better than nothing */
-    /* ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"pkill -9 xvfb","r",NULL);CHKERRQ(ierr);*/
+    /* ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"pkill -9 Xvfb","r",NULL);CHKERRQ(ierr);*/
   }
 
   ierr = PetscHMPIFinalize();CHKERRQ(ierr);
