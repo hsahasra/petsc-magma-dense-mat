@@ -23,4 +23,4 @@ class Configure(PETSc.package.NewPackage):
     if self.pthread.found:
         self.addDefine('USE_PTHREAD',1)
         self.addDefine('USE_SERVER',1)
-
+        self.getExecutable('pyjsbuild',   getFullPath = 1, resultName = 'PYJSBUILD')
