@@ -324,10 +324,12 @@ PetscErrorCode PetscDrawSave_X(PetscDraw draw)
   image   = XGetImage(drawx->disp, drawx->drw ? drawx->drw : drawx->win, 0, 0, drawx->w, drawx->h, AllPlanes, ZPixmap);
   if (!image) SETERRQ(PetscObjectComm((PetscObject)draw),PETSC_ERR_PLIB,"Cannot XGetImage()");\
   asimage = picture_ximage2asimage (asv,image,0,0);if (!asimage) SETERRQ(PetscObjectComm((PetscObject)draw),PETSC_ERR_PLIB,"Cannot create AfterImage ASImage");
-  ierr    = PetscSNPrintf(filename,PETSC_MAX_PATH_LEN,"%s/%s_%d.Gif",draw->savefilename,draw->savefilename,draw->savefilecount++);CHKERRQ(ierr);
+  ierr    = PetscSNPrintf(filename,PETSC_MAX_PATH_LEN,"%s/%s_%d.Gif",draw->savefilename,draw->savefilename,draw->savefilecount);CHKERRQ(ierr);
   ASImage2file(asimage, 0, filename,ASIT_Gif,0);
+  ierr = PetscInfo3(draw,"Saved X image to file %s/%s_%d.Gif\n",draw->savefilename,draw->savefilename,draw->savefilecount);CHKERRQ(ierr);
 
   XDestroyImage(image);
+  draw->savefilecount++;
   PetscFunctionReturn(0);
 }
 /*
