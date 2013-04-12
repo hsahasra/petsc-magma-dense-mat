@@ -925,12 +925,6 @@ PetscErrorCode  PetscFinalize(void)
   }
 #endif
 
-  flg1 = PETSC_FALSE;
-  ierr = PetscOptionsGetBool(NULL,"-draw_x_virtual",&flg1,NULL);CHKERRQ(ierr);
-  if (flg1) {
-    /*  this is a crude hack, but better than nothing */
-    ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"pkill -9 Xvfb","r",NULL);CHKERRQ(ierr);
-  }
 
   ierr = PetscHMPIFinalize();CHKERRQ(ierr);
 
@@ -1118,6 +1112,13 @@ PetscErrorCode  PetscFinalize(void)
      Destroy any packages that registered a finalize
   */
   ierr = PetscRegisterFinalizeAll();CHKERRQ(ierr);
+
+  flg1 = PETSC_FALSE;
+  ierr = PetscOptionsGetBool(NULL,"-draw_x_virtual",&flg1,NULL);CHKERRQ(ierr);
+  if (flg1) {
+    /*  this is a crude hack, but better than nothing */
+    ierr = PetscPOpen(PETSC_COMM_WORLD,NULL,"pkill -9 Xvfb","r",NULL);CHKERRQ(ierr);
+  }
 
   /*
      Destroy all the function registration lists created
