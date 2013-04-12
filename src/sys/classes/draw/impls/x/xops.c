@@ -582,7 +582,7 @@ PetscErrorCode PetscDrawDestroy_X(PetscDraw draw)
 #if defined(PETSC_HAVE_POPEN)
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)draw),&rank);CHKERRQ(ierr);
   if (draw->savefilename && !rank && draw->savefilemovie) {
-    ierr = PetscSNPrintf(command,PETSC_MAX_PATH_LEN,"ffmpeg  -i %s/%s_%%d.Gif %s.m4v",draw->savefilename,draw->savefilename,draw->savefilename);CHKERRQ(ierr);
+    ierr = PetscSNPrintf(command,PETSC_MAX_PATH_LEN,"ffmpeg  -i afterimage/%s_%%d.Gif %s.m4v",draw->savefilename,draw->savefilename);CHKERRQ(ierr);
     ierr = PetscPOpen(PETSC_COMM_SELF,NULL,command,"r",&fd);CHKERRQ(ierr);
     ierr = PetscPClose(PETSC_COMM_SELF,fd,NULL);CHKERRQ(ierr);
   }
