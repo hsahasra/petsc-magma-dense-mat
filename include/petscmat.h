@@ -897,7 +897,7 @@ PETSC_EXTERN PetscErrorCode MatMPIAdjSetPreallocation(Mat,PetscInt[],PetscInt[],
 PETSC_EXTERN PetscErrorCode MatMPIDenseSetPreallocation(Mat,PetscScalar[]);
 PETSC_EXTERN PetscErrorCode MatSeqDenseSetPreallocation(Mat,PetscScalar[]);
 PETSC_EXTERN PetscErrorCode MatSeqSGGPUSetPreallocation(Mat,PetscInt,PetscInt);
-PETSC_EXTERN PetscErrorCode MatMPISGGPUSetPreallocation(Mat,PetscInt,PetscInt);
+PETSC_EXTERN PetscErrorCode MatMPISGGPUSetPreallocation(Mat,PetscInt,PetscInt,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode MatMPIAIJGetSeqAIJ(Mat,Mat*,Mat*,const PetscInt*[]);
 PETSC_EXTERN PetscErrorCode MatMPIBAIJGetSeqBAIJ(Mat,Mat*,Mat*,const PetscInt*[]);
 PETSC_EXTERN PetscErrorCode MatMPIAdjCreateNonemptySubcommMat(Mat,Mat*);
@@ -911,6 +911,9 @@ PETSC_EXTERN PetscErrorCode MatRetrieveValues(Mat);
 PETSC_EXTERN PetscErrorCode MatDAADSetCtx(Mat,void*);
 
 PETSC_EXTERN PetscErrorCode MatFindNonzeroRows(Mat,IS*);
+
+PETSC_EXTERN PetscErrorCode MPISGGPUGetMapping(Mat);
+
 /*
   These routines are not usually accessed directly, rather solving is
   done through the KSP and PC interfaces.
