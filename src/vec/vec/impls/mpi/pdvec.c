@@ -44,6 +44,7 @@ PetscErrorCode VecView_MPI_ASCII(Vec xin,PetscViewer viewer)
   PetscViewerFormat format;
 
   PetscFunctionBegin;
+    
   ierr = VecGetArrayRead(xin,&xarray);CHKERRQ(ierr);
   /* determine maximum message to arrive */
   ierr = MPI_Comm_rank(((PetscObject)xin)->comm,&rank);CHKERRQ(ierr);
@@ -821,6 +822,7 @@ PetscErrorCode VecView_MPI(Vec xin,PetscViewer viewer)
 #endif
 
   PetscFunctionBegin;
+
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERBINARY,&isbinary);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERDRAW,&isdraw);CHKERRQ(ierr);

@@ -70,7 +70,7 @@ PetscErrorCode  MatCreate(MPI_Comm comm,Mat *A)
 #ifndef PETSC_USE_DYNAMIC_LIBRARIES
   ierr = MatInitializePackage(PETSC_NULL);CHKERRQ(ierr);
 #endif
-
+  
   ierr = PetscHeaderCreate(B,_p_Mat,struct _MatOps,MAT_CLASSID,0,"Mat","Matrix","Mat",comm,MatDestroy,MatView);CHKERRQ(ierr);
   ierr = PetscLayoutCreate(comm,&B->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutCreate(comm,&B->cmap);CHKERRQ(ierr);

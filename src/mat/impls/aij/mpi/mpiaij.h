@@ -79,7 +79,11 @@ EXTERN_C_END
 extern PetscErrorCode MatSetColoring_MPIAIJ(Mat,ISColoring);
 extern PetscErrorCode MatSetValuesAdic_MPIAIJ(Mat,void*);
 extern PetscErrorCode MatSetValuesAdifor_MPIAIJ(Mat,PetscInt,void*);
+EXTERN_C_BEGIN
 extern PetscErrorCode MatSetUpMultiply_MPIAIJ(Mat);
+PetscErrorCode MatAssemblyBegin_MPIAIJ(Mat mat,MatAssemblyType mode);
+PetscErrorCode MatAssemblyEnd_MPIAIJ(Mat mat,MatAssemblyType mode);
+EXTERN_C_END
 extern PetscErrorCode MatDisAssemble_MPIAIJ(Mat);
 extern PetscErrorCode MatDuplicate_MPIAIJ(Mat,MatDuplicateOption,Mat *);
 extern PetscErrorCode MatIncreaseOverlap_MPIAIJ(Mat,PetscInt,IS [],PetscInt);
@@ -108,7 +112,9 @@ extern PetscErrorCode MatDestroy_MPIAIJ_PtAP(Mat);
 extern PetscErrorCode MatDestroy_MPIAIJ(Mat);
 
 extern PetscErrorCode MatGetBrowsOfAoCols_MPIAIJ(Mat,Mat,MatReuse,PetscInt**,PetscInt**,MatScalar**,Mat*);
+EXTERN_C_BEGIN
 extern PetscErrorCode MatSetValues_MPIAIJ(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar [],InsertMode);
+EXTERN_C_END
 extern PetscErrorCode MatDestroy_MPIAIJ_MatMatMult(Mat);
 extern PetscErrorCode PetscContainerDestroy_Mat_MatMatMultMPI(void*);
 extern PetscErrorCode MatSetOption_MPIAIJ(Mat,MatOption,PetscBool);

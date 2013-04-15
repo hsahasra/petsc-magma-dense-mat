@@ -1,4 +1,3 @@
-
 /*
    Support for the parallel dense matrix vector multiply
 */
@@ -40,6 +39,7 @@ PetscErrorCode MatSetUpMultiply_MPIDense(Mat mat)
   ierr = VecDestroy(&gvec);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 
 extern PetscErrorCode MatGetSubMatrices_MPIDense_Local(Mat,PetscInt,const IS[],const IS[],MatReuse,Mat*);
 #undef __FUNCT__

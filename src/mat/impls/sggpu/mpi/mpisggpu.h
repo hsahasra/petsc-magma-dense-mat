@@ -1,10 +1,12 @@
 #ifndef __MPI_SGGPU_H__
 #define __MPI_SGGPU_H__
 
+#include <petsc-private/daimpl.h>
 #include "petsc-private/matimpl.h"
 
-#include <../src/mat/impls/sggpu/seq/sggpu.h>
 
+#include <../src/mat/impls/sggpu/seq/sggpu.h>
+#include <../src/mat/impls/aij/mpi/mpiaij.h>
 
 // External decls
 EXTERN_C_BEGIN
@@ -20,15 +22,25 @@ typedef struct {
   //Mat		A;			// Column major storage of diagonals */
   Mat_SeqSGGPU  *mat_seq;
 
-  PetscMPIInt   size;                   /* size of communicator */
-  PetscMPIInt   rank; 			/* rank of proc in communicator */
+  // PetscMPIInt   size;                   /* size of communicator */
+  //PetscMPIInt   rank; 			/* rank of proc in communicator */
 
   /* The following variables are used for matrix-vector products */
-  Vec           lvec;              	/* local vector */
-  VecScatter    Mvctx;             	/* scatter context for vector */
-  PetscBool     roworiented;       	/* if true, row-oriented input, default true */
+    Vec           lvec;              	/* local vector */
+    VecScatter    Mvctx;             	/* scatter context for vector */
+    PetscBool     roworiented;       	/* if true, row-oriented input, default true */
 
+  //  Mat_MPIAIJ *mpi_aij;
 
+  Mat mpi_aij;  
+
+  PetscBool preallocated;
+  IS is;
+  //Vec vnatural;
+  //VecScatter inctx; 
+
+    DM da; 
+    Vec vnatural;
 } Mat_MPISGGPU;
 
 
@@ -54,8 +66,11 @@ extern PetscErrorCode MatFDColoringApply_MPISGGPU(Mat,MatFDColoring,Vec,MatStruc
 extern PetscErrorCode MatFDColoringCreate_MPISGGPU(Mat,ISColoring,MatFDColoring);
 extern PetscErrorCode MatGetColumnIJ_MPISGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);
 extern PetscErrorCode MatSetUpMultiply_MPISGGPU(Mat);
+extern PetscErrorCode MatSetValuesLocal_MPISGGPU(Mat,PetscInt,const PetscInt*,PetscInt,const PetscInt*,const PetscScalar*,InsertMode addv);
+PetscErrorCode  MatSetSGGPUMatrix(Mat A,Mat Anatural);
 EXTERN_C_BEGIN
-extern PetscErrorCode MatMPISGGPUSetPreallocation_MPISGGPU(Mat A,PetscInt nz, const PetscInt nnz[]);
+extern PetscErrorCode MatMPISGGPUSetPreallocation_MPISGGPU(Mat A,PetscInt nz, const PetscInt nnz[],PetscInt* dnz,PetscInt* onz);
+//extern PetscErrorCode MatSetValues_MPIAIJ(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar [],InsertMode);
 EXTERN_C_END
 
 #endif

@@ -1769,8 +1769,6 @@ PetscErrorCode MatZeroRowsColumns_SeqAIJ(Mat A,PetscInt N,const PetscInt rows[],
 PetscErrorCode MatGetRow_SeqAIJ(Mat A,PetscInt row,PetscInt *nz,PetscInt **idx,PetscScalar **v)
 {
 
-  printf(".....................in MatGetRow_SeqAIJ()\n");
-
   Mat_SeqAIJ *a = (Mat_SeqAIJ*)A->data;
   PetscInt   *itmp;
 
@@ -3546,8 +3544,12 @@ PetscErrorCode  MatSeqAIJSetPreallocation_SeqAIJ(Mat B,PetscInt nz,const PetscIn
   PetscBool      skipallocation = PETSC_FALSE,realalloc = PETSC_FALSE;
   PetscErrorCode ierr;
   PetscInt       i;
-
+  PetscInt rank;
+ 
   PetscFunctionBegin;
+ 
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank); 
+
   if (nz >= 0 || nnz) realalloc = PETSC_TRUE;
   if (nz == MAT_SKIP_ALLOCATION) {
     skipallocation = PETSC_TRUE;
@@ -3569,20 +3571,29 @@ PetscErrorCode  MatSeqAIJSetPreallocation_SeqAIJ(Mat B,PetscInt nz,const PetscIn
   B->preallocated = PETSC_TRUE;
   b = (Mat_SeqAIJ*)B->data;
 
-  if (!skipallocation) {
-    if (!b->imax) {
+  if (!skipallocation) 
+  {
+    if (!b->imax) 
+    {
       ierr = PetscMalloc2(B->rmap->n,PetscInt,&b->imax,B->rmap->n,PetscInt,&b->ilen);CHKERRQ(ierr);
       ierr = PetscLogObjectMemory(B,2*B->rmap->n*sizeof(PetscInt));CHKERRQ(ierr);
-    }
-    if (!nnz) {
+     }
+    if (!nnz) 
+    {
       if (nz == PETSC_DEFAULT || nz == PETSC_DECIDE) nz = 10;
       else if (nz < 0) nz = 1;
       for (i=0; i<B->rmap->n; i++) b->imax[i] = nz;
       nz = nz*B->rmap->n;
-    } else {
+    } else 
+    {
       nz = 0;
-      for (i=0; i<B->rmap->n; i++) {b->imax[i] = nnz[i]; nz += nnz[i];}
+      for (i=0; i<B->rmap->n; i++) 
+	{
+	  b->imax[i] = nnz[i]; 
+	  nz += nnz[i];
+	}
     }
+
     /* b->ilen will count nonzeros in each row so far. */
     for (i=0; i<B->rmap->n; i++) { b->ilen[i] = 0; }
 
@@ -3591,12 +3602,14 @@ PetscErrorCode  MatSeqAIJSetPreallocation_SeqAIJ(Mat B,PetscInt nz,const PetscIn
     ierr = PetscMalloc3(nz,PetscScalar,&b->a,nz,PetscInt,&b->j,B->rmap->n+1,PetscInt,&b->i);CHKERRQ(ierr);
     ierr = PetscLogObjectMemory(B,(B->rmap->n+1)*sizeof(PetscInt)+nz*(sizeof(PetscScalar)+sizeof(PetscInt)));CHKERRQ(ierr);
     b->i[0] = 0;
-    for (i=1; i<B->rmap->n+1; i++) {
+    for (i=1; i<B->rmap->n+1; i++) 
+    {
       b->i[i] = b->i[i-1] + b->imax[i-1];
     }
     b->singlemalloc = PETSC_TRUE;
     b->free_a       = PETSC_TRUE;
     b->free_ij      = PETSC_TRUE;
+
 #if defined(PETSC_THREADCOMM_ACTIVE)
   ierr = MatZeroEntries_SeqAIJ(B);CHKERRQ(ierr);
 #endif

@@ -1940,9 +1940,12 @@ PetscErrorCode  MatSetValuesLocal(Mat mat,PetscInt nrow,const PetscInt irow[],Pe
   PetscValidIntPointer(irow,3);
   PetscValidIntPointer(icol,5);
   PetscValidScalarPointer(y,6);
+
   if (mat->insertmode == NOT_SET_VALUES) {
     mat->insertmode = addv;
   }
+
+ 
 #if defined(PETSC_USE_DEBUG)
   else if (mat->insertmode != addv) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Cannot mix add values and insert values");
   if (mat->factortype) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONGSTATE,"Not for factored matrix");
@@ -1954,9 +1957,11 @@ PetscErrorCode  MatSetValuesLocal(Mat mat,PetscInt nrow,const PetscInt irow[],Pe
     mat->assembled     = PETSC_FALSE;
   }
   ierr = PetscLogEventBegin(MAT_SetValues,mat,0,0,0);CHKERRQ(ierr);
+
   if (mat->ops->setvalueslocal) {
     ierr = (*mat->ops->setvalueslocal)(mat,nrow,irow,ncol,icol,y,addv);CHKERRQ(ierr);
   } else {
+
     PetscInt buf[8192],*bufr=0,*bufc=0,*irowm,*icolm;
     if ((nrow+ncol) <= (PetscInt)(sizeof(buf)/sizeof(PetscInt))) {
       irowm = buf; icolm = buf+nrow;
@@ -1964,11 +1969,14 @@ PetscErrorCode  MatSetValuesLocal(Mat mat,PetscInt nrow,const PetscInt irow[],Pe
       ierr = PetscMalloc2(nrow,PetscInt,&bufr,ncol,PetscInt,&bufc);CHKERRQ(ierr);
       irowm = bufr; icolm = bufc;
     }
+
     ierr = ISLocalToGlobalMappingApply(mat->rmap->mapping,nrow,irow,irowm);CHKERRQ(ierr);
     ierr = ISLocalToGlobalMappingApply(mat->cmap->mapping,ncol,icol,icolm);CHKERRQ(ierr);
+
     ierr = MatSetValues(mat,nrow,irowm,ncol,icolm,y,addv);CHKERRQ(ierr);
     ierr = PetscFree2(bufr,bufc);CHKERRQ(ierr);
   }
+
   ierr = PetscLogEventEnd(MAT_SetValues,mat,0,0,0);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_CUSP)
   if (mat->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED) {

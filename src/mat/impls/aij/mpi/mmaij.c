@@ -15,12 +15,15 @@ PetscErrorCode MatSetUpMultiply_MPIAIJ(Mat mat)
   IS                 from,to;
   Vec                gvec;
   PetscBool          useblockis;
+
+
 #if defined (PETSC_USE_CTABLE)
   PetscTable         gid1_lid1;
   PetscTablePosition tpos;
   PetscInt           gid,lid;
 #else
   PetscInt           N = mat->cmap->N,*indices;
+
 #endif
 
   PetscFunctionBegin;

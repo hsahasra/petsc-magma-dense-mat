@@ -498,15 +498,23 @@ PetscErrorCode  ISGlobalToLocalMappingApply(ISLocalToGlobalMapping mapping,ISGlo
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+
+  PetscPrintf(PETSC_COMM_WORLD,"In ISLocalToGlobalMappingAPply1\n");
+
   PetscValidHeaderSpecific(mapping,IS_LTOGM_CLASSID,1);
   if (!mapping->globals) {
+  PetscPrintf(PETSC_COMM_WORLD,"In ISLocalToGlobalMappingAPply2\n");
     ierr = ISGlobalToLocalMappingSetUp_Private(mapping);CHKERRQ(ierr);
   }
   globals = mapping->globals;
   start   = mapping->globalstart;
   end     = mapping->globalend;
 
+  PetscPrintf(PETSC_COMM_WORLD,"In ISLocalToGlobalMappingAPply3\n");
+
+
   if (type == IS_GTOLM_MASK) {
+  PetscPrintf(PETSC_COMM_WORLD,"In ISLocalToGlobalMappingAPply4\n");
     if (idxout) {
       for (i=0; i<n; i++) {
         if (idx[i] < 0) idxout[i] = idx[i];
@@ -517,6 +525,7 @@ PetscErrorCode  ISGlobalToLocalMappingApply(ISLocalToGlobalMapping mapping,ISGlo
     }
     if (nout) *nout = n;
   } else {
+  PetscPrintf(PETSC_COMM_WORLD,"In ISLocalToGlobalMappingAPply5\n");
     if (idxout) {
       for (i=0; i<n; i++) {
         if (idx[i] < 0) continue;
@@ -527,6 +536,7 @@ PetscErrorCode  ISGlobalToLocalMappingApply(ISLocalToGlobalMapping mapping,ISGlo
         idxout[nf++] = tmp;
       }
     } else {
+  PetscPrintf(PETSC_COMM_WORLD,"In ISLocalToGlobalMappingAPply6\n");
       for (i=0; i<n; i++) {
         if (idx[i] < 0) continue;
         if (idx[i] < start) continue;

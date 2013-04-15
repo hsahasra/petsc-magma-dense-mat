@@ -1,4 +1,3 @@
-
 /*
    Routines to compute overlapping regions of a parallel MPI matrix
   and to find submatrices that were shared across processors.
@@ -928,6 +927,7 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
     }
   }
 
+
   /* Form the outgoing messages */
   /* Initialize the header space */
   for (i=0; i<nrqs; i++) {
@@ -963,6 +963,7 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
       }
     }
   }
+
 
   /*  Now  post the sends */
   ierr = PetscMalloc((nrqs+1)*sizeof(MPI_Request),&s_waits1);CHKERRQ(ierr);
@@ -1067,7 +1068,8 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
       sbuf_aj_i = sbuf_aj[i];
       ct1       = 2*rbuf1_i[0] + 1;
       ct2       = 0;
-      for (j=1,max1=rbuf1_i[0]; j<=max1; j++) {
+      for (j=1,max1=rbuf1_i[0]; j<=max1; j++) 
+      {
         kmax = rbuf1[i][2*j];
         for (k=0; k<kmax; k++,ct1++) {
           row    = rbuf1_i[ct1] - rstart;
@@ -1092,7 +1094,9 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
       }
       ierr = MPI_Isend(sbuf_aj_i,req_size[i],MPIU_INT,req_source[i],tag2,comm,s_waits3+i);CHKERRQ(ierr);
     }
+
   }
+
   ierr = PetscMalloc((nrqs+1)*sizeof(MPI_Status),&r_status3);CHKERRQ(ierr);
   ierr = PetscMalloc((nrqr+1)*sizeof(MPI_Status),&s_status3);CHKERRQ(ierr);
 
@@ -1300,11 +1304,14 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isro
       }
     }
   }
+
+
   ierr = PetscFree(r_status3);CHKERRQ(ierr);
   ierr = PetscFree(r_waits3);CHKERRQ(ierr);
   if (nrqr) {ierr = MPI_Waitall(nrqr,s_waits3,s_status3);CHKERRQ(ierr);}
   ierr = PetscFree(s_status3);CHKERRQ(ierr);
   ierr = PetscFree(s_waits3);CHKERRQ(ierr);
+
 
   /* Create the submatrices */
   if (scall == MAT_REUSE_MATRIX) {
