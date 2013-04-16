@@ -271,17 +271,13 @@ dim3 grid((int)ceil((float)(A->rmap->n)/(float)BLOCKWIDTH_X / 1.0), 1);
     devY = vy->devptr;
  
    /* Bind X to device texture */
-    mat_size = (mat_seq->m * mat_seq->n * mat_seq->p * mat_seq->dof)/mpi_aij->size;
+//    mat_size = (mat_seq->m * mat_seq->n * mat_seq->p * mat_seq->dof)/mpi_aij->size;
 
-//    mat_size = A->rmap->n;
+    mat_size = A->rmap->n;
 
     vec_size = (mat_seq->m * mat_seq->n * mat_seq->p * mat_seq->dof);
 
-PetscPrintf(PETSC_COMM_WORLD,"In MatMult_MPISGGPU1\n");
-
     checkCudaError(cudaBindTexture(0, vector_x, devX, vec_size * sizeof(PetscScalar)));
-
-PetscPrintf(PETSC_COMM_WORLD,"In MatMult_MPISGGPU2\n");
 
     MatMultKernelMPI<<<grid, block, shared_size, mat_seq->stream>>>(mat_seq->deviceData, devY, devX, mat_size, mat_seq->diagonals->size(), mat_seq->deviceDiags, mat_seq->dof, vec_size);
 
@@ -706,9 +702,6 @@ ierr = MatGetSubMatrix(((Mat)(mat->mpi_aij)),mat->is,mat->is,MAT_INITIAL_MATRIX,
 
 ierr = MatSetSGGPUMatrix(A,Anatural);CHKERRQ(ierr); 	
 	}
-
-MPI_Barrier(PETSC_COMM_WORLD);
-//exit(0);
 
  PetscFunctionReturn(0);
 }
