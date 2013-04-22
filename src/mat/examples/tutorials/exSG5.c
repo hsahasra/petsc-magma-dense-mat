@@ -69,9 +69,9 @@ PetscErrorCode timedConvergenceTest(KSP ksp ,PetscInt iterNum, PetscReal rnorm, 
 #define __FUNCT__ "main"
 int main(int argc,char **args)
 {
-  KSP            ksp, kspaij;
-  Mat            A,B,C;
-  Vec            x,xaij,bNatural,b,u,b2,b2aij;        /* approx solution, RHS, exact solution */
+  KSP            ksp, kspaij, kspdiag;
+  Mat            A,B,C,Adiag;
+  Vec            x,xaij,xdiag,bNatural,b,u,b2,b2aij,bdiag,b2diag,xlex;        /* approx solution, RHS, exact solution */
   PetscViewer    fd;              /* viewer */
   char           file[4][PETSC_MAX_PATH_LEN];     /* input file name */
   PetscBool      table = PETSC_FALSE,flg,flgB=PETSC_FALSE,trans=PETSC_FALSE,partition=PETSC_FALSE,initialguess = PETSC_FALSE;
@@ -81,10 +81,12 @@ int main(int argc,char **args)
   PetscReal      my_rtol;
   PetscReal      rnorm,enorm,myRtol;
   PetscLogDouble tsetup,tsetup1,tsetup2,tsolve,tsolve1,tsolve2;
-  PetscBool      preload=PETSC_TRUE,diagonalscale,isSymmetric,ckrnorm=PETSC_TRUE,Test_MatDuplicate=PETSC_FALSE,ckerror=PETSC_FALSE,aijcomp=PETSC_FALSE,useMyRtol=PETSC_FALSE;
+  PetscBool      preload=PETSC_TRUE,diagonalscale,isSymmetric,ckrnorm=PETSC_TRUE,Test_MatDuplicate=PETSC_FALSE,ckerror=PETSC_FALSE;
+  PetscBool      diagcomp=PETSC_FALSE, aijcomp=PETSC_FALSE, aijonly=PETSC_FALSE, useMyRtol=PETSC_FALSE;
   PetscMPIInt    rank;
   PetscScalar    sigma;
   PetscInt       m;
+  PetscInt       bSize;
 
 #if USE_PAPI
   int papi_err;
@@ -112,7 +114,7 @@ int main(int argc,char **args)
   papi_events[2] = PAPI_FP_OPS;
 #endif
 
-  printf("Initialize PETSc\n");
+  //printf("Initialize PETSc\n");
   PetscInitialize(&argc,&args,(char *)0,help);
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-table",&table,PETSC_NULL);CHKERRQ(ierr);
@@ -122,7 +124,9 @@ int main(int argc,char **args)
   ierr = PetscOptionsGetBool(PETSC_NULL,"-output_solution",&outputSoln,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-ckrnorm",&ckrnorm,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-ckerror",&ckerror,PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-diagcomp",&diagcomp,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-aijcomp",&aijcomp,PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(PETSC_NULL,"-aijonly",&aijonly,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetReal(PETSC_NULL,"-myrtol",&myRtol,&useMyRtol);
   void* conv_ctx;
   KSPDefaultConvergedCreate(&conv_ctx);//malloc(sizeof(KSPDefaultConvergedCtx));
@@ -188,9 +192,8 @@ int main(int argc,char **args)
     if (!preload){
       flg = PETSC_FALSE;
       ierr = PetscOptionsGetString(PETSC_NULL,"-rhs",file[2],PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
-      printf("rhs is %s\n", file[2]);
+      //printf("rhs is %s\n", file[2]);
       if (flg){ /* rhs is stored in a separate file */
-	PetscInt bSize;
         ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr); 
         ierr = PetscInfo(0,"Loading RHS from file\n");CHKERRQ(ierr);
         ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[2],FILE_MODE_READ,&fd);CHKERRQ(ierr);
@@ -363,9 +366,25 @@ int main(int argc,char **args)
      
     ierr = KSPSetOperators(ksp,A,A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
 
-    if ( aijcomp ) {
+    if ( diagcomp ) {
+      //printf("Converting to diag numbered sggpu matrix for comparison\n");
+      ierr = KSPCreate(PETSC_COMM_WORLD,&kspdiag);CHKERRQ(ierr);
+      //KSPSetConvergenceTest(kspdiag, &timedConvergenceTest, conv_ctx, NULL);
+      ierr = KSPSetInitialGuessNonzero(kspdiag,initialguess);CHKERRQ(ierr);
+
+      ierr = MatConvertMatToDiag_SeqSGGPU(A,&Adiag);
+      ierr = MatConvertVecLexDiag_SeqSGGPU(A,b,0,&bdiag);
+      ierr = VecDuplicate(bdiag,&xdiag);CHKERRQ(ierr);
+      ierr = VecDuplicate(bdiag,&b2diag);CHKERRQ(ierr);
+      ierr = PetscObjectSetName((PetscObject)xdiag, "DIAG Solution vector");CHKERRQ(ierr);
+
+      ierr = KSPSetOperators(kspdiag,Adiag,Adiag,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = KSPSetFromOptions(kspdiag);CHKERRQ(ierr);
+    }
+
+    if ( aijcomp || aijonly ) {
       ierr = KSPCreate(PETSC_COMM_WORLD,&kspaij);CHKERRQ(ierr);
-      KSPSetConvergenceTest(kspaij, &timedConvergenceTest, conv_ctx, NULL);
+      //KSPSetConvergenceTest(kspaij, &timedConvergenceTest, conv_ctx, NULL);
       ierr = KSPSetInitialGuessNonzero(kspaij,initialguess);CHKERRQ(ierr);
       ierr = MatConvert(A,MATSEQAIJ,MAT_INITIAL_MATRIX,&C);CHKERRQ(ierr);
       ierr = KSPSetOperators(kspaij,C,C,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -373,7 +392,7 @@ int main(int argc,char **args)
       ierr = VecDuplicate(bNatural,&b2aij);CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject)xaij, "AIJ Solution vector");CHKERRQ(ierr);
       ierr = KSPSetFromOptions(kspaij);CHKERRQ(ierr);
-      printf("Converting to SeqAIJ matrix type for comparison\n");
+      //printf("Converting to SeqAIJ matrix type for comparison\n");
 
       /* Check whether C is symmetric */
       flg  = PETSC_FALSE;
@@ -472,18 +491,18 @@ int main(int argc,char **args)
       //PetscInt  num_rhs=1;
       //ierr = PetscOptionsGetInt(PETSC_NULL,"-num_rhs",&num_rhs,PETSC_NULL);CHKERRQ(ierr);
         //while ( num_rhs-- ) {
-      
-      printf("Calling KSPSolve\n");
-      fflush(stdout);
-          ierr = KSPSolve(ksp,b,x);CHKERRQ(ierr);
-      printf("Done with KSPSolve\n");
-      fflush(stdout);
-	  //}
+      if ( !aijonly ) {
+	//printf("Calling KSPSolve\n");
+	//fflush(stdout);
+	ierr = KSPSolve(ksp,b,x);CHKERRQ(ierr);
+	//printf("Done with KSPSolve\n");
+	//fflush(stdout);
+	//}
 #if USE_PAPI
-      if ((papi_err=PAPI_read_counters(papi_values, NUM_EVENTS)) != PAPI_OK){
-	printf("Error reading counters! (%d)\n", papi_err); fflush(NULL);
+	if ((papi_err=PAPI_read_counters(papi_values, NUM_EVENTS)) != PAPI_OK){
+	  printf("Error reading counters! (%d)\n", papi_err); fflush(NULL);
 	  return papi_err;
-      }
+	}
 #endif
 	KSPConvergedReason reason;
 	KSPGetConvergedReason(ksp,&reason);
@@ -492,7 +511,7 @@ int main(int argc,char **args)
 	  printf("Divergence: this should not happen.\n");
 	} else {
 	  KSPGetIterationNumber(ksp,&my_its);
-	  printf("\nConvergence in %d iterations.\n",(int)my_its);
+	  //printf("\nConvergence in %d iterations.\n",(int)my_its);
 	}
 
         ierr = KSPGetIterationNumber(ksp,&its);CHKERRQ(ierr);
@@ -506,10 +525,10 @@ int main(int argc,char **args)
           ierr = VecAXPY(b2,-1.0,b);CHKERRQ(ierr);
 	  //ierr = VecView(b2,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
           ierr = VecNorm(b2,NORM_2,&rnorm);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of iterations = %3D\n",its);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %f\n",rnorm);CHKERRQ(ierr);
-          ierr = VecNorm(b2,NORM_INFINITY,&infinityNorm);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD," Infinity norm %f\n",infinityNorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of iterations = %3D\n",its);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %g\n",rnorm);CHKERRQ(ierr);
+          //ierr = VecNorm(b2,NORM_INFINITY,&infinityNorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD," Infinity norm %g\n",infinityNorm);CHKERRQ(ierr);
         } 
         if (ckerror && !trans){  /* Check error for each rhs */
           /* ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
@@ -520,81 +539,209 @@ int main(int argc,char **args)
           ierr = PetscPrintf(PETSC_COMM_WORLD,"  Error infinity norm %f\n",enorm);CHKERRQ(ierr);
         }
       
-    //} /* while ( num_rhs-- ) */
-      ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
-      tsolve = tsolve2 - tsolve1;
+	//} /* while ( num_rhs-- ) */
+	ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
+	tsolve = tsolve2 - tsolve1;
 
-      /*
-       Write output (optinally using table for solver details).
-        - PetscPrintf() handles output for multiprocessor jobs 
+	/*
+	  Write output (optinally using table for solver details).
+	  - PetscPrintf() handles output for multiprocessor jobs 
           by printing from only one processor in the communicator.
-        - KSPView() prints information about the linear solver.
-      */
-      if (table && ckrnorm) {
-        char        *matrixname,kspinfo[120];
-        PetscViewer viewer;
-
-        /*
-          Open a string viewer; then write info to it.
-        */
-	//ierr = PetscViewerStringOpen(PETSC_COMM_WORLD,kspinfo,120,&viewer);//CHKERRQ(ierr);
-        //ierr = KSPView(ksp,viewer);//CHKERRQ(ierr);
-	//kspinfo[0]=0;
-        ierr = PetscStrrchr(file[PetscPreLoadIt],'/',&matrixname);//CHKERRQ(ierr);
-        //ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %f %f %s \n",
-	//		   matrixname,its,rnorm,tsetup+tsolve,tsetup,tsolve,kspinfo);//CHKERRQ(ierr);
-
-	//{PAPI_TOT_INS, PAPI_TOT_CYC, FP_COMP_OPS_EXE_SSE_FP, FP_COMP_OPS_EXE_X87, PAPI_FP_OPS,
-	//FP_COMP_OPS_EXE_SSE_FP_PACKED, FP_COMP_OPS_EXE_SSE_FP_SCALAR, FP_COMP_OPS_EXE_SSE_DOUBLE_PRECISION, FP_COMP_OPS_EXE_SSE_SINGLE_PRECISION, FP_COMP_OPS_EXE_SSE2_INTEGER};
-#if USE_PAPI
-	ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %ld %ld %ld %ld %ld %0.2lf %0.2lf %0.3lf\n",
-			   matrixname,its,rnorm,tsolve, papi_values[0], papi_values[1], papi_values[2], papi_values[3], papi_values[4],
-			   // papi_values[4], papi_values[5], papi_values[6], papi_values[7], papi_values[8], papi_values[9],
-			   (papi_values[1]/tsolve)/1000000000, (papi_values[2]/tsolve)/1000000000, tsolve/its);//CHKERRQ(ierr);
-#else
-	ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %0.3lf\n",
-			   matrixname,its,rnorm,tsolve, tsolve/its);//CHKERRQ(ierr);
-#endif
-
-        /*
-          Destroy the viewer
-        */
-        //ierr = PetscViewerDestroy(&viewer);//CHKERRQ(ierr);
-	//} 
-
-	//ierr = PetscOptionsGetString(PETSC_NULL,"-solution",file[3],PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
-	//if (flg) {
-        //PetscViewer viewer;
-        //Vec         xstar;
-
-        //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[3],FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-	//ierr = VecCreate(PETSC_COMM_WORLD,&xstar);CHKERRQ(ierr);
-        //ierr = VecLoad(xstar,viewer);CHKERRQ(ierr);
-        //ierr = VecAXPY(xstar, -1.0, x);CHKERRQ(ierr);
-        //ierr = VecNorm(xstar, NORM_2, &enorm);CHKERRQ(ierr);
-        //ierr = PetscPrintf(PETSC_COMM_WORLD, "Error norm %A\n", enorm);CHKERRQ(ierr);
-        //ierr = VecDestroy(&xstar);CHKERRQ(ierr);
-        //ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-	//}
-	if (outputSoln) {
+	  - KSPView() prints information about the linear solver.
+	*/
+	if (table && ckrnorm) {
+	  char        *matrixname,kspinfo[120];
 	  PetscViewer viewer;
 
-	  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"solution.petsc",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-	  ierr = VecView(x, viewer);CHKERRQ(ierr);
-	  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-	}
-	
-	flg  = PETSC_FALSE;
-	ierr = PetscOptionsGetBool(PETSC_NULL, "-ksp_reason", &flg,PETSC_NULL);CHKERRQ(ierr);
-	if (flg){
-	  KSPConvergedReason reason;
-	  ierr = KSPGetConvergedReason(ksp,&reason);CHKERRQ(ierr);
-	  PetscPrintf(PETSC_COMM_WORLD,"KSPConvergedReason: %D\n", reason); 
-	}
-       
-      } /* while ( num_numfac-- ) */
+	  /*
+	    Open a string viewer; then write info to it.
+	  */
+	  //ierr = PetscViewerStringOpen(PETSC_COMM_WORLD,kspinfo,120,&viewer);//CHKERRQ(ierr);
+	  //ierr = KSPView(ksp,viewer);//CHKERRQ(ierr);
+	  //kspinfo[0]=0;
+	  ierr = PetscStrrchr(file[PetscPreLoadIt],'/',&matrixname);//CHKERRQ(ierr);
+	  //ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %f %f %s \n",
+	  //		   matrixname,its,rnorm,tsetup+tsolve,tsetup,tsolve,kspinfo);//CHKERRQ(ierr);
+	  
+	  //{PAPI_TOT_INS, PAPI_TOT_CYC, FP_COMP_OPS_EXE_SSE_FP, FP_COMP_OPS_EXE_X87, PAPI_FP_OPS,
+	  //FP_COMP_OPS_EXE_SSE_FP_PACKED, FP_COMP_OPS_EXE_SSE_FP_SCALAR, FP_COMP_OPS_EXE_SSE_DOUBLE_PRECISION, FP_COMP_OPS_EXE_SSE_SINGLE_PRECISION, FP_COMP_OPS_EXE_SSE2_INTEGER};
+#if USE_PAPI
+	  ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %ld %ld %ld %ld %ld %0.2lf %0.2lf %0.3lf\n",
+			     matrixname,its,rnorm,tsolve, papi_values[0], papi_values[1], papi_values[2], papi_values[3], papi_values[4],
+			     // papi_values[4], papi_values[5], papi_values[6], papi_values[7], papi_values[8], papi_values[9],
+			     (papi_values[1]/tsolve)/1000000000, (papi_values[2]/tsolve)/1000000000, tsolve/its);//CHKERRQ(ierr);
+#else
+	  ierr = PetscPrintf(PETSC_COMM_WORLD,"%s sggpu lex,%3D,%f\n",
+			     file[2],its,tsolve);CHKERRQ(ierr);
+#endif
+	  
+	  /*
+	    Destroy the viewer
+	  */
+	  //ierr = PetscViewerDestroy(&viewer);//CHKERRQ(ierr);
+	  //} 
+	  
+	  //ierr = PetscOptionsGetString(PETSC_NULL,"-solution",file[3],PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+	  //if (flg) {
+	  //PetscViewer viewer;
+	  //Vec         xstar;
 
-      if ( aijcomp ) {
+	  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,file[3],FILE_MODE_READ,&viewer);CHKERRQ(ierr);
+	  //ierr = VecCreate(PETSC_COMM_WORLD,&xstar);CHKERRQ(ierr);
+	  //ierr = VecLoad(xstar,viewer);CHKERRQ(ierr);
+	  //ierr = VecAXPY(xstar, -1.0, x);CHKERRQ(ierr);
+	  //ierr = VecNorm(xstar, NORM_2, &enorm);CHKERRQ(ierr);
+	  //ierr = PetscPrintf(PETSC_COMM_WORLD, "Error norm %A\n", enorm);CHKERRQ(ierr);
+	  //ierr = VecDestroy(&xstar);CHKERRQ(ierr);
+	  //ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+	  //}
+	  if (outputSoln) {
+	    PetscViewer viewer;
+
+	    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"solution.petsc",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+	    ierr = VecView(x, viewer);CHKERRQ(ierr);
+	    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+	  }
+	
+	  flg  = PETSC_FALSE;
+	  ierr = PetscOptionsGetBool(PETSC_NULL, "-ksp_reason", &flg,PETSC_NULL);CHKERRQ(ierr);
+	  if (flg){
+	    KSPConvergedReason reason;
+	    ierr = KSPGetConvergedReason(ksp,&reason);CHKERRQ(ierr);
+	    PetscPrintf(PETSC_COMM_WORLD,"KSPConvergedReason: %D\n", reason); 
+	  }
+	} /* while ( num_numfac-- ) */
+      }
+
+
+      if ( diagcomp ) {
+	//  Solve linear system; we also explicitly time this stage.
+	startTime = getTimeInMicroSeconds();
+	ierr = PetscGetTime(&tsolve1);CHKERRQ(ierr);
+
+	if ( useMyRtol )
+	  ierr = KSPSetTolerances(kspdiag,myRtol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+
+#if USE_PAPI
+	if ( (papi_err = PAPI_read_counters(papi_events, 3)) != PAPI_OK){
+	  printf("Error reading counters! (%d)\n", papi_err); fflush(NULL);
+	  return papi_err;
+	}
+#endif
+	
+	ierr = KSPSolve(kspdiag,bdiag,xdiag);CHKERRQ(ierr);
+
+#if USE_PAPI
+	if ((papi_err=PAPI_stop_counters(papi_values, NUM_EVENTS)) != PAPI_OK){
+	  printf("Error stoping counters! (%d)\n", papi_err); fflush(NULL);
+	  return papi_err;
+	}
+#endif
+
+	KSPConvergedReason reason;
+	KSPGetConvergedReason(kspdiag,&reason);
+	PetscInt my_its = 0;
+	if (reason<0) {
+	  printf("Divergence: this should not happen.\n");
+	} else {
+	  KSPGetIterationNumber(kspdiag,&my_its);
+	  //printf("\nConvergence in %d iterations.\n",(int)my_its);
+	}
+
+        ierr = KSPGetIterationNumber(kspdiag,&its);CHKERRQ(ierr);
+        if (ckrnorm){   /* Check residual for each rhs */
+	  PetscScalar infinityNorm;
+	  Vec xCopy, b2lex;
+	  //  if (trans) {
+	  //    ierr = MatMultTranspose(A,x,b2);CHKERRQ(ierr);
+	  //  } else {
+	  ierr = MatMult(Adiag,xdiag,b2diag);CHKERRQ(ierr);
+	  //  }
+          ierr = VecAXPY(b2diag,-1.0,bdiag);CHKERRQ(ierr);
+          ierr = VecNorm(b2diag,NORM_2,&rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  For Diagonal Numbering:\n");CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of iterations = %3D\n",its);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %g\n",rnorm);CHKERRQ(ierr);
+          //ierr = VecNorm(b2diag,NORM_INFINITY,&infinityNorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD," Infinity norm %g\n",infinityNorm);CHKERRQ(ierr);
+
+	  //ierr = PetscPrintf(PETSC_COMM_WORLD,"Compare solution vector with lex numbering:\n");CHKERRQ(ierr);
+	  ierr = VecDuplicate(x,&xCopy);CHKERRQ(ierr);
+	  ierr = VecCopy(x,xCopy);CHKERRQ(ierr);
+
+	  ierr = VecDuplicate(xdiag,&xlex);CHKERRQ(ierr);
+	  ierr = MatConvertVecLexDiag_SeqSGGPU(A,xdiag,1,&xlex);
+
+	  ierr = VecDuplicate(bdiag,&b2lex);CHKERRQ(ierr);
+	  ierr = MatMult(A,xlex,b2lex);CHKERRQ(ierr);
+          ierr = VecAXPY(b2lex,-1.0,b);CHKERRQ(ierr);
+          ierr = VecNorm(b2lex,NORM_2,&rnorm);CHKERRQ(ierr);
+	  //ierr = PetscPrintf(PETSC_COMM_WORLD,"xlex is xdiag converted to lex\n");CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"L2 norm of b - A*xlex %g\n",rnorm);CHKERRQ(ierr);
+          //ierr = VecNorm(b2lex,NORM_INFINITY,&infinityNorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD," Infinity norm %g\n",infinityNorm);CHKERRQ(ierr);
+
+
+	  //ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+	  //ierr = VecView(xlex,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+          //ierr = VecNorm(xCopy,NORM_2,&rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"L2 norm of x %f\n",rnorm);CHKERRQ(ierr);
+
+          //ierr = VecNorm(xlex,NORM_2,&rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"L2 norm of xdiag %f\n",rnorm);CHKERRQ(ierr);
+
+          //ierr = VecAXPY(xCopy,-1.0,xlex);CHKERRQ(ierr);
+	  //ierr = VecView(xlex,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+          //ierr = VecNorm(xCopy,NORM_2,&rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"L2 norm of difference %f\n",rnorm);CHKERRQ(ierr);
+          //ierr = VecNorm(xCopy,NORM_INFINITY,&rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"Infinity norm of difference %f\n",rnorm);CHKERRQ(ierr);
+        } 
+        if (ckerror && !trans){  /* Check error for each rhs */
+          /* ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
+          ierr = VecAXPY(u,-1.0,xdiag);CHKERRQ(ierr);
+          ierr = VecNorm(u,NORM_2,&enorm);CHKERRQ(ierr);
+          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Error norm %f\n",enorm);CHKERRQ(ierr);
+        }
+      
+	ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
+	tsolve = tsolve2 - tsolve1;
+
+	if (table && ckrnorm) {
+	  char        *matrixname,kspinfo[120];
+	  PetscViewer viewer;
+
+	  ierr = PetscStrrchr(file[PetscPreLoadIt],'/',&matrixname);//CHKERRQ(ierr);
+#if USE_PAPI
+	  ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %ld %ld %ld %ld %ld %0.2lf %0.2lf %0.3lf\n",
+			     matrixname,its,rnorm,tsolve, papi_values[0], papi_values[1], papi_values[2], papi_values[3], papi_values[4],
+			     // papi_values[4], papi_values[5], papi_values[6], papi_values[7], papi_values[8], papi_values[9],
+			     (papi_values[1]/tsolve)/1000000000, (papi_values[2]/tsolve)/1000000000, tsolve/its);//CHKERRQ(ierr);
+#else
+	  ierr = PetscPrintf(PETSC_COMM_WORLD,"%s sggpu diag,%3D,%f\n",
+			     file[2],its,tsolve);//CHKERRQ(ierr);
+#endif
+	  if (outputSoln) {
+	    PetscViewer viewer;
+
+	    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"solution.petsc",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+	    ierr = VecView(x, viewer);CHKERRQ(ierr);
+	    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+	  }
+	
+	  flg  = PETSC_FALSE;
+	  ierr = PetscOptionsGetBool(PETSC_NULL, "-ksp_reason", &flg,PETSC_NULL);CHKERRQ(ierr);
+	  if (flg){
+	    KSPConvergedReason reason;
+	    ierr = KSPGetConvergedReason(ksp,&reason);CHKERRQ(ierr);
+	    PetscPrintf(PETSC_COMM_WORLD,"KSPConvergedReason: %D\n", reason); 
+	  }
+       
+	}
+
+      }
+
+      if ( aijcomp || aijonly ) {
 	//  Solve linear system; we also explicitly time this stage.
 	startTime = getTimeInMicroSeconds();
 	ierr = PetscGetTime(&tsolve1);CHKERRQ(ierr);
@@ -625,12 +772,13 @@ int main(int argc,char **args)
 	  printf("Divergence: this should not happen.\n");
 	} else {
 	  KSPGetIterationNumber(kspaij,&my_its);
-	  printf("\nConvergence in %d iterations.\n",(int)my_its);
+	  //printf("\nConvergence in %d iterations.\n",(int)my_its);
 	}
 
         ierr = KSPGetIterationNumber(kspaij,&its);CHKERRQ(ierr);
         if (ckrnorm){   /* Check residual for each rhs */
 	  PetscScalar infinityNorm;
+	  Vec xaijCopy;
 	  //  if (trans) {
 	  //    ierr = MatMultTranspose(A,x,b2);CHKERRQ(ierr);
 	  //  } else {
@@ -638,10 +786,16 @@ int main(int argc,char **args)
 	  //  }
           ierr = VecAXPY(b2aij,-1.0,bNatural);CHKERRQ(ierr);
           ierr = VecNorm(b2aij,NORM_2,&rnorm);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of iterations = %3D\n",its);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %f\n",rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  Number of iterations = %3D\n",its);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"  Residual norm %g\n",rnorm);CHKERRQ(ierr);
           ierr = VecNorm(b2aij,NORM_INFINITY,&infinityNorm);CHKERRQ(ierr);
-          ierr = PetscPrintf(PETSC_COMM_WORLD," Infinity norm %f\n",infinityNorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD," Infinity norm %g\n",infinityNorm);CHKERRQ(ierr);
+
+	  ierr = VecDuplicate(xaij,&xaijCopy);CHKERRQ(ierr);
+	  ierr = VecCopy(xaij,xaijCopy);CHKERRQ(ierr);
+          ierr = VecAXPY(xaijCopy,-1.0,x);CHKERRQ(ierr);
+          ierr = VecNorm(xaijCopy,NORM_2,&rnorm);CHKERRQ(ierr);
+          //ierr = PetscPrintf(PETSC_COMM_WORLD,"L2 norm of difference between x and xaij  %g\n",rnorm);CHKERRQ(ierr);
         } 
         if (ckerror && !trans){  /* Check error for each rhs */
           /* ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr); */
@@ -664,8 +818,8 @@ int main(int argc,char **args)
 			     // papi_values[4], papi_values[5], papi_values[6], papi_values[7], papi_values[8], papi_values[9],
 			     (papi_values[1]/tsolve)/1000000000, (papi_values[2]/tsolve)/1000000000, tsolve/its);//CHKERRQ(ierr);
 #else
-	  ierr = PetscPrintf(PETSC_COMM_WORLD,"%-8.8s %3D %f %f %0.3lf\n",
-			     matrixname,its,rnorm,tsolve, tsolve/its);//CHKERRQ(ierr);
+	  ierr = PetscPrintf(PETSC_COMM_WORLD,"%s aij lex,%3D,%f\n",
+			     file[2],its,tsolve);//CHKERRQ(ierr);
 #endif
 	  if (outputSoln) {
 	    PetscViewer viewer;
@@ -694,8 +848,8 @@ int main(int argc,char **args)
     ierr = MatDestroy(&A);CHKERRQ(ierr); ierr = VecDestroy(&b);CHKERRQ(ierr);
     ierr = VecDestroy(&u);CHKERRQ(ierr); ierr = VecDestroy(&x);CHKERRQ(ierr);
     ierr = VecDestroy(&b2);CHKERRQ(ierr);
-    if ( aijcomp ) { ierr = VecDestroy(&b2aij);CHKERRQ(ierr); }
-    if ( aijcomp ) { ierr = MatDestroy(&C);CHKERRQ(ierr); }
+    if ( aijcomp || aijonly ) { ierr = VecDestroy(&b2aij);CHKERRQ(ierr); }
+    if ( aijcomp || aijonly ) { ierr = MatDestroy(&C);CHKERRQ(ierr); }
     if (flgB) { ierr = MatDestroy(&B);CHKERRQ(ierr); }
   PetscPreLoadEnd();
   /* -----------------------------------------------------------

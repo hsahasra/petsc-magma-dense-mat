@@ -71,7 +71,10 @@ PetscErrorCode MatILUFactor_SeqSGGPU(Mat inA,IS row,IS col,const MatFactorInfo *
 PetscErrorCode MatGetInfo_SeqSGGPU(Mat A,MatInfoType flag,MatInfo *info);
 PetscErrorCode MatSolve_SeqSGGPU(Mat A,Vec bb,Vec xx);
 PetscErrorCode MatSolve_SeqSGGPU_cpu(Mat A,Vec bb,Vec xx);
+PetscErrorCode MatSolve_SeqSGGPU_cpu_1(Mat A,Vec bb,Vec xx);
+PetscErrorCode MatSolve_SeqSGGPU_cpu_simple(Mat A,Vec bb,Vec xx);
 PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx);
+PetscErrorCode MatSolve_SeqSGGPU_choice(Mat A,Vec bb,Vec xx);
 PetscErrorCode MatSolve_SeqSGGPU_compare(Mat A,Vec bb,Vec xx);
 PetscErrorCode MatView_SeqSGGPU_ASCII(Mat,PetscViewer);
 extern PetscErrorCode MatFDColoringApply_SeqSGGPU(Mat,MatFDColoring,Vec,MatStructure*,void*);
