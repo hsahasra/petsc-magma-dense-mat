@@ -72,6 +72,7 @@ int main(int argc,char **argv)
   PetscBool              matrix_free = PETSC_FALSE,coloring = PETSC_FALSE;
   PetscErrorCode         ierr;
   PetscReal              bratu_lambda_max = 6.81,bratu_lambda_min = 0.,fnorm;
+  PetscLogDouble         tsolve1,tsolve2,tsolve;
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Initialize program
@@ -150,8 +151,13 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Solve nonlinear system
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  ierr = PetscGetTime(&tsolve1);CHKERRQ(ierr);
   ierr = SNESSolve(snes,PETSC_NULL,x);CHKERRQ(ierr);
+  ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
+  tsolve = tsolve2 - tsolve1;
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"SNESSOLVETIME ex14,%3D,%f\n",
+		     its,tsolve);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Explicitly check norm of the residual of the solution

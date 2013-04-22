@@ -50,7 +50,6 @@ T*/
 #include <petscdmda.h>
 #include <petscsnes.h>
 
-
 /*
    User-defined application context - contains data needed by the
    application-provided call-back routines, FormJacobianLocal() and
@@ -85,6 +84,7 @@ int main(int argc,char **argv)
   PetscReal      bratu_lambda_min = 0.;
   PetscBool      flg = PETSC_FALSE;
   DM             da;
+  PetscLogDouble tsolve1,tsolve2,tsolve;
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
   Vec            r = PETSC_NULL;
   PetscBool      matlab_function = PETSC_FALSE;
@@ -155,8 +155,13 @@ int main(int argc,char **argv)
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Solve nonlinear system
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  ierr = PetscGetTime(&tsolve1);CHKERRQ(ierr);
   ierr = SNESSolve(snes,PETSC_NULL,x);CHKERRQ(ierr);
+  ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
+  tsolve = tsolve2 - tsolve1;
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"SNESSOLVETIME ex05,%3D,%f\n",
+		     its,tsolve);CHKERRQ(ierr);
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

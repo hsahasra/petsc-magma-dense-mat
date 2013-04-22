@@ -163,7 +163,7 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
   PetscFunctionBegin;
   SGTrace;
 
-	PetscPrintf(PETSC_COMM_WORLD,"MatCreate_SeqSGGPU\n");
+  //PetscPrintf(PETSC_COMM_WORLD,"MatCreate_SeqSGGPU\n");
 	
   ierr = MPI_Comm_size(((PetscObject)A)->comm, &size); CHKERRQ(ierr);
   if (size > 1)
@@ -552,8 +552,8 @@ PetscErrorCode MatSeqSGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt
   PetscErrorCode ierr;
   Mat_SeqSGGPU *mat = (Mat_SeqSGGPU*)A->data;
   PetscFunctionBegin;
-
-	PetscPrintf(PETSC_COMM_WORLD,"MatSeqSGGPUSetPreallocation\n");
+  SGTrace;
+	//PetscPrintf(PETSC_COMM_WORLD,"MatSeqSGGPUSetPreallocation\n");
 
 
   mat->stencil_type = stencil_type;
@@ -1076,7 +1076,10 @@ PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type)
     }
   }
 #endif
-  size = mat->diag_starts->size()*mat->m*mat->n*mat->p*mat->dof*mat->dof;
+  if ( A->factortype != MAT_FACTOR_NONE )
+    size = (1+mat->diag_starts->size())*mat->m*mat->n*mat->p*mat->dof*mat->dof;
+  else
+    size = mat->diag_starts->size()*mat->m*mat->n*mat->p*mat->dof*mat->dof;
 
   checkCudaError(cudaMemcpyAsync(mat->deviceDiags, &(*mat->diagonals)[0], sizeof(int) * mat->diagonals->size(), cudaMemcpyHostToDevice, mat->stream));
 

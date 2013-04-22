@@ -100,6 +100,7 @@ int main(int argc,char **argv)
   SNES           snes;
   DM             da;
   Vec            x;
+  PetscLogDouble tsolve1,tsolve2,tsolve;
 
   ierr = PetscInitialize(&argc,&argv,(char *)0,help);if (ierr) return(1);
   comm = PETSC_COMM_WORLD;
@@ -153,10 +154,15 @@ int main(int argc,char **argv)
   ierr = DMCreateGlobalVector(da,&x);CHKERRQ(ierr);
   ierr = FormInitialGuess(&user,da,x);CHKERRQ(ierr);
 
+  ierr = PetscGetTime(&tsolve1);CHKERRQ(ierr);
   ierr = SNESSolve(snes,PETSC_NULL,x);CHKERRQ(ierr);
+  ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
+  tsolve = tsolve2 - tsolve1;
 
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
   ierr = PetscPrintf(comm,"Number of SNES iterations = %D\n", its);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"SNESSOLVETIME ex19,%3D,%f\n",
+		     its,tsolve);CHKERRQ(ierr);
 
   /*
      Visualize solution

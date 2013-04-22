@@ -66,6 +66,7 @@ int main(int argc,char **argv)
   PetscInt       its,lits;
   PetscReal      litspit;
   DM             da;
+  PetscLogDouble tsolve1,tsolve2,tsolve;
 
   PetscInitialize(&argc,&argv,PETSC_NULL,help);
 
@@ -100,13 +101,18 @@ int main(int argc,char **argv)
   ierr = SNESSetFromOptions(snes);CHKERRQ(ierr);
   ierr = DMSetInitialGuess(da,FormInitialGuess);CHKERRQ(ierr);
 
+  ierr = PetscGetTime(&tsolve1);CHKERRQ(ierr);
   ierr = SNESSolve(snes,PETSC_NULL,PETSC_NULL);CHKERRQ(ierr);
+  ierr = PetscGetTime(&tsolve2);CHKERRQ(ierr);
+  tsolve = tsolve2 - tsolve1;
+
   ierr = SNESGetIterationNumber(snes,&its);CHKERRQ(ierr);
   ierr = SNESGetLinearSolveIterations(snes,&lits);CHKERRQ(ierr);
   litspit = ((PetscReal)lits)/((PetscReal)its);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %D\n",its);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Number of Linear iterations = %D\n",lits);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Average Linear its / SNES = %e\n",litspit);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"SNESSOLVETIME ex18,%3D,%f\n",its,tsolve);CHKERRQ(ierr);
 
   ierr = DMDestroy(&da);CHKERRQ(ierr);
   ierr = SNESDestroy(&snes);CHKERRQ(ierr);
