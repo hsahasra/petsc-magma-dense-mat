@@ -304,6 +304,7 @@ PetscErrorCode MatMult_MPISGGPU(Mat A, Vec x, Vec y) {
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&numprocs);
 
+
   // Initialize y to zero
   ierr = VecSet(y, 0.0); CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQCUSP,&xisseqcusp);CHKERRQ(ierr);
@@ -835,8 +836,6 @@ PetscErrorCode MatFDColoringCreate_MPISGGPU(Mat A,ISColoring iscoloring,MatFDCol
 
   PetscFunctionBegin;
 
-  PetscPrintf(PETSC_COMM_WORLD,"MatFDColoringCreate_SeqSGGPU\n");
-
   ierr = ISColoringGetIS(iscoloring,PETSC_IGNORE,&isa);CHKERRQ(ierr);
   /* this is ugly way to get blocksize but cannot call MatGetBlockSize() because AIJ can have bs > 1 */
 
@@ -1076,8 +1075,8 @@ extern PetscErrorCode MatMPISGGPUSetPreallocation_MPISGGPU(Mat A,PetscInt nz, co
   PetscInt rank;
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
+//  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
+//  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
 
