@@ -71,11 +71,11 @@ static struct _MatOps MatOps_Values = {
 /*0*/ MatSetValues_MPISGGPU,MatGetRow_MPISGGPU,MatRestoreRow_MPISGGPU,MatMult_MPISGGPU,0,
 /*5*/0,0,0,0,0,
 /*10*/0,0,0,0,0,
-/*15*/0,0,MatGetDiagonal_MPISGGPU,MatDiagonalScale_MPISGGPU,0,
+/*15*/MatGetInfo_MPISGGPU,0,MatGetDiagonal_MPISGGPU,MatDiagonalScale_MPISGGPU,0,
 /*20*/MatAssemblyBegin_MPISGGPU,MatAssemblyEnd_MPISGGPU,0,MatZeroEntries_MPISGGPU,0,
 /*25*/0,0,0,0,MatSetUp_MPISGGPU,
 /*30*/0,0,0,0,0,
-/*35*/0,0,0,0,0,
+/*35*/0,0,MatILUFactor_MPISGGPU,0,0,
 /*40*/0,0,0,0,0,
 /*45*/0,0,0,0,0,
 /*50*/0,0,MatGetColumnIJ_MPISGGPU,0,MatFDColoringCreate_MPISGGPU,
@@ -99,6 +99,66 @@ static struct _MatOps MatOps_Values = {
 /*140*/0,0,
 /*142*/MatSetGrid_MPISGGPU
 };
+
+
+#undef __FUNCT__
+#define __FUNCT__ "MatGetDiagonalBlock_MPISGGPU"
+PetscErrorCode  MatGetDiagonalBlock_MPISGGPU(Mat A,Mat *a)
+{
+  PetscFunctionBegin;
+  
+  Mat_MPISGGPU *mat = (Mat_MPISGGPU*)(A->data);
+  Mat_MPIAIJ *mpi_aij = (Mat_MPIAIJ*)(mat->mpi_aij->data);
+  *a = mpi_aij->A;
+
+  PetscFunctionReturn(0);
+}
+
+
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatGetInfo_MPISGGPU"
+PetscErrorCode MatGetInfo_MPISGGPU(Mat A,MatInfoType flag,MatInfo *info)
+{
+  Mat_MPISGGPU *mat = (Mat_MPISGGPU*)(A->data);
+  Mat_SeqSGGPU *a = (Mat_SeqSGGPU*)(mat->mat_seq);
+  
+  PetscFunctionBegin;
+  info->block_size     = (double)(a->dof * a->dof);
+  info->nz_allocated   = (double)(a->m * a->n * a->p * a->dof * a->dof * a->stpoints);
+  
+//  PetscInt diag_size = (a->dof)*(A->rmap->n);
+//  PetscInt size = num_diags * diag_size;
+  
+  info->nz_used        = (double)a->non_zeros;
+  info->nz_unneeded    = info->nz_allocated - info->nz_used;
+  info->assemblies     = (double)A->num_ass;
+  info->mallocs        = (double)A->info.mallocs;
+  info->memory         = ((PetscObject)A)->mem;
+  if (A->factortype) {
+    info->fill_ratio_given  = A->info.fill_ratio_given;
+    info->fill_ratio_needed = A->info.fill_ratio_needed;
+    info->factor_mallocs    = A->info.factor_mallocs;
+  } else {
+    info->fill_ratio_given  = 0;
+    info->fill_ratio_needed = 0;
+    info->factor_mallocs    = 0;
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "MatILUFactor_MPISGGPU"
+PetscErrorCode MatILUFactor_MPISGGPU(Mat inA, IS row, IS col, const MatFactorInfo *info)
+{
+  PetscErrorCode ierr;
+  Mat_MPISGGPU* mat = (Mat_MPISGGPU*)inA->data;
+  Mat_SeqSGGPU* mat_seq = mat->mat_seq;
+
+  ierr = MatILUFactor_SeqSGGPU((Mat)mat_seq,row,col,info); CHKERRQ(ierr);
+  PetscFunctionReturn(0);   	
+}
+
 
 EXTERN_C_BEGIN
 #undef __FUNCT__
@@ -141,6 +201,12 @@ PetscErrorCode MatCreate_MPISGGPU(Mat A)
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
         "MatMPISGGPUSetPreallocation_C","MatMPISGGPUSetPreallocation_MPIDIA",
         MatMPISGGPUSetPreallocation_MPISGGPU);CHKERRQ(ierr);
+
+  ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
+        "MatGetDiagonalBlock_C","MatGetDiagonalBlock_MPISGGPU",
+        MatGetDiagonalBlock_MPISGGPU);CHKERRQ(ierr);
+
+
 
   PetscFunctionReturn(0);
 }
@@ -237,6 +303,7 @@ PetscErrorCode MatMult_MPISGGPU(Mat A, Vec x, Vec y) {
   SGTrace;
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   ierr = MPI_Comm_size(PETSC_COMM_WORLD,&numprocs);
+
 
   // Initialize y to zero
   ierr = VecSet(y, 0.0); CHKERRQ(ierr);
@@ -566,7 +633,6 @@ PetscErrorCode MatZeroEntries_MPISGGPU(Mat A) {
 }
 
 
-
 #undef __FUNCT__
 #define __FUNCT__ "MatGetDiagonal_MPISGGPU"
 PetscErrorCode MatGetDiagonal_MPISGGPU(Mat A, Vec v) {
@@ -769,8 +835,6 @@ PetscErrorCode MatFDColoringCreate_MPISGGPU(Mat A,ISColoring iscoloring,MatFDCol
   PetscBool      done,flg = PETSC_FALSE;
 
   PetscFunctionBegin;
-
-  PetscPrintf(PETSC_COMM_WORLD,"MatFDColoringCreate_SeqSGGPU\n");
 
   ierr = ISColoringGetIS(iscoloring,PETSC_IGNORE,&isa);CHKERRQ(ierr);
   /* this is ugly way to get blocksize but cannot call MatGetBlockSize() because AIJ can have bs > 1 */
@@ -1011,8 +1075,8 @@ extern PetscErrorCode MatMPISGGPUSetPreallocation_MPISGGPU(Mat A,PetscInt nz, co
   PetscInt rank;
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
-  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
+//  ierr = PetscLayoutSetBlockSize(A->rmap,1);CHKERRQ(ierr);
+//  ierr = PetscLayoutSetBlockSize(A->cmap,1);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(A->cmap);CHKERRQ(ierr);
 

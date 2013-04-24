@@ -45,6 +45,9 @@ typedef struct {
 
 
 // Prototypes
+PetscErrorCode MatGetDiagonalBlock_MPISGGPU(Mat A,Mat *a);
+PetscErrorCode MatGetInfo_MPISGGPU(Mat A,MatInfoType flag,MatInfo *info);
+PetscErrorCode MatILUFactor_MPISGGPU(Mat inA, IS row, IS col, const MatFactorInfo *info);
 PetscErrorCode MatDestroy_MPISGGPU(Mat A);
 PetscErrorCode MatSetGrid_MPISGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p);
 PetscErrorCode MatMult_MPISGGPU(Mat mat, Vec x, Vec y);
@@ -64,8 +67,7 @@ PetscErrorCode MatAssemblyEnd_MPISGGPU(Mat A, MatAssemblyType type);
 PetscErrorCode MatView_MPISGGPU_ASCII(Mat,PetscViewer);
 extern PetscErrorCode MatFDColoringApply_MPISGGPU(Mat,MatFDColoring,Vec,MatStructure*,void*);
 extern PetscErrorCode MatFDColoringCreate_MPISGGPU(Mat,ISColoring,MatFDColoring);
-extern PetscErrorCode MatGetColumnIJ_MPISGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);
-extern PetscErrorCode MatSetUpMultiply_MPISGGPU(Mat);
+extern PetscErrorCode MatGetColumnIJ_MPISGGPU(Mat,PetscInt,PetscBool,PetscBool,PetscInt *,const PetscInt *[],const PetscInt *[],PetscBool*);extern PetscErrorCode MatSetUpMultiply_MPISGGPU(Mat);
 extern PetscErrorCode MatSetValuesLocal_MPISGGPU(Mat,PetscInt,const PetscInt*,PetscInt,const PetscInt*,const PetscScalar*,InsertMode addv);
 PetscErrorCode  MatSetSGGPUMatrix(Mat A,Mat Anatural);
 EXTERN_C_BEGIN
