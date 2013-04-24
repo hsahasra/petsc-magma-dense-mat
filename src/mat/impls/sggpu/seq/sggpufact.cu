@@ -24,7 +24,7 @@
 #define BLOCKWIDTH_Y 1
 
 // Which ILU algorithm to use
-#define _ILU_GPU 0
+#define _ILU_GPU 3
 
 // Debugging flags
 #define _TRACE 0
