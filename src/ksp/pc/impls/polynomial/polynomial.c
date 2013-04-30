@@ -9,7 +9,7 @@
 static const char *PCPOLYNOMIAL_TYPE[64] = {
   "neumann","leastsquares","chebyshev"
 };
-static PetscErrorCode PCPolynomialEstimateExtremeEigenvalues(PC pc);
+static PetscErrorCode PCPolynomialEstimateExtremeEigenvalues(PC pc,Vec x);
 
 typedef struct {
   Vec       xplusy;
@@ -17,6 +17,8 @@ typedef struct {
   Vec       z[PCPOLYNOMIAL_MAXORDER+1];
   PetscBool known_max_eig,known_min_eig;/* if using given extreme eigenvalues */
   PetscReal max_eig,min_eig; /* estimates of extreme eigenvalues */
+  PetscInt  neigksp; /* number of ksp iterates used to estimate eigenvalue */
+  PetscInt  eigs_set;
   PetscReal omega;
   PetscReal kcoeff[PCPOLYNOMIAL_MAXORDER+2];
   PetscInt  order;
@@ -85,7 +87,6 @@ static PetscErrorCode PCSetUp_Polynomial(PC pc)
     }
 
   }
-  ierr = PCPolynomialEstimateExtremeEigenvalues(pc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 /* -------------------------------------------------------------------------- */
@@ -112,6 +113,7 @@ static PetscErrorCode PCApply_Polynomial(PC pc,Vec x,Vec y)
 
   PetscFunctionBegin;
   /* Need to approximate omega=1/max(eigv(A)) */
+  ierr = PCPolynomialEstimateExtremeEigenvalues(pc,x);CHKERRQ(ierr);
   pcpoly->omega = 1.0/pcpoly->max_eig;
 
   /* Compute P(A)*x */
@@ -290,7 +292,7 @@ static PetscErrorCode PCDestroy_Polynomial(PC pc)
 
 #undef __FUNCT__
 #define __FUNCT__ "PCPolynomialEstimateExtremeEigenvalues"
-PetscErrorCode PCPolynomialEstimateExtremeEigenvalues(PC pc)
+PetscErrorCode PCPolynomialEstimateExtremeEigenvalues(PC pc,Vec x)
 {
   PC_Polynomial      *pcpoly = (PC_Polynomial*)pc->data;
   PetscBool      issame;
@@ -300,6 +302,8 @@ PetscErrorCode PCPolynomialEstimateExtremeEigenvalues(PC pc)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
+  if (pcpoly->eigs_set) PetscFunctionReturn(0);
+  pcpoly->eigs_set = 1;
   if ((pcpoly->known_min_eig && pcpoly->known_max_eig) ||
       (pcpoly->known_max_eig && (pcpoly->polytype==PCPOLYNOMIAL_NEUMANN ||
                                  pcpoly->polytype==PCPOLYNOMIAL_LEASTSQUARES))){
@@ -315,24 +319,25 @@ PetscErrorCode PCPolynomialEstimateExtremeEigenvalues(PC pc)
   }
   ierr = KSPCreate(((PetscObject)pc)->comm,&ksp);CHKERRQ(ierr);
   ierr = KSPSetType(ksp,KSPGMRES);CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp,pc->pmat,pc->pmat,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = VecSet(pcpoly->tempvec,1.0);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,pc->mat,pc->pmat,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = VecCopy(x,pcpoly->tempvec);CHKERRQ(ierr);
   ierr = KSPSetComputeSingularValues(ksp,PETSC_TRUE);CHKERRQ(ierr);
-  ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,10);CHKERRQ(ierr);
+  ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,pcpoly->neigksp);CHKERRQ(ierr);
   ierr = KSPGetPC(ksp,&subpc);CHKERRQ(ierr);
   ierr = PCSetType(subpc,PCNONE);CHKERRQ(ierr);
   ierr = KSPSolve(ksp,pcpoly->tempvec,pcpoly->xplusy);CHKERRQ(ierr);
+
   ierr = KSPComputeExtremeSingularValues(ksp,&ue,&le);CHKERRQ(ierr);
   if (!pcpoly->known_max_eig) {
-    pcpoly->max_eig=ue;
+    pcpoly->max_eig=2.0*ue;
   }
   if (!pcpoly->known_min_eig) {
-    pcpoly->min_eig=le;
+    pcpoly->min_eig=le/2.0;
   }
-
+  
   ierr = PetscInfo2(pc,"Extreme Eigenvalue estimates: (%G,%G)\n",pcpoly->min_eig,pcpoly->max_eig);CHKERRQ(ierr);
   ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
-  
+
   PetscFunctionReturn(0);
 }
 
@@ -352,6 +357,7 @@ static PetscErrorCode PCSetFromOptions_Polynomial(PC pc)
 
   ierr = PetscOptionsReal("-pc_polynomial_maxeig","use given value for maximum eigenvalue",PETSC_NULL,pcpoly->max_eig,&pcpoly->max_eig,&pcpoly->known_max_eig);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-pc_polynomial_mineig","use given value for minimum eigenvalue",PETSC_NULL,pcpoly->min_eig,&pcpoly->min_eig,&pcpoly->known_min_eig);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-pc_polynomial_neigksp","number of ksp iterates used to estimate eigenvalue range",PETSC_NULL,pcpoly->neigksp,&pcpoly->neigksp,PETSC_NULL); CHKERRQ(ierr);
 
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -395,9 +401,11 @@ PetscErrorCode  PCCreate_Polynomial(PC pc)
   */
   ierr      = PetscNewLog(pc,PC_Polynomial,&pcpoly);CHKERRQ(ierr);
   pc->data  = (void*)pcpoly;
-  pcpoly->order = 5;
+  pcpoly->order = 20;
   pcpoly->min_eig=0.0;
   pcpoly->max_eig=1.0;
+  pcpoly->eigs_set = 0;
+  pcpoly->neigksp = 10;
   pcpoly->known_max_eig=pcpoly->known_min_eig=PETSC_FALSE;
   pcpoly->polytype = PCPOLYNOMIAL_CHEBYSHEV;
   
