@@ -52,6 +52,7 @@ PetscErrorCode MatDestroy_MPISGGPU(Mat A);
 PetscErrorCode MatSetGrid_MPISGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p);
 PetscErrorCode MatMult_MPISGGPU(Mat mat, Vec x, Vec y);
 PetscErrorCode MatSetValuesBlocked_MPISGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is);
+PetscErrorCode MatGetVecs_MPISGGPU(Mat mat, Vec *left, Vec *right);
 PetscErrorCode MatSetValues_MPISGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is);
 PetscErrorCode MatSetStencil_MPISGGPU(Mat A, PetscInt dim, const PetscInt dims[], const PetscInt starts[], PetscInt dof);
 PetscErrorCode MatSetUp_MPISGGPU(Mat mat);
