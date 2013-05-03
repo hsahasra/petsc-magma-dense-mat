@@ -133,7 +133,7 @@ static struct _MatOps MatOps_Values = {
 /*70*/0,0,0,0,0,
 /*75*/MatFDColoringApply_SeqSGGPU,0,0,0,0,
 /*80*/0,0,0,MatLoad_SeqSGGPU,0,
-/*85*/0,0,MatSetValuesBlocked_SeqSGGPU,0,0,
+/*85*/0,0,MatSetValuesBlocked_SeqSGGPU,MatGetVecs_SeqSGGPU,0,
 /*90*/0,0,0,0,0,
 /*95*/0,0,0,0,0,
 /*100*/0,0,0,0,0,
@@ -1337,7 +1337,7 @@ PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
 #define __FUNCT__ "MatFDColoringCreate_SeqSGGPU"
 PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat mat,ISColoring iscoloring,MatFDColoring c)
 {
-  PetscErrorCode ierr;
+vv  PetscErrorCode ierr;
   PetscInt       i,n,nrows,N,j,k,m,ncols,col;
   const PetscInt *is,*ci,*cj,*rows;
   PetscInt       nis = iscoloring->n,*rowhit,*columnsforrow,l,bs = 1;
@@ -1579,6 +1579,35 @@ PetscErrorCode MatDuplicateNoCreate_SeqSGGPU(Mat C,Mat A,MatDuplicateOption cpva
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "MatGetVecs_SeqSGGPU"
+PetscErrorCode  MatGetVecs_SeqSGGPU(Mat mat,Vec *right,Vec *left)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
+  PetscValidType(mat,1);
+  MatCheckPreallocated(mat,1);
+  if (right) {
+    ierr = VecCreate(((PetscObject)mat)->comm,right);CHKERRQ(ierr);
+    ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*right,mat->rmap->bs);CHKERRQ(ierr);
+    ierr = VecSetType(*right,VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(*right);CHKERRQ(ierr);
+    ierr = PetscLayoutReference(mat->cmap,&(*right)->map);CHKERRQ(ierr);
+  }
+  if (left) {
+    ierr = VecCreate(((PetscObject)mat)->comm,left);CHKERRQ(ierr);
+    ierr = VecSetSizes(*left,mat->rmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*left,mat->rmap->bs);CHKERRQ(ierr);
+    ierr = VecSetType(*left,VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(*left);CHKERRQ(ierr);
+    ierr = PetscLayoutReference(mat->rmap,&(*left)->map);CHKERRQ(ierr);
+  }
+
+  PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatGetInfo_SeqSGGPU"

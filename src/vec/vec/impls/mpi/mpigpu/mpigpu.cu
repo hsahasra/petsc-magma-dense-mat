@@ -522,6 +522,7 @@ PetscErrorCode  VecCreate_MPIGPU(Vec V)
   V->ops->mdot            = VecMDot_MPIGPU;
   V->ops->tdot            = VecTDot_MPIGPU;
   V->ops->norm            = VecNorm_MPIGPU;
+  V->ops->getlocalsize    = VecGetSize_Seq;
   V->ops->view            = VecView_MPIGPU;
   V->ops->max             = VecMax_MPIGPU;
   V->ops->min             = VecMin_MPIGPU;
@@ -533,7 +534,7 @@ PetscErrorCode  VecCreate_MPIGPU(Vec V)
 
   V->ops->getarray        = VecGetArray_SeqGPU;
   V->ops->restorearray    = VecRestoreArray_SeqGPU;
-  V->ops->getsize         = VecGetSize_SeqGPU;
+  V->ops->getsize         = VecGetSize_MPI;
   V->ops->duplicatevecs   = VecDuplicateVecs_SeqGPU;
   V->ops->destroyvecs     = VecDestroyVecs_SeqGPU;
   V->ops->scale           = VecScale_SeqGPU;

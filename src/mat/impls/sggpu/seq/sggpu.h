@@ -54,6 +54,7 @@ PetscErrorCode MatDestroy_SeqSGGPU(Mat A);
 PetscErrorCode MatSetGrid_SeqSGGPU(Mat B, PetscInt m, PetscInt n, PetscInt p);
 PetscErrorCode MatMult_SeqSGGPU(Mat mat, Vec x, Vec y);
 PetscErrorCode MatSetValuesBlocked_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is);
+PetscErrorCode MatGetVecs_SeqSGGPU(Mat A,Vec *left, Vec *right);
 PetscErrorCode MatSetValues_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is);
 PetscErrorCode MatSetStencil_SeqSGGPU(Mat A, PetscInt dim, const PetscInt dims[], const PetscInt starts[], PetscInt dof);
 PetscErrorCode MatSetUp_SeqSGGPU(Mat mat);

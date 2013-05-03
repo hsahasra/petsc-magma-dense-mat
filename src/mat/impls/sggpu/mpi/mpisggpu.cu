@@ -85,7 +85,7 @@ static struct _MatOps MatOps_Values = {
 /*70*/0,0,0,0,0,
 /*75*/MatFDColoringApply_MPISGGPU,0,0,0,0,
 /*80*/0,0,0,0,0,
-/*85*/0,0,MatSetValuesBlocked_MPISGGPU,0,0,
+/*85*/0,0,MatSetValuesBlocked_MPISGGPU,MatGetVecs_MPISGGPU,0,
 /*90*/0,0,0,0,0,
 /*95*/0,0,0,0,0,
 /*100*/0,0,0,0,0,
@@ -311,7 +311,7 @@ PetscErrorCode MatMult_MPISGGPU(Mat A, Vec x, Vec y) {
   ierr = PetscObjectTypeCompare((PetscObject)x,VECMPICUSP,&xismpicusp);CHKERRQ(ierr);
   xiscusp = (xisseqcusp || xismpicusp) ? PETSC_TRUE : PETSC_FALSE;
   ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQGPU,&xisseqgpu);CHKERRQ(ierr);
-  ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQGPU,&xismpigpu);CHKERRQ(ierr);
+  ierr = PetscObjectTypeCompare((PetscObject)x,VECMPIGPU,&xismpigpu);CHKERRQ(ierr);
   xisgpu = (xisseqgpu || xismpigpu) ? PETSC_TRUE : PETSC_FALSE;
 
   if (xisgpu) {
@@ -323,7 +323,7 @@ dim3 grid((int)ceil((float)(A->rmap->n)/(float)BLOCKWIDTH_X / 1.0), 1);
     Vec_SeqGPU *vx = (Vec_SeqGPU*) x->data;
     Vec_SeqGPU *vy = (Vec_SeqGPU*) y->data;
     /* Make sure y is also VECSEQGPU */
-    ierr = PetscObjectTypeCompare((PetscObject)y,VECSEQGPU,&yismpigpu);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)y,VECMPIGPU,&yismpigpu);CHKERRQ(ierr);
     if (!yismpigpu) {
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Both x and y must be same type");
     }
@@ -1205,6 +1205,36 @@ diag_size = (mat_seq->dof)*(A->rmap->n);
 PetscFunctionReturn(0);
 }
 EXTERN_C_END
+
+#undef __FUNCT__
+#define __FUNCT__ "MatGetVecs_MPISGGPU"
+PetscErrorCode  MatGetVecs_MPISGGPU(Mat mat,Vec *right,Vec *left)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
+  PetscValidType(mat,1);
+  MatCheckPreallocated(mat,1);
+  if (right) {
+    ierr = VecCreate(((PetscObject)mat)->comm,right);CHKERRQ(ierr);
+    ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*right,mat->rmap->bs);CHKERRQ(ierr);
+    ierr = VecSetType(*right,VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(*right);CHKERRQ(ierr);
+    ierr = PetscLayoutReference(mat->cmap,&(*right)->map);CHKERRQ(ierr);
+  }
+  if (left) {
+    ierr = VecCreate(((PetscObject)mat)->comm,left);CHKERRQ(ierr);
+    ierr = VecSetSizes(*left,mat->rmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
+    ierr = VecSetBlockSize(*left,mat->rmap->bs);CHKERRQ(ierr);
+    ierr = VecSetType(*left,VECSTANDARD);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(*left);CHKERRQ(ierr);
+    ierr = PetscLayoutReference(mat->rmap,&(*left)->map);CHKERRQ(ierr);
+  }
+
+  PetscFunctionReturn(0);
+}
 
 
 EXTERN_C_BEGIN

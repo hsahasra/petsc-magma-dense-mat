@@ -1,3 +1,4 @@
+
 #include <petscconf.h>
 #include <petscsys.h>
 //#include <petscerror.h>
@@ -13,7 +14,37 @@ PETSC_CUDA_EXTERN_C_BEGIN
 PETSC_CUDA_EXTERN_C_END
 
 
+void spy_device_real(double *dev_x,int n,char *msg) 
+{
+  int i;
+  double *spce;
+  spce = (double*)malloc(n*sizeof(double));
+  cudaMemcpy(spce,dev_x,n*sizeof(double),cudaMemcpyDeviceToHost);
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",msg);
+  for (i=0;i<n;i++) 
+    PetscPrintf(PETSC_COMM_WORLD,"%g\n",spce[i]);
+  free(spce);
+}
 
+void spy_device_int(int *dev_x,int n,char *msg) 
+{
+  int i;
+  int *spce;
+  spce = (int*)malloc(n*sizeof(int));
+  cudaMemcpy(spce,dev_x,n*sizeof(int),cudaMemcpyDeviceToHost);
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",msg);
+  for (i=0;i<n;i++) 
+    PetscPrintf(PETSC_COMM_WORLD,"%d\n",spce[i]);
+  free(spce);
+}
+void spy_host_real(double *host_x,int n,char *msg) 
+{
+  int i;
+  PetscPrintf(PETSC_COMM_WORLD,"%s\n",msg);
+  for (i=0;i<n;i++) 
+    PetscPrintf(PETSC_COMM_WORLD,"%g\n",host_x[i]);
+  
+}
 
 EXTERN_C_BEGIN
 
@@ -540,7 +571,10 @@ PetscErrorCode VecCopyOverDevice(Vec d,Vec s){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
   ccs[0]=cudaMemcpyAsync(dd->devptr,sd->devptr,
-                    s->map->n*sizeof(double),cudaMemcpyDeviceToDevice,dd->streamid);
+   s->map->n*sizeof(double),cudaMemcpyDeviceToDevice,dd->streamid);
+  ierr = VecCheckCUDAStatus(ccs[0],"Copy H2D devlength in VecCopyOverDevice");CHKERRQ(ierr);
+  //  cudaMemcpy
+  
   PetscFunctionReturn(0);
 }
 
@@ -2285,6 +2319,7 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
   /* defining per-stream work load */
   float threadscale = NRMMPLIER*CHUNKWIDTH;
   Vec_SeqGPU *xd=(Vec_SeqGPU*)x->data;
+
   if(xd->syncState==VEC_CPU){
     #if(DEBUGVEC && VVERBOSE)
        printf("xd state VEC_CPU: copying to device.\n");
@@ -2294,7 +2329,12 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
   }
 
   if(type==NORM_INFINITY){
-    printf("Infinity NORM.\n");
+    /* Hack because gpu version isn't working */
+    PetscReal max,min;
+    ierr = VecMax(x,PETSC_NULL,&max);CHKERRQ(ierr);
+    ierr = VecMin(x,PETSC_NULL,&min);CHKERRQ(ierr);
+    * z= PetscMax(PetscAbsReal(max),PetscAbsReal(min));
+#if defined NOHACK    
     /* figure out how many chunks will be needed */
     chunks = ceil( ((float)x->map->n) / threadscale);
     nrmstream = (cudaStream_t*)malloc(chunks*sizeof(cudaStream_t));
@@ -2331,6 +2371,8 @@ PetscErrorCode VecNorm_SeqGPU(Vec x,NormType type,PetscReal* z){
       kernRedInfNorm<<<dimGrid,dimBlock>>>(scratchsize,devScratch);
       scratchsize = dimGrid.x;
     }
+#endif
+    
   }else{/* NORM2 etc... */
 
 #if(VMANNRM)
@@ -2733,7 +2775,7 @@ __global__ void orcu_norm2blksum_1e7(int orcu_n, double* reducts) {
 #define __FUNCT__ "VecGetArray_SeqGPU"
 PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
 #ifdef PETSC_USE_DEBUG
-  PetscInt flg1=0,flg2=0,flg3=0,flg4=0;
+  PetscInt flg1=0,flg2=0,flg3=0,flg4=0,flg5=0,flg6=0,flg7=0,flg8=0;
 #endif
   PetscErrorCode ierr;
   Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
@@ -2756,7 +2798,11 @@ PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
    MyPetscStackCheckByName("DMGlobalToLocalBegin",flg2);
    MyPetscStackCheckByName("SNESDefaultComputeJacobian",flg3);
    MyPetscStackCheckByName("DMComputeJacobianDefault",flg4);
-  if(flg1 || flg2 || flg3 || flg4 ){
+   MyPetscStackCheckByName("VecStrideNorm",flg5);
+   MyPetscStackCheckByName("VecLog",flg6);
+   MyPetscStackCheckByName("VecExp",flg7);
+   MyPetscStackCheckByName("SNESComputeFunction",flg8);
+  if(flg1 || flg2 || flg3 || flg4 || flg5 || flg6 || flg7 || flg8){
     if(vd->syncState==VEC_GPU){
       ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
     }
@@ -2786,7 +2832,7 @@ PetscErrorCode VecRestoreArray_SeqGPU(Vec v,PetscScalar **a){
   PetscErrorCode ierr;
   Vec_SeqGPU *vd=(Vec_SeqGPU*)v->data;
 #ifdef PETSC_USE_DEBUG
-  PetscInt flg1=0,flg2=0,flg3=0;
+  PetscInt flg1=0,flg2=0,flg3=0,flg4=0,flg5=0;
 #endif
   PetscFunctionBegin;
 
@@ -2799,7 +2845,12 @@ PetscErrorCode VecRestoreArray_SeqGPU(Vec v,PetscScalar **a){
   MyPetscStackCheckByName("VecRestoreArrayRead",flg1);
   MyPetscStackCheckByName("DMDAVecRestoreArray",flg2);
   MyPetscStackCheckByName("DMGlobalToLocalBegin",flg3);
-  if(vd->syncState==VEC_CPU||(!flg1||flg2||flg3)){
+  MyPetscStackCheckByName("VecLog",flg4);
+  MyPetscStackCheckByName("VecExp",flg5);
+
+
+
+  if(vd->syncState==VEC_CPU||(!flg1||flg2||flg3||flg4||flg5)){
     if(a){
       ierr = VecCopyOverH2D(v,*a);CHKERRQ(ierr);
       vd->syncState=VEC_GPU;
