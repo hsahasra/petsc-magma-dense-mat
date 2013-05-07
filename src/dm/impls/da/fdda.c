@@ -725,9 +725,13 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
       if (!sbaij) {
         ierr = PetscObjectQueryFunction((PetscObject)A,"MatSeqSGGPUSetPreallocation_C",&sg);CHKERRQ(ierr);
       }
+#ifdef PETSC_HAVE_CUSP      
       if (!sg) {
         ierr = PetscObjectQueryFunction((PetscObject)A,"MatMPISGGPUSetPreallocation_C",&mpisg);CHKERRQ(ierr);
       }
+#else
+      mpisg = PETSC_FALSE;
+#endif
     }
   }
   if (aij) {
@@ -767,7 +771,6 @@ PetscErrorCode DMCreateMatrix_DA(DM da, MatType mtype,Mat *J)
 
   } else if (mpisg) {
     ierr = DMCreateMatrix_DA_MPISGGPU(da,A);CHKERRQ(ierr);
-
   } else if(!aij && !baij && !sbaij) {
     /* If the matrix representation is not aij then use Struct Grid Matrix represenatation */
     ierr = DMGetMatrix_DA_3d_StructGrid(da,A); CHKERRQ(ierr);
@@ -1463,7 +1466,8 @@ PetscErrorCode DMCreateMatrix_DA_SeqSGGPU(DM da,Mat J){
 #define __FUNCT__ "DMCreateMatrix_DA_MPISGGPU"
 PetscErrorCode DMCreateMatrix_DA_MPISGGPU(DM da,Mat J){
 
-#ifdef PETSC_HAVE_CUDA
+#ifdef PETSC_HAVE_CUSP
+  // should be PETSC_HAVE_CUDA, will need to fix mpisggpu
   PetscErrorCode         ierr;
   PetscInt               xs,ys,zs,nx,ny,nz,i,j,slot,gxs,gys,gnx,gny,nc,col;
   PetscInt               m,n,dim,s,dof,p,*dnz,*onz,l,k,cnt,*rows=PETSC_NULL,*cols=PETSC_NULL;

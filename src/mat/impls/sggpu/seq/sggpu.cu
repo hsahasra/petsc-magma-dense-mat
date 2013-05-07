@@ -19,7 +19,9 @@
 #include "../src/vec/vec/impls/seq/seqgpu/gpuvecimpl.h"
 
 // Interop with CUSP vector
+#ifdef PETSC_HAVE_CUSP
 #include "../src/vec/vec/impls/seq/seqcusp/cuspvecimpl.h"
+#endif
 
 #include <stdio.h>
 #include <cuda.h>
@@ -51,6 +53,47 @@ void checkCudaError(cudaError_t err) {
 EXTERN_C_END
 // ----------------------------------------------------------
 
+
+void spy_device_row(Mat A,PetscInt row, char *msg)
+{
+  Mat_SeqSGGPU *a = (Mat_SeqSGGPU*)A->data;
+  PetscInt nrows,ndiag,dof,i,j,size;
+  nrows = a->m * a->n * a->p * a->dof;
+  ndiag = a->diagonals->size();
+  dof = a->dof;
+  size = a->diag_starts->size()*nrows*dof;
+  std::map<int, int> &diag_starts = *(a->diag_starts);
+  checkCudaError(cudaMemcpy(a->hostData,a->deviceData,sizeof(PetscScalar)*size,cudaMemcpyDeviceToHost));
+  i = row;
+
+    PetscPrintf(PETSC_COMM_SELF,"row %2.2D:",i);
+    for (j=0;j<ndiag*dof;j++) {
+      PetscPrintf(PETSC_COMM_SELF," %4G ",a->hostData[i+j*nrows]);
+    }
+    PetscPrintf(PETSC_COMM_SELF,"\n");
+
+  PetscPrintf(PETSC_COMM_SELF,"\n\n");
+  
+}
+
+void spy_host_row(Mat A, PetscInt row, char *msg)
+{
+  Mat_SeqSGGPU *a = (Mat_SeqSGGPU*)A->data;
+  PetscInt nrows,ndiag,dof,i,j;
+  nrows = a->m * a->n * a->p * a->dof;
+  ndiag = a->diagonals->size();
+  dof = a->dof;
+  std::map<int, int> &diag_starts = *(a->diag_starts);
+  i = row;
+    PetscPrintf(PETSC_COMM_SELF,"row %2.2D:",i);
+    for (j=0;j<ndiag*dof;j++) {
+      PetscPrintf(PETSC_COMM_SELF," %4G ",a->hostData[i+j*nrows]);
+    }
+    PetscPrintf(PETSC_COMM_SELF,"\n");
+
+  PetscPrintf(PETSC_COMM_SELF,"\n\n");
+  
+}
 
 
 //------------------------------------------------------
@@ -108,7 +151,50 @@ for (int i = 0; i < num_diags; ++i) {
    
       y[idx0] = yval0;
       }
-    
+
+__global__ void MatScaleRowKern(PetscScalar *coeff, PetscInt mat_size, PetscInt num_diags, int *diagonals, PetscInt dof, PetscScalar *l)
+{
+  int row = blockDim.x * blockIdx.x + threadIdx.x;
+  int diag_size = mat_size*dof;
+  PetscScalar lval;
+
+  if (row >= mat_size)
+    return;
+  for (int i=0;i<num_diags;i++) {
+    int offset0 = diag_size*i + row;
+    for  (int j=0;j<dof;j++) {
+      lval = l[row];
+      coeff[offset0 + mat_size*j] *= lval;
+     }
+  }
+}
+
+
+
+__global__ void MatScaleColKern(PetscScalar *coeff, PetscInt mat_size, PetscInt num_diags, int *diagonals, PetscInt dof, PetscScalar *r)
+{
+  
+  int col = blockDim.x * blockIdx.x + threadIdx.x;
+  int diag_size = mat_size*dof;
+  int thiscol;
+  PetscScalar rval;
+  if (col >= mat_size)
+    return;
+  for (int i=0;i<num_diags;i++) {
+    int d = diagonals[i];
+    int offset0 = diag_size*i + col;
+    int block0 = (col / dof+d)*dof;
+    for  (int j=0;j<dof;j++) {
+      thiscol = block0+j;
+      if (thiscol == col) {
+        rval = r[col];
+        coeff[offset0 + mat_size*j] *= rval;
+        return;
+      }
+    }
+  }
+}
+
 //===-- Host Code --------------------------------------------------------===//
 
 
@@ -133,7 +219,7 @@ static struct _MatOps MatOps_Values = {
 /*70*/0,0,0,0,0,
 /*75*/MatFDColoringApply_SeqSGGPU,0,0,0,0,
 /*80*/0,0,0,MatLoad_SeqSGGPU,0,
-/*85*/0,0,MatSetValuesBlocked_SeqSGGPU,MatGetVecs_SeqSGGPU,0,
+/*85*/0,0,MatSetValuesBlocked_SeqSGGPU,0,0,
 /*90*/0,0,0,0,0,
 /*95*/0,0,0,0,0,
 /*100*/0,0,0,0,0,
@@ -186,11 +272,9 @@ PetscErrorCode MatCreate_SeqSGGPU(Mat A)
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,"MatConvert_seqsggpu_seqaij_C",
                                      "MatConvert_SeqSGGPU_SeqAIJ",
                                       MatConvert_SeqSGGPU_SeqAIJ);CHKERRQ(ierr);
-
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
 					   "MatGetFactor_petsc_C","MatGetFactor_seqsggpu_petsc",
 					   MatGetFactor_seqsggpu_petsc);CHKERRQ(ierr);
-
   ierr = PetscObjectComposeFunctionDynamic((PetscObject)A,
         "MatSeqSGGPUSetPreallocation_C","MatSeqSGGPUSetPreallocation_SeqDIA",
         MatSeqSGGPUSetPreallocation_SeqSGGPU);CHKERRQ(ierr);
@@ -267,7 +351,6 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   PetscBool isseqcusp,isseqgpu,ismpicusp,iscusp;
   PetscErrorCode ierr;
   PetscInt mat_size;
-  CUSPARRAY *xgpu,*ygpu;
   PetscScalar *devX,*devY;
 
   PetscFunctionBegin;
@@ -276,9 +359,15 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
   // Initialize y to zero
   ierr = VecSet(y, 0.0); CHKERRQ(ierr);
 
+#ifdef PETSC_HAVE_CUSP  
   ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQCUSP,&isseqcusp);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)x,VECMPICUSP,&ismpicusp);CHKERRQ(ierr);
   iscusp = (isseqcusp || ismpicusp) ? PETSC_TRUE : PETSC_FALSE;
+#else
+  isseqcusp = PETSC_FALSE;
+  ismpicusp = PETSC_FALSE;
+  iscusp = PETSC_FALSE;
+#endif
   ierr = PetscObjectTypeCompare((PetscObject)x,VECSEQGPU,&isseqgpu);CHKERRQ(ierr);
   if (isseqgpu) {
     dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
@@ -310,6 +399,8 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     cudaDeviceSynchronize();    
 
   } else if (iscusp) {
+#ifdef PETSC_HAVE_CUSP
+    CUSPARRAY *xgpu,*ygpu;
     dim3 block(BLOCKWIDTH_X, BLOCKWIDTH_Y);
     dim3 grid((int)ceil((float)(mat->m * mat->n * mat->p * mat->dof)/(float)BLOCKWIDTH_X / 1.0), 1);
 
@@ -370,6 +461,7 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
     ierr = VecCUSPRestoreArrayWrite(y, &ygpu); CHKERRQ(ierr);
     ierr = WaitForGPU() ; CHKERRCUSP(ierr);
     cudaDeviceSynchronize();
+#endif
   } else {
     SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Vec must be seqgpu or cusp type");
   }
@@ -382,9 +474,16 @@ PetscErrorCode MatMult_SeqSGGPU(Mat A, Vec x, Vec y)
 #define __FUNCT__ "MatSetValuesBlocked_SeqSGGPU"
 PetscErrorCode MatSetValuesBlocked_SeqSGGPU(Mat A, PetscInt nrow, const PetscInt irow[], PetscInt ncol, const PetscInt icol[], const PetscScalar y[], InsertMode is)
 {
+  PetscErrorCode ierr;
+
   PetscFunctionBegin;
   SGTrace;
-  SETERRQ(PETSC_COMM_SELF,0,"MatSetValuesBlocked_SeqSGGPU not implemented");
+  if (A->rmap->bs == 1) {
+    ierr = MatSetValues_SeqSGGPU(A,nrow,irow,ncol,icol,y,is);CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  } else {
+    SETERRQ(PETSC_COMM_SELF,0,"MatSetValuesBlocked_SeqSGGPU not implemented for bs != 1");
+  }
 
 }
 
@@ -502,7 +601,6 @@ PetscErrorCode MatFDColoringView_Private(MatFDColoring fd)
 
   PetscFunctionBegin;
 
-
   ierr = PetscViewerASCIIGetStdout(((PetscObject)fd)->comm,&viewer);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(PETSC_NULL,"-mat_fd_coloring_view",&flg,PETSC_NULL);CHKERRQ(ierr);
   if (flg) {
@@ -545,7 +643,6 @@ PetscErrorCode MatSeqSGGPUSetPreallocation(Mat A,PetscInt stencil_type, PetscInt
   PetscErrorCode ierr;
   Mat_SeqSGGPU *mat = (Mat_SeqSGGPU*)A->data;
   PetscFunctionBegin;
-  SGTrace;
 
   mat->stencil_type = stencil_type;
   mat->dof = dof;
@@ -710,8 +807,61 @@ PetscErrorCode MatGetDiagonal_SeqSGGPU(Mat A, Vec v)
 PetscErrorCode MatDiagonalScale_SeqSGGPU(Mat A, Vec ll, Vec rr)
 {
   PetscFunctionBegin;
+  PetscErrorCode ierr;
+  PetscInt row,col;
+  Vec_SeqGPU *vl, *vr;
+  PetscScalar *devL, *devR;
+  Mat_SeqSGGPU *mat = (Mat_SeqSGGPU*)A->data;
+  PetscInt mat_size = mat->m*mat->n*mat->p*mat->dof;
+  PetscBool isseqgpu;
+
   SGTrace;
-  SETERRQ(PETSC_COMM_SELF,0,"MatDiagonalScale_SeqSGGPU not implemented");
+  PetscScalar norm1,norm2;
+  spy_device_row(A,0,"before scale");
+  spy_device_row(A,12345,"before scale");
+
+  if (ll) {
+    ierr = PetscObjectTypeCompare((PetscObject)ll,VECSEQGPU,&isseqgpu); CHKERRQ(ierr);
+  
+    if (isseqgpu) {
+      dim3 block(BLOCKWIDTH_X,BLOCKWIDTH_Y);
+      dim3 grid((int)ceil((float)(mat->m*mat->n*mat->p*mat->dof)/(float)BLOCKWIDTH_X/1.0),1);
+      int shared_size=0;
+      vl = (Vec_SeqGPU*)ll->data;
+      if (vl->syncState==VEC_CPU) {
+        ierr = VecCopyOverH2D(ll,vl->cpuptr);CHKERRQ(ierr);
+        vl->syncState=VEC_SYNCHED;
+      }
+      /* Get device pointers */
+      devL = vl->devptr;
+
+      MatScaleRowKern<<<grid,block,shared_size,mat->stream>>>(mat->deviceData,mat_size,mat->diagonals->size(), mat->deviceDiags, mat->dof, devL);
+    }
+  }
+
+
+  if (rr) {
+    ierr = PetscObjectTypeCompare((PetscObject)rr,VECSEQGPU,&isseqgpu); CHKERRQ(ierr);
+  
+    if (isseqgpu) {
+      dim3 block(BLOCKWIDTH_X,BLOCKWIDTH_Y);
+      dim3 grid((int)ceil((float)(mat->m*mat->n*mat->p*mat->dof)/(float)BLOCKWIDTH_X/1.0),1);
+      int shared_size=0;
+
+      vr = (Vec_SeqGPU*)rr->data;
+      if (vr->syncState==VEC_CPU) {
+        ierr = VecCopyOverH2D(rr,vr->cpuptr);CHKERRQ(ierr);
+        vr->syncState=VEC_SYNCHED;
+      }
+      /* Get device pointers */
+      devR = vr->devptr;
+      MatScaleColKern<<<grid,block,shared_size,mat->stream>>>(mat->deviceData,mat_size,mat->diagonals->size(), mat->deviceDiags, mat->dof, devR);
+    }
+  }
+  //checkCudaError(cudaMemcpy(mat->hostData,mat->deviceData,sizeof(PetscScalar)*size,cudaMemcpyDeviceToHost));
+  spy_device_row(A,0,"before scale");
+  spy_device_row(A,12345,"before scale");
+  PetscFunctionReturn(0);
 }
 
 
@@ -808,7 +958,7 @@ PetscErrorCode MatView_SeqSGGPU_ASCII(Mat A, PetscViewer viewer)
 {
   Mat_SeqSGGPU *a = (Mat_SeqSGGPU*)A->data;
   PetscErrorCode ierr;
-  PetscInt nrows,ndiag,dof,i,j,iblock,col,index,offset;
+  PetscInt nrows,ndiag,dof,i,j,iblock,col,index,offset,size;
   std::map<int, int> &diag_starts = *(a->diag_starts);
   
 
@@ -824,6 +974,7 @@ PetscErrorCode MatView_SeqSGGPU_ASCII(Mat A, PetscViewer viewer)
   nrows = a->m * a->n * a->p * a->dof;
   ndiag = a->diagonals->size();
   dof = a->dof;
+  size = a->diag_starts->size()*nrows*dof;
 
   ierr = PetscViewerASCIIPrintf(viewer,"offsets: \n"); CHKERRQ(ierr);
   for (std::map<int, int>::iterator I = diag_starts.begin(),
@@ -842,6 +993,18 @@ PetscErrorCode MatView_SeqSGGPU_ASCII(Mat A, PetscViewer viewer)
   }
   ierr = PetscViewerASCIIPrintf(viewer,"\n\n");
 
+
+  checkCudaError(cudaMemcpy(a->hostData,a->deviceData,sizeof(PetscScalar)*size,cudaMemcpyDeviceToHost));
+
+  ierr = PetscViewerASCIIPrintf(viewer,"deviceData:\n"); CHKERRQ(ierr);
+  for (i=0;i<nrows;i++) {
+    ierr = PetscViewerASCIIPrintf(viewer,"row %2.2D:",i); CHKERRQ(ierr);
+    for (j=0;j<ndiag*dof;j++) {
+      ierr = PetscViewerASCIIPrintf(viewer," %4G ",a->hostData[i+j*nrows]);CHKERRQ(ierr);
+    }
+    ierr = PetscViewerASCIIPrintf(viewer,"\n");
+  }
+  ierr = PetscViewerASCIIPrintf(viewer,"\n\n");
 
 
   for (iblock=0;iblock<nrows/dof;iblock++)  {
@@ -973,7 +1136,7 @@ PetscErrorCode MatLoad_SeqSGGPU(Mat newmat,PetscViewer viewer)
   MPI_Comm       comm = ((PetscObject)viewer)->comm;
 
   PetscFunctionBegin;
-  ierr = PetscOptionsBegin(comm,PETSC_NULL,"Options for loading SEQBAIJ matrix","Mat");CHKERRQ(ierr);
+  ierr = PetscOptionsBegin(comm,PETSC_NULL,"Options for loading SEQSGGPU matrix","Mat");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-matload_block_size","Set the blocksize used to store the matrix","MatLoad",bs,&bs,PETSC_NULL);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
@@ -1064,10 +1227,7 @@ PetscErrorCode MatAssemblyEnd_SeqSGGPU(Mat A, MatAssemblyType type)
     }
   }
 #endif
-  if ( A->factortype != MAT_FACTOR_NONE )
-    size = (1+mat->diag_starts->size())*mat->m*mat->n*mat->p*mat->dof*mat->dof;
-  else
-    size = mat->diag_starts->size()*mat->m*mat->n*mat->p*mat->dof*mat->dof;
+  size = mat->diag_starts->size()*mat->m*mat->n*mat->p*mat->dof*mat->dof;
 
   checkCudaError(cudaMemcpyAsync(mat->deviceDiags, &(*mat->diagonals)[0], sizeof(int) * mat->diagonals->size(), cudaMemcpyHostToDevice, mat->stream));
 
@@ -1336,7 +1496,7 @@ PetscErrorCode MatGetColumnIJ_SeqSGGPU(Mat A,PetscInt oshift,PetscBool  symmetri
 #define __FUNCT__ "MatFDColoringCreate_SeqSGGPU"
 PetscErrorCode MatFDColoringCreate_SeqSGGPU(Mat mat,ISColoring iscoloring,MatFDColoring c)
 {
-vv  PetscErrorCode ierr;
+  PetscErrorCode ierr;
   PetscInt       i,n,nrows,N,j,k,m,ncols,col;
   const PetscInt *is,*ci,*cj,*rows;
   PetscInt       nis = iscoloring->n,*rowhit,*columnsforrow,l,bs = 1;
@@ -1578,35 +1738,6 @@ PetscErrorCode MatDuplicateNoCreate_SeqSGGPU(Mat C,Mat A,MatDuplicateOption cpva
   PetscFunctionReturn(0);
 }
 
-#undef __FUNCT__
-#define __FUNCT__ "MatGetVecs_SeqSGGPU"
-PetscErrorCode  MatGetVecs_SeqSGGPU(Mat mat,Vec *right,Vec *left)
-{
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(mat,MAT_CLASSID,1);
-  PetscValidType(mat,1);
-  MatCheckPreallocated(mat,1);
-  if (right) {
-    ierr = VecCreate(((PetscObject)mat)->comm,right);CHKERRQ(ierr);
-    ierr = VecSetSizes(*right,mat->cmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
-    ierr = VecSetBlockSize(*right,mat->rmap->bs);CHKERRQ(ierr);
-    ierr = VecSetType(*right,VECSTANDARD);CHKERRQ(ierr);
-    ierr = VecSetFromOptions(*right);CHKERRQ(ierr);
-    ierr = PetscLayoutReference(mat->cmap,&(*right)->map);CHKERRQ(ierr);
-  }
-  if (left) {
-    ierr = VecCreate(((PetscObject)mat)->comm,left);CHKERRQ(ierr);
-    ierr = VecSetSizes(*left,mat->rmap->n,PETSC_DETERMINE);CHKERRQ(ierr);
-    ierr = VecSetBlockSize(*left,mat->rmap->bs);CHKERRQ(ierr);
-    ierr = VecSetType(*left,VECSTANDARD);CHKERRQ(ierr);
-    ierr = VecSetFromOptions(*left);CHKERRQ(ierr);
-    ierr = PetscLayoutReference(mat->rmap,&(*left)->map);CHKERRQ(ierr);
-  }
-
-  PetscFunctionReturn(0);
-}
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatGetInfo_SeqSGGPU"
@@ -1633,3 +1764,18 @@ PetscErrorCode MatGetInfo_SeqSGGPU(Mat A,MatInfoType flag,MatInfo *info)
   }
   PetscFunctionReturn(0);
 }
+/*
+#undef __FUNCT__
+#define __FUNCT__ "MatCreateSeqSGGPU"
+PetscErrorCode MatCreateSeqSGGPU(MPI_Comm comm, PetscInt m, PetscInt n, PetscInt dim, PetscInt dims, PetscInt starts, PetscInt dof, Mat *A)
+{
+  PetscErrorCode ierr;
+  PetscFunctionBegin;
+  ierr = MatCreate(comm,A);CHKERRQ(ierr);
+  ierr = MatSetSizes(*A,m,n,m,n);CHKERRQ(ierr);
+  ierr = MatSetType(*A,MATSEQSGGPU);CHKERRQ(ierr);
+  ierr = MatSetStencil(*A,dim,dims,starts,dof);
+  ierr = MatSeqSGGPUSetPreallocation_SeqSGGPU(*A,stenciltype,dof);
+  
+}
+ */

@@ -3093,7 +3093,6 @@ PetscErrorCode  MatSeqBAIJSetPreallocation_SeqBAIJ(Mat B,PetscInt bs,PetscInt nz
   PetscErrorCode ierr;
   PetscInt       i,mbs,nbs,bs2;
   PetscBool      flg,skipallocation = PETSC_FALSE,realalloc = PETSC_FALSE;
-	PetscInt strtval, j, k;
 
   PetscFunctionBegin;
   if (nz >= 0 || nnz) realalloc = PETSC_TRUE;
