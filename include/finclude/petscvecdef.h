@@ -30,4 +30,6 @@
 #define VECESI 'esi'
 #define VECPETSCESI 'petscesi'
 
+#define VECSEQGPU 'seqgpu'
+
 #endif

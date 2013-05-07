@@ -25,18 +25,6 @@ void spy_device_real(double *dev_x,int n,char *msg)
     PetscPrintf(PETSC_COMM_WORLD,"%g\n",spce[i]);
   free(spce);
 }
-
-void spy_device_int(int *dev_x,int n,char *msg) 
-{
-  int i;
-  int *spce;
-  spce = (int*)malloc(n*sizeof(int));
-  cudaMemcpy(spce,dev_x,n*sizeof(int),cudaMemcpyDeviceToHost);
-  PetscPrintf(PETSC_COMM_WORLD,"%s\n",msg);
-  for (i=0;i<n;i++) 
-    PetscPrintf(PETSC_COMM_WORLD,"%d\n",spce[i]);
-  free(spce);
-}
 void spy_host_real(double *host_x,int n,char *msg) 
 {
   int i;
@@ -571,10 +559,7 @@ PetscErrorCode VecCopyOverDevice(Vec d,Vec s){
     SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_MEM,"Vector size mismatch.");
   }
   ccs[0]=cudaMemcpyAsync(dd->devptr,sd->devptr,
-   s->map->n*sizeof(double),cudaMemcpyDeviceToDevice,dd->streamid);
-  ierr = VecCheckCUDAStatus(ccs[0],"Copy H2D devlength in VecCopyOverDevice");CHKERRQ(ierr);
-  //  cudaMemcpy
-  
+                    s->map->n*sizeof(double),cudaMemcpyDeviceToDevice,dd->streamid);
   PetscFunctionReturn(0);
 }
 
@@ -2802,10 +2787,10 @@ PetscErrorCode VecGetArray_SeqGPU(Vec v,PetscScalar **a){
    MyPetscStackCheckByName("VecLog",flg6);
    MyPetscStackCheckByName("VecExp",flg7);
    MyPetscStackCheckByName("SNESComputeFunction",flg8);
-  if(flg1 || flg2 || flg3 || flg4 || flg5 || flg6 || flg7 || flg8){
+   if(flg1 || flg2 || flg3 || flg4 || flg5 || flg6 || flg7 || flg8){
     if(vd->syncState==VEC_GPU){
       ierr = VecCopyOverD2H(v,vd->cpuptr); CHKERRQ(ierr);
-    }
+      }
     vd->syncState = VEC_CPU;
   }
 #else

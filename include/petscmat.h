@@ -285,7 +285,11 @@ PETSC_EXTERN PetscErrorCode MatCreateSeqBSTRM(MPI_Comm,PetscInt,PetscInt,PetscIn
 PETSC_EXTERN PetscErrorCode MatCreateMPIBSTRM(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateSeqSBSTRM(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateMPISBSTRM(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
-
+/*
+#if defined PETSC_HAVE_CUDA
+PETSC_EXTERN PetscErrorCode MatCreateSeqSGGPU(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,const PetscInt[],PetscInt,const PetscInt[],Mat*);
+#endif
+ */
 PETSC_EXTERN PetscErrorCode MatCreateScatter(MPI_Comm,VecScatter,Mat*);
 PETSC_EXTERN PetscErrorCode MatScatterSetVecScatter(Mat,VecScatter);
 PETSC_EXTERN PetscErrorCode MatScatterGetVecScatter(Mat,VecScatter*);
