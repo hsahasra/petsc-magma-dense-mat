@@ -715,3 +715,46 @@ PetscErrorCode  PetscFormatStrip(char *format)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PetscTwitterTweet"
+/*@C
+    PetscTwitterTweet - Posts a status update on Twitter to the default account.
+
+    Not Collective, only the first process in the MPI_Communicator does anything
+
+    Input Parameters:
++   comm - the communicator
+-   format - the usual printf() format string
+
+   Level: intermediate
+
+    Notes:
+     *)  You must install the Python twitter tool with easy_install twitter
+     *)  /usr/local/bin/twitter or the location of twitter must be in your path
+     *)  You must run twitter authorize (once) before using this function
+
+
+.seealso: PetscSynchronizedFlush(), PetscSynchronizedFPrintf(), PetscFPrintf(),
+          PetscPrintf(), PetscViewerASCIIPrintf(), PetscViewerASCIISynchronizedPrintf()
+@*/
+PetscErrorCode  PetscTwitterTweet(MPI_Comm comm,const char format[],...)
+{
+  PetscErrorCode ierr;
+  PetscMPIInt    rank;
+  va_list        Argp;
+  char           string[140];
+  FILE           *fp;
+  int            rval;
+
+  PetscFunctionBegin;
+  if (comm == MPI_COMM_NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Called with MPI_COMM_NULL, likely PetscObjectComm() failed");
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  if (rank) PetscFunctionReturn(0);
+  ierr = PetscStrcpy(string,"twitter set ");CHKERRQ(ierr);
+  va_start(Argp,format);
+  ierr = PetscVSNPrintf(string+12,128,format, NULL,Argp);CHKERRQ(ierr);
+  va_end(Argp);
+  ierr = PetscPOpen(comm,NULL,string,"w",&fp);CHKERRQ(ierr);
+  ierr = PetscPClose(comm,fp,&rval);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}

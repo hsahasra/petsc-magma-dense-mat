@@ -927,6 +927,16 @@ PetscErrorCode  PetscFinalize(void)
 
   ierr = PetscHMPIFinalize();CHKERRQ(ierr);
 
+
+  ierr = PetscOptionsHasName(NULL,"-tweet",&flg1);CHKERRQ(ierr);
+  if (flg1) {
+    char username[16],programname[16],hostname[16];
+    ierr = PetscGetUserName(username,16);CHKERRQ(ierr);
+    ierr = PetscGetProgramName(programname,16);CHKERRQ(ierr);
+    ierr = PetscGetHostName(hostname,16);CHKERRQ(ierr);
+    ierr = PetscTwitterTweet(PETSC_COMM_WORLD,"%s \\#PETSc application %s has completed on %s",username,programname,hostname);CHKERRQ(ierr);
+  }
+
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-malloc_info",&flg2,NULL);CHKERRQ(ierr);
   if (!flg2) {
