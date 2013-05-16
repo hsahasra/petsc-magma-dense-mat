@@ -930,11 +930,16 @@ PetscErrorCode  PetscFinalize(void)
 
   ierr = PetscOptionsHasName(NULL,"-tweet",&flg1);CHKERRQ(ierr);
   if (flg1) {
-    char username[16],programname[16],hostname[16];
-    ierr = PetscGetUserName(username,16);CHKERRQ(ierr);
-    ierr = PetscGetProgramName(programname,16);CHKERRQ(ierr);
-    ierr = PetscGetHostName(hostname,16);CHKERRQ(ierr);
-    ierr = PetscTwitterTweet(PETSC_COMM_WORLD,"%s \\#PETSc application %s has completed on %s",username,programname,hostname);CHKERRQ(ierr);
+    char username[16],programname[16],hostname[16],custommessage[140];
+    ierr = PetscOptionsGetString(NULL,"-tweet",custommessage,140,&flg1);CHKERRQ(ierr);
+    if (!custommessage[0]) {
+      ierr = PetscGetUserName(username,16);CHKERRQ(ierr);
+      ierr = PetscGetProgramName(programname,16);CHKERRQ(ierr);
+      ierr = PetscGetHostName(hostname,16);CHKERRQ(ierr);
+      ierr = PetscTwitterTweet(PETSC_COMM_WORLD,"%s \\#PETSc application %s has completed on %s",username,programname,hostname);CHKERRQ(ierr);
+    } else {
+      ierr = PetscTwitterTweet(PETSC_COMM_WORLD,"%s",custommessage);CHKERRQ(ierr);
+    }
   }
 
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
