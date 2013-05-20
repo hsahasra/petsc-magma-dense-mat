@@ -2305,6 +2305,7 @@ PETSC_EXTERN PetscErrorCode PetscSubcommSetType(PetscSubcomm,PetscSubcommType);
 PETSC_EXTERN PetscErrorCode PetscSubcommSetTypeGeneral(PetscSubcomm,PetscMPIInt,PetscMPIInt,PetscMPIInt);
 
 PETSC_EXTERN PetscErrorCode PetscTwitterTweet(MPI_Comm,const char[],...);
+PETSC_EXTERN PetscErrorCode PetscURLShorten(const char[],char[],size_t);
 
 /*S
    PetscSegBuffer - a segmented extendable buffer
