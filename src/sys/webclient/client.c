@@ -29,7 +29,18 @@ static void sigpipe_handle(int x)
 {
 }
 
+/*
+    PetscSSLInitializeContext - Set up an SSL context suitable for initiating HTTPS requests.
 
+    Requires the user have created a self-signed certificate with
+
+$    ./CA.pl  -newcert  (using the passphrase of password)
+$    cat newkey.pem newcert.pem > sslclient.pem
+
+    and put the resulting file in either the current directory (with the application) or in the home directory. This seems kind of
+    silly but it was all I could figure out.
+
+*/
 PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
 {
     SSL_METHOD     *meth;
@@ -59,7 +70,7 @@ PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
       ierr = PetscStrcat(keyfile,"/");CHKERRQ(ierr);
       ierr = PetscStrcat(keyfile,"sslclient.pem");CHKERRQ(ierr);
       ierr = PetscTestFile(keyfile,'r',&exists);CHKERRQ(ierr);
-      if (!exists) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to locate sslclient.pem file in current directory and home directory");
+      if (!exists) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to locate sslclient.pem file in current directory or home directory");
     }
 
     /* Load our keys and certificates*/
