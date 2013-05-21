@@ -18,21 +18,25 @@ static BIO *bio_err = NULL;
 
 #define PASSWORD "password"
 
+#if defined(PETSC_USE_CERTIFICATE)
 static int password_cb(char *buf,int num, int rwflag,void *userdata)
 {
   if (num < strlen(PASSWORD)+1) return(0);
   strcpy(buf,PASSWORD);
   return(strlen(PASSWORD));
 }
+#endif
 
 static void sigpipe_handle(int x)
 {
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PetscSSLInitializeContext"
 /*
     PetscSSLInitializeContext - Set up an SSL context suitable for initiating HTTPS requests.
 
-    Requires the user have created a self-signed certificate with
+    If built with PETSC_USE_CERTIFICATE requires the user have created a self-signed certificate with
 
 $    ./CA.pl  -newcert  (using the passphrase of password)
 $    cat newkey.pem newcert.pem > sslclient.pem
@@ -45,9 +49,11 @@ PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
 {
     SSL_METHOD     *meth;
     SSL_CTX        *ctx;
+#if defined(PETSC_USE_CERTIFICATE)
     char           keyfile[PETSC_MAX_PATH_LEN];
     PetscBool      exists;
     PetscErrorCode ierr;
+#endif
 
     PetscFunctionBegin;
     if (!bio_err){
@@ -62,6 +68,7 @@ PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
     meth = SSLv23_method();
     ctx  = SSL_CTX_new(meth);
 
+#if defined(PETSC_USE_CERTIFICATE)
     /* Locate keyfile */
     ierr = PetscStrcpy(keyfile,"sslclient.pem");CHKERRQ(ierr);
     ierr = PetscTestFile(keyfile,'r',&exists);CHKERRQ(ierr);
@@ -78,11 +85,14 @@ PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
 
     SSL_CTX_set_default_passwd_cb(ctx,password_cb);
     if (!(SSL_CTX_use_PrivateKey_file(ctx,keyfile,SSL_FILETYPE_PEM))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot read key file");
+#endif
 
     *octx = ctx;
     PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PetscSSLDestroyContext"
 PetscErrorCode PetscSSLDestroyContext(SSL_CTX *ctx)
 {
   PetscFunctionBegin;
@@ -90,6 +100,8 @@ PetscErrorCode PetscSSLDestroyContext(SSL_CTX *ctx)
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PetscHTTPSRequest"
 static PetscErrorCode PetscHTTPSRequest(const char header[],const char body[],SSL *ssl,char buff[],size_t buffsize)
 {
   char           *request=0;
@@ -148,6 +160,8 @@ static PetscErrorCode PetscHTTPSRequest(const char header[],const char body[],SS
     PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PetscHTTPSConnect"
 PetscErrorCode PetscHTTPSConnect(const char host[],int port,SSL_CTX *ctx,int *sock,SSL **ssl)
 {
   BIO            *sbio;
@@ -165,6 +179,8 @@ PetscErrorCode PetscHTTPSConnect(const char host[],int port,SSL_CTX *ctx,int *so
   PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "PetscURLShorten"
 /*@C
      PetscURLShorten - Uses Google's service to get a short url for a long url
 
