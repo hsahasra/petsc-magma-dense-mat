@@ -16,8 +16,6 @@
 
 static BIO *bio_err = NULL;
 
-#define CA_LIST "root.pem"
-#define KEYFILE "client.pem"
 #define PASSWORD "password"
 
 static int password_cb(char *buf,int num, int rwflag,void *userdata)
@@ -34,8 +32,11 @@ static void sigpipe_handle(int x)
 
 PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
 {
-    SSL_METHOD *meth;
-    SSL_CTX    *ctx;
+    SSL_METHOD     *meth;
+    SSL_CTX        *ctx;
+    char           keyfile[PETSC_MAX_PATH_LEN];
+    PetscBool      exists;
+    PetscErrorCode ierr;
 
     PetscFunctionBegin;
     if (!bio_err){
@@ -50,17 +51,22 @@ PetscErrorCode PetscSSLInitializeContext(SSL_CTX **octx)
     meth = SSLv23_method();
     ctx  = SSL_CTX_new(meth);
 
+    /* Locate keyfile */
+    ierr = PetscStrcpy(keyfile,"sslclient.pem");CHKERRQ(ierr);
+    ierr = PetscTestFile(keyfile,'r',&exists);CHKERRQ(ierr);
+    if (!exists) {
+      ierr = PetscGetHomeDirectory(keyfile,PETSC_MAX_PATH_LEN);CHKERRQ(ierr);
+      ierr = PetscStrcat(keyfile,"/");CHKERRQ(ierr);
+      ierr = PetscStrcat(keyfile,"sslclient.pem");CHKERRQ(ierr);
+      ierr = PetscTestFile(keyfile,'r',&exists);CHKERRQ(ierr);
+      if (!exists) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to locate sslclient.pem file in current directory and home directory");
+    }
+
     /* Load our keys and certificates*/
-    if (!(SSL_CTX_use_certificate_chain_file(ctx,KEYFILE))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot read certificate file");
+    if (!(SSL_CTX_use_certificate_chain_file(ctx,keyfile))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot read certificate file");
 
     SSL_CTX_set_default_passwd_cb(ctx,password_cb);
-    if (!(SSL_CTX_use_PrivateKey_file(ctx,KEYFILE,SSL_FILETYPE_PEM))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot read key file");
-
-    /* Load the CAs we trust*/
-    if (!(SSL_CTX_load_verify_locations(ctx,CA_LIST,0)))  SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot read CA list");
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L)
-    SSL_CTX_set_verify_depth(ctx,1);
-#endif
+    if (!(SSL_CTX_use_PrivateKey_file(ctx,keyfile,SSL_FILETYPE_PEM))) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot read key file");
 
     *octx = ctx;
     PetscFunctionReturn(0);
