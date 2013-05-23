@@ -15,9 +15,7 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
   if (!rank && vascii->html) {
-    if (vascii->htmlpremode) {
-      ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</pre>\n");CHKERRQ(ierr);
-    }
+    ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</pre>\n");CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</body>\n");CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</html>\n");CHKERRQ(ierr);
   }
@@ -628,11 +626,9 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
-    }
-    if (!ascii->htmlpremode) {
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<pre>\n");CHKERRQ(ierr);
-      ascii->htmlpremode = PETSC_TRUE;
     }
+
     if (ascii->bviewer) petsc_printfqueuefile = fd;
 
     tab = ascii->tab;
@@ -654,81 +650,6 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }
-    va_end(Argp);
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "PetscViewerASCIIHTMLPrintf"
-/*@C
-    PetscViewerASCIIHTMLPrintf - Prints HTML format to a file, only from the first  processor in the PetscViewer
-
-    Not Collective, but only first processor in set has any effect
-
-    Input Parameters:
-+    viewer - optained with PetscViewerASCIIOpen()
--    format - the usual printf() format string
-
-    Level: developer
-
-  Concepts: PetscViewerASCII^printing
-  Concepts: printing^to file
-  Concepts: printf
-
-.seealso: PetscPrintf(), PetscSynchronizedPrintf(), PetscViewerASCIIOpen(),
-          PetscViewerASCIIPushTab(), PetscViewerASCIIPopTab(), PetscViewerASCIISynchronizedPrintf(),
-          PetscViewerCreate(), PetscViewerDestroy(), PetscViewerSetType(), PetscViewerASCIIGetPointer(), PetscViewerASCIISynchronizedAllow()
-@*/
-PetscErrorCode  PetscViewerASCIIHTMLPrintf(PetscViewer viewer,const char format[],...)
-{
-  PetscViewer_ASCII *ascii = (PetscViewer_ASCII*)viewer->data;
-  PetscMPIInt       rank;
-  PetscInt          tab;
-  PetscErrorCode    ierr;
-  FILE              *fd = ascii->fd;
-  PetscBool         iascii;
-  int               err;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
-  PetscValidCharPointer(format,2);
-  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
-  if (!iascii) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not ASCII PetscViewer");
-
-  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
-  if (!rank) {
-    va_list Argp;
-    if (ascii->html && !ascii->htmlheaderwritten) {
-      ascii->htmlheaderwritten = PETSC_TRUE;
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<html>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<head>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<style>");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"body {");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  line-height: 1.0;");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"}");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
-     }
-    if (ascii->htmlpremode) {
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</pre>\n");CHKERRQ(ierr);
-      ascii->htmlpremode = PETSC_FALSE;
-    }
-
-    if (ascii->bviewer) petsc_printfqueuefile = fd;
-
-    tab = ascii->tab;
-    while (tab--) {
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"&nbsp;&nbsp;");CHKERRQ(ierr);
-    }
-
-    va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(fd,format,Argp);CHKERRQ(ierr);
-    err  = fflush(fd);
-    if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     va_end(Argp);
   }
   PetscFunctionReturn(0);

@@ -13,7 +13,6 @@ typedef struct {
   PetscBool     closefile;
   PetscBool     allowsynchronized; /* allow synchronized writes from any process to the viewer */
   PetscBool     html;                /* Output should be in HTML */
-  PetscBool     htmlpremode;
   PetscBool     htmlheaderwritten;
 } PetscViewer_ASCII;
 

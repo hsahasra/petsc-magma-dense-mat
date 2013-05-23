@@ -254,17 +254,11 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
       ierr = (*snes->ops->view)(snes,viewer);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
     }
-    if (html) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  %smaximum iterations</a>=%D, %smaximum function evaluations</a>=%D\n",htmlSNESSetTolerances,snes->max_its,htmlSNESSetTolerances,snes->max_funcs);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  %stolerances</a>: relative=%G, absolute=%G, solution=%G\n",htmlSNESSetTolerances,snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of linear solver iterations</a>=%D\n",htmlSNESGetLinearSolveIterations,snes->linear_its);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of function evaluations</a>=%D\n",htmlSNESGetNumberFunctionEvals,snes->nfuncs);CHKERRQ(ierr);
-    } else {
-      ierr = PetscViewerASCIIPrintf(viewer,"  maximum iterations=%D, maximum function evaluations=%D\n",snes->max_its,snes->max_funcs);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  tolerances: relative=%G, absolute=%G, solution=%G\n",snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  total number of linear solver iterations=%D\n",snes->linear_its);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  total number of function evaluations=%D\n",snes->nfuncs);CHKERRQ(ierr);
-    }
+#define HTMLize(a) html ? a : "", html ? "</a>" : ""
+    ierr = PetscViewerASCIIPrintf(viewer,"  %smaximum iterations%s=%D, %smaximum function evaluations%s=%D\n",HTMLize(hSNESSetTolerances),snes->max_its,HTMLize(hSNESSetTolerances),snes->max_funcs);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %stolerances%s: relative=%G, absolute=%G, solution=%G\n",HTMLize(hSNESSetTolerances),snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of linear solver iterations%s=%D\n",HTMLize(hSNESGetLinearSolveIterations),snes->linear_its);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of function evaluations%s=%D\n",HTMLize(hSNESGetNumberFunctionEvals),snes->nfuncs);CHKERRQ(ierr);
 
 
     if (snes->gridsequence) {
