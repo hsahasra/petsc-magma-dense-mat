@@ -14,6 +14,14 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
+  if (!rank && vascii->html) {
+    if (vascii->htmlpremode) {
+      ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</pre>\n");CHKERRQ(ierr);
+    }
+    ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</body>\n");CHKERRQ(ierr);
+    ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</html>\n");CHKERRQ(ierr);
+  }
+
   if (!rank && vascii->fd != stderr && vascii->fd != PETSC_STDOUT) {
     if (vascii->fd && vascii->closefile) {
       err = fclose(vascii->fd);
@@ -194,6 +202,74 @@ PetscErrorCode  PetscViewerFileSetMode_ASCII(PetscViewer viewer, PetscFileMode m
    if the appropriate (usually .petschistory) file.
 */
 extern FILE *petsc_history;
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerASCIIGetHTML"
+/*@
+    PetscViewerASCIIGetHTML - Does the ASCII output as HTML suitable to view in a browser
+
+    Not Collective, but only first processor in set has any effect
+
+    Input Parameter:
+.    viewer - optained with PetscViewerASCIIOpen()
+
+    Output Parameter:
+.    html - PETSC_TRUE if using HTML
+
+    Level: intermediate
+
+  Concepts: PetscViewerASCII^formating
+  Concepts: tab^setting
+
+.seealso: PetscPrintf(), PetscSynchronizedPrintf(), PetscViewerASCIIPrintf(), PetscViewerASCIIGetTab(),
+          PetscViewerASCIIPopTab(), PetscViewerASCIISynchronizedPrintf(), PetscViewerASCIIOpen(),
+          PetscViewerCreate(), PetscViewerDestroy(), PetscViewerSetType(), PetscViewerASCIIGetPointer(), PetscViewerASCIIPushTab()
+@*/
+PetscErrorCode  PetscViewerASCIIGetHTML(PetscViewer viewer,PetscBool *html)
+{
+  PetscViewer_ASCII *ascii = (PetscViewer_ASCII*)viewer->data;
+  PetscBool         iascii;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  if (iascii) *html = ascii->html;
+  else        *html = PETSC_FALSE;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerASCIISetHTML"
+/*@
+    PetscViewerASCIISetHTML - Output the ASCII as HTML suitable to view in a browser
+
+    Not Collective, but only first processor in set has any effect
+
+    Input Parameters:
+.    viewer - optained with PetscViewerASCIIOpen()
+
+    Level: intermediate
+
+  Concepts: PetscViewerASCII^formating
+  Concepts: tab^setting
+
+.seealso: PetscPrintf(), PetscSynchronizedPrintf(), PetscViewerASCIIPrintf(), PetscViewerASCIIGetTab(),
+          PetscViewerASCIIPopTab(), PetscViewerASCIISynchronizedPrintf(), PetscViewerASCIIOpen(),
+          PetscViewerCreate(), PetscViewerDestroy(), PetscViewerSetType(), PetscViewerASCIIGetPointer(), PetscViewerASCIIPushTab()
+@*/
+PetscErrorCode  PetscViewerASCIISetHTML(PetscViewer viewer)
+{
+  PetscViewer_ASCII *ascii = (PetscViewer_ASCII*)viewer->data;
+  PetscBool         iascii;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  if (iascii) ascii->html = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscViewerASCIISetTab"
@@ -539,6 +615,24 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
   if (!rank) {
     va_list Argp;
+    if (ascii->html && !ascii->htmlheaderwritten) {
+      ascii->htmlheaderwritten = PETSC_TRUE;
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<html>\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<head>\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<style>");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"body {");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  line-height: 1.0;");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"}");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
+    }
+    if (!ascii->htmlpremode) {
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<pre>\n");CHKERRQ(ierr);
+      ascii->htmlpremode = PETSC_TRUE;
+    }
     if (ascii->bviewer) petsc_printfqueuefile = fd;
 
     tab = ascii->tab;
@@ -560,6 +654,81 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }
+    va_end(Argp);
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscViewerASCIIHTMLPrintf"
+/*@C
+    PetscViewerASCIIHTMLPrintf - Prints HTML format to a file, only from the first  processor in the PetscViewer
+
+    Not Collective, but only first processor in set has any effect
+
+    Input Parameters:
++    viewer - optained with PetscViewerASCIIOpen()
+-    format - the usual printf() format string
+
+    Level: developer
+
+  Concepts: PetscViewerASCII^printing
+  Concepts: printing^to file
+  Concepts: printf
+
+.seealso: PetscPrintf(), PetscSynchronizedPrintf(), PetscViewerASCIIOpen(),
+          PetscViewerASCIIPushTab(), PetscViewerASCIIPopTab(), PetscViewerASCIISynchronizedPrintf(),
+          PetscViewerCreate(), PetscViewerDestroy(), PetscViewerSetType(), PetscViewerASCIIGetPointer(), PetscViewerASCIISynchronizedAllow()
+@*/
+PetscErrorCode  PetscViewerASCIIHTMLPrintf(PetscViewer viewer,const char format[],...)
+{
+  PetscViewer_ASCII *ascii = (PetscViewer_ASCII*)viewer->data;
+  PetscMPIInt       rank;
+  PetscInt          tab;
+  PetscErrorCode    ierr;
+  FILE              *fd = ascii->fd;
+  PetscBool         iascii;
+  int               err;
+
+  PetscFunctionBegin;
+  PetscValidHeaderSpecific(viewer,PETSC_VIEWER_CLASSID,1);
+  PetscValidCharPointer(format,2);
+  ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
+  if (!iascii) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"Not ASCII PetscViewer");
+
+  ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
+  if (!rank) {
+    va_list Argp;
+    if (ascii->html && !ascii->htmlheaderwritten) {
+      ascii->htmlheaderwritten = PETSC_TRUE;
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<html>\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<head>\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<style>");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"body {");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  line-height: 1.0;");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"}");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
+     }
+    if (ascii->htmlpremode) {
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</pre>\n");CHKERRQ(ierr);
+      ascii->htmlpremode = PETSC_FALSE;
+    }
+
+    if (ascii->bviewer) petsc_printfqueuefile = fd;
+
+    tab = ascii->tab;
+    while (tab--) {
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"&nbsp;&nbsp;");CHKERRQ(ierr);
+    }
+
+    va_start(Argp,format);
+    ierr = (*PetscVFPrintf)(fd,format,Argp);CHKERRQ(ierr);
+    err  = fflush(fd);
+    if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     va_end(Argp);
   }
   PetscFunctionReturn(0);
@@ -828,6 +997,20 @@ PetscErrorCode  PetscViewerView_ASCII(PetscViewer v,PetscViewer viewer)
 }
 
 #undef __FUNCT__
+#define __FUNCT__ "PetscViewerSetFromOptions_ASCII"
+PetscErrorCode PetscViewerSetFromOptions_ASCII(PetscViewer v)
+{
+  PetscErrorCode    ierr;
+  PetscViewer_ASCII *ascii = (PetscViewer_ASCII*)v->data;
+
+  PetscFunctionBegin;
+  ierr = PetscOptionsHead("ASCII PetscViewer Options");CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-ascii_html","Output as HTML","PetscViewerASCIISetHTML",ascii->html,&ascii->html,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsTail();CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscViewerCreate_ASCII"
 PETSC_EXTERN PetscErrorCode PetscViewerCreate_ASCII(PetscViewer viewer)
 {
@@ -845,6 +1028,7 @@ PETSC_EXTERN PetscErrorCode PetscViewerCreate_ASCII(PetscViewer viewer)
   viewer->ops->getsubcomm       = PetscViewerGetSubcomm_ASCII;
   viewer->ops->restoresubcomm   = PetscViewerRestoreSubcomm_ASCII;
   viewer->ops->view             = PetscViewerView_ASCII;
+  viewer->ops->setfromoptions   = PetscViewerSetFromOptions_ASCII;
 
   /* defaults to stdout unless set with PetscViewerFileSetName() */
   vascii->fd        = PETSC_STDOUT;

@@ -59,6 +59,7 @@ PetscErrorCode  PetscOptionsGetViewer(MPI_Comm comm,const char pre[],const char 
     if (set) *set = PETSC_TRUE;
     if (!value) {
       ierr = PetscViewerASCIIGetStdout(comm,viewer);CHKERRQ(ierr);
+      ierr = PetscViewerSetFromOptions(*viewer);CHKERRQ(ierr);
       ierr = PetscObjectReference((PetscObject)*viewer);CHKERRQ(ierr);
     } else {
       char       *loc0_vtype,*loc1_fname,*loc2_fmt = NULL,*loc3_fmode = NULL;
@@ -131,6 +132,7 @@ PetscErrorCode  PetscOptionsGetViewer(MPI_Comm comm,const char pre[],const char 
         ierr = PetscEnumFind(PetscViewerFormats,loc2_fmt,(PetscEnum*)format,&flag);CHKERRQ(ierr);
         if (!flag) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_SUP,"Unknown viewer format %s",loc2_fmt);CHKERRQ(ierr);
       }
+      ierr = PetscViewerSetFromOptions(*viewer);CHKERRQ(ierr);
       ierr = PetscViewerSetUp(*viewer);CHKERRQ(ierr);
       ierr = PetscFree(loc0_vtype);CHKERRQ(ierr);
     }
