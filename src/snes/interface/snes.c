@@ -255,10 +255,10 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
     }
     if (html) {
-      ierr = PetscViewerASCIIHTMLPrintf(viewer,"&nbsp;&nbsp;%smaximum iterations</a>=%D, %smaximum function evaluations</a>=%D<br>\n",htmlSNESSetTolerances,snes->max_its,htmlSNESSetTolerances,snes->max_funcs);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIHTMLPrintf(viewer,"&nbsp;&nbsp;%stolerances</a>: relative=%G, absolute=%G, solution=%G<br>\n",htmlSNESSetTolerances,snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIHTMLPrintf(viewer,"&nbsp;&nbsp;%stotal number of linear solver iterations</a>=%D<br>\n",htmlSNESGetLinearSolveIterations,snes->linear_its);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"&nbsp;&nbsp;%stotal number of function evaluations</a>=%D\n",htmlSNESGetNumberFunctionEvals,snes->nfuncs);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %smaximum iterations</a>=%D, %smaximum function evaluations</a>=%D\n",htmlSNESSetTolerances,snes->max_its,htmlSNESSetTolerances,snes->max_funcs);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %stolerances</a>: relative=%G, absolute=%G, solution=%G\n",htmlSNESSetTolerances,snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of linear solver iterations</a>=%D\n",htmlSNESGetLinearSolveIterations,snes->linear_its);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of function evaluations</a>=%D\n",htmlSNESGetNumberFunctionEvals,snes->nfuncs);CHKERRQ(ierr);
     } else {
       ierr = PetscViewerASCIIPrintf(viewer,"  maximum iterations=%D, maximum function evaluations=%D\n",snes->max_its,snes->max_funcs);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"  tolerances: relative=%G, absolute=%G, solution=%G\n",snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
