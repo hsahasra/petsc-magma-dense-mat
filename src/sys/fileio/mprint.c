@@ -98,7 +98,6 @@ PetscErrorCode  PetscFormatConvert(PetscBool html,const char *format,char *newfo
     } else newformat[j++] = format[i++];
   }
   newformat[j] = 0;
-  //printf("NEWFORMAT:%s\n",newformat);
   PetscFunctionReturn(0);
 }
 
