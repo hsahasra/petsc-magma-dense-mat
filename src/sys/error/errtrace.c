@@ -119,7 +119,7 @@ PetscErrorCode  PetscErrorPrintfDefault(const char format[],...)
 
   PetscFPrintf(PETSC_COMM_SELF,PETSC_STDERR,"[%d]PETSC ERROR: ",PetscGlobalRank);
   va_start(Argp,format);
-  (*PetscVFPrintf)(PETSC_STDERR,format,Argp);
+  (*PetscVFPrintf)(PETSC_STDERR,PETSC_FALSE,format,Argp);
   va_end(Argp);
   return 0;
 }

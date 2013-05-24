@@ -637,7 +637,7 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
     }
 
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(fd,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(fd,ascii->html,format,Argp);CHKERRQ(ierr);
     err  = fflush(fd);
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     if (petsc_history) {
@@ -646,7 +646,7 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       while (tab--) {
         ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  ");CHKERRQ(ierr);
       }
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }
@@ -1027,13 +1027,13 @@ PetscErrorCode  PetscViewerASCIISynchronizedPrintf(PetscViewer viewer,const char
     }
 
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(fp,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(fp,vascii->html,format,Argp);CHKERRQ(ierr);
     err  = fflush(fp);
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     petsc_printfqueuefile = fp;
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }

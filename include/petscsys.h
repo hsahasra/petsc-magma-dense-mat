@@ -1508,11 +1508,11 @@ PETSC_EXTERN PetscErrorCode PetscSNPrintfCount(char*,size_t,const char [],size_t
 /* These are used internally by PETSc ASCII IO routines*/
 #include <stdarg.h>
 PETSC_EXTERN PetscErrorCode PetscVSNPrintf(char*,size_t,const char[],size_t*,va_list);
-PETSC_EXTERN PetscErrorCode (*PetscVFPrintf)(FILE*,const char[],va_list);
-PETSC_EXTERN PetscErrorCode PetscVFPrintfDefault(FILE*,const char[],va_list);
+PETSC_EXTERN PetscErrorCode (*PetscVFPrintf)(FILE*,PetscBool,const char[],va_list);
+PETSC_EXTERN PetscErrorCode PetscVFPrintfDefault(FILE*,PetscBool,const char[],va_list);
 
 #if defined(PETSC_HAVE_MATLAB_ENGINE)
-PETSC_EXTERN PetscErrorCode PetscVFPrintf_Matlab(FILE*,const char[],va_list);
+PETSC_EXTERN PetscErrorCode PetscVFPrintf_Matlab(FILE*,PetscBool,const char[],va_list);
 #endif
 
 PETSC_EXTERN PetscErrorCode PetscErrorPrintfDefault(const char [],...);

@@ -41,12 +41,13 @@ FILE *PETSC_STDERR = 0;
  Level: developer
 
 @*/
-PetscErrorCode  PetscFormatConvert(const char *format,char *newformat,size_t size)
+PetscErrorCode  PetscFormatConvert(PetscBool html,const char *format,char *newformat,size_t size)
 {
-  PetscInt i = 0,j = 0;
+  PetscInt       i = 0,j = 0;
+  PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  while (format[i] && j < (PetscInt)size-1) {
+  while (format[i]) {
     if (format[i] == '%' && format[i+1] != '%') {
       /* Find the letter */
       for (; format[i] && format[i] <= '9'; i++) newformat[j++] = format[i];
@@ -79,6 +80,16 @@ PetscErrorCode  PetscFormatConvert(const char *format,char *newformat,size_t siz
         newformat[j++] = 'f';
 #endif
         break;
+      case 'H':
+        if (html) {
+          j--;
+          ierr = PetscStrcpy(newformat+j,"<a href=\"http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/all/%s\">%s</a>");CHKERRQ(ierr);
+          j += 83;
+        } else {
+          ierr = PetscStrcpy(newformat+j,".0s%s");CHKERRQ(ierr);
+          j+=5;
+        }
+        break;
       default:
         newformat[j++] = format[i];
         break;
@@ -87,6 +98,7 @@ PetscErrorCode  PetscFormatConvert(const char *format,char *newformat,size_t siz
     } else newformat[j++] = format[i++];
   }
   newformat[j] = 0;
+  //printf("NEWFORMAT:%s\n",newformat);
   PetscFunctionReturn(0);
 }
 
@@ -125,7 +137,7 @@ PetscErrorCode  PetscVSNPrintf(char *str,size_t len,const char *format,size_t *f
     oldLength = PETSC_MAX_LENGTH_FORMAT(oldLength);
     ierr      = PetscMalloc(oldLength * sizeof(char), &newformat);CHKERRQ(ierr);
   }
-  PetscFormatConvert(format,newformat,oldLength);
+  PetscFormatConvert(PETSC_FALSE,format,newformat,oldLength);
   ierr = PetscStrlen(newformat, &length);CHKERRQ(ierr);
 #if 0
   if (length > len) newformat[len] = '\0';
@@ -154,13 +166,13 @@ PetscErrorCode  PetscVSNPrintf(char *str,size_t len,const char *format,size_t *f
         can be replaced with something that does not simply write to a file.
 
       To use, write your own function for example,
-$PetscErrorCode mypetscvfprintf(FILE *fd,const char format[],va_list Argp)
+$PetscErrorCode mypetscvfprintf(FILE *fd,PetscBool html,const char format[],va_list Argp)
 ${
 $  PetscErrorCode ierr;
 $
 $  PetscFunctionBegin;
 $   if (fd != stdout && fd != stderr) {  handle regular files
-$      ierr = PetscVFPrintfDefault(fd,format,Argp);CHKERR(ierr);
+$      ierr = PetscVFPrintfDefault(fd,html,format,Argp);CHKERR(ierr);
 $  } else {
 $     char   buff[BIG];
 $     size_t length;
@@ -183,7 +195,7 @@ $    PetscVFPrintf = mypetscvfprintf;
 .seealso: PetscVSNPrintf(), PetscErrorPrintf()
 
 @*/
-PetscErrorCode  PetscVFPrintfDefault(FILE *fd,const char *format,va_list Argp)
+PetscErrorCode  PetscVFPrintfDefault(FILE *fd,PetscBool html,const char *format,va_list Argp)
 {
   char           *newformat;
   char           formatbuf[8*1024];
@@ -199,7 +211,7 @@ PetscErrorCode  PetscVFPrintfDefault(FILE *fd,const char *format,va_list Argp)
     oldLength = PETSC_MAX_LENGTH_FORMAT(oldLength);
     ierr      = PetscMalloc(oldLength * sizeof(char), &newformat);CHKERRQ(ierr);
   }
-  ierr = PetscFormatConvert(format,newformat,oldLength);CHKERRQ(ierr);
+  ierr = PetscFormatConvert(html,format,newformat,oldLength);CHKERRQ(ierr);
 
 #if defined(PETSC_HAVE_VFPRINTF_CHAR)
   vfprintf(fd,newformat,(char*)Argp);
@@ -317,10 +329,10 @@ PetscErrorCode  PetscSynchronizedPrintf(MPI_Comm comm,const char format[],...)
   if (!rank) {
     va_list Argp;
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(PETSC_STDOUT,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(PETSC_STDOUT,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   } else { /* other processors add to local queue */
@@ -386,12 +398,12 @@ PetscErrorCode  PetscSynchronizedFPrintf(MPI_Comm comm,FILE *fp,const char forma
   if (!rank) {
     va_list Argp;
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(fp,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(fp,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
 
     petsc_printfqueuefile = fp;
     if (petsc_history && (fp !=petsc_history)) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   } else { /* other processors add to local queue */
@@ -527,10 +539,10 @@ PetscErrorCode  PetscFPrintf(MPI_Comm comm,FILE* fd,const char format[],...)
   if (!rank) {
     va_list Argp;
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(fd,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(fd,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history && (fd !=petsc_history)) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   }
@@ -571,10 +583,10 @@ PetscErrorCode  PetscPrintf(MPI_Comm comm,const char format[],...)
   if (!rank) {
     va_list Argp;
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(PETSC_STDOUT,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(PETSC_STDOUT,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   }
@@ -613,10 +625,10 @@ PetscErrorCode  PetscHelpPrintfDefault(MPI_Comm comm,const char format[],...)
   if (!rank) {
     va_list Argp;
     va_start(Argp,format);
-    ierr = (*PetscVFPrintf)(PETSC_STDOUT,format,Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(PETSC_STDOUT,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   }
@@ -671,13 +683,13 @@ PetscErrorCode  PetscSynchronizedFGets(MPI_Comm comm,FILE *fp,size_t len,char st
 #include <mex.h>
 #undef __FUNCT__
 #define __FUNCT__ "PetscVFPrintf_Matlab"
-PetscErrorCode  PetscVFPrintf_Matlab(FILE *fd,const char format[],va_list Argp)
+PetscErrorCode  PetscVFPrintf_Matlab(FILE *fd,PetscBool html,const char format[],va_list Argp)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (fd != stdout && fd != stderr) { /* handle regular files */
-    ierr = PetscVFPrintfDefault(fd,format,Argp);CHKERRQ(ierr);
+    ierr = PetscVFPrintfDefault(fd,html,format,Argp);CHKERRQ(ierr);
   } else {
     size_t len=8*1024,length;
     char   buf[len];

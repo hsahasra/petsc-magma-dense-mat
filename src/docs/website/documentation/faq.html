@@ -660,12 +660,12 @@ int main(int ac, char *av[]) {
       </p>
 
       <pre>
-PetscErrorCode mypetscvfprintf(FILE *fd, const char format[], va_list Argp) {
+PetscErrorCode mypetscvfprintf(FILE *fd, PetscBool html,const char format[], va_list Argp) {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
   if (fd != stdout &amp;&amp; fd != stderr) { /* handle regular files */
-    ierr = PetscVFPrintfDefault(fd,format,Argp); CHKERR(ierr);
+    ierr = PetscVFPrintfDefault(fd,html,format,Argp); CHKERR(ierr);
   } else {
     char buff[BIG];
     int length;

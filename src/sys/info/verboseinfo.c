@@ -198,7 +198,7 @@ PetscErrorCode  PetscInfo_Private(const char func[],void *vobj, const char messa
   if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
   if (petsc_history) {
     va_start(Argp, message);
-    ierr = (*PetscVFPrintf)(petsc_history, message, Argp);CHKERRQ(ierr);
+    ierr = (*PetscVFPrintf)(petsc_history, PETSC_FALSE,message, Argp);CHKERRQ(ierr);
   }
   va_end(Argp);
   PetscFunctionReturn(0);
