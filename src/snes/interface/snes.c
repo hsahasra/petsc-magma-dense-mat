@@ -254,11 +254,11 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
       ierr = (*snes->ops->view)(snes,viewer);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
     }
-#define HTMLize(a) html ? a : "", html ? "</a>" : ""
-    ierr = PetscViewerASCIIPrintf(viewer,"  %smaximum iterations%s=%D, %smaximum function evaluations%s=%D\n",HTMLize(hSNESSetTolerances),snes->max_its,HTMLize(hSNESSetTolerances),snes->max_funcs);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  %stolerances%s: relative=%G, absolute=%G, solution=%G\n",HTMLize(hSNESSetTolerances),snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of linear solver iterations%s=%D\n",HTMLize(hSNESGetLinearSolveIterations),snes->linear_its);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  %stotal number of function evaluations%s=%D\n",HTMLize(hSNESGetNumberFunctionEvals),snes->nfuncs);CHKERRQ(ierr);
+#define HTMLize(a) html ? "<a href=\"http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/all/" : "", html ? a : "",  html ? "\">" : "", html ? "</a>" : ""
+    ierr = PetscViewerASCIIPrintf(viewer,"  %s%s%smaximum iterations%s=%D, %s%s%smaximum function evaluations%s=%D\n",HTMLize("SNESSetTolerances"),snes->max_its,HTMLize("SNESSetTolerances"),snes->max_funcs);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %s%s%stolerances%s: relative=%G, absolute=%G, solution=%G\n",HTMLize("SNESSetTolerances"),snes->rtol,snes->abstol,snes->stol);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %s%s%stotal number of linear solver iterations%s=%D\n",HTMLize("SNESGetLinearSolveIterations"),snes->linear_its);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %s%s%stotal number of function evaluations%s=%D\n",HTMLize("SNESGetNumberFunctionEvals"),snes->nfuncs);CHKERRQ(ierr);
 
 
     if (snes->gridsequence) {

@@ -326,9 +326,6 @@ docsetdate: chk_petscdir
           -exec perl -pi -e 's^(<head>)^$$1 <link rel="canonical" href="http://www.mcs.anl.gov/petsc/petsc-current/{}" />^i' {} \; ; \
         echo "Done fixing version number, date, canonical URL info"
 
-definehtml: chk_petscdir chk_loc
-	@sed "s?man:+\([A-Za-z0-9_]*\)++[A-Za-z0-9_]*++++man+manualpages\(/[A-Za-z0-9/_]*\).html#[A-Za-z0-9_]*?#define h\1 \"<a href=\\\\\"http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages\2.html\\\\\">\"?g" ${LOC}/docs/manualpages/htmlmap | grep -v "man:" > ${PETSC_ARCH}/include/petscdefinehtml.h
-
 alldocclean: deletemanualpages allcleanhtml
 
 # Deletes man pages (HTML version)
