@@ -758,3 +758,65 @@ PetscErrorCode  PetscTwitterTweet(MPI_Comm comm,const char format[],...)
   ierr = PetscPClose(comm,fp,&rval);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscFileUpload"
+/*@C
+    PetscFileUpload - Copies a file up to a server
+
+    Not Collective, only the first process in the MPI_Communicator does anything
+
+    Input Parameters:
++   comm - the communicator
+.   filename - the file to copy
+.   machine - machine to copy to
+.   directory - directory on machine to copy to, should begin and end with a /
+-   remotefilename - name of file on remote machine (use NULL to reuse filename)
+
+    Options Database:
+.    -remote_user_name username - use username as the username on the remote system
+
+   Level: intermediate
+
+   Developer Note: Currently uses scp to perform the copy, if correct ssh keys are not set will prompt for a password
+
+.seealso: PetscSynchronizedFlush(), PetscSynchronizedFPrintf(), PetscFPrintf(),
+          PetscPrintf(), PetscViewerASCIIPrintf(), PetscViewerASCIISynchronizedPrintf()
+@*/
+PetscErrorCode  PetscFileUpload(MPI_Comm comm,const char filename[],const char machine[],const char directory[],const char remotefilename[])
+{
+  PetscErrorCode ierr;
+  PetscMPIInt    rank;
+  char           string[3*PETSC_MAX_PATH_LEN],remoteusername[32];
+  FILE           *fp;
+  size_t         len;
+  PetscBool      exists,flg;
+
+  PetscFunctionBegin;
+  if (comm == MPI_COMM_NULL) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_PLIB,"Called with MPI_COMM_NULL, likely PetscObjectComm() failed");
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  if (rank) PetscFunctionReturn(0);
+  ierr = PetscTestFile(filename,'r',&exists);CHKERRQ(ierr);
+  if (!exists) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_READ,"Unable to locate file: %s",filename);
+  if (directory[0] != '/') SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"Directory: %s should start with /",directory);
+
+  ierr = PetscStrlen(directory,&len);CHKERRQ(ierr);
+  ierr = PetscStrcpy(string,"scp ");CHKERRQ(ierr);
+  ierr = PetscStrcat(string,filename);CHKERRQ(ierr);
+  ierr = PetscStrcat(string," ");CHKERRQ(ierr);
+  ierr = PetscOptionsGetString(NULL,"-remote_user_name",remoteusername,32,&flg);CHKERRQ(ierr);
+  if (flg) {
+    ierr = PetscStrcat(string,remoteusername);CHKERRQ(ierr);
+    ierr = PetscStrcat(string,"@");CHKERRQ(ierr);
+  }
+  ierr = PetscStrcat(string,machine);CHKERRQ(ierr);
+  ierr = PetscStrcat(string,":");CHKERRQ(ierr);
+  ierr = PetscStrcat(string,directory);CHKERRQ(ierr);
+  if (remotefilename) {
+    if (directory[len] != '/') SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"Directory: %s should end with /",directory);
+    ierr = PetscStrcat(string,remotefilename);CHKERRQ(ierr);
+  }
+  ierr = PetscPOpen(comm,NULL,string,"w",&fp);CHKERRQ(ierr);
+  ierr = PetscPClose(comm,fp,NULL);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
