@@ -1307,14 +1307,14 @@ PetscErrorCode  TSView(TS ts,PetscViewer viewer)
 #endif
   if (iascii) {
     ierr = PetscObjectPrintClassNamePrefixType((PetscObject)ts,viewer);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  maximum steps=%D\n",ts->max_steps);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  maximum time=%G\n",ts->max_time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","TSSetDurations","maximum steps",ts->max_steps);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H=%G\n","TSSetDurations","maximum time",ts->max_time);CHKERRQ(ierr);
     if (ts->problem_type == TS_NONLINEAR) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  total number of nonlinear solver iterations=%D\n",ts->snes_its);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"  total number of nonlinear solve failures=%D\n",ts->num_snes_failures);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","TSGetSNESIterations","total number of nonlinear solver iterations",ts->snes_its);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","TSGetSNESFailures","total number of nonlinear solve failures",ts->num_snes_failures);CHKERRQ(ierr);
     }
-    ierr = PetscViewerASCIIPrintf(viewer,"  total number of linear solver iterations=%D\n",ts->ksp_its);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  total number of rejected steps=%D\n",ts->reject);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","TSGetKSPIterations","total number of linear solver iterations",ts->ksp_its);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","TSGetStepRejections","total number of rejected steps",ts->reject);CHKERRQ(ierr);
     ierr = DMGetDMTS(ts->dm,&sdm);CHKERRQ(ierr);
     ierr = DMTSView(sdm,viewer);CHKERRQ(ierr);
     if (ts->ops->view) {

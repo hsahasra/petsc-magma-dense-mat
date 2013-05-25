@@ -83,8 +83,8 @@ PetscErrorCode  PetscFormatConvert(PetscBool html,const char *format,char *newfo
       case 'H':
         if (html) {
           j--;
-          ierr = PetscStrcpy(newformat+j,"<a href=\"http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/all/%s\">%s</a>");CHKERRQ(ierr);
-          j += 83;
+          ierr = PetscStrcpy(newformat+j,"<a href=\"http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/all/%s.html\">%s</a>");CHKERRQ(ierr);
+          j += 88;
         } else {
           ierr = PetscStrcpy(newformat+j,".0s%s");CHKERRQ(ierr);
           j+=5;

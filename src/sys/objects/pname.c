@@ -53,7 +53,7 @@ PetscErrorCode PetscObjectPrintClassNamePrefixType(PetscObject obj,PetscViewer v
   PetscMPIInt    size;
 
   PetscFunctionBegin;
-  ierr = PetscViewerASCIIPrintf(viewer,"%s Object:",obj->class_name);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"%H Object:",obj->class_name,obj->class_name);CHKERRQ(ierr);
   if (obj->name) {
     ierr = PetscViewerASCIIPrintf(viewer,"%s",obj->name);CHKERRQ(ierr);
   }
@@ -64,7 +64,7 @@ PetscErrorCode PetscObjectPrintClassNamePrefixType(PetscObject obj,PetscViewer v
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer," %d MPI processes\n",size);CHKERRQ(ierr);
   if (obj->type_name) {
-    ierr = PetscViewerASCIIPrintf(viewer,"  type: %s\n",obj->type_name);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  type: %H\n",obj->type_name,obj->type_name);CHKERRQ(ierr);
   } else {
     ierr = PetscViewerASCIIPrintf(viewer,"  type not yet set\n");CHKERRQ(ierr);
   }

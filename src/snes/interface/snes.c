@@ -259,25 +259,25 @@ PetscErrorCode  SNESView(SNES snes,PetscViewer viewer)
 
 
     if (snes->gridsequence) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  total number of grid sequence refinements=%D\n",snes->gridsequence);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","SNESSetGridSequence","total number of grid sequence refinements",snes->gridsequence);CHKERRQ(ierr);
     }
     if (snes->ksp_ewconv) {
       kctx = (SNESKSPEW*)snes->kspconvctx;
       if (kctx) {
-        ierr = PetscViewerASCIIPrintf(viewer,"  Eisenstat-Walker computation of KSP relative tolerance (version %D)\n",kctx->version);CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer,"  %H (version %D)\n","SNESKSPSetParametersEW","Eisenstat-Walker computation of KSP relative tolerance",kctx->version);CHKERRQ(ierr);
         ierr = PetscViewerASCIIPrintf(viewer,"    rtol_0=%G, rtol_max=%G, threshold=%G\n",kctx->rtol_0,kctx->rtol_max,kctx->threshold);CHKERRQ(ierr);
         ierr = PetscViewerASCIIPrintf(viewer,"    gamma=%G, alpha=%G, alpha2=%G\n",kctx->gamma,kctx->alpha,kctx->alpha2);CHKERRQ(ierr);
       }
     }
     if (snes->lagpreconditioner == -1) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  Preconditioned is never rebuilt\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H\n","SNESSetLagPreconditioner","Preconditioned is never rebuilt");CHKERRQ(ierr);
     } else if (snes->lagpreconditioner > 1) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  Preconditioned is rebuilt every %D new Jacobians\n",snes->lagpreconditioner);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H %D new Jacobians\n","SNESSetLagPreconditioner","Preconditioned is rebuilt every",snes->lagpreconditioner);CHKERRQ(ierr);
     }
     if (snes->lagjacobian == -1) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  Jacobian is never rebuilt\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H\n","SNESSetLagJacobian","Jacobian is never rebuilt");CHKERRQ(ierr);
     } else if (snes->lagjacobian > 1) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  Jacobian is rebuilt every %D SNES iterations\n",snes->lagjacobian);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H %D SNES iterations\n","SNESSetLagJacobian","Jacobian is rebuilt every",snes->lagjacobian);CHKERRQ(ierr);
     }
   } else if (isstring) {
     const char *type;

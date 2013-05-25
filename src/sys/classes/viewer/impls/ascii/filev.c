@@ -623,6 +623,7 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"body {");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  line-height: 1.0;");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"}");CHKERRQ(ierr);
+      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"pre {font-size:150%%}\n");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
       ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
