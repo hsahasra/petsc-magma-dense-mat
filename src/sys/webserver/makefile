@@ -5,7 +5,7 @@ ALL: lib
 CFLAGS    =
 FFLAGS    =
 CPPFLAGS  =
-SOURCEC	  =
+SOURCEC	  = 
 SOURCEF	  =
 SOURCEH	  =
 MANSEC	  = Sys
@@ -26,3 +26,4 @@ petscwebserver: petscwebserver.o webserve.o  chkopts
 petscwebclient: petscwebclient.o  chkopts
 	${CLINKER} -o petscwebclient petscwebclient.o ${PETSC_SYS_LIB}
 	${RM} -f petscwebclient.o
+
