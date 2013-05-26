@@ -4,6 +4,40 @@
 #define QUEUESTRINGSIZE 8192
 
 #undef __FUNCT__
+#define __FUNCT__ "PetscOptionsFileUpload"
+PetscErrorCode PetscOptionsFileUpload(MPI_Comm comm,const char prefix[],const char option[],const char file[])
+{
+  char           string[PETSC_MAX_PATH_LEN],suboption[64];
+  PetscBool      flg;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscOptionsGetString(prefix,option,string,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+  if (flg) {
+    PetscToken token;
+    char       *machine,*path,*name;
+
+    ierr = PetscTokenCreate(string,',',&token);CHKERRQ(ierr);
+    ierr = PetscTokenFind(token,&machine);CHKERRQ(ierr);
+    ierr = PetscTokenFind(token,&path);CHKERRQ(ierr);
+    ierr = PetscTokenFind(token,&name);CHKERRQ(ierr);
+    ierr = PetscFileUpload(comm,file,machine,path,name);CHKERRQ(ierr);
+    ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
+
+    ierr = PetscStrcpy(suboption,option);CHKERRQ(ierr);
+    ierr = PetscStrcat(suboption,"_tweet");CHKERRQ(ierr);
+    ierr = PetscOptionsGetString(prefix,suboption,string,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+    if (flg) {
+      char shorturl[32],programname[32];
+      ierr = PetscURLShorten(string,shorturl,32);CHKERRQ(ierr);
+      ierr = PetscGetProgramName(programname,32);CHKERRQ(ierr);
+      ierr = PetscTwitterTweet(comm,"PETSc application %s file uploaded to %s",programname,shorturl);
+    }
+  }
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscViewerFileClose_ASCII"
 static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
 {
@@ -11,8 +45,6 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
   PetscMPIInt       rank;
   PetscViewer_ASCII *vascii = (PetscViewer_ASCII*)viewer->data;
   int               err;
-  char              string[PETSC_MAX_PATH_LEN];
-  PetscBool         flg;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
@@ -40,26 +72,7 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP_SYS,"Cannot run external programs on this machine");
 #endif
     }
-    ierr = PetscOptionsGetString(((PetscObject)viewer)->prefix,"-viewer_file_upload",string,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
-    if (flg) {
-      PetscToken token;
-      char       *machine,*path,*name;
-
-      ierr = PetscTokenCreate(string,',',&token);CHKERRQ(ierr);
-      ierr = PetscTokenFind(token,&machine);CHKERRQ(ierr);
-      ierr = PetscTokenFind(token,&path);CHKERRQ(ierr);
-      ierr = PetscTokenFind(token,&name);CHKERRQ(ierr);
-      ierr = PetscFileUpload(PetscObjectComm((PetscObject)viewer),vascii->filename,machine,path,name);CHKERRQ(ierr);
-      ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
-
-      ierr = PetscOptionsGetString(((PetscObject)viewer)->prefix,"-viewer_file_upload_tweet",string,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
-      if (flg) {
-        char shorturl[32],programname[32];
-        ierr = PetscURLShorten(string,shorturl,32);CHKERRQ(ierr);
-        ierr = PetscGetProgramName(programname,32);CHKERRQ(ierr);
-        ierr = PetscTwitterTweet(PetscObjectComm((PetscObject)viewer),"PETSc application %s file uploaded to %s",programname,shorturl);
-      }
-    }
+    ierr = PetscOptionsFileUpload(PetscObjectComm((PetscObject)viewer),((PetscObject)viewer)->prefix,"-viewer_file_upload",vascii->filename);CHKERRQ(ierr);
   }
   ierr = PetscFree(vascii->filename);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -669,7 +682,7 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       while (tab--) {
         ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  ");CHKERRQ(ierr);
       }
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,ascii->html,format,Argp);CHKERRQ(ierr);
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }

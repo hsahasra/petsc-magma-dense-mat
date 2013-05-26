@@ -91,6 +91,7 @@ PetscBool PetscCUSPSynchronize = PETSC_FALSE;
    Optional file where all PETSc output from various prints is saved
 */
 FILE *petsc_history = NULL;
+static char fname[PETSC_MAX_PATH_LEN];
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscOpenHistoryFile"
@@ -98,7 +99,7 @@ PetscErrorCode  PetscOpenHistoryFile(const char filename[],FILE **fd)
 {
   PetscErrorCode ierr;
   PetscMPIInt    rank,size;
-  char           pfile[PETSC_MAX_PATH_LEN],pname[PETSC_MAX_PATH_LEN],fname[PETSC_MAX_PATH_LEN],date[64];
+  char           pfile[PETSC_MAX_PATH_LEN],pname[PETSC_MAX_PATH_LEN],date[64];
   char           version[256];
 
   PetscFunctionBegin;
@@ -106,7 +107,6 @@ PetscErrorCode  PetscOpenHistoryFile(const char filename[],FILE **fd)
   if (!rank) {
     char        arch[10];
     int         err;
-    PetscViewer viewer;
 
     ierr = PetscGetArchType(arch,10);CHKERRQ(ierr);
     ierr = PetscGetDate(date,64);CHKERRQ(ierr);
@@ -126,10 +126,7 @@ PetscErrorCode  PetscOpenHistoryFile(const char filename[],FILE **fd)
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"---------------------------------------------------------\n");CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"%s %s\n",version,date);CHKERRQ(ierr);
     ierr = PetscGetProgramName(pname,PETSC_MAX_PATH_LEN);CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"%s on a %s, %d proc. with options:\n",pname,arch,size);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpenWithFILE(PETSC_COMM_WORLD,*fd,&viewer);CHKERRQ(ierr);
-    ierr = PetscOptionsView(viewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"%s on a %s, %d processors\n",pname,arch,size);CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"---------------------------------------------------------\n");CHKERRQ(ierr);
 
     err = fflush(*fd);
@@ -158,6 +155,7 @@ PetscErrorCode  PetscCloseHistoryFile(FILE **fd)
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     err = fclose(*fd);
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fclose() failed on file");
+    ierr = PetscOptionsFileUpload(PETSC_COMM_SELF,NULL,"-history_file_upload",fname);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

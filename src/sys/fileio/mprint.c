@@ -824,7 +824,7 @@ PetscErrorCode  PetscFileUpload(MPI_Comm comm,const char filename[],const char m
   ierr = PetscStrcat(string,":");CHKERRQ(ierr);
   ierr = PetscStrcat(string,directory);CHKERRQ(ierr);
   if (remotefilename) {
-    if (directory[len] != '/') SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"Directory: %s should end with /",directory);
+    if (directory[len-1] != '/') SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_USER,"Directory: %s should end with /",directory);
     ierr = PetscStrcat(string,remotefilename);CHKERRQ(ierr);
   }
   ierr = PetscPOpen(comm,NULL,string,"w",&fp);CHKERRQ(ierr);
