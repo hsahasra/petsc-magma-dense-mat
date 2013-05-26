@@ -11,6 +11,8 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
   PetscMPIInt       rank;
   PetscViewer_ASCII *vascii = (PetscViewer_ASCII*)viewer->data;
   int               err;
+  char              string[PETSC_MAX_PATH_LEN];
+  PetscBool         flg;
 
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
@@ -37,6 +39,26 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
 #else
       SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP_SYS,"Cannot run external programs on this machine");
 #endif
+    }
+    ierr = PetscOptionsGetString(((PetscObject)viewer)->prefix,"-viewer_file_upload",string,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+    if (flg) {
+      PetscToken token;
+      char       *machine,*path,*name;
+
+      ierr = PetscTokenCreate(string,',',&token);CHKERRQ(ierr);
+      ierr = PetscTokenFind(token,&machine);CHKERRQ(ierr);
+      ierr = PetscTokenFind(token,&path);CHKERRQ(ierr);
+      ierr = PetscTokenFind(token,&name);CHKERRQ(ierr);
+      ierr = PetscFileUpload(PetscObjectComm((PetscObject)viewer),vascii->filename,machine,path,name);CHKERRQ(ierr);
+      ierr = PetscTokenDestroy(&token);CHKERRQ(ierr);
+
+      ierr = PetscOptionsGetString(((PetscObject)viewer)->prefix,"-viewer_file_upload_tweet",string,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+      if (flg) {
+        char shorturl[32],programname[32];
+        ierr = PetscURLShorten(string,shorturl,32);CHKERRQ(ierr);
+        ierr = PetscGetProgramName(programname,32);CHKERRQ(ierr);
+        ierr = PetscTwitterTweet(PetscObjectComm((PetscObject)viewer),"PETSc application %s file uploaded to %s",programname,shorturl);
+      }
     }
   }
   ierr = PetscFree(vascii->filename);CHKERRQ(ierr);
@@ -927,7 +949,7 @@ PetscErrorCode PetscViewerSetFromOptions_ASCII(PetscViewer v)
 
   PetscFunctionBegin;
   ierr = PetscOptionsHead("ASCII PetscViewer Options");CHKERRQ(ierr);
-  ierr = PetscOptionsBool("-ascii_html","Output as HTML","PetscViewerASCIISetHTML",ascii->html,&ascii->html,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-viewer_ascii_html","Output as HTML","PetscViewerASCIISetHTML",ascii->html,&ascii->html,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsTail();CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
