@@ -24,9 +24,10 @@ FILE *PETSC_STDOUT = 0;
 FILE *PETSC_STDERR = 0;
 
 /*
-     Return the maximum expected new size of the format
+     Return the maximum expected new size of the format. This is totally bogus, there is no easy way to 
+     predict the size of the needed buffer.
 */
-#define PETSC_MAX_LENGTH_FORMAT(l) (l+l/8)
+#define PETSC_MAX_LENGTH_FORMAT(l) (l + 1024 + l/8)
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscFormatConvert"
@@ -777,7 +778,7 @@ PetscErrorCode  PetscTwitterTweet(MPI_Comm comm,const char format[],...)
 /*@C
     PetscFileUpload - Copies a file up to a server
 
-    Not Collective, only the first process in the MPI_Communicator does anything
+    Not Collective, only the first process in the MPI_Comm does anything
 
     Input Parameters:
 +   comm - the communicator
