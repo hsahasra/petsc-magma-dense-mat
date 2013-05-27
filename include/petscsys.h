@@ -2308,6 +2308,8 @@ PETSC_EXTERN PetscErrorCode PetscTwitterTweet(MPI_Comm,const char[],...);
 PETSC_EXTERN PetscErrorCode PetscURLShorten(const char[],char[],size_t);
 PETSC_EXTERN PetscErrorCode PetscFileUpload(MPI_Comm,const char[],const char[],const char[],const char[]);
 PETSC_EXTERN PetscErrorCode PetscOptionsFileUpload(MPI_Comm,const char[],const char[],const char[]);
+PETSC_EXTERN PetscErrorCode PetscPrintHTMLHeader(FILE*);
+PETSC_EXTERN PetscErrorCode PetscPrintHTMLFooter(FILE*);
 
 /*S
    PetscSegBuffer - a segmented extendable buffer

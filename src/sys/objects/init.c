@@ -92,6 +92,7 @@ PetscBool PetscCUSPSynchronize = PETSC_FALSE;
 */
 FILE *petsc_history = NULL;
 static char fname[PETSC_MAX_PATH_LEN];
+PetscBool petsc_history_html = PETSC_TRUE;
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscOpenHistoryFile"
@@ -123,6 +124,10 @@ PetscErrorCode  PetscOpenHistoryFile(const char filename[],FILE **fd)
     *fd = fopen(fname,"a");
     if (!fd) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Cannot open file: %s",fname);
 
+    if (petsc_history_html) {
+      ierr = PetscPrintHTMLHeader(*fd);CHKERRQ(ierr);
+    }
+
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"---------------------------------------------------------\n");CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"%s %s\n",version,date);CHKERRQ(ierr);
     ierr = PetscGetProgramName(pname,PETSC_MAX_PATH_LEN);CHKERRQ(ierr);
@@ -151,6 +156,9 @@ PetscErrorCode  PetscCloseHistoryFile(FILE **fd)
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"---------------------------------------------------------\n");CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"Finished at %s\n",date);CHKERRQ(ierr);
     ierr = PetscFPrintf(PETSC_COMM_SELF,*fd,"---------------------------------------------------------\n");CHKERRQ(ierr);
+    if (petsc_history_html) {
+      ierr = PetscPrintHTMLFooter(*fd);CHKERRQ(ierr);
+    }
     err  = fflush(*fd);
     if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     err = fclose(*fd);

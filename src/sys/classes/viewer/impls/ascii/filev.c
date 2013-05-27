@@ -4,6 +4,42 @@
 #define QUEUESTRINGSIZE 8192
 
 #undef __FUNCT__
+#define __FUNCT__ "PetscPrintHTMLHeader"
+PetscErrorCode PetscPrintHTMLHeader(FILE *fd)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<html>\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<head>\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<style>");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"body {");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  line-height: 1.0;");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"}");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"pre {font-size:150%%}\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<pre>\n");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscPrintHTMLFooter"
+PetscErrorCode PetscPrintHTMLFooter(FILE *fd)
+{
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</pre>\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</body>\n");CHKERRQ(ierr);
+  ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</html>\n");CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscOptionsFileUpload"
 PetscErrorCode PetscOptionsFileUpload(MPI_Comm comm,const char prefix[],const char option[],const char file[])
 {
@@ -49,9 +85,7 @@ static PetscErrorCode PetscViewerFileClose_ASCII(PetscViewer viewer)
   PetscFunctionBegin;
   ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)viewer),&rank);CHKERRQ(ierr);
   if (!rank && vascii->html) {
-    ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</pre>\n");CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</body>\n");CHKERRQ(ierr);
-    ierr = PetscFPrintf(PETSC_COMM_SELF,vascii->fd,"</html>\n");CHKERRQ(ierr);
+    ierr = PetscPrintHTMLFooter(vascii->fd);CHKERRQ(ierr);
   }
 
   if (!rank && vascii->fd != stderr && vascii->fd != PETSC_STDOUT) {
@@ -235,6 +269,7 @@ PetscErrorCode  PetscViewerFileSetMode_ASCII(PetscViewer viewer, PetscFileMode m
    if the appropriate (usually .petschistory) file.
 */
 extern FILE *petsc_history;
+extern PetscBool petsc_history_html;
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscViewerASCIIGetHTML"
@@ -650,19 +685,7 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
     va_list Argp;
     if (ascii->html && !ascii->htmlheaderwritten) {
       ascii->htmlheaderwritten = PETSC_TRUE;
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<html>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<head>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  <meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<style>");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"body {");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  line-height: 1.0;");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"}");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"pre {font-size:150%%}\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</style>");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"</head>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<body>\n");CHKERRQ(ierr);
-      ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"<pre>\n");CHKERRQ(ierr);
+      ierr = PetscPrintHTMLHeader(fd);CHKERRQ(ierr);
     }
 
     if (ascii->bviewer) petsc_printfqueuefile = fd;
@@ -682,7 +705,7 @@ PetscErrorCode  PetscViewerASCIIPrintf(PetscViewer viewer,const char format[],..
       while (tab--) {
         ierr = PetscFPrintf(PETSC_COMM_SELF,fd,"  ");CHKERRQ(ierr);
       }
-      ierr = (*PetscVFPrintf)(petsc_history,ascii->html,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,ascii->html || petsc_history_html,format,Argp);CHKERRQ(ierr);
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }
@@ -1069,7 +1092,7 @@ PetscErrorCode  PetscViewerASCIISynchronizedPrintf(PetscViewer viewer,const char
     petsc_printfqueuefile = fp;
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,petsc_history_html,format,Argp);CHKERRQ(ierr);
       err  = fflush(petsc_history);
       if (err) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SYS,"fflush() failed on file");
     }

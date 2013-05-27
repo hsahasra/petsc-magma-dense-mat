@@ -8,6 +8,8 @@
    if the appropriate (usually .petschistory) file.
 */
 extern FILE *petsc_history;
+extern PetscBool petsc_history_html;
+
 /*
      Allows one to overwrite where standard out is sent. For example
      PETSC_STDOUT = fopen("/dev/ttyXX","w") will cause all standard out
@@ -331,7 +333,7 @@ PetscErrorCode  PetscSynchronizedPrintf(MPI_Comm comm,const char format[],...)
     ierr = (*PetscVFPrintf)(PETSC_STDOUT,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,petsc_history_html,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   } else { /* other processors add to local queue */
@@ -400,9 +402,9 @@ PetscErrorCode  PetscSynchronizedFPrintf(MPI_Comm comm,FILE *fp,const char forma
     ierr = (*PetscVFPrintf)(fp,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
 
     petsc_printfqueuefile = fp;
-    if (petsc_history && (fp !=petsc_history)) {
+    if (petsc_history && (fp != petsc_history)) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,petsc_history_html,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   } else { /* other processors add to local queue */
@@ -539,9 +541,9 @@ PetscErrorCode  PetscFPrintf(MPI_Comm comm,FILE* fd,const char format[],...)
     va_list Argp;
     va_start(Argp,format);
     ierr = (*PetscVFPrintf)(fd,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
-    if (petsc_history && (fd !=petsc_history)) {
+    if (petsc_history && (fd != petsc_history)) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,petsc_history_html,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   }
@@ -585,7 +587,7 @@ PetscErrorCode  PetscPrintf(MPI_Comm comm,const char format[],...)
     ierr = (*PetscVFPrintf)(PETSC_STDOUT,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,petsc_history_html,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   }
@@ -627,7 +629,7 @@ PetscErrorCode  PetscHelpPrintfDefault(MPI_Comm comm,const char format[],...)
     ierr = (*PetscVFPrintf)(PETSC_STDOUT,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
     if (petsc_history) {
       va_start(Argp,format);
-      ierr = (*PetscVFPrintf)(petsc_history,PETSC_FALSE,format,Argp);CHKERRQ(ierr);
+      ierr = (*PetscVFPrintf)(petsc_history,petsc_history_html,format,Argp);CHKERRQ(ierr);
     }
     va_end(Argp);
   }
