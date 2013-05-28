@@ -86,10 +86,20 @@ PETSC_STATIC_INLINE const char *TikZColorMap(int cl)
 }
 
 /*
-     These macros transform from the users coordinates to the (0,0) -> (1,1) coordinate system
+     Transform from the users coordinates to the (0,0) -> (1,1) coordinate system
 */
-#define XTRANS(draw,x)  (double)(((draw)->port_xl + (((x - (draw)->coor_xl)*((draw)->port_xr - (draw)->port_xl))/((draw)->coor_xr - (draw)->coor_xl))))
-#define YTRANS(draw,y)  (double)(((draw)->port_yl + (((y - (draw)->coor_yl)*((draw)->port_yr - (draw)->port_yl))/((draw)->coor_yr - (draw)->coor_yl))))
+double XTRANS(PetscDraw draw,PetscReal x)
+{
+  double r = (double)(((draw)->port_xl + (((x - (draw)->coor_xl)*((draw)->port_xr - (draw)->port_xl))/((draw)->coor_xr - (draw)->coor_xl))));
+  if (r < 1.e-4) r = 0.0;
+  return r;
+}
+double YTRANS(PetscDraw draw,PetscReal y)
+{
+  double r =  (double)(((draw)->port_yl + (((y - (draw)->coor_yl)*((draw)->port_yr - (draw)->port_yl))/((draw)->coor_yr - (draw)->coor_yl))));
+  if (r < 1.e-4) r = 0.0;
+  return r;
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscDrawClear_TikZ"
@@ -99,7 +109,7 @@ PetscErrorCode PetscDrawClear_TikZ(PetscDraw draw)
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  /* often PETSc generates unneeded clears, we want avoid creating empy pictures for them */
+  /* often PETSc generates unneeded clears, we want to avoid creating empy pictures for them */
   if (!win->written) PetscFunctionReturn(0);
   ierr = PetscFPrintf(PetscObjectComm((PetscObject)draw),win->fd,TikZ_END_FRAME);CHKERRQ(ierr);
   ierr = PetscFPrintf(PetscObjectComm((PetscObject)draw),win->fd,TikZ_BEGIN_FRAME);CHKERRQ(ierr);
@@ -144,6 +154,24 @@ PetscErrorCode PetscDrawString_TikZ(PetscDraw draw,PetscReal xl,PetscReal yl,int
 }
 
 #undef __FUNCT__
+#define __FUNCT__ "PetscDrawStringVertical_TikZ"
+PetscErrorCode PetscDrawStringVertical_TikZ(PetscDraw draw,PetscReal xl,PetscReal yl,int cl,const char text[])
+{
+  PetscDraw_TikZ *win = (PetscDraw_TikZ*)draw->data;
+  PetscErrorCode ierr;
+
+  PetscFunctionBegin;
+  win->written = PETSC_TRUE;
+  if (!win->skipheader && !win->headerwritten) {
+    ierr = PetscFPrintf(PetscObjectComm((PetscObject)draw),win->fd,TikZ_BEGIN_DOCUMENT);CHKERRQ(ierr);
+    ierr = PetscFPrintf(PetscObjectComm((PetscObject)draw),win->fd,TikZ_BEGIN_FRAME);CHKERRQ(ierr);
+    win->headerwritten = PETSC_TRUE;
+  }
+  ierr = PetscFPrintf(PetscObjectComm((PetscObject)draw),win->fd,"\\node [above right, %s] at (%g,%g) {%s};\n",TikZColorMap(cl),XTRANS(draw,xl),YTRANS(draw,yl),text);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscDrawBoxedString_TikZ"
 /*
     Does not handle multiline strings correctly
@@ -167,6 +195,19 @@ PetscErrorCode PetscDrawBoxedString_TikZ(PetscDraw draw,PetscReal xl,PetscReal y
   ierr = PetscStrlen(text,&len);CHKERRQ(ierr);
   if (w) *w = .07*len;
   if (h) *h = .07;
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscDrawStringGetSize_TikZ"
+/*
+    No idea how to get string size
+*/
+PetscErrorCode PetscDrawStringGetSize_TikZ(PetscDraw draw,PetscReal *x,PetscReal  *y)
+{
+  PetscFunctionBegin;
+  if (x) *x = .015*(draw->coor_xr - draw->coor_xl)/(draw->port_xr - draw->port_xl);
+  if (y) *y = .035*(draw->coor_yr - draw->coor_yl)/(draw->port_yr - draw->port_yl);;
   PetscFunctionReturn(0);
 }
 
@@ -196,9 +237,9 @@ static struct _PetscDrawOps DvOps = { 0,
                                       0,
                                       0,
                                       PetscDrawString_TikZ,
+                                      PetscDrawStringVertical_TikZ,
                                       0,
-                                      0,
-                                      0,
+                                      PetscDrawStringGetSize_TikZ,
                                       0,
                                       PetscDrawClear_TikZ,
                                       0,
