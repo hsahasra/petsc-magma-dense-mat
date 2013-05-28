@@ -47,6 +47,7 @@ struct _PetscDrawOps {
   PetscErrorCode (*pixeltocoordinate)(PetscDraw,PetscInt,PetscInt,PetscReal*,PetscReal*);
   PetscErrorCode (*pointpixel)(PetscDraw,PetscInt,PetscInt,int);
   PetscErrorCode (*boxedstring)(PetscDraw,PetscReal,PetscReal,int,int,const char[],PetscReal*,PetscReal*);
+  PetscErrorCode (*setfromoptions)(PetscDraw);
 };
 
 struct _p_PetscDraw {

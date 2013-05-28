@@ -313,6 +313,10 @@ PetscErrorCode  PetscDrawSetFromOptions(PetscDraw draw)
   ierr = PetscOptionsGetReal(NULL,"-draw_pause",&dpause,&flg);CHKERRQ(ierr);
   if (flg) draw->pause = dpause;
 
+  if (draw->ops->setfromoptions) {
+    ierr = (*draw->ops->setfromoptions)(draw);CHKERRQ(ierr);
+  }
+
   /* process any options handlers added with PetscObjectAddOptionsHandler() */
   ierr = PetscObjectProcessOptionsHandlers((PetscObject)draw);CHKERRQ(ierr);
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
