@@ -1,5 +1,6 @@
 
 #include <petsc-private/viewerimpl.h>  /*I "petscviewer.h" I*/
+#include <petscviewerdraw.h>
 #if defined(PETSC_HAVE_AMS)
 #include <petscviewerams.h>
 #endif
@@ -29,7 +30,7 @@ PetscFunctionList PetscViewerList = 0;
 $       ascii[:[filename][:[format][:append]]]   defaults to stdout - format can be one of ascii_info, ascii_info_detail, or ascii_matlab, for example ascii::ascii_info prints just the info
 $                                     about the object to standard out - unless :append is given filename opens in write mode
 $       binary[:[filename][:[format][:append]]]   defaults to binaryoutput
-$       draw
+$       draw[:subtype]   defaults to X, can use draw:tikz
 $       socket[:port]                  defaults to the standard output port
 $       ams[:communicatorname]         publishes object to the AMS (Argonne Memory Snooper) 
 
@@ -111,6 +112,11 @@ PetscErrorCode  PetscOptionsGetViewer(MPI_Comm comm,const char pre[],const char 
         if (loc2_fmt && !*loc1_fname && (cnt == 0)) { /* ASCII format without file name */
           ierr = PetscViewerASCIIGetStdout(comm,viewer);CHKERRQ(ierr);
           ierr = PetscObjectReference((PetscObject)*viewer);CHKERRQ(ierr);
+        } else if (cnt == 2) { /* draw viewer with draw type   */
+          ierr = PetscViewerCreate(comm,viewer);CHKERRQ(ierr);
+          ierr = PetscViewerSetType(*viewer,PETSCVIEWERDRAW);CHKERRQ(ierr);
+          ierr = PetscViewerDrawSetDrawType(*viewer,loc1_fname);CHKERRQ(ierr);
+          ierr = PetscViewerSetFromOptions(*viewer);CHKERRQ(ierr);
         } else {
           PetscFileMode fmode;
           ierr = PetscViewerCreate(comm,viewer);CHKERRQ(ierr);

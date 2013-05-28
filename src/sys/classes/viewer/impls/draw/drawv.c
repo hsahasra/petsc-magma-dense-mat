@@ -3,6 +3,29 @@
 #include <petscviewer.h>                                /*I "petscviewer.h" I*/
 
 #undef __FUNCT__
+#define __FUNCT__ "PetscViewerDrawSetDrawType"
+/*@C
+     PetscViewerDrawSetDrawType - Sets the PetscDrawType that will be used in the PETSCVIEWERDRAW PetscViewer object.
+
+   Logically Collective on PetscViewer
+
+  Input Parameters:
++    v - the PETSCVIEWERDRAW PetscViewer
+-    type the PetscDrawType, for example, PETSCDRAWTIKZ
+
+@*/
+PetscErrorCode PetscViewerDrawSetDrawType(PetscViewer v,PetscDrawType type)
+{
+  PetscErrorCode   ierr;
+  PetscViewer_Draw *vdraw = (PetscViewer_Draw*)v->data;
+
+  PetscFunctionBegin;
+  ierr = PetscFree(vdraw->drawtype);CHKERRQ(ierr);
+ierr = PetscStrallocpy(type,(char**)&vdraw->drawtype);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
 #define __FUNCT__ "PetscViewerDestroy_Draw"
 PetscErrorCode PetscViewerDestroy_Draw(PetscViewer v)
 {
@@ -22,6 +45,7 @@ PetscErrorCode PetscViewerDestroy_Draw(PetscViewer v)
   ierr = PetscFree(vdraw->title);CHKERRQ(ierr);
   ierr = PetscFree3(vdraw->draw,vdraw->drawlg,vdraw->drawaxis);CHKERRQ(ierr);
   ierr = PetscFree(vdraw->bounds);CHKERRQ(ierr);
+  ierr = PetscFree(vdraw->drawtype);CHKERRQ(ierr);
   ierr = PetscFree(vdraw);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -108,6 +132,9 @@ PetscErrorCode  PetscViewerDrawGetDraw(PetscViewer viewer,PetscInt windownumber,
     }
     ierr = PetscDrawCreate(PetscObjectComm((PetscObject)viewer),vdraw->display,title,PETSC_DECIDE,PETSC_DECIDE,vdraw->w,vdraw->h,&vdraw->draw[windownumber]);CHKERRQ(ierr);
     ierr = PetscDrawSetPause(vdraw->draw[windownumber],vdraw->pause);CHKERRQ(ierr);
+    if (vdraw->drawtype) {
+      ierr = PetscDrawSetType(vdraw->draw[windownumber],vdraw->drawtype);CHKERRQ(ierr);
+    }
     ierr = PetscDrawSetFromOptions(vdraw->draw[windownumber]);CHKERRQ(ierr);
   }
   if (draw) *draw = vdraw->draw[windownumber];
