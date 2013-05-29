@@ -346,7 +346,7 @@ PetscErrorCode KSPView_CG(KSP ksp,PetscViewer viewer)
   PetscFunctionBegin;
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
-    ierr = PetscViewerASCIIPrintf(viewer,"  CG or CGNE: variant %s\n",KSPCGTypes[cg->type]);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  CG or CGNE: %H %s\n","KSPCGSetType","variant",KSPCGTypes[cg->type]);CHKERRQ(ierr);
   }
 #endif
   PetscFunctionReturn(0);

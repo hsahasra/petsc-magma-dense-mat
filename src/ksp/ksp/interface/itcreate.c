@@ -132,24 +132,24 @@ PetscErrorCode  KSPView(KSP ksp,PetscViewer viewer)
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
     }
     if (ksp->guess_zero) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  maximum iterations=%D, initial guess is zero\n",ksp->max_it);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D, \n","KSPSetTolerances","maximum iterations","KSPSetInitialGuessNonzero","initial guess is zero",ksp->max_it);CHKERRQ(ierr);
     } else {
-      ierr = PetscViewerASCIIPrintf(viewer,"  maximum iterations=%D\n", ksp->max_it);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","KSPSetTolerances","maximum iterations", ksp->max_it);CHKERRQ(ierr);
     }
-    if (ksp->guess_knoll) {ierr = PetscViewerASCIIPrintf(viewer,"  using preconditioner applied to right hand side for initial guess\n");CHKERRQ(ierr);}
-    ierr = PetscViewerASCIIPrintf(viewer,"  tolerances:  relative=%G, absolute=%G, divergence=%G\n",ksp->rtol,ksp->abstol,ksp->divtol);CHKERRQ(ierr);
+    if (ksp->guess_knoll) {ierr = PetscViewerASCIIPrintf(viewer," %H\n","KSPSetInitialGuessKnoll","using preconditioner applied to right hand side for initial guess");CHKERRQ(ierr);}
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H:  relative=%G, absolute=%G, divergence=%G\n","KSPSetTolerances","tolerances",ksp->rtol,ksp->abstol,ksp->divtol);CHKERRQ(ierr);
     if (ksp->pc_side == PC_RIGHT) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  right preconditioning\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H\n","KSPSetPCSide","right preconditioning");CHKERRQ(ierr);
     } else if (ksp->pc_side == PC_SYMMETRIC) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  symmetric preconditioning\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H\n","KSPSetPCSide","symmetric preconditioning");CHKERRQ(ierr);
     } else {
-      ierr = PetscViewerASCIIPrintf(viewer,"  left preconditioning\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  %H\n","KSPSetPCSide","left preconditioning");CHKERRQ(ierr);
     }
-    if (ksp->guess) {ierr = PetscViewerASCIIPrintf(viewer,"  using Fischers initial guess method %D with size %D\n",ksp->guess->method,ksp->guess->maxl);CHKERRQ(ierr);}
+    if (ksp->guess) {ierr = PetscViewerASCIIPrintf(viewer,"  %H %D with size %D\n","KSPSetUseFischerGuess","using Fischers initial guess method",ksp->guess->method,ksp->guess->maxl);CHKERRQ(ierr);}
     if (ksp->dscale) {ierr = PetscViewerASCIIPrintf(viewer,"  diagonally scaled system\n");CHKERRQ(ierr);}
     if (ksp->nullsp) {ierr = PetscViewerASCIIPrintf(viewer,"  has attached null space\n");CHKERRQ(ierr);}
-    if (!ksp->guess_zero) {ierr = PetscViewerASCIIPrintf(viewer,"  using nonzero initial guess\n");CHKERRQ(ierr);}
-    ierr = PetscViewerASCIIPrintf(viewer,"  using %s norm type for convergence test\n",KSPNormTypes[ksp->normtype]);CHKERRQ(ierr);
+    if (!ksp->guess_zero) {ierr = PetscViewerASCIIPrintf(viewer,"  %H\n","KSPSetInitialGuessNonzero","using nonzero initial guess");CHKERRQ(ierr);}
+    ierr = PetscViewerASCIIPrintf(viewer,"  using %s %H\n",KSPNormTypes[ksp->normtype],"KSPSetNormType","norm type for convergence test");CHKERRQ(ierr);
   } else if (isbinary) {
     PetscInt    classid = KSP_FILE_CLASSID;
     MPI_Comm    comm;

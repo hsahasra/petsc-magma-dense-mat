@@ -682,24 +682,24 @@ PetscErrorCode KSPView_AGMRES(KSP ksp,PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERSTRING,&isstring);CHKERRQ(ierr);
 
   if (iascii) {
-    ierr = PetscViewerASCIIPrintf(viewer, " AGMRES : restart=%d using %s\n", agmres->max_k, cstr);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, " AGMRES : %H=%d using %s\n", "KSPGMRESSetRestart","restart",agmres->max_k, cstr);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, " AGMRES : %s\n", Nstr);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer, " AGMRES: Number of matvecs : %D\n", agmres->matvecs);CHKERRQ(ierr);
     if (agmres->force) PetscViewerASCIIPrintf (viewer, " AGMRES: Adaptive strategy is used: FALSE\n");
     else PetscViewerASCIIPrintf(viewer, " AGMRES: Adaptive strategy is used: TRUE\n");
     if (agmres->DeflPrecond) {
-      ierr=PetscViewerASCIIPrintf(viewer, " AGMRES: STRATEGY OF DEFLATION: PRECONDITIONER \n");CHKERRQ(ierr);
-      ierr=PetscViewerASCIIPrintf(viewer, "  AGMRES: Frequency of extracted eigenvalues = %D\n", agmres->neig);CHKERRQ(ierr);
+      ierr=PetscViewerASCIIPrintf(viewer, " AGMRES: %H \n","KSPGMRESDeflPrecond","STRATEGY OF DEFLATION: PRECONDITIONER");CHKERRQ(ierr);
+      ierr=PetscViewerASCIIPrintf(viewer, "  AGMRES: %H = %D\n", "KSPDGMRESSetEigen","Frequency of extracted eigenvalues".agmres->neig);CHKERRQ(ierr);
       ierr=PetscViewerASCIIPrintf(viewer, "  AGMRES: Total number of extracted eigenvalues = %D\n", agmres->r);CHKERRQ(ierr);
-      ierr=PetscViewerASCIIPrintf(viewer, "  AGMRES: Maximum number of eigenvalues set to be extracted = %D\n", agmres->max_neig);CHKERRQ(ierr);
+      ierr=PetscViewerASCIIPrintf(viewer, "  AGMRES: %H = %D\n", "KSPDGMRESSetMaxEigen","Maximum number of eigenvalues set to be extracted",agmres->max_neig);CHKERRQ(ierr);
     } else {
       if (agmres->ritz) sprintf(ritzvec, "Ritz vectors");
       else sprintf(ritzvec, "Harmonic Ritz vectors");
       ierr = PetscViewerASCIIPrintf(viewer, " AGMRES: STRATEGY OF DEFLATION: AUGMENT\n");CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer," AGMRES: augmented vectors  %d at frequency %d with %s\n", agmres->r, agmres->neig, ritzvec);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer," AGMRES: augmented vectors  %d %H %d with %s\n", agmres->r, "KSPDGMRESSetEigen","at frequency",agmres->neig, ritzvec);CHKERRQ(ierr);
     }
-    ierr=PetscViewerASCIIPrintf(viewer, " AGMRES: Minimum relaxation parameter for the adaptive strategy(smv)  = %g\n", agmres->smv);
-    ierr=PetscViewerASCIIPrintf(viewer, " AGMRES: Maximum relaxation parameter for the adaptive strategy(bgv)  = %g\n", agmres->bgv);
+    ierr=PetscViewerASCIIPrintf(viewer, " AGMRES: %H for the adaptive strategy(smv)  = %g\n", "KSPGMRESSetMinRatio","Minimum relaxation parameter",agmres->smv);
+    ierr=PetscViewerASCIIPrintf(viewer, " AGMRES: %H for the adaptive strategy(bgv)  = %g\n", "KSPGMRESSetMaxRatio","Maximum relaxation parameter",agmres->bgv);
   } else if (isstring) {
     ierr = PetscViewerStringSPrintf(viewer,"%s restart %D",cstr,agmres->max_k);CHKERRQ(ierr);
   }

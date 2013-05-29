@@ -489,8 +489,8 @@ PetscErrorCode KSPView_BCGSL(KSP ksp, PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer, PETSCVIEWERASCII, &isascii);CHKERRQ(ierr);
 
   if (isascii) {
-    ierr = PetscViewerASCIIPrintf(viewer, "  BCGSL: Ell = %D\n", bcgsl->ell);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer, "  BCGSL: Delta = %lg\n", bcgsl->delta);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "  BCGSL: %H = %D\n", "KSPBCGSLSetEll","Ell",bcgsl->ell);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer, "  BCGSL: %H = %lg\n", "KSPBCGSLSetXRes","Delta",bcgsl->delta);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }

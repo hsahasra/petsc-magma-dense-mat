@@ -576,14 +576,14 @@ PetscErrorCode KSPView_Chebyshev(KSP ksp,PetscViewer viewer)
   PetscFunctionBegin;
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
-    ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: eigenvalue estimates:  min = %G, max = %G\n",cheb->emin,cheb->emax);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: %H:  min = %G, max = %G\n","KSPChebyshevSetEigenvalues","eigenvalue estimates",cheb->emin,cheb->emax);CHKERRQ(ierr);
     if (cheb->kspest) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: estimated using:  [%G %G; %G %G]\n",cheb->tform[0],cheb->tform[1],cheb->tform[2],cheb->tform[3]);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: %H:  [%G %G; %G %G]\n","KSPChebyshevSetEstimateEigenvalues","estimated using",cheb->tform[0],cheb->tform[1],cheb->tform[2],cheb->tform[3]);CHKERRQ(ierr);
       if (cheb->hybrid) { /* display info about hybrid options being used */
         ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: hybrid is used, eststeps %D, chebysteps %D, purification %D\n",cheb->eststeps,cheb->chebysteps,cheb->purification);CHKERRQ(ierr);
       }
       if (cheb->random) {
-        ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: estimating eigenvalues using random right hand side\n");CHKERRQ(ierr);
+        ierr = PetscViewerASCIIPrintf(viewer,"  Chebyshev: %H\n","KSPChebyshevEstEigSetRandom","estimating eigenvalues using random right hand side");CHKERRQ(ierr);
         ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
         ierr = PetscRandomView(cheb->random,viewer);CHKERRQ(ierr);
         ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);

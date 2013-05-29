@@ -698,9 +698,9 @@ PetscErrorCode KSPView_LGMRES(KSP ksp,PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     /*LGMRES_MOD */
-    ierr = PetscViewerASCIIPrintf(viewer,"  LGMRES: aug. dimension=%D\n",lgmres->aug_dim);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  LGMRES: %H=%D\n","KSPLGMRESSetAugDim","aug. dimension",lgmres->aug_dim);CHKERRQ(ierr);
     if (lgmres->approx_constant) {
-      ierr = PetscViewerASCIIPrintf(viewer,"  LGMRES: approx. space size was kept constant.\n");CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"  LGMRES: %H.\n","KSPLGMRESSetConstant","approx. space size was kept constant");CHKERRQ(ierr);
     }
     ierr = PetscViewerASCIIPrintf(viewer,"  LGMRES: number of matvecs=%D\n",lgmres->matvecs);CHKERRQ(ierr);
   }

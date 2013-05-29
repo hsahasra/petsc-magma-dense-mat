@@ -96,7 +96,7 @@ static PetscErrorCode KSPView_SpecEst(KSP ksp,PetscViewer viewer)
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerASCIIPrintf(viewer,"  SpecEst: last singular value estimate min=%G max=%G rad=%G\n",spec->min,spec->max,spec->radius);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  Using scaling factors min=%G max=%G rich=%G\n",spec->minfactor,spec->maxfactor,spec->richfactor);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  Using %H min=%G max=%G rich=%G\n","KSPSPECEST","scaling factors",spec->minfactor,spec->maxfactor,spec->richfactor);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"  Sub KSP used for estimating spectrum:\n");CHKERRQ(ierr);
     ierr = PetscViewerASCIIPushTab(viewer);CHKERRQ(ierr);
     ierr = KSPView(spec->kspest,viewer);CHKERRQ(ierr);
