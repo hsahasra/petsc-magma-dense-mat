@@ -664,7 +664,6 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
 
   PetscFunctionBegin;
   PetscValidHeaderSpecific(snes,SNES_CLASSID,1);
-
   if (!SNESRegisterAllCalled) {ierr = SNESRegisterAll();CHKERRQ(ierr);}
   ierr = PetscObjectOptionsBegin((PetscObject)snes);CHKERRQ(ierr);
   if (((PetscObject)snes)->type_name) deft = ((PetscObject)snes)->type_name;
@@ -809,8 +808,11 @@ PetscErrorCode  SNESSetFromOptions(SNES snes)
   flg  = PETSC_FALSE;
   ierr = PetscOptionsBool("-snes_fd_color","Use finite differences with coloring to compute Jacobian","SNESComputeJacobianDefaultColor",flg,&flg,NULL);CHKERRQ(ierr);
   if (flg) {
-    void *functx;
-    ierr = SNESGetFunction(snes,NULL,NULL,&functx);CHKERRQ(ierr);
+    DM             dm;
+    DMSNES         sdm;
+    ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
+    ierr = DMGetDMSNES(dm,&sdm);CHKERRQ(ierr);
+    sdm->jacobianctx = NULL;
     ierr = SNESSetJacobian(snes,snes->jacobian,snes->jacobian_pre,SNESComputeJacobianDefaultColor,0);CHKERRQ(ierr);
     ierr = PetscInfo(snes,"Setting default finite difference coloring Jacobian matrix\n");CHKERRQ(ierr);
   }
@@ -2505,7 +2507,7 @@ PetscErrorCode  SNESSetUp(SNES snes)
 
   if (!snes->vec_sol_update /* && snes->vec_sol */) {
     ierr = VecDuplicate(snes->vec_sol,&snes->vec_sol_update);CHKERRQ(ierr);
-    ierr = PetscLogObjectParent(snes,snes->vec_sol_update);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)snes,(PetscObject)snes->vec_sol_update);CHKERRQ(ierr);
   }
 
   ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
@@ -4422,7 +4424,7 @@ PetscErrorCode  SNESGetKSP(SNES snes,KSP *ksp)
   if (!snes->ksp) {
     ierr = KSPCreate(PetscObjectComm((PetscObject)snes),&snes->ksp);CHKERRQ(ierr);
     ierr = PetscObjectIncrementTabLevel((PetscObject)snes->ksp,(PetscObject)snes,1);CHKERRQ(ierr);
-    ierr = PetscLogObjectParent(snes,snes->ksp);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)snes,(PetscObject)snes->ksp);CHKERRQ(ierr);
 
     ierr = KSPSetPreSolve(snes->ksp,(PetscErrorCode (*)(KSP,Vec,Vec,void*))SNESKSPEW_PreSolve,snes);CHKERRQ(ierr);
     ierr = KSPSetPostSolve(snes->ksp,(PetscErrorCode (*)(KSP,Vec,Vec,void*))SNESKSPEW_PostSolve,snes);CHKERRQ(ierr);
@@ -4540,7 +4542,7 @@ PetscErrorCode SNESSetPC(SNES snes, SNES pc)
   ierr     = PetscObjectReference((PetscObject) pc);CHKERRQ(ierr);
   ierr     = SNESDestroy(&snes->pc);CHKERRQ(ierr);
   snes->pc = pc;
-  ierr     = PetscLogObjectParent(snes, snes->pc);CHKERRQ(ierr);
+  ierr     = PetscLogObjectParent((PetscObject)snes, (PetscObject)snes->pc);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -4573,7 +4575,7 @@ PetscErrorCode SNESGetPC(SNES snes, SNES *pc)
   if (!snes->pc) {
     ierr = SNESCreate(PetscObjectComm((PetscObject)snes),&snes->pc);CHKERRQ(ierr);
     ierr = PetscObjectIncrementTabLevel((PetscObject)snes->pc,(PetscObject)snes,1);CHKERRQ(ierr);
-    ierr = PetscLogObjectParent(snes,snes->pc);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)snes,(PetscObject)snes->pc);CHKERRQ(ierr);
     ierr = SNESGetOptionsPrefix(snes,&optionsprefix);CHKERRQ(ierr);
     ierr = SNESSetOptionsPrefix(snes->pc,optionsprefix);CHKERRQ(ierr);
     ierr = SNESAppendOptionsPrefix(snes->pc,"npc_");CHKERRQ(ierr);
@@ -4682,7 +4684,7 @@ PetscErrorCode SNESSetLineSearch(SNES snes, SNESLineSearch linesearch)
 
   snes->linesearch = linesearch;
 
-  ierr = PetscLogObjectParent(snes, snes->linesearch);CHKERRQ(ierr);
+  ierr = PetscLogObjectParent((PetscObject)snes, (PetscObject)snes->linesearch);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -4719,7 +4721,7 @@ PetscErrorCode SNESGetLineSearch(SNES snes, SNESLineSearch *linesearch)
     ierr = SNESLineSearchSetSNES(snes->linesearch, snes);CHKERRQ(ierr);
     ierr = SNESLineSearchAppendOptionsPrefix(snes->linesearch, optionsprefix);CHKERRQ(ierr);
     ierr = PetscObjectIncrementTabLevel((PetscObject) snes->linesearch, (PetscObject) snes, 1);CHKERRQ(ierr);
-    ierr = PetscLogObjectParent(snes, snes->linesearch);CHKERRQ(ierr);
+    ierr = PetscLogObjectParent((PetscObject)snes, (PetscObject)snes->linesearch);CHKERRQ(ierr);
   }
   *linesearch = snes->linesearch;
   PetscFunctionReturn(0);
