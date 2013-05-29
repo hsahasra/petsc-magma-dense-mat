@@ -51,6 +51,7 @@ PetscErrorCode PetscObjectPrintClassNamePrefixType(PetscObject obj,PetscViewer v
   PetscErrorCode ierr;
   MPI_Comm       comm;
   PetscMPIInt    size;
+  PetscLogDouble mem[2],pmem[2];
 
   PetscFunctionBegin;
   ierr = PetscViewerASCIIPrintf(viewer,"%H Object:",obj->class_name,obj->class_name);CHKERRQ(ierr);
@@ -63,6 +64,10 @@ PetscErrorCode PetscObjectPrintClassNamePrefixType(PetscObject obj,PetscViewer v
   ierr = PetscObjectGetComm(obj,&comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer," %d MPI processes\n",size);CHKERRQ(ierr);
+  mem[0] = obj->mem;
+  mem[1] = obj->memchildren;
+  ierr = MPI_Allreduce(mem,pmem,2,MPI_DOUBLE,MPI_SUM,PetscObjectComm((PetscObject)obj));CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"  Memory in object %g Memory in object descendants %g\n",pmem[0],pmem[1]);CHKERRQ(ierr);
   if (obj->type_name) {
     ierr = PetscViewerASCIIPrintf(viewer,"  type: %H\n",obj->type_name,obj->type_name);CHKERRQ(ierr);
   } else {
