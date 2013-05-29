@@ -754,9 +754,9 @@ PetscErrorCode SNESLineSearchView(SNESLineSearch linesearch, PetscViewer viewer)
       ierr = (*linesearch->ops->view)(linesearch,viewer);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPopTab(viewer);CHKERRQ(ierr);
     }
-    ierr = PetscViewerASCIIPrintf(viewer,"  maxstep=%e, minlambda=%e\n", (double)linesearch->maxstep,(double)linesearch->steptol);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  tolerances: relative=%e, absolute=%e, lambda=%e\n", (double)linesearch->rtol,(double)linesearch->atol,(double)linesearch->ltol);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"  maximum iterations=%D\n", linesearch->max_its);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H=%e, minlambda=%e\n","SNESLineSearchSetTolerances","maxstep",(double)linesearch->maxstep,(double)linesearch->steptol);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H: relative=%e, absolute=%e, lambda=%e\n","SNESLineSearchSetTolerances","tolerances",(double)linesearch->rtol,(double)linesearch->atol,(double)linesearch->ltol);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"  %H=%D\n","SNESLineSearchSetTolerances","maximum iterations",linesearch->max_its);CHKERRQ(ierr);
     if (linesearch->ops->precheck) {
       if (linesearch->ops->precheck == SNESLineSearchPreCheckPicard) {
         ierr = PetscViewerASCIIPrintf(viewer,"  using precheck step to speed up Picard convergence\n", linesearch->max_its);CHKERRQ(ierr);
