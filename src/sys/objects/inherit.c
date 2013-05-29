@@ -316,7 +316,7 @@ PetscErrorCode  PetscObjectsDump(FILE *fd,PetscBool all)
 #if defined(PETSC_USE_DEBUG)
         ierr = PetscMallocGetStack(h,&stack);CHKERRQ(ierr);
         for (j=k; j>=0; j--) {
-          fprintf(fd,"      [%d]  %s() in %s%s\n",PetscGlobalRank,stack->function[j],stack->directory[j],stack->file[j]);
+          fprintf(fd,"      [%d]  %s() in %s\n",PetscGlobalRank,stack->function[j],stack->file[j]);
         }
 #endif
         }
