@@ -102,24 +102,37 @@ PetscErrorCode PetscSSLDestroyContext(SSL_CTX *ctx)
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscHTTPSRequest"
-static PetscErrorCode PetscHTTPSRequest(const char header[],const char body[],SSL *ssl,char buff[],size_t buffsize)
+static PetscErrorCode PetscHTTPSRequest(const char header[],const char ctype[],const char body[],SSL *ssl,char buff[],size_t buffsize)
 {
   char           *request=0;
-  char           contentlength[40];
+  char           contentlength[40],contenttype[80];
   int            r;
-  size_t         request_len,len,headlen,bodylen,contentlen;
+  size_t         request_len,len,headlen,bodylen,contentlen,contenttypelen = 0;
   PetscErrorCode ierr;
+  PetscBool      flg1,flg2;
 
   PetscFunctionBegin;
+  ierr = PetscStrbeginswith(header,"POST https://",&flg1);CHKERRQ(ierr);
+  ierr = PetscStrbeginswith(header,"GET https://",&flg2);CHKERRQ(ierr);
+  if (!flg1 && !flg2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must begin with POST https:// or GET https://");
+  ierr = PetscStrendswith(header,"\r\n",&flg1);CHKERRQ(ierr);
+  if (!flg1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must end with \\r\\n");
+  if (ctype) {
+    ierr = PetscSNPrintf(contenttype,80,"Content-Type: %s\r\n",ctype);CHKERRQ(ierr);
+    ierr = PetscStrlen(contenttype,&contenttypelen);CHKERRQ(ierr);
+  }
   ierr = PetscStrlen(header,&headlen);CHKERRQ(ierr);
   ierr = PetscStrlen(body,&bodylen);CHKERRQ(ierr);
   ierr = PetscSNPrintf(contentlength,40,"Content-Length: %d\r\n\r\n",(int)bodylen);CHKERRQ(ierr);
   ierr = PetscStrlen(contentlength,&contentlen);CHKERRQ(ierr);
 
   /* Now construct our HTTP request */
-  request_len = headlen + bodylen + contentlen + 1;
+  request_len = headlen + contenttypelen + contentlen + bodylen + 1;
   ierr = PetscMalloc(request_len*sizeof(char),&request);CHKERRQ(ierr);
   ierr = PetscStrcpy(request,header);CHKERRQ(ierr);
+  if (ctype) {
+    ierr = PetscStrcat(request,contenttype);CHKERRQ(ierr);
+  }
   ierr = PetscStrcat(request,contentlength);CHKERRQ(ierr);
   ierr = PetscStrcat(request,body);CHKERRQ(ierr);
   ierr = PetscStrlen(request,&request_len);CHKERRQ(ierr);
@@ -204,7 +217,7 @@ PetscErrorCode PetscURLShorten(const char url[],char shorturl[],size_t lenshortu
   ierr = PetscSSLInitializeContext(&ctx);CHKERRQ(ierr);
   ierr = PetscHTTPSConnect("www.googleapis.com",443,ctx,&sock,&ssl);CHKERRQ(ierr);
   ierr = PetscSNPrintf(body,512,"{\"longUrl\": \"%s\"}",url);CHKERRQ(ierr);
-  ierr = PetscHTTPSRequest("POST https://www.googleapis.com/urlshortener/v1/url HTTP/1.0\r\nUser-Agent:PETScClient\r\nContent-type: application/json\r\n",body,ssl,buff,1024);CHKERRQ(ierr);
+  ierr = PetscHTTPSRequest("POST https://www.googleapis.com/urlshortener/v1/url HTTP/1.0\r\nUser-Agent:PETScClient\r\n","application/json",body,ssl,buff,1024);CHKERRQ(ierr);
   PetscSSLDestroyContext(ctx);
   close(sock);
   ierr = PetscInfo1(NULL,"Response from Google shortener %s\n",buff);
