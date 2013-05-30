@@ -21,7 +21,7 @@ petscwebclient2: petscwebclient2.o  chkopts
 	${CLINKER} -o petscwebclient2 petscwebclient2.o ${PETSC_SYS_LIB} -lssl -lcrypto
 	${RM} -f petscwebclient2.o
 
-googledriveauthorize: .o  chkopts
+googledriveauthorize: googledriveauthorize.o  chkopts
 	${CLINKER} -o googledriveauthorize googledriveauthorize.o ${PETSC_SYS_LIB} -lssl -lcrypto
 	${RM} -f googledriveauthorize.o
 

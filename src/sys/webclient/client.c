@@ -102,21 +102,40 @@ PetscErrorCode PetscSSLDestroyContext(SSL_CTX *ctx)
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscHTTPSRequest"
-static PetscErrorCode PetscHTTPSRequest(const char header[],const char ctype[],const char body[],SSL *ssl,char buff[],size_t buffsize)
+/*
+     PetscHTTPSRequest - Send a request to an HTTPS server
+
+   Input Parameters:
++   type - either "POST" or "GET"
+.   url - complete URL of request including https://
+.   header - additional header information, may be NULL
+.   ctype - data type of body, for example application/json
+.   body - data to send to server
+.   ssl - obtained with PetscHTTPSConnect()
+-   buffsize - size of buffer
+
+   Output Parameter:
+.   buff - everything returned from server
+ */
+static PetscErrorCode PetscHTTPSRequest(const char type[],const char url[],const char header[],const char ctype[],const char body[],SSL *ssl,char buff[],size_t buffsize)
 {
   char           *request=0;
   char           contentlength[40],contenttype[80];
   int            r;
-  size_t         request_len,len,headlen,bodylen,contentlen,contenttypelen = 0;
+  size_t         request_len,len,headlen,bodylen,contentlen,urllen,typelen,contenttypelen = 0;
   PetscErrorCode ierr;
-  PetscBool      flg1,flg2;
+  PetscBool      flg;
 
   PetscFunctionBegin;
-  ierr = PetscStrbeginswith(header,"POST https://",&flg1);CHKERRQ(ierr);
-  ierr = PetscStrbeginswith(header,"GET https://",&flg2);CHKERRQ(ierr);
-  if (!flg1 && !flg2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must begin with POST https:// or GET https://");
-  ierr = PetscStrendswith(header,"\r\n",&flg1);CHKERRQ(ierr);
-  if (!flg1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must end with \\r\\n");
+  ierr = PetscStrbeginswith(url,"https://",&flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"URL must begin with https://");
+  if (header) {
+    ierr = PetscStrendswith(header,"\r\n",&flg);CHKERRQ(ierr);
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must end with \\r\\n");
+  }
+
+  ierr = PetscStrlen(type,&typelen);CHKERRQ(ierr);
+  ierr = PetscStrlen(url,&urllen);CHKERRQ(ierr);
   if (ctype) {
     ierr = PetscSNPrintf(contenttype,80,"Content-Type: %s\r\n",ctype);CHKERRQ(ierr);
     ierr = PetscStrlen(contenttype,&contenttypelen);CHKERRQ(ierr);
@@ -127,16 +146,20 @@ static PetscErrorCode PetscHTTPSRequest(const char header[],const char ctype[],c
   ierr = PetscStrlen(contentlength,&contentlen);CHKERRQ(ierr);
 
   /* Now construct our HTTP request */
-  request_len = headlen + contenttypelen + contentlen + bodylen + 1;
+  request_len = typelen + 1 + urllen + 35 + headlen + contenttypelen + contentlen + bodylen + 1;
   ierr = PetscMalloc(request_len*sizeof(char),&request);CHKERRQ(ierr);
-  ierr = PetscStrcpy(request,header);CHKERRQ(ierr);
+  ierr = PetscStrcpy(request,type);CHKERRQ(ierr);
+  ierr = PetscStrcat(request," ");CHKERRQ(ierr);
+  ierr = PetscStrcat(request,url);CHKERRQ(ierr);
+  ierr = PetscStrcat(request," HTTP/1.1\r\nUser-Agent:PETScClient\r\n");CHKERRQ(ierr);
+  ierr = PetscStrcat(request,header);CHKERRQ(ierr);
   if (ctype) {
     ierr = PetscStrcat(request,contenttype);CHKERRQ(ierr);
   }
   ierr = PetscStrcat(request,contentlength);CHKERRQ(ierr);
   ierr = PetscStrcat(request,body);CHKERRQ(ierr);
   ierr = PetscStrlen(request,&request_len);CHKERRQ(ierr);
-  ierr = PetscInfo1(NULL,"HTTPS request: %s\n",request);CHKERRQ(ierr);
+  ierr = PetscInfo1(NULL,"HTTPS request follows: \n%s\n",request);CHKERRQ(ierr);
 
   r = SSL_write(ssl,request,request_len);
   switch (SSL_get_error(ssl,r)){
@@ -148,29 +171,25 @@ static PetscErrorCode PetscHTTPSRequest(const char header[],const char ctype[],c
   }
 
   /* Now read the server's response, assuming  that it's terminated by a close */
-  while (1){
-    r = SSL_read(ssl,buff,(int)buffsize);
-    switch (SSL_get_error(ssl,r)){
-      case SSL_ERROR_NONE:
-        len = r;
-        break;
-      case SSL_ERROR_ZERO_RETURN:
-        goto shutdown;
-      case SSL_ERROR_SYSCALL:
-        goto done;
-      default:
-        SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"SSL read problem");
-    }
-    buff[len] = 0; /* null terminate string */
-  }
-
-  shutdown:
+  r = SSL_read(ssl,buff,(int)buffsize);
+  len = r;
+  switch (SSL_get_error(ssl,r)){
+  case SSL_ERROR_NONE:
+    break;
+  case SSL_ERROR_ZERO_RETURN:
     SSL_shutdown(ssl);  /* ignore shutdown error message */
+    break;
+  case SSL_ERROR_SYSCALL:
+    break;
+  default:
+    SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"SSL read problem");
+  }
+  buff[len] = 0; /* null terminate string */
+  ierr = PetscInfo1(NULL,"HTTPS result follows: \n%s\n",buff);CHKERRQ(ierr);
 
-  done:
-    SSL_free(ssl);
-    ierr = PetscFree(request);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
+  SSL_free(ssl);
+  ierr = PetscFree(request);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
@@ -191,6 +210,191 @@ PetscErrorCode PetscHTTPSConnect(const char host[],int port,SSL_CTX *ctx,int *so
   if (SSL_connect(*ssl) <= 0) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"SSL connect error");
   PetscFunctionReturn(0);
 }
+
+/*
+    This file is not included in the respository since it contains authorization secrets
+*/
+#include <../src/sys/webclient/authorization.h>
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscGoogleDriveRefresh"
+/*C
+     PetscGoogleDriveRefresh - Get a new authorization token for accessing Google drive from PETSc from a refresh token
+
+
+*/
+PetscErrorCode PetscGoogleDriveRefresh(MPI_Comm comm,const char refresh_token[],char access_token[],size_t tokensize)
+{
+  SSL_CTX        *ctx;
+  SSL            *ssl;
+  int            sock;
+  PetscErrorCode ierr;
+  char           buff[8*1024],body[1024],*access,*ctmp;
+  PetscMPIInt    rank;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = PetscSSLInitializeContext(&ctx);CHKERRQ(ierr);
+    ierr = PetscHTTPSConnect("accounts.google.com",443,ctx,&sock,&ssl);CHKERRQ(ierr);
+    ierr = PetscStrcpy(body,"&client_id=");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,PETSC_CLIENT_ID);CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"&client_secret=");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,PETSC_CLIENT_SECRET);CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"&refresh_token=");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,refresh_token);CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"&grant_type=refresh_token");CHKERRQ(ierr);
+
+    ierr = PetscHTTPSRequest("POST","https://accounts.google.com/o/oauth2/token",NULL,"application/x-www-form-urlencoded",body,ssl,buff,sizeof(buff));CHKERRQ(ierr);
+    ierr = PetscSSLDestroyContext(ctx);CHKERRQ(ierr);
+    close(sock);
+
+    ierr   = PetscStrstr(buff,"\"access_token\" : \"",&access);CHKERRQ(ierr);
+    if (!access) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Did not receive access token from Google");
+    access += 18;
+    ierr   = PetscStrchr(access,'\"',&ctmp);CHKERRQ(ierr);
+    if (!ctmp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Access token from Google is misformed");
+    *ctmp  = 0;
+    ierr   = PetscStrncpy(access_token,access,tokensize);CHKERRQ(ierr);
+    *ctmp  = '\"';
+  }
+  PetscFunctionReturn(0);
+}
+
+#include <sys/stat.h>
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscGoogleDriveUpload"
+/*C
+     PetscGoogleDriveUpload - Loads a file to the google drive
+
+
+*/
+PetscErrorCode PetscGoogleDriveUpload(MPI_Comm comm,const char access_token[],const char filename[])
+{
+  SSL_CTX        *ctx;
+  SSL            *ssl;
+  int            sock;
+  PetscErrorCode ierr;
+  char           head[1024],buff[8*1024],*body,*title;
+  PetscMPIInt    rank;
+  struct stat    sb;
+  size_t         len,blen,rd;
+  FILE           *fd;
+
+  PetscFunctionBegin;
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  if (!rank) {
+    ierr = PetscStrcpy(head,"Authorization: Bearer ");CHKERRQ(ierr);
+    ierr = PetscStrcat(head,access_token);CHKERRQ(ierr);
+    ierr = PetscStrcat(head,"\r\n");CHKERRQ(ierr);
+    ierr = PetscStrcat(head,"uploadType: multipart\r\n");CHKERRQ(ierr);
+
+    ierr = stat(filename,&sb);
+    if (ierr) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to stat file: %s",filename);
+    len = 1024 + sb.st_size;
+    ierr = PetscMalloc(len*sizeof(char),&body);CHKERRQ(ierr);
+    ierr = PetscStrcpy(body,"--foo_bar_baz\r\n"
+                         "Content-Type: application/json\r\n\r\n"
+                         "{"
+                         "\"title\": \"");
+    ierr = PetscStrcat(body,filename);
+    ierr = PetscStrcat(body,"\","
+                         "\"mimeType\": \"text.html\","
+                         "\"description\": \" a file\""
+                         "}\r\n\r\n"
+                         "--foo_bar_baz\r\n"
+                         "Content-Type: text/html\r\n\r\n");
+    ierr = PetscStrlen(body,&blen);CHKERRQ(ierr);
+    fd = fopen (filename, "r");
+    if (!fd) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to open file: %s",filename);
+    rd = fread (body+blen, sizeof (unsigned char), sb.st_size, fd);
+    if (rd != sb.st_size) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_FILE_OPEN,"Unable to read entire file: %s %d %d",filename,(int)rd,sb.st_size);
+    fclose(fd);
+    body[blen + rd] = 0;
+    ierr = PetscStrcat(body,"\r\n\r\n"
+                            "--foo_bar_baz\r\n");
+    ierr = PetscSSLInitializeContext(&ctx);CHKERRQ(ierr);
+    ierr = PetscHTTPSConnect("www.googleapis.com",443,ctx,&sock,&ssl);CHKERRQ(ierr);
+    ierr = PetscHTTPSRequest("POST","https://www.googleapis.com/upload/drive/v2/files/",head,"multipart/related; boundary=\"foo_bar_baz\"",body,ssl,buff,sizeof(buff));CHKERRQ(ierr);
+    ierr = PetscSSLDestroyContext(ctx);CHKERRQ(ierr);
+    close(sock);
+    ierr   = PetscStrstr(buff,"\"title\"",&title);CHKERRQ(ierr);
+    if (!title) SETERRQ1(PETSC_COMM_SELF,PETSC_ERR_LIB,"Upload of file %s failed",filename);
+  }
+  PetscFunctionReturn(0);
+}
+
+
+#undef __FUNCT__
+#define __FUNCT__ "PetscGoogleDriveAuthorize"
+/*C
+     PetscGoogleDriveAuthorize - Get authorization and refresh token for accessing Google drive from PETSc
+
+
+*/
+PetscErrorCode PetscGoogleDriveAuthorize(MPI_Comm comm,char access_token[],char refresh_token[],size_t tokensize)
+{
+  SSL_CTX        *ctx;
+  SSL            *ssl;
+  int            sock;
+  PetscErrorCode ierr;
+  char           buff[8*1024],*ptr,body[1024],*access,*refresh,*ctmp;
+  PetscMPIInt    rank;
+  size_t         len;
+
+  PetscFunctionBegin;
+  ierr = PetscPrintf(comm,"Cut and paste the following into your browser:\n"
+                          "https://accounts.google.com/o/oauth2/auth?"
+                          "scope=https%%3A%%2F%%2Fwww.googleapis.com%%2Fauth%%2Fdrive.file&"
+                          "redirect_uri=urn:ietf:wg:oauth:2.0:oob&"
+                          "response_type=code&"
+                          "client_id="
+                          PETSC_CLIENT_ID
+                          "\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(comm,"Paste the result here:");CHKERRQ(ierr);
+  ierr = MPI_Comm_rank(comm,&rank);CHKERRQ(ierr);
+  if (!rank) {
+    ptr  = fgets(buff, 1024, stdin);
+    if (!ptr) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_READ, "Error reading from stdin: %d", errno);
+    ierr = PetscStrlen(buff,&len);CHKERRQ(ierr);
+    buff[len-1] = 0; /* remove carriage return at end of line */
+
+    ierr = PetscSSLInitializeContext(&ctx);CHKERRQ(ierr);
+    ierr = PetscHTTPSConnect("accounts.google.com",443,ctx,&sock,&ssl);CHKERRQ(ierr);
+    ierr = PetscStrcpy(body,"code=");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,buff);CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"&client_id=");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,PETSC_CLIENT_ID);CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"&client_secret=");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,PETSC_CLIENT_SECRET);CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"&redirect_uri=urn:ietf:wg:oauth:2.0:oob&");CHKERRQ(ierr);
+    ierr = PetscStrcat(body,"grant_type=authorization_code");CHKERRQ(ierr);
+
+    ierr = PetscHTTPSRequest("POST","https://accounts.google.com/o/oauth2/token",NULL,"application/x-www-form-urlencoded",body,ssl,buff,sizeof(buff));CHKERRQ(ierr);
+    ierr = PetscSSLDestroyContext(ctx);CHKERRQ(ierr);
+    close(sock);
+
+    ierr   = PetscStrstr(buff,"\"access_token\" : \"",&access);CHKERRQ(ierr);
+    if (!access) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Did not receive access token from Google");
+    access += 18;
+    ierr   = PetscStrchr(access,'\"',&ctmp);CHKERRQ(ierr);
+    if (!ctmp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Access token from Google is misformed");
+    *ctmp  = 0;
+    ierr   = PetscStrncpy(access_token,access,tokensize);CHKERRQ(ierr);
+    *ctmp  = '\"';
+
+    ierr   = PetscStrstr(buff,"\"refresh_token\" : \"",&refresh);CHKERRQ(ierr);
+    if (!refresh) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Did not receive refresh token from Google");
+    refresh += 19;
+    ierr   = PetscStrchr(refresh,'\"',&ctmp);CHKERRQ(ierr);
+    if (!ctmp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Refresh token from Google is misformed");
+    *ctmp  = 0;
+    ierr = PetscStrncpy(refresh_token,refresh,tokensize);CHKERRQ(ierr);
+  }
+  PetscFunctionReturn(0);
+}
+
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscURLShorten"
@@ -217,10 +421,9 @@ PetscErrorCode PetscURLShorten(const char url[],char shorturl[],size_t lenshortu
   ierr = PetscSSLInitializeContext(&ctx);CHKERRQ(ierr);
   ierr = PetscHTTPSConnect("www.googleapis.com",443,ctx,&sock,&ssl);CHKERRQ(ierr);
   ierr = PetscSNPrintf(body,512,"{\"longUrl\": \"%s\"}",url);CHKERRQ(ierr);
-  ierr = PetscHTTPSRequest("POST https://www.googleapis.com/urlshortener/v1/url HTTP/1.0\r\nUser-Agent:PETScClient\r\n","application/json",body,ssl,buff,1024);CHKERRQ(ierr);
-  PetscSSLDestroyContext(ctx);
+  ierr = PetscHTTPSRequest("POST","https://www.googleapis.com/urlshortener/v1/url",NULL,"application/json",body,ssl,buff,sizeof(buff));CHKERRQ(ierr);
+  ierr = PetscSSLDestroyContext(ctx);CHKERRQ(ierr);
   close(sock);
-  ierr = PetscInfo1(NULL,"Response from Google shortener %s\n",buff);
   ierr = PetscStrstr(buff,"\"id\": \"",&sub1);CHKERRQ(ierr);
   if (sub1) {
     sub1 += 7;
@@ -231,5 +434,4 @@ PetscErrorCode PetscURLShorten(const char url[],char shorturl[],size_t lenshortu
   } else SETERRQ(PETSC_COMM_SELF,PETSC_ERR_LIB,"Google did not shorten URL");
   PetscFunctionReturn(0);
 }
-
 
