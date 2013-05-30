@@ -102,21 +102,40 @@ PetscErrorCode PetscSSLDestroyContext(SSL_CTX *ctx)
 
 #undef __FUNCT__
 #define __FUNCT__ "PetscHTTPSRequest"
-static PetscErrorCode PetscHTTPSRequest(const char header[],const char ctype[],const char body[],SSL *ssl,char buff[],size_t buffsize)
+/*
+     PetscHTTPSRequest - Send a request to an HTTPS server
+
+   Input Parameters:
++   type - either "POST" or "GET"
+.   url - complete URL of request including https://
+.   header - additional header information, may be NULL
+.   ctype - data type of body, for example application/json
+.   body - data to send to server
+.   ssl - obtained with PetscHTTPSConnect()
+-   buffsize - size of buffer
+
+   Output Parameter:
+.   buff - everything returned from server
+ */
+static PetscErrorCode PetscHTTPSRequest(const char type[],const char url[],const char header[],const char ctype[],const char body[],SSL *ssl,char buff[],size_t buffsize)
 {
   char           *request=0;
   char           contentlength[40],contenttype[80];
   int            r;
-  size_t         request_len,len,headlen,bodylen,contentlen,contenttypelen = 0;
+  size_t         request_len,len,headlen,bodylen,contentlen,urllen,typelen,contenttypelen = 0;
   PetscErrorCode ierr;
-  PetscBool      flg1,flg2;
+  PetscBool      flg;
 
   PetscFunctionBegin;
-  ierr = PetscStrbeginswith(header,"POST https://",&flg1);CHKERRQ(ierr);
-  ierr = PetscStrbeginswith(header,"GET https://",&flg2);CHKERRQ(ierr);
-  if (!flg1 && !flg2) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must begin with POST https:// or GET https://");
-  ierr = PetscStrendswith(header,"\r\n",&flg1);CHKERRQ(ierr);
-  if (!flg1) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must end with \\r\\n");
+  ierr = PetscStrbeginswith(url,"https://",&flg);CHKERRQ(ierr);
+  if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"URL must begin with https://");
+  if (header) {
+    ierr = PetscStrendswith(header,"\r\n",&flg);CHKERRQ(ierr);
+    if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"header must end with \\r\\n");
+  }
+
+  ierr = PetscStrlen(type,&typelen);CHKERRQ(ierr);
+  ierr = PetscStrlen(url,&urllen);CHKERRQ(ierr);
   if (ctype) {
     ierr = PetscSNPrintf(contenttype,80,"Content-Type: %s\r\n",ctype);CHKERRQ(ierr);
     ierr = PetscStrlen(contenttype,&contenttypelen);CHKERRQ(ierr);
@@ -127,16 +146,20 @@ static PetscErrorCode PetscHTTPSRequest(const char header[],const char ctype[],c
   ierr = PetscStrlen(contentlength,&contentlen);CHKERRQ(ierr);
 
   /* Now construct our HTTP request */
-  request_len = headlen + contenttypelen + contentlen + bodylen + 1;
+  request_len = typelen + 1 + urllen + 35 + headlen + contenttypelen + contentlen + bodylen + 1;
   ierr = PetscMalloc(request_len*sizeof(char),&request);CHKERRQ(ierr);
-  ierr = PetscStrcpy(request,header);CHKERRQ(ierr);
+  ierr = PetscStrcpy(request,type);CHKERRQ(ierr);
+  ierr = PetscStrcat(request," ");CHKERRQ(ierr);
+  ierr = PetscStrcat(request,url);CHKERRQ(ierr);
+  ierr = PetscStrcat(request," HTTP/1.0\r\nUser-Agent:PETScClient\r\n");CHKERRQ(ierr);
+  ierr = PetscStrcat(request,header);CHKERRQ(ierr);
   if (ctype) {
     ierr = PetscStrcat(request,contenttype);CHKERRQ(ierr);
   }
   ierr = PetscStrcat(request,contentlength);CHKERRQ(ierr);
   ierr = PetscStrcat(request,body);CHKERRQ(ierr);
   ierr = PetscStrlen(request,&request_len);CHKERRQ(ierr);
-  ierr = PetscInfo1(NULL,"HTTPS request: %s\n",request);CHKERRQ(ierr);
+  ierr = PetscInfo1(NULL,"HTTPS request follows: \n%s\n",request);CHKERRQ(ierr);
 
   r = SSL_write(ssl,request,request_len);
   switch (SSL_get_error(ssl,r)){
@@ -217,7 +240,7 @@ PetscErrorCode PetscURLShorten(const char url[],char shorturl[],size_t lenshortu
   ierr = PetscSSLInitializeContext(&ctx);CHKERRQ(ierr);
   ierr = PetscHTTPSConnect("www.googleapis.com",443,ctx,&sock,&ssl);CHKERRQ(ierr);
   ierr = PetscSNPrintf(body,512,"{\"longUrl\": \"%s\"}",url);CHKERRQ(ierr);
-  ierr = PetscHTTPSRequest("POST https://www.googleapis.com/urlshortener/v1/url HTTP/1.0\r\nUser-Agent:PETScClient\r\n","application/json",body,ssl,buff,1024);CHKERRQ(ierr);
+  ierr = PetscHTTPSRequest("POST","https://www.googleapis.com/urlshortener/v1/url",NULL,"application/json",body,ssl,buff,1024);CHKERRQ(ierr);
   PetscSSLDestroyContext(ctx);
   close(sock);
   ierr = PetscInfo1(NULL,"Response from Google shortener %s\n",buff);
