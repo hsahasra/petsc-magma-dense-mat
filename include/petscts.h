@@ -13,18 +13,16 @@
 
   Concepts: ODE solvers
 
-.seealso:  TSCreate(), TSSetType(), TSType, SNES, KSP, PC
+.seealso:  TSCreate(), TSSetType(), TSType, SNES, KSP, PC, TSDestroy()
 S*/
 typedef struct _p_TS* TS;
 
 /*J
-    TSType - String with the name of a PETSc TS method or the creation function
-       with an optional dynamic library name, for example
-       http://www.mcs.anl.gov/petsc/lib.a:mytscreate()
+    TSType - String with the name of a PETSc TS method.
 
    Level: beginner
 
-.seealso: TSSetType(), TS
+.seealso: TSSetType(), TS, TSRegister()
 J*/
 typedef const char* TSType;
 #define TSEULER           "euler"
@@ -236,6 +234,7 @@ PETSC_EXTERN PetscErrorCode TSSetRHSFunction(TS,Vec,TSRHSFunction,void*);
 PETSC_EXTERN PetscErrorCode TSGetRHSFunction(TS,Vec*,TSRHSFunction*,void**);
 PETSC_EXTERN PetscErrorCode TSSetRHSJacobian(TS,Mat,Mat,TSRHSJacobian,void*);
 PETSC_EXTERN PetscErrorCode TSGetRHSJacobian(TS,Mat*,Mat*,TSRHSJacobian*,void**);
+PETSC_EXTERN PetscErrorCode TSRHSJacobianSetReuse(TS,PetscBool);
 
 PETSC_EXTERN_TYPEDEF typedef PetscErrorCode (*TSSolutionFunction)(TS,PetscReal,Vec,void*);
 PETSC_EXTERN PetscErrorCode TSSetSolutionFunction(TS,TSSolutionFunction,void*);
@@ -388,9 +387,7 @@ S*/
 typedef struct _p_TSAdapt *TSAdapt;
 
 /*E
-    TSAdaptType - String with the name of TSAdapt scheme or the creation function
-       with an optional dynamic library name, for example
-       http://www.mcs.anl.gov/petsc/lib.a:mytsgladaptcreate()
+    TSAdaptType - String with the name of TSAdapt scheme.
 
    Level: beginner
 
@@ -435,9 +432,7 @@ S*/
 typedef struct _p_TSGLAdapt *TSGLAdapt;
 
 /*J
-    TSGLAdaptType - String with the name of TSGLAdapt scheme or the creation function
-       with an optional dynamic library name, for example
-       http://www.mcs.anl.gov/petsc/lib.a:mytsgladaptcreate()
+    TSGLAdaptType - String with the name of TSGLAdapt scheme
 
    Level: beginner
 
@@ -461,9 +456,7 @@ PETSC_EXTERN PetscErrorCode TSGLAdaptSetFromOptions(TSGLAdapt);
 PETSC_EXTERN PetscErrorCode TSGLAdaptDestroy(TSGLAdapt*);
 
 /*J
-    TSGLAcceptType - String with the name of TSGLAccept scheme or the function
-       with an optional dynamic library name, for example
-       http://www.mcs.anl.gov/petsc/lib.a:mytsglaccept()
+    TSGLAcceptType - String with the name of TSGLAccept scheme
 
    Level: beginner
 
