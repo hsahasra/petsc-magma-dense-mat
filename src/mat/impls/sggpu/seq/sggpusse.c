@@ -20,6 +20,52 @@
 #define _TIME 0
 #define _PRINT_UPDATE_RESULT 0
 
+#define LOAD_TRI_MATRIX4(hd,offset) \
+  mc0 = _mm_loadu_pd( hd + offset );		\
+  mc1 = _mm_loadu_pd( hd + offset + 2 );	\
+  mc2 = _mm_loadu_pd( hd + offset + 4 );	\
+  mc3 = _mm_loadu_pd( hd + offset + 6 );	\
+  mc4 = _mm_loadu_pd( hd + offset + 8 );	\
+  mc5 = _mm_loadu_pd( hd + offset + 10 );	\
+  mc6 = _mm_loadu_pd( hd + offset + 12 );	\
+  mc7 = _mm_loadu_pd( hd + offset + 14 )
+
+#define LOAD_RHS4(rhs,offset) \
+  msum0 = _mm_loadu_pd( rhs + (offset) ); \
+  msum1 = _mm_loadu_pd( rhs + (offset) + 2 )
+
+#define LOAD_CLONE_KNOWN4(x,b) \
+  xk0 = _mm_load1_pd ( &(x[(b)]) ); \
+  xk1 = _mm_load1_pd ( &(x[(b) + 1]) ); \
+  xk2 = _mm_load1_pd ( &(x[(b) + 2]) ); \
+  xk3 = _mm_load1_pd ( &(x[(b) + 3]) )
+
+#define MUL_SUB_BLOCK						\
+	  msum0 = _mm_sub_pd(msum0 , _mm_mul_pd(mc0, xk0));	\
+	  msum1 = _mm_sub_pd(msum1 , _mm_mul_pd(mc1, xk0));	\
+	  msum0 = _mm_sub_pd(msum0 , _mm_mul_pd(mc2, xk1));	\
+	  msum1 = _mm_sub_pd(msum1 , _mm_mul_pd(mc3, xk1));	\
+	  msum0 = _mm_sub_pd(msum0 , _mm_mul_pd(mc4, xk2));	\
+	  msum1 = _mm_sub_pd(msum1 , _mm_mul_pd(mc5, xk2));	\
+	  msum0 = _mm_sub_pd(msum0 , _mm_mul_pd(mc6, xk3));	\
+	  msum1 = _mm_sub_pd(msum1 , _mm_mul_pd(mc7, xk3))
+
+#define LOAD_LOWER_MAIN_DIAG_MATRIX4(hd,offset)		\
+	  mc0 = _mm_loadu_pd( hd + offset );		\
+	  mc1 = _mm_loadu_pd( hd + offset + 2 );	\
+	  mc2 = _mm_loadu_pd( hd + offset + 4 );	\
+	  mc3 = _mm_loadu_pd( hd + offset + 6 );	\
+	  mc5 = _mm_loadu_pd( hd + offset + 10 );	\
+	  mc7 = _mm_loadu_pd( hd + offset + 14 )
+
+#define LOAD_UPPER_MAIN_DIAG_MATRIX4(hd,offset)		\
+	  mc0 = _mm_loadu_pd( hd + offset );		\
+	  mc2 = _mm_loadu_pd( hd + offset + 4 );	\
+	  mc4 = _mm_loadu_pd( hd + offset + 8 );	\
+	  mc5 = _mm_loadu_pd( hd + offset + 10 );	\
+	  mc6 = _mm_loadu_pd( hd + offset + 12 );	\
+	  mc7 = _mm_loadu_pd( hd + offset + 14 )
+
 //------------------------------------------------------
 // general timer function using unix system call
 // dlowell ANL-MCS
@@ -48,6 +94,7 @@ PetscErrorCode MatSolve_SeqSGGPU_sse4(int m, int n, int p, int dof, int dim, Pet
   int          sbIndex, di;
   int          offset0, offset1, offset2;
   PetscScalar  beta[BETAMAX];
+  double       dbg128d[4];
 
   // vector register values
   __m128d xk0, xk1, xk2, xk3, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, msum0, msum1, msum2, msum3;
@@ -61,7 +108,7 @@ PetscErrorCode MatSolve_SeqSGGPU_sse4(int m, int n, int p, int dof, int dim, Pet
   chunkSize = m;
 
 #if _PRINT_UPDATE_RESULT
-  FILE *dbgfile = fopen("/home/jeisenlohr/MS/petsc-rnet/debug.txt","a");
+  FILE *dbgfile = fopen("/home/jeisenlohr/RF/petsc-rnet/sse4-debug.txt","a");
   fprintf(dbgfile,"Input:\n");
   for ( j = 0; j < numElements; j++ )
     fprintf(dbgfile,"b[%d] = %f\n", j, b[j]);
@@ -155,6 +202,12 @@ PetscErrorCode MatSolve_SeqSGGPU_sse4(int m, int n, int p, int dof, int dim, Pet
       xk2 = _mm_load1_pd ( &(x[offset2 + 2]) );
       xk3 = _mm_load1_pd ( &(x[offset2 + 3]) );
 
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"block %d, modified RHS before solve\n",chunk*chunkSize + block);
+    fprintf(dbgfile,"modRHS[%d] = (%f,%f,%f,%f)\n",
+	    block,x[offset2], x[offset2 + 1], x[offset2 + 2], x[offset2 + 3] );
+#endif
+
       // load the 4x4 block into 8 128 bit vec registers
       mc0 = _mm_loadu_pd( &(hostData[offset0]) );
       mc1 = _mm_loadu_pd( &(hostData[offset0 + 2]) );
@@ -165,6 +218,22 @@ PetscErrorCode MatSolve_SeqSGGPU_sse4(int m, int n, int p, int dof, int dim, Pet
       mc5 = _mm_loadu_pd( &(hostData[offset0 + 2*numElements + 2]) );
       //mc6 = _mm_loadu_pd( &(hostData[offset0 + 3*numElements]) );
       mc7 = _mm_loadu_pd( &(hostData[offset0 + 3*numElements + 2]) );
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"block %d, main diag matrix block RHS\n",block);
+    _mm_store_pd(dbg128d, mc0);
+    _mm_store_pd(dbg128d+2, mc1);
+    fprintf(dbgfile,"col1[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+    _mm_store_pd(dbg128d, mc2);
+    _mm_store_pd(dbg128d+2, mc3);
+    fprintf(dbgfile,"col2[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+    _mm_store_pd(dbg128d, mc5);
+    _mm_store_pd(dbg128d+2, mc7);
+    fprintf(dbgfile,"col3+4[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+#endif
 
       // multiply the matrix by the vector
       msum0 = _mm_setzero_pd();
@@ -430,6 +499,290 @@ PetscErrorCode MatSolve_SeqSGGPU_sse4(int m, int n, int p, int dof, int dim, Pet
   }
 
   //ierr = PetscFree(testXcpu); CHKERRQ(ierr);
+
+#if _TIME
+  t_end = getclock();
+  elapsed = t_end - t_start;
+  printf("sse4 solve time %lf\n",elapsed);
+#endif
+#if _PRINT_UPDATE_RESULT
+  fclose(dbgfile);
+#endif
+  //ierr = PetscLogFlops(2*nz - A->cmap->n);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__  
+#define __FUNCT__ "MatSolve_SeqSGGPU_sse4_nochunk"
+//-------------------------------------------------
+//
+// sse4 Version -- for dof==4 use vector intrinsics
+//
+//-------------------------------------------------
+PetscErrorCode MatSolve_SeqSGGPU_sse4_nochunk(int m, int n, int p, int dof, int dim, PetscScalar *hostData,
+					      int numDiags, int *diagOffsets, PetscScalar *x, const PetscScalar *b)
+{
+  int          j, k, nz;
+  int          gridSize = m * n * p;
+  int          numElements = gridSize * dof;
+  int          diagSize = numElements * dof;
+  int          block, di;
+  PetscInt     startDiag,endDiag;
+  int          offset0, offset1,halfRowSize,dofdof;
+  PetscScalar  sum, beta[BETAMAX];
+  PetscScalar *uTri;
+  double       dbg128d[4];
+
+  // vector register values
+  __m128d xk0, xk1, xk2, xk3, mc0, mc1, mc2, mc3, mc4, mc5, mc6, mc7, msum0, msum1, msum2, msum3;
+
+#if _TIME
+  double t_start, t_end, elapsed;
+  t_start = getclock();
+#endif
+
+#if _PRINT_UPDATE_RESULT
+  int colCoord;
+  FILE *dbgfile = fopen("/home/jeisenlohr/RF/petsc-rnet/sse4-nochunk-debug.txt","a");
+  fprintf(dbgfile,"Input:\n");
+  for ( j = 0; j < numElements; j++ )
+    fprintf(dbgfile,"b[%d] = %f\n", j, b[j]);
+  fprintf(dbgfile,"\n\nLOWER SOLVE\n");
+#endif
+
+  // LOWER TRIANGULAR SOLVE
+  startDiag = 0;
+  endDiag = numDiags / 2;
+  dofdof = 16;
+  halfRowSize = dofdof * ((numDiags+1) / 2);
+
+  for ( block = 0; block < gridSize; block++ ) {
+
+    // load the 4 components of the RHS vector into registers
+    //msum0 = _mm_loadu_pd ( b + block*dof );
+    //msum1 = _mm_loadu_pd ( b + block*dof + 2 );
+    LOAD_RHS4(b,4*block);
+
+    for ( di = startDiag; di < endDiag; di++ ) {
+      // offset to next non-zero block of matrix in this row
+      offset0 = block * halfRowSize + dofdof * di;
+      // offset to corresponding known block of solution vector
+      offset1 = dof*(block + diagOffsets[di]);
+      if ( offset1 > -1 ) {
+	// for dof=1, this is:
+	// sum -= x[offset1] * hostData[offset0];
+
+	// load and clone the four components of the known block into 4 registers
+	LOAD_CLONE_KNOWN4(x,offset1);
+
+	// load the 4x4 block into 8 128 bit vec registers
+	LOAD_TRI_MATRIX4(hostData,offset0);
+	
+	// multiply the matrix by the vector and subtract product
+	MUL_SUB_BLOCK;
+      }
+    }
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"block %d, modified RHS before solve\n",block);
+    _mm_store_pd(dbg128d, msum0);
+    _mm_store_pd(dbg128d+2, msum1);
+    fprintf(dbgfile,"modRHS[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+#endif
+
+    // solve the system given by the block on the main diagonal
+    // and the updated RHS stored in (msum0,msum1)
+
+    // load and clone (msum0,msum1) into (xk0,xk1,xk2,xk3)
+    xk0 = _mm_shuffle_pd(msum0,msum0,_MM_SHUFFLE2(0,0));
+    xk1 = _mm_shuffle_pd(msum0,msum0,_MM_SHUFFLE2(1,1));
+    xk2 = _mm_shuffle_pd(msum1,msum1,_MM_SHUFFLE2(0,0));
+    xk3 = _mm_shuffle_pd(msum1,msum1,_MM_SHUFFLE2(1,1));
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"loaded and cloned RHS:\n");
+    _mm_store_pd(dbg128d, xk0);
+    fprintf(dbgfile,"xk0[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+    _mm_store_pd(dbg128d, xk1);
+    fprintf(dbgfile,"xk1[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+    _mm_store_pd(dbg128d, xk2);
+    fprintf(dbgfile,"xk2[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+    _mm_store_pd(dbg128d, xk3);
+    fprintf(dbgfile,"xk3[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+#endif
+
+    // offset to the main diagonal block for this row
+    offset0 = block * halfRowSize + dofdof * endDiag;
+
+    // load the 4x4 block into 8 128 bit vec registers
+    LOAD_LOWER_MAIN_DIAG_MATRIX4(hostData,offset0);
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"block %d, main diag matrix block RHS\n",block);
+    _mm_store_pd(dbg128d, mc0);
+    _mm_store_pd(dbg128d+2, mc1);
+    fprintf(dbgfile,"main diag block offset %d\n",offset0);
+    fprintf(dbgfile,"col1[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+    _mm_store_pd(dbg128d, mc2);
+    _mm_store_pd(dbg128d+2, mc3);
+    fprintf(dbgfile,"col2[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+    _mm_store_pd(dbg128d, mc5);
+    _mm_store_pd(dbg128d+2, mc7);
+    fprintf(dbgfile,"col3+4[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+#endif
+
+    // multiply the matrix by the vector
+    msum0 = _mm_setzero_pd();
+    msum1 = _mm_setzero_pd();
+	
+    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc0, xk0));
+    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc1, xk0));
+    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc2, xk1));
+    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc3, xk1));			      				       
+    //msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc4, xk2));
+    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc5, xk2));
+    //msum1 = _mm_add_pd(msum0 , _mm_mul_pd(mc6, xk3));
+    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc7, xk3));
+
+    _mm_storeu_pd(x + block*dof     , msum0);
+    _mm_storeu_pd(x + block*dof + 2 , msum1);
+
+#if _PRINT_UPDATE_RESULT
+	for ( colCoord = 0; colCoord < dof; colCoord++ )
+	  fprintf(dbgfile,"%f\n", x[block*dof + colCoord]);
+#endif
+
+  }
+ 
+#if _PRINT_UPDATE_RESULT
+  fprintf(dbgfile,"\n  ***************  UPPER SOLVE  ***************\n\n");
+#endif
+  // UPPER TRIANGULAR SOLVE
+  startDiag = endDiag + 1;
+  endDiag = numDiags;
+  uTri = hostData + startDiag * diagSize;
+
+  for ( block = gridSize-1; block >= 0; block-- ) {
+
+    // load the 4 components of the RHS vector into registers
+    //msum0 = _mm_loadu_pd ( x + block*dof );
+    //msum1 = _mm_loadu_pd ( x + block*dof + 2 );
+    LOAD_RHS4(x,4*block);
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"block %d, original RHS\n",block);
+    _mm_store_pd(dbg128d, msum0);
+    _mm_store_pd(dbg128d+2, msum1);
+    fprintf(dbgfile,"msum1[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+#endif
+
+    for ( di = startDiag; di < endDiag; di++ ) {
+      // offset to next non-zero block of matrix in this row
+      offset0 = block * halfRowSize + dofdof * (di-startDiag+1);
+      // offset to corresponding known block of solution vector
+      offset1 = block + diagOffsets[di];
+      if ( offset1 < gridSize ) {
+	offset1 *= dof;
+	// for dof==1, this is:
+	// sum -= x[offset1] * hostData[offset0];
+
+	// load and clone the four components of the known block into 4 registers
+	LOAD_CLONE_KNOWN4(x,offset1);
+
+	// load the 4x4 block into 8 128 bit vec registers
+	LOAD_TRI_MATRIX4(uTri,offset0);
+
+	// multiply the matrix by the vector and subtract product
+	MUL_SUB_BLOCK;
+      }
+
+#if _PRINT_UPDATE_RESULT
+      fprintf(dbgfile,"block %d, diagonal %d\n",
+	      block, diagOffsets[di]);
+      fprintf(dbgfile,"offset0 %d, offset1 %d, modified RHS\n",
+	      offset0, offset1);
+      fprintf(dbgfile,"known[%d] = (%f,%f,%f,%f)\n",
+	      block + diagOffsets[di],
+	      x[offset1],x[offset1+1],x[offset1+2],x[offset1+3]);
+      _mm_store_pd(dbg128d, msum0);
+      _mm_store_pd(dbg128d+2, msum1);
+      fprintf(dbgfile,"msum1[%d] = (%f,%f,%f,%f)\n",
+	      block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+#endif
+    }
+
+    // solve the system given by the block on the main diagonal
+    // and the updated RHS stored in (msum0,msum1)
+
+    // load and clone (msum0,msum1) into (xk0,xk1,xk2,xk3)
+    xk0 = _mm_shuffle_pd(msum0,msum0,_MM_SHUFFLE2(0,0));
+    xk1 = _mm_shuffle_pd(msum0,msum0,_MM_SHUFFLE2(1,1));
+    xk2 = _mm_shuffle_pd(msum1,msum1,_MM_SHUFFLE2(0,0));
+    xk3 = _mm_shuffle_pd(msum1,msum1,_MM_SHUFFLE2(1,1));
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"loaded and cloned RHS:\n");
+    _mm_store_pd(dbg128d, xk0);
+    fprintf(dbgfile,"xk0[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+    _mm_store_pd(dbg128d, xk1);
+    fprintf(dbgfile,"xk1[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+    _mm_store_pd(dbg128d, xk2);
+    fprintf(dbgfile,"xk2[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+    _mm_store_pd(dbg128d, xk3);
+    fprintf(dbgfile,"xk3[%d] = (%f,%f)\n", block,dbg128d[0],dbg128d[1]);
+#endif
+
+    // offset to the main diagonal block for this row
+    offset0 = block * halfRowSize;
+
+    // load the 4x4 block into 8 128 bit vec registers
+    LOAD_UPPER_MAIN_DIAG_MATRIX4(uTri,offset0);
+
+#if _PRINT_UPDATE_RESULT
+    fprintf(dbgfile,"block %d, main diag matrix block RHS\n",block);
+    _mm_store_pd(dbg128d, mc0);
+    _mm_store_pd(dbg128d+2, mc2);
+    fprintf(dbgfile,"main diag block offset %d\n",offset0);
+    fprintf(dbgfile,"col1+2[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+    _mm_store_pd(dbg128d, mc4);
+    _mm_store_pd(dbg128d+2, mc5);
+    fprintf(dbgfile,"col3[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+    _mm_store_pd(dbg128d, mc6);
+    _mm_store_pd(dbg128d+2, mc7);
+    fprintf(dbgfile,"col4[%d] = (%f,%f,%f,%f)\n",
+	    block,dbg128d[0],dbg128d[1],block,dbg128d[2],dbg128d[3]);
+#endif
+
+    // multiply the matrix by the vector
+    msum0 = _mm_setzero_pd();
+    msum1 = _mm_setzero_pd();
+	
+    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc0, xk0));
+    //msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc1, xk0));
+    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc2, xk1));
+    //msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc3, xk1));			      				       
+    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc4, xk2));
+    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc5, xk2));
+    msum0 = _mm_add_pd(msum0 , _mm_mul_pd(mc6, xk3));
+    msum1 = _mm_add_pd(msum1 , _mm_mul_pd(mc7, xk3));
+
+    _mm_storeu_pd(x + block*dof     , msum0);
+    _mm_storeu_pd(x + block*dof + 2 , msum1);
+
+#if _PRINT_UPDATE_RESULT
+    for ( colCoord = 0; colCoord < dof; colCoord++ )
+      fprintf(dbgfile,"%f\n", x[block*dof + colCoord]);
+#endif
+
+  }
+
 
 #if _TIME
   t_end = getclock();
