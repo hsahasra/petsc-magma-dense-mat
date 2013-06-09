@@ -24,19 +24,12 @@
 #define BLOCKWIDTH_Y 1
 
 // ROW BLOCKING
-#define USE_ROWBLOCKS 1
+#define USE_ROWBLOCKS 0
 #define ROWBLOCK 1
-
-// Which ILU algorithm to use
-#define _ILU_GPU 3
 
 // Debugging flags
 #define _TRACE 0
 #define _TIME 0
-#define _CHECK_SOLVE 0
-#define _DUMP_SOLVE 0
-#define _CHECK_DIAG_INVERT 0
-#define _CHECK_REFORMAT 0
 
 // Hard-coded sizes for cuda shared memory arrays
 #define MAXBLOCKSIZE 256
@@ -246,7 +239,6 @@ __global__ void MatSolveLowerKernel(PetscScalar * coeff, PetscScalar * y, PetscI
       beta[locidx0] = temp[locidx0];
     }
  
-#ifndef _IGNORE
     // update rhs for each diagonal
     // threads involved: (i-d)*dof,...,(i-d+1)*dof-1
     // for every non-zero diagonal d in the (chunkSize*dof)X(chunkSize*dof) block on the diagonal
@@ -262,8 +254,6 @@ __global__ void MatSolveLowerKernel(PetscScalar * coeff, PetscScalar * y, PetscI
    	}	
       }
     }
-#endif
-    
   }
   
   y[idx0] = beta[locidx0];
@@ -627,7 +617,7 @@ PetscErrorCode MatLUFactorNumeric_SeqSGGPU(Mat B,Mat A,const MatFactorInfo *info
   PetscScalar *mainDiagonalBlock, *topRowBlock, *leftColBlock, *generalBlock;
 #if USE_ROWBLOCKS
   PetscScalar *blockedHostData, *pBHD;
-  PetscInt ii, coord;
+  PetscInt coord;
 #endif
   PetscInt i,j,k, offset;
   PetscInt          num_diags = b->diagonals->size();
@@ -794,15 +784,7 @@ PetscErrorCode MatLUFactorNumeric_SeqSGGPU(Mat B,Mat A,const MatFactorInfo *info
   t_start = getclock();
 #endif
 
-#if _ILU_GPU>2
-  C->ops->solve = MatSolve_SeqSGGPU_choice;
-#elif _ILU_GPU>1
-  C->ops->solve = MatSolve_SeqSGGPU_compare;
-#elif _ILU_GPU>0
-  C->ops->solve = MatSolve_SeqSGGPU_gpu;
-#else
-  C->ops->solve = MatSolve_SeqSGGPU_cpu_simple;
-#endif
+  C->ops->solve = MatSolve_SeqSGGPU;
 
   //=================================
   //invert the blocks on the diagonal
@@ -844,26 +826,6 @@ PetscErrorCode MatLUFactorNumeric_SeqSGGPU(Mat B,Mat A,const MatFactorInfo *info
 	block_inv[j*dof + i] = dot * block_inv[dof*i+i];
       }
     }
-
-#if _CHECK_DIAG_INVERT
-    printf("Original U block:\n");
-    for ( j = 0; j < dof; j++ ) {
-      for ( k = 0; k < j; k++ )
-	printf("        ");
-      for ( k = j; k < dof; k++ )
-	printf("%8f", b->hostData[offset + k*numElements + j] );
-      printf("\n");
-    }
-    printf("\n");
-    printf("Inverted U block:\n");
-    for ( j = 0; j < dof; j++ ) {
-      for ( k = 0; k < j; k++ )
-	printf("        ");
-      for ( k = j; k < dof; k++ )
-	printf("%8f", block_inv[k*dof + j] );
-      printf("\n");
-    }
-#endif
   
     for ( j = 0; j < dof; j++ )
       for ( i = 0; i <=j; i++ )
@@ -899,49 +861,6 @@ PetscErrorCode MatLUFactorNumeric_SeqSGGPU(Mat B,Mat A,const MatFactorInfo *info
     }
   }
 
-#if _CHECK_REFORMAT
-  FILE *dbgfile = fopen("/home/jeisenlohr/RF/petsc-rnet/reformat-debug.txt","w");
-  fprintf(dbgfile,"Compare original and reformatted matrices\n\n");
-  fprintf(dbgfile,"Original:\n");
-  for ( j = 0; j < (num_diags/2) + 1; j++ ) {
-    fprintf(dbgfile,"Diagonal %d:\n",j);
-    for ( i = 0; i < numBlocks; i++ ) {
-      fprintf(dbgfile,"Block %d:\n",i);
-      for ( coord = 0; coord < dof; coord++ ) {
-	for ( k = 0; k < dof; k++ ) {
-	  offset = i*dof + j*diagSize + k*numElements + coord;
-	  fprintf(dbgfile,"%f, ",b->hostData[offset]);
-	}
-	fprintf(dbgfile,"\n");
-      }
-      fprintf(dbgfile,"\n");
-    }
-    fprintf(dbgfile,"\n");
-  }
-  fprintf(dbgfile,"\n");
-
-  int halfRowSize = ((num_diags+1)/2)*dof*dof;
-  fprintf(dbgfile,"Reformatted:\n");
-  for ( j = 0; j < (num_diags/2) + 1; j++ ) {
-    fprintf(dbgfile,"Diagonal %d:\n",j);
-    for ( i = 0; i < numBlocks; i++ ) {
-      fprintf(dbgfile,"Block %d:\n",i);
-      for ( coord = 0; coord < dof; coord++ ) {
-	for ( k = 0; k < dof; k++ ) {
-	  offset = i*halfRowSize + j*dof*dof + k*dof + coord;
-	  fprintf(dbgfile,"%f, ",blockedHostData[offset]);
-	}
-	fprintf(dbgfile,"\n");
-      }
-      fprintf(dbgfile,"\n");
-    }
-    fprintf(dbgfile,"\n");
-  }
-	  
-
-  fclose(dbgfile);
-
-#endif
 
   PetscFree(b->hostData);
   b->hostData = blockedHostData;
@@ -1108,98 +1027,24 @@ PetscErrorCode MatILUFactorSymbolic_SeqSGGPU(Mat fact,Mat A,IS isrow,IS iscol,co
   PetscFunctionReturn(0);
 }
 
-//---
-//
-// 
-//
-//---
-static PetscErrorCode MatGetLowerSolveBlocks_SeqSGGPU( Mat_SeqSGGPU * mat, PetscScalar *xx, PetscInt blockRow,
-						       PetscInt *numSubBlocks,
-						       PetscScalar** subBlockPtrs, PetscScalar** knownPtrs,
-						       PetscScalar** diagBlockPtr )
-{
-  PetscErrorCode ierr = 0;
-  int num_diags = mat->diagonals->size();
-  int dSub, blockCol;
-
-  *numSubBlocks = 0;
-
-  for (int i = 0; i < num_diags; ++i) {
-    dSub = (*mat->diagonals)[i];
-    blockCol = dSub + blockRow;
-    if ( (dSub <= 0) && (blockCol >= 0) ) {
-      PetscInt blockIndex = -1;
-      std::map<int, int> &diag_starts = *(mat->diag_starts);
-      std::map<int, int>::iterator I = diag_starts.find(dSub);
-      if (I != diag_starts.end()) {
-	blockIndex = I->second + blockRow*mat->dof;
-	if ( dSub < 0 ) {
-	  subBlockPtrs[*numSubBlocks] = &(mat->hostData[blockIndex]);
-	  knownPtrs[(*numSubBlocks)++] = &(xx[blockCol*mat->dof]);
-	}
-	else
-	  *diagBlockPtr =  &(mat->hostData[blockIndex]);
-      }
-    }
-  }
-
-  PetscFunctionReturn(ierr);
-}
-
-
-//---
-//
-// 
-//
-//---
-static PetscErrorCode MatGetUpperSolveBlocks_SeqSGGPU( Mat_SeqSGGPU * mat, PetscScalar *xx, PetscInt blockRow,
-						       PetscInt *numSuperBlocks,
-						       PetscScalar** superBlockPtrs, PetscScalar** knownPtrs,
-						       PetscScalar** diagBlockPtr )
-{
-  PetscErrorCode ierr = 0;
-  int num_diags = mat->diagonals->size();
-  int dSuper, blockCol, maxBlockCol = mat->m * mat->n * mat->p;
-
-  *numSuperBlocks = 0;
-
-  for (int i = 0; i < num_diags; ++i) {
-    dSuper = (*mat->diagonals)[i];
-    blockCol = dSuper + blockRow;
-    if ( (dSuper >= 0) && (blockCol < maxBlockCol) ) {
-      PetscInt blockIndex = -1;
-      std::map<int, int> &diag_starts = *(mat->diag_starts);
-      std::map<int, int>::iterator I = diag_starts.find(dSuper);
-      if (I != diag_starts.end()) {
-	blockIndex = I->second + blockRow*mat->dof;
-	if ( dSuper > 0 ) {
-	  superBlockPtrs[*numSuperBlocks] = &(mat->hostData[blockIndex]);
-	  knownPtrs[(*numSuperBlocks)++] = &(xx[blockCol*mat->dof]);
-	}
-	else
-	  *diagBlockPtr =  &(mat->hostData[blockIndex]);
-      }
-    }
-  }
-
-  PetscFunctionReturn(ierr);
-}
-
-
 #undef __FUNCT__  
-#define __FUNCT__ "MatSolve_SeqSGGPU_choice"
+#define __FUNCT__ "MatSolve_SeqSGGPU"
 //---
 //
 // Choice Version
 //
 //---
-PetscErrorCode MatSolve_SeqSGGPU_choice(Mat A,Vec bb,Vec xx)
+PetscErrorCode MatSolve_SeqSGGPU(Mat A,Vec bb,Vec xx)
 {
   Mat_SeqSGGPU        *a = (Mat_SeqSGGPU*)A->data;
   PetscErrorCode ierr;
 
   if ( a->dof == 1 ) {
+#if USE_ROWBLOCKS
     ierr = MatSolve_SeqSGGPU_cpu_1_nochunk(A,bb,xx);
+#else
+    ierr = MatSolve_SeqSGGPU_cpu_1(A,bb,xx);
+#endif
     PetscFunctionReturn(0);
   }
   else if (a->dof != 4 ) {
@@ -1265,344 +1110,6 @@ PetscErrorCode MatSolve_SeqSGGPU_choice(Mat A,Vec bb,Vec xx)
 }
 
 #undef __FUNCT__  
-#define __FUNCT__ "MatSolve_SeqSGGPU_compare"
-//---
-//
-// comparison Version
-//
-//---
-PetscErrorCode MatSolve_SeqSGGPU_compare(Mat A,Vec bb,Vec xx)
-{
-  Mat_SeqSGGPU        *a = (Mat_SeqSGGPU*)A->data;
-  PetscErrorCode    ierr;
-  PetscInt          i, j, k, sbIndex, n=A->rmap->n, dof = a->dof;
-  PetscInt          numBlockRows = a->m * a->n * a->p;
-  PetscInt          numDiags = a->diagonals->size();
-  PetscInt          chunkSize;
-  PetscScalar       *x;
-  const PetscScalar *b;
-  PetscScalar      *diagBlock;
-  PetscInt          numOffDiagBlocks;
-  PetscInt          numElements = a->m * a->n * a->p * dof;
-  PetscInt          chunk, numChunks;
-  PetscScalar      *iluSolveVec;  //< host data for result of lower triangular solve
-  PetscScalar     **offDiagBlocks;
-  PetscScalar     **knowns;
-  PetscScalar      *beta;
-  PetscInt          num_diags = a->diagonals->size();
-
-  // Allocate work arrays
-  ierr = PetscMalloc(numElements * sizeof(PetscScalar), &iluSolveVec);CHKERRQ(ierr);
-  // sub_blocks holds pointers to the nonzero blocks in the current working row
-  // knowns holds pointers to the corresponding portions of the solution vector (already solved)  
-  ierr = PetscMalloc( (num_diags/2) * sizeof(PetscScalar*), &offDiagBlocks); CHKERRQ(ierr);
-  ierr = PetscMalloc( (num_diags/2) * sizeof(PetscScalar*), &knowns);    CHKERRQ(ierr);
-  // beta holds the RHS for the dof*dof system that is solved for a blockRow
-  ierr = PetscMalloc(dof * sizeof(PetscScalar), &beta); CHKERRQ(ierr);
-
-#if defined(PETSC_USE_DEBUG)
-  PetscScalar *checkSolve, maxDiff, diff, maxNorm, relDiff;
-#endif
-
-  PetscFunctionBegin;
-  if (!n) PetscFunctionReturn(0);
-
-  if ( dumpVec ) {
-    dumpVec = PETSC_FALSE;
-    PetscViewer rhsViewer;
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"sgvec.full.bin",FILE_MODE_WRITE, &rhsViewer);CHKERRQ(ierr);
-    ierr = VecView(bb,rhsViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&rhsViewer);CHKERRQ(ierr);
-  }
-
-  // set chunkSize -- this determines how many rows of the solve to do as a unit
-  chunkSize = a->m; //dim==3 ? a->p : dim==2 ? a->n : 1;  
-
-  // x is the input RHS, iluSolveVec is the result of lower triangular solve
-  ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(bb,&b);CHKERRQ(ierr);
-#if defined(PETSC_USE_DEBUG)
-  ierr = PetscMalloc( dof * sizeof(PetscScalar*), &checkSolve); CHKERRQ(ierr);
-#endif
-
-  CUSPARRAY * rhsgpu;
-  CUSPARRAY * xgpu;
-
-  ierr = VecCUSPGetArrayWrite(xx, &xgpu); CHKERRQ(ierr);
-  ierr = VecCUSPGetArrayRead(bb, &rhsgpu); CHKERRQ(ierr);
-
-  PetscScalar * devRHS = thrust::raw_pointer_cast(&(*rhsgpu)[0]);
-  PetscScalar * devX = thrust::raw_pointer_cast(&(*xgpu)[0]);
-
-  // Bind X to device texture
-  int gridSize = a->m * a->n * a->p;
-  int mat_size = gridSize * dof;
-  checkCudaError(cudaBindTexture(0, vector_rhs, devRHS, mat_size * sizeof(PetscScalar)));
-
-
-  dim3 block(chunkSize*dof, BLOCKWIDTH_Y);
-  dim3 grid(1, 1);
-  // dim3 grid((int)ceil((float)(mat_size)/(float)BLOCKWIDTH_X / 1.0), 1);
-  int shared_size = 0;
-  numChunks = ((mat_size/dof) + (chunkSize-1)) / chunkSize;
-#if _TRACE
-  printf("mat_size = %d, chunkSize = %d, numChunks = %d, dof = %d\n", mat_size, chunkSize, numChunks, dof);
-#endif
-
-  for ( chunk = 0; chunk < numChunks; chunk++ ) {
-#if _TRACE
-    printf("do cuda lower triangular solve for chunk %d\n", chunk);
-#endif
-    MatSolveLowerKernel<<<grid, block, shared_size, a->stream>>>(a->deviceData, a->deviceY, mat_size, a->deviceDiags,
-								 a->diagonals->size() / 2, chunk, chunkSize, dof);
-  }
-
-  ierr = WaitForGPU() ; CHKERRCUSP(ierr);
-  cudaUnbindTexture(vector_rhs);
-  ierr = VecCUSPRestoreArrayRead(bb, &rhsgpu); CHKERRQ(ierr);
-
-#if _TRACE
-  printf("done cuda lower triangular solve\n");
-  PetscScalar *gpuCheckY;
-  ierr = PetscMalloc(mat_size * sizeof(PetscScalar), &gpuCheckY); CHKERRQ(ierr);
-  checkCudaError(cudaMemcpy(gpuCheckY, a->deviceY, mat_size * sizeof(PetscScalar), cudaMemcpyDeviceToHost));
-#endif
-
-  checkCudaError(cudaBindTexture(0, vector_rhs, a->deviceY, mat_size * sizeof(PetscScalar)));
-
-  //  checkCudaError(cudaBindTexture(0, vector_rhs, devY, mat_size * sizeof(PetscScalar)));
-
-  for ( chunk = numChunks-1; chunk >= 0; chunk-- ) {
-#if _TRACE
-    //    printf("do cuda upper triangular solve for chunk %d\n", chunk);
-#endif
-    MatSolveUpperKernel<<<grid, block, shared_size, a->stream>>>(a->deviceData, devX, // a->deviceY,
-								 gridSize, a->deviceDiags,
-								 a->diagonals->size() / 2, chunk, chunkSize, dof);
-  }
-
-#if _TRACE
-  printf("done cuda upper triangular solve\n");
-  PetscScalar *gpuCheckX;
-  ierr = PetscMalloc(mat_size * sizeof(PetscScalar), &gpuCheckX); CHKERRQ(ierr);
-  checkCudaError(cudaMemcpy(gpuCheckX, devX, mat_size * sizeof(PetscScalar), cudaMemcpyDeviceToHost));
-#endif
-
-  cudaUnbindTexture(vector_rhs);
-
-  // LOWER TRIANGULAR SOLVE
-  // proceed a block row at a time
-  // result of LT solve is stored in iluSolveVec
-  for ( i = 0; i < numBlockRows; i++ ) {
-
-    // initialize the RHS with the components of b
-    PetscMemcpy( beta, &(b[i*dof]), dof*sizeof(PetscScalar) );
-
-    // fetch pointers to the blocks left of diagonal in this row and the
-    // corresponding portions of the result which have already been found
-    ierr = MatGetLowerSolveBlocks_SeqSGGPU( a, iluSolveVec, i, &numOffDiagBlocks,
-					    offDiagBlocks, knowns, &diagBlock );
-
-    // update RHS by subtracting mat-vec products
-    for ( sbIndex = 0; sbIndex < numOffDiagBlocks; sbIndex++ ) {
-      for ( k = 0; k < dof; k++ ) {
-	for ( j = 0; j < dof; j++ ) {
-	  beta[j] -= offDiagBlocks[sbIndex][j + k*numElements] * knowns[sbIndex][k];
-	}
-      }
-    }
-
-    // solve diagBlock * x = beta
-    for ( j = 0; j < dof; j++ ) {
-      for ( k = 0; k < j; k++ )
-	beta[j] -= (diagBlock[k*numElements+j]*beta[k]);
-    }
-
-    PetscMemcpy( iluSolveVec + i*dof, beta, dof*sizeof(PetscScalar) );    
-
-#if defined(PETSC_USE_DEBUG)
-    // CHECK THAT SOLVE IS CORRECT
-    PetscMemzero( checkSolve, dof * sizeof(PetscScalar) );    
-    // fetch pointers to the blocks left of diagonal in this row and the
-    // corresponding portions of the result stored in iluSolveVec
-    ierr = MatGetLowerSolveBlocks_SeqSGGPU( a, iluSolveVec, i, &numOffDiagBlocks,
-					    offDiagBlocks, knowns, &diagBlock );
-
-    // multiply iluSolveVec by diagBlock
-    for ( j = 0; j < dof; j++ ) {
-      for ( k = 0; k < j; k++ )
-	checkSolve[j] += diagBlock[j + numElements*k]*iluSolveVec[i*dof+k];
-      checkSolve[j] += iluSolveVec[i*dof+j];
-    }
-
-    // update RHS by adding mat-vec products
-    for ( sbIndex = 0; sbIndex < numOffDiagBlocks; sbIndex++ ) {
-      for ( j = 0; j < dof; j++ ) {
-	for ( k = 0; k < dof; k++ ) {
-	  checkSolve[j] += offDiagBlocks[sbIndex][j + numElements * k] * knowns[sbIndex][k];
-	}
-      }
-    }
-
-    maxDiff = 0;
-    for ( k = 0; k < dof; k++ ) {
-      diff = (b[i*dof+k]-checkSolve[k])*(b[i*dof+k]-checkSolve[k]);
-      if (diff > maxDiff) {
-	maxDiff = diff;
-      }
-    }
-    if ( maxDiff > 0.001 )
-      printf("After Lower Solve row %d, max diff is %f\n", i, maxDiff);
-#endif
-
-  }
-
-#if _TRACE
-  printf("Compare host and device L solve:\n");
-  maxDiff = 0;
-  maxDiffIndex = -1;
-  for ( i = 0; i < mat_size; i++ ) {
-    //printf("hostY[%d] = %f     devY[%d] = %f\n", i, iluSolveVec[i], i, gpuCheckY[i]);
-    diff = (iluSolveVec[i] - gpuCheckY[i])*(iluSolveVec[i] - gpuCheckY[i]);
-    if ( diff > maxDiff ) {
-      maxDiff = diff;
-      maxDiffIndex = i;
-    }
-  }
-  printf("max diff between host and device L solve is %f at index %d\n", maxDiff, maxDiffIndex);
-  PetscFree(gpuCheckY);
-#endif
-
-  //-----------------------
-  // UPPER TRIANGULAR SOLVE
-  //-----------------------
-
-  // offDiagBlocks holds pointers to the off-diagonal
-  // non-zero blocks in the current working row
-  for ( i = numBlockRows-1; i >= 0; i-- ) {
-
-    // initialize the RHS with the components of iluSolveVec
-    PetscMemcpy( beta, &(iluSolveVec[i*dof]), dof*sizeof(PetscScalar) );    
-
-    // fetch pointers to the blocks below diagonal in this row and the
-    // corresponding portions of the result which have already been found
-    ierr = MatGetUpperSolveBlocks_SeqSGGPU( a, x, i, &numOffDiagBlocks,
-					    offDiagBlocks, knowns, &diagBlock );
-
-    // update RHS by subtracting mat-vec products
-    for ( sbIndex = 0; sbIndex < numOffDiagBlocks; sbIndex++ ) {
-      for ( k = 0; k < dof; k++ ) {
-	for ( j = 0; j < dof; j++ ) {
-	  beta[j] -= offDiagBlocks[sbIndex][j + k*numElements] * knowns[sbIndex][k];
-	}
-      }
-    }
-
-    // solve diagBlock * x = beta
-    for ( j = dof-1; j >= 0; j-- ) {
-      for ( k = j+1; k < dof; k++ )
-	beta[j] -= ( diagBlock[j + k*numElements] * beta[k] );
-      beta[j] /= diagBlock[j*numElements+j];
-    }
-
-    PetscMemcpy( x + i*dof, beta, dof*sizeof(PetscScalar) );    
-
-#if defined(PETSC_USE_DEBUG)
-    // CHECK THAT SOLVE IS CORRECT
-    PetscMemzero( checkSolve, dof * sizeof(PetscScalar) );    
-    // fetch pointers to the blocks right of diagonal in this row and the
-    // corresponding portions of the result stored in x
-    ierr = MatGetUpperSolveBlocks_SeqSGGPU( a, x, i, &numOffDiagBlocks,
-					    offDiagBlocks, knowns, &diagBlock );
-
-    // multiply x by diagBlock
-    for ( j = 0; j < dof; j++ )
-      for ( k = j; k < dof; k++ )
-	checkSolve[j] += diagBlock[j + numElements*k] * x[i*dof+k];
-
-    // update RHS by adding mat-vec products
-    for ( sbIndex = 0; sbIndex < numOffDiagBlocks; sbIndex++ ) {
-      for ( j = 0; j < dof; j++ ) {
-	for ( k = 0; k < dof; k++ ) {
-	  checkSolve[j] += offDiagBlocks[sbIndex][j + numElements * k] * knowns[sbIndex][k];
-	}
-      }
-    }
-
-    maxDiff = 0;
-    maxNorm = 0;
-    for ( k = 0; k < dof; k++ ) {
-      diff = sqrt( (iluSolveVec[i*dof+k]-checkSolve[k])*(iluSolveVec[i*dof+k]-checkSolve[k]) );
-      if (diff > maxDiff) {
-	maxDiff = diff;
-	maxNorm = sqrt( iluSolveVec[i*dof+k] * iluSolveVec[i*dof+k] );
-      }
-    }
-    relDiff = maxDiff / maxNorm;
-    if ( maxDiff > 0.01 ) {
-      printf("After Upper Solve row %d, max diff is %f, rel diff is %f\n", i, maxDiff, relDiff);
-
-      printf("relevant x entries:\n");
-      for ( j = 0; j < dof; j++ )      
-	printf( "x[%d] = %f\n", j, x[i*dof+j] );
-
-      printf("Diag block entries:\n");
-      for ( j = 0; j < dof; j++ ) {
-	for ( k = j; k < dof; k++ )
-	  printf( "%10f", diagBlock[j + numElements*k]);
-	printf("\n");
-      }
-
-      for ( sbIndex = 0; sbIndex < numOffDiagBlocks; sbIndex++ ) {
-	printf("knowns %d entries:\n",sbIndex);
-	for ( j = 0; j < dof; j++ )
-	  printf("knowns[%d][%d] = %f\n",knowns[sbIndex][j]);
-	
-	printf("Upper block %d entries:\n",sbIndex);
-	for ( j = 0; j < dof; j++ ) {
-	  for ( k = 0; k < dof; k++ )
-	    printf( "%10f", offDiagBlocks[sbIndex][j + numElements * k] );
-	  printf("\n");
-	}
-      }
-    }
-#endif
-
-  }
-
-#if _TRACE
-  printf("Compare host and device LU solve:\n");
-  maxDiff = 0;
-  for ( i = 0; i < mat_size; i++ ) {
-    //printf("hostX[%d] = %f     devX[%d] = %f\n", i, x[i], i, gpuCheckX[i]);
-    diff = (x[i] - gpuCheckX[i])*(x[i] - gpuCheckX[i]);
-    if ( diff > maxDiff ) maxDiff = diff;
-  }
-  printf("max diff between host and device LU solve is %f\n", maxDiff);
-  PetscFree(gpuCheckX);
-#endif
-
-//   printf("Factored sggpu solve result\n");
-//   for ( i = 0; i < numElements; i++ )
-//     printf("x[%d] = %f\n", i, x[i]);
-
-  ierr = VecRestoreArray(xx,&x);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(bb,&b);CHKERRQ(ierr);
-
-#if defined(PETSC_USE_DEBUG)
-  ierr = PetscFree(checkSolve); CHKERRQ(ierr);
-  ierr = PetscFree(iluSolveVec);CHKERRQ(ierr);
-  ierr = PetscFree(offDiagBlocks); CHKERRQ(ierr);
-  ierr = PetscFree(knowns);CHKERRQ(ierr);
-  ierr = PetscFree(beta);CHKERRQ(ierr);
-#endif
-
-  //ierr = PetscLogFlops(2*a->nz - A->cmap->n);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-
-#undef __FUNCT__  
 #define __FUNCT__ "MatSolve_SeqSGGPU_gpu"
 //---
 //
@@ -1618,9 +1125,6 @@ PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx)
   PetscInt          numDiags = a->diagonals->size();
   PetscInt          matSize, chunkSize, chunk, numChunks;
   PetscScalar       *devX, *devB;
-#if _CHECK_SOLVE
-  PetscScalar       *checkSolve;
-#endif
 
   PetscFunctionBegin;
   if (!n) PetscFunctionReturn(0);
@@ -1640,10 +1144,6 @@ PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx)
 
   // set chunkSize -- this determines how many rows of the solve to do as a unit
   chunkSize = a->m; //dim==3 ? a->p : dim==2 ? a->n : 1;
-
-#if _CHECK_SOLVE
-  ierr = PetscMalloc( dof * sizeof(PetscScalar*), &checkSolve); CHKERRQ(ierr);
-#endif
 
   CUSPARRAY * rhsgpu;
   CUSPARRAY * xgpu;
@@ -1792,10 +1292,6 @@ PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx)
   t_start = getclock();
 #endif
 
-#if _CHECK_SOLVE
-  ierr = PetscFree(checkSolve); CHKERRQ(ierr);
-#endif
-
   //ierr = PetscLogFlops(2*a->nz - A->cmap->n);CHKERRQ(ierr);
 
 #if _TIME
@@ -1807,252 +1303,6 @@ PetscErrorCode MatSolve_SeqSGGPU_gpu(Mat A,Vec bb,Vec xx)
   PetscFunctionReturn(0);
 }
 
-
-#undef __FUNCT__  
-#define __FUNCT__ "MatSolve_SeqSGGPU_cpu"
-//---
-//
-// CPU Version
-//
-//---
-PetscErrorCode MatSolve_SeqSGGPU_cpu(Mat A,Vec bb,Vec xx)
-{
-  Mat_SeqSGGPU        *a = (Mat_SeqSGGPU*)A->data;
-  PetscErrorCode    ierr;
-  PetscInt          j, k, n=A->rmap->n, dof = a->dof;
-  PetscInt          numDiags = a->diagonals->size();
-  PetscScalar       *x;
-  const PetscScalar *b;
-  PetscScalar       sca1, sca2, sca3;
-  PetscInt          gridSize = a->m * a->n * a->p;
-  PetscInt          numElements = gridSize * dof;
-  PetscInt          chunkSize, chunk, numChunks;
-  PetscBool         isseqgpu;
-
-  PetscFunctionBegin;
-  if (!n) PetscFunctionReturn(0);
-
-#if _TIME
-  double t_start, t_end, elapsed;
-  t_start = getclock();
-#endif
-
-
-  if ( dumpVec ) {
-    dumpVec = PETSC_FALSE;
-    char  sgvecFname[64];
-    PetscViewer rhsViewer;
-    sprintf( sgvecFname, "sgvec-ex%d-%d-%d-%d-%d.bin", exNumber, a->m, a->n, a->p, a->dof );
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,sgvecFname,FILE_MODE_WRITE, &rhsViewer);CHKERRQ(ierr);
-    ierr = VecView(bb,rhsViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&rhsViewer);CHKERRQ(ierr);
-  }  
-
-  // set chunkSize -- this determines how many rows of the solve to do as a unit
-  chunkSize = a->m; //dim==3 ? a->p : dim==2 ? a->n : 1;
-
-  // x is the input RHS, temp is the result of lower triangular solve
-  ierr = PetscObjectTypeCompare((PetscObject)xx,VECSEQGPU,&isseqgpu);CHKERRQ(ierr);
-  if (isseqgpu) {
-    ierr = PetscObjectTypeCompare((PetscObject)bb,VECSEQGPU,&isseqgpu);CHKERRQ(ierr);
-    if (!isseqgpu) {
-      SETERRQ(PETSC_COMM_SELF,PETSC_ERR_ARG_INCOMP,"Both x and b must be same type");
-    }
-    Vec_SeqGPU *bd = (Vec_SeqGPU*) bb->data;
-    /* synch up b */
-    if (bd->syncState==VEC_GPU) {
-      ierr = VecCopyOverD2H(bb,bd->cpuptr);CHKERRQ(ierr);
-      bd->syncState=VEC_SYNCHED;
-    }
-  }
-  ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
-  ierr = VecGetArrayRead(bb,&b);CHKERRQ(ierr);
-
-#if _DUMP_SOLVE
-  printf("Input:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("b[%d] = %f\n",j,b[j]);
-  }
-#endif
-
-
-  // LOWER TRIANGULAR SOLVE
-  // determine the diagonals that contribute already solved values to the RHS for this thread
-  PetscInt center_diag = numDiags / 2;
-  PetscInt max_solved_diag = center_diag;
-
-  // initialize the RHS with the components of b
-  // PetscMemcpy( a->iluSolveVec, b, numElements*sizeof(PetscScalar) );    
-  // PetscMemcpy( x, b, numElements*sizeof(PetscScalar) );
-
-  // PetscScalar sum[MAXBLOCKSIZE];
-
-  numChunks = ((numElements/dof) + (chunkSize-1)) / chunkSize;
-#if _TRACE
-  printf("matSize = %d, chunkSize = %d, numChunks = %d, dof = %d\n", numElements, chunkSize, numChunks, dof);
-#endif
-
-  // proceed a chunk of rows at a time
-  // result of LT solve is stored in a->iluSolveVec
-  while ( (0 <= max_solved_diag) && ((*a->diagonals)[max_solved_diag] > -chunkSize ) )
-    --max_solved_diag;
-
-  for ( chunk = 0; chunk < numChunks; chunk++ ) {
-    // offset into portion of iluSolveVec being solved for this chunk
-    int offset2 = (chunk*chunkSize)*dof;
-
-    PetscMemcpy( x + offset2, b + offset2, chunkSize*dof*sizeof(PetscScalar) );
-
-    //---------------------------------------------
-    // Update the RHS with elements of the solution
-    // vector solved in previous chunks
-    //---------------------------------------------
-    for ( int di = 0; di < center_diag; di++ ) {  //for ( int di = 0; di <= max_solved_diag; di++ ) {
-      int d = (*a->diagonals)[di];
-      int startBlock = chunk*chunkSize + d >= 0 ? 0 : -(chunk*chunkSize + d);
-      int endBlock = chunkSize > -d ? -d : chunkSize;
-      int offset1 = (chunk*chunkSize + d)*dof;
-
-      for ( int rowCoord = 0; rowCoord < dof; rowCoord++ ) {
-
-	// offset into matrix coefficients to top of stripe in chunk
-	int offset0 = (di*dof + rowCoord)*numElements + chunk*chunkSize*dof;
-	// offset into already solved portion of iluSolveVec needed for this chunk/diagonal combination 
-	
-	for ( int block = startBlock; block < endBlock; block++ ) {
-
-	  for ( int colCoord = 0; colCoord < dof; colCoord++ ) {
-	    // x[offset2 + block*dof + colCoord] -= a->hostData[ offset0 + block*dof + colCoord ] * x[offset1 + block*dof + rowCoord];
-	    sca1 = a->hostData[ offset0 + block*dof + colCoord ];
-	    sca2 = x[offset1 + block*dof + rowCoord];
-	    sca3 = x[offset2 + block*dof + colCoord];
-	    sca3 -= sca1 * sca2;
-	    x[offset2 + block*dof + colCoord] = sca3;
-	  }
-	}
-      }
-    }
-
-    for ( int block = 0; block < chunkSize; block++ ) {
-      int offset0 = center_diag*dof*numElements + (chunk*chunkSize + block)*dof;
-      int offset2 = (chunk*chunkSize + block)*dof;
-      // solve diagBlock * x = beta
-      for ( j = 1; j < dof; j++ ) {
-	for ( k = 0; k < j; k++ )
-	  x[offset2 + j] += ( a->hostData[offset0 + k*numElements + j] * x[offset2 + k] );
-      }
-
-      // update blocks below this diag block
-      for ( int di = max_solved_diag+1; di < center_diag; di++ ) {
-	int d = (*a->diagonals)[di];
-	// is this thread in a diagonal block?
-	if ( block - d < chunkSize ) {
-	  int offset0 = di*dof*numElements + (chunk*chunkSize + block - d)*dof;
-	  int offset1 = (chunk*chunkSize + block - d)*dof;
-	  for ( int j = 0; j < dof; j++ ) {
-	    for ( int k = 0; k < dof; k++ ) {
-	      x[offset1 + j] -= a->hostData[ offset0 + k*numElements + j ] * x[offset2 + k];
-	    }	
-	  }
-	}
-      }
-
-    }
-
-  }
-
-#if _DUMP_SOLVE
-  printf("After Lower Solve:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("x[%d] = %f\n",j,x[j]);
-  }
-#endif
-
-  //-----------------------
-  // UPPER TRIANGULAR SOLVE
-  //-----------------------
-  // PetscMemcpy( x, iluSolveVec, numElements*sizeof(PetscScalar) );    
-  
-  // proceed a chunk of rows at a time
-  PetscInt min_solved_diag = center_diag+1;
-  while ( (min_solved_diag < numDiags) && ((*a->diagonals)[min_solved_diag] < chunkSize ) )
-    ++min_solved_diag;
-
-  for ( chunk = numChunks-1; chunk >= 0; chunk-- ) {
-    // offset into portion of x being solved for this chunk
-    int offset2 = (chunk*chunkSize)*dof;
-
-    /* for ( int di = min_solved_diag; di < numDiags; di++ ) { */
-    for ( int di = center_diag+1; di < numDiags; di++ ) {
-      int d = (*a->diagonals)[di];
-      int startBlock = d < chunkSize ? chunkSize - d : 0;
-      int endBlock = (chunk+1)*chunkSize -1 + d < gridSize ? chunkSize - 1 : gridSize - chunk*chunkSize - 1 - d;
-      // offset into already solved portion of iluSolveVec needed for this chunk/diagonal combination 
-      int offset1 = (chunk*chunkSize + d)*dof;
-
-      for ( int rowCoord = 0; rowCoord < dof; rowCoord++ ) {
-
-	// offset into matrix coefficients to top of stripe in chunk
-	int offset0 = ((di+1)*dof + rowCoord)*numElements + chunk*chunkSize*dof;
-	
-	for ( int block = endBlock; block >= startBlock; block-- ) {
-
-	  for ( int colCoord = 0; colCoord < dof; colCoord++ ) {
-	    x[offset2 + block*dof + colCoord] -= a->hostData[ offset0 + block*dof + colCoord ] * x[offset1 + block*dof + rowCoord];
-	  }
-	}
-      }
-    }
-
-    for ( int block = chunkSize-1; block >= 0; block-- ) {
-      int offset0 = (center_diag+1)*dof*numElements + (chunk*chunkSize + block)*dof;
-      int offset2 = (chunk*chunkSize + block)*dof;
-      // solve diagBlock * x = beta
-      //PetscMemcpy( beta, &(x[offset2]), dof*sizeof(PetscScalar) );
-      for ( j = dof-1; j >= 0; j-- ) {
-	x[offset2 + j] *= a->hostData[offset0 + j*numElements + j];
-	for ( k = j+1; k < dof; k++ )
-	  x[offset2 + j] += ( a->hostData[offset0 + k*numElements + j] * x[offset2 + k] );
-      }
-
-      // update blocks above this diag block
-      for ( int di = min_solved_diag-1; di > center_diag; di-- ) {
-	int d = (*a->diagonals)[di];
-	// is this thread in a diagonal block?
-	if ( block - d >= 0 ) {
-	  int offset0 = (di+1)*dof*numElements + (chunk*chunkSize + block - d)*dof;
-	  int offset1 = (chunk*chunkSize + block)*dof;
-	  int offset2 = (chunk*chunkSize + block - d)*dof;
-	  for ( int j = 0; j < dof; j++ ) {
-	    for ( int k = 0; k < dof; k++ ) {
-	      x[offset2 + j] -= a->hostData[ offset0 + k*numElements + j ] * x[offset1 + k];
-	    }	
-	  }
-	}
-      }
-
-    }
-  }
-
-#if _DUMP_SOLVE
-  printf("After Upper Solve:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("x[%d] = %f\n",j,x[j]);
-  }
-#endif
-
-  ierr = VecRestoreArray(xx,&x);CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(bb,&b);CHKERRQ(ierr);
-
-
-#if _TIME
-  t_end = getclock();
-  elapsed = t_end - t_start;
-  printf("cpu solve time %lf\n",elapsed);
-#endif
-  //ierr = PetscLogFlops(2*a->nz - A->cmap->n);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatSolve_SeqSGGPU_cpu_1_nochunk"
@@ -2223,13 +1473,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_1(Mat A,Vec bb,Vec xx)
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArrayRead(bb,&b);CHKERRQ(ierr);
 
-#if _DUMP_SOLVE
-  printf("Input:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("b[%d] = %f\n",j,b[j]);
-  }
-#endif
-
 
   // LOWER TRIANGULAR SOLVE
   // determine the diagonals that contribute already solved values to the RHS for this thread
@@ -2297,13 +1540,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_1(Mat A,Vec bb,Vec xx)
 
   }
 
-#if _DUMP_SOLVE
-  printf("After Lower Solve:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("x[%d] = %f\n",j,x[j]);
-  }
-#endif
-
   //-----------------------
   // UPPER TRIANGULAR SOLVE
   //-----------------------
@@ -2353,13 +1589,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_1(Mat A,Vec bb,Vec xx)
     }
   }
 
-#if _DUMP_SOLVE
-  printf("After Upper Solve:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("x[%d] = %f\n",j,x[j]);
-  }
-#endif
-
   ierr = VecRestoreArray(xx,&x);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(bb,&b);CHKERRQ(ierr);
 
@@ -2372,8 +1601,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_1(Mat A,Vec bb,Vec xx)
   //ierr = PetscLogFlops(2*a->nz - A->cmap->n);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-
-
 
 #undef __FUNCT__  
 #define __FUNCT__ "MatSolve_SeqSGGPU_cpu_simple"
@@ -2439,14 +1666,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_simple(Mat A,Vec bb,Vec xx)
   }
   ierr = VecGetArray(xx,&x);CHKERRQ(ierr);
   ierr = VecGetArrayRead(bb,&b);CHKERRQ(ierr);
-
-#if _DUMP_SOLVE
-  printf("Input:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("b[%d] = %f\n",j,b[j]);
-  }
-#endif
-
 
   // LOWER TRIANGULAR SOLVE
   // determine the diagonals that contribute already solved values to the RHS for this thread
@@ -2532,13 +1751,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_simple(Mat A,Vec bb,Vec xx)
 
   }
 
-#if _DUMP_SOLVE
-  printf("After Lower Solve:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("x[%d] = %f\n",j,x[j]);
-  }
-#endif
-
   //-----------------------
   // UPPER TRIANGULAR SOLVE
   //-----------------------  
@@ -2608,13 +1820,6 @@ PetscErrorCode MatSolve_SeqSGGPU_cpu_simple(Mat A,Vec bb,Vec xx)
 
     }
   }
-
-#if _DUMP_SOLVE
-  printf("After Upper Solve:\n");
-  for ( j = 0; j < numElements; j++ ) {
-    printf("x[%d] = %f\n",j,x[j]);
-  }
-#endif
 
   ierr = VecRestoreArray(xx,&x);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(bb,&b);CHKERRQ(ierr);
