@@ -24,7 +24,7 @@
 #define BLOCKWIDTH_Y 1
 
 // ROW BLOCKING
-#define USE_ROWBLOCKS 0
+#define USE_ROWBLOCKS 1
 #define ROWBLOCK 1
 
 // Debugging flags
