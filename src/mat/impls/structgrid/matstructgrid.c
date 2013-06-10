@@ -374,7 +374,6 @@ PetscErrorCode MatSetValues_SeqSG(Mat A, PetscInt nrow,const PetscInt irow[], Pe
 #ifdef PETSC_HAVE_CUSP	
 	//Set the flag that indicates that matrix has changed on the CPU side.
         //This flag is used while copying the matrix to GPU.
-        //Added by Chekuri S. Choudary 
 	if (A->valid_GPU_matrix != PETSC_CUSP_UNALLOCATED)
 	    A->valid_GPU_matrix = PETSC_CUSP_CPU;
 #endif

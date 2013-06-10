@@ -148,7 +148,6 @@
    storing the  matrix created in structured grid problems.
    This new layout facilitaties rapid vectorization and SIMD
    parallelism.
-   AUTHOR: Chekuri S. Choudary
 */
 
 #define MATSTRUCTGRID          'structgrid'
