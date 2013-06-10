@@ -13,8 +13,6 @@ int OPENMP=0;
      The routine employs SSE/AVX intrinsics if they are available on the machine.
      Otherwise, the computations default to normal PetscScalar operations. 
      The instruction for fused addmultiply has not been implemented of date.
-
-     Author: Chekuri S. Choudary, RNET
 */
 
 
