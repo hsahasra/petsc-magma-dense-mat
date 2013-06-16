@@ -321,6 +321,9 @@ struct _p_Mat {
 #if defined(PETSC_HAVE_CUSP)
   PetscCUSPFlag          valid_GPU_matrix; /* flag pointing to the matrix on the gpu*/
 #endif
+#if defined(PETSC_HAVE_VIENNACL)
+  PetscViennaCLFlag          valid_GPU_matrix; /* flag pointing to the matrix on the gpu*/
+#endif
   void                   *spptr;          /* pointer for special library like SuperLU */
   MatSolverPackage       solvertype;
   PetscViewer            viewonassembly;         /* the following are set in MatSetFromOptions() and used in MatAssemblyEnd() */
@@ -477,9 +480,11 @@ struct  _p_MatTransposeColoring{
   ISColoringType ctype;            /* IS_COLORING_GLOBAL or IS_COLORING_GHOSTED */
 
   PetscInt       *colorforrow,*colorforcol;  /* pointer to rows and columns */
-  PetscInt       *rows;                  /* lists the local rows for each color (using the local row numbering) */
-  PetscInt       *columnsforspidx;       /* maps (row,color) in the dense matrix to index of sparse matrix arrays a->j and a->a */
-  PetscInt       *columns;               /* lists the local columns of each color (using global column numbering) */
+  PetscInt       *rows;                      /* lists the local rows for each color (using the local row numbering) */
+  PetscInt       *den2sp;                    /* maps (row,color) in the dense matrix to index of sparse matrix array a->a */
+  PetscInt       *columns;                   /* lists the local columns of each color (using global column numbering) */
+  PetscInt       brows;                      /* number of rows for efficient implementation of MatTransColoringApplyDenToSp() */
+  PetscInt       *lstart;                    /* array used for loop over row blocks of Csparse */
 };
 
 /*
@@ -1499,6 +1504,7 @@ PETSC_EXTERN PetscLogEvent MAT_Getsymtranspose, MAT_Transpose_SeqAIJ, MAT_Getsym
 PETSC_EXTERN PetscLogEvent MATMFFD_Mult;
 PETSC_EXTERN PetscLogEvent MAT_GetMultiProcBlock;
 PETSC_EXTERN PetscLogEvent MAT_CUSPCopyToGPU, MAT_CUSPARSECopyToGPU, MAT_SetValuesBatch, MAT_SetValuesBatchI, MAT_SetValuesBatchII, MAT_SetValuesBatchIII, MAT_SetValuesBatchIV;
+PETSC_EXTERN PetscLogEvent MAT_ViennaCLCopyToGPU;
 PETSC_EXTERN PetscLogEvent MAT_Merge;
 
 #endif
