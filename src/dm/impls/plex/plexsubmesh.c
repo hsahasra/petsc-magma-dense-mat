@@ -539,7 +539,7 @@ static PetscErrorCode DMPlexConstructCohesiveCells_Internal(DM dm, DMLabel label
   Vec             coordinates;
   PetscScalar    *coords;
   PetscInt       *depthShift, *depthOffset, *pMaxNew, *numSplitPoints, *coneNew, *supportNew;
-  PetscInt        shift = 100, depth = 0, dep, dim, d, numSP = 0, sp, maxConeSize, maxSupportSize, numLabels, p, v;
+  PetscInt        shift = 100, depth = 0, dep, dim, d, numSP = 0, sp, maxConeSize, maxSupportSize, numLabels, pEnd, p, v;
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
@@ -849,16 +849,22 @@ static PetscErrorCode DMPlexConstructCohesiveCells_Internal(DM dm, DMLabel label
         DMLabel     mlabel;
         const char *lname;
         PetscInt    val;
+        PetscBool   isDepth;
 
         ierr = DMPlexGetLabelName(sdm, l, &lname);CHKERRQ(ierr);
+        ierr = PetscStrcmp(lname, "depth", &isDepth);CHKERRQ(ierr);
+        if (isDepth) continue;
         ierr = DMPlexGetLabel(sdm, lname, &mlabel);CHKERRQ(ierr);
         ierr = DMLabelGetValue(mlabel, newp, &val);CHKERRQ(ierr);
         if (val >= 0) {
           ierr = DMLabelSetValue(mlabel, splitp, val);CHKERRQ(ierr);
+#if 0
+          /* Do not put cohesive edges into the label */
           if (dep == 0) {
             const PetscInt cedge = pMaxNew[1] + (depthShift[1] - depthShift[0]) + p;
             ierr = DMLabelSetValue(mlabel, cedge, val);CHKERRQ(ierr);
           }
+#endif
         }
       }
     }
@@ -874,6 +880,11 @@ static PetscErrorCode DMPlexConstructCohesiveCells_Internal(DM dm, DMLabel label
     ierr = ISRestoreIndices(valueIS, &values);CHKERRQ(ierr);
     ierr = ISDestroy(&valueIS);CHKERRQ(ierr);
   }
+  ierr = DMPlexGetChart(sdm, NULL, &pEnd);CHKERRQ(ierr);
+  pMaxNew[0] += depthShift[0]; /* Account for shadow vertices */
+  if (depth > 1) pMaxNew[1] = pEnd - depthShift[0]; /* There is a hybrid edge for every shadow vertex */
+  if (depth > 2) pMaxNew[2] = -1; /* There are no hybrid faces */
+  ierr = DMPlexSetHybridBounds(sdm, depth >= 0 ? pMaxNew[depth] : PETSC_DETERMINE, depth>1 ? pMaxNew[depth-1] : PETSC_DETERMINE, depth>2 ? pMaxNew[1] : PETSC_DETERMINE, pMaxNew[0]);CHKERRQ(ierr);
   ierr = PetscFree5(depthShift, depthOffset, pMaxNew, coneNew, supportNew);CHKERRQ(ierr);
   ierr = PetscFree3(pointIS, numSplitPoints, splitPoints);CHKERRQ(ierr);
   PetscFunctionReturn(0);
