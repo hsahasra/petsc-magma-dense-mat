@@ -4,7 +4,7 @@
 #include <petscsf.h>
 
 /* Logging support */
-PetscLogEvent DMPLEX_Distribute, DMPLEX_Stratify;
+PetscLogEvent DMPLEX_Partition, DMPLEX_Distribute, DMPLEX_DistributeLabels, DMPLEX_DistributeSF, DMPLEX_Stratify;
 
 PETSC_EXTERN PetscErrorCode VecView_Seq(Vec, PetscViewer);
 PETSC_EXTERN PetscErrorCode VecView_MPI(Vec, PetscViewer);
@@ -2796,6 +2796,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
 
   ierr = DMPlexGetDimension(dm, &dim);CHKERRQ(ierr);
   /* Create cell partition - We need to rewrite to use IS, use the MatPartition stuff */
+  ierr = PetscLogEventBegin(DMPLEX_Partition,dm,0,0,0);CHKERRQ(ierr);
   if (overlap > 1) SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Overlap > 1 not yet implemented");
   ierr = DMPlexCreatePartition(dm, height, overlap > 0 ? PETSC_TRUE : PETSC_FALSE, &cellPartSection, &cellPart, &origCellPartSection, &origCellPart);CHKERRQ(ierr);
   /* Create SF assuming a serial partition for all processes: Could check for IS length here */
@@ -2839,6 +2840,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
     ierr = PetscPrintf(comm, "Point Renumbering after partition:\n");CHKERRQ(ierr);
     ierr = ISLocalToGlobalMappingView(renumbering, NULL);CHKERRQ(ierr);
   }
+  ierr = PetscLogEventEnd(DMPLEX_Partition,dm,0,0,0);CHKERRQ(ierr);
   /* Distribute cone section */
   ierr = DMPlexGetConeSection(dm, &originalConeSection);CHKERRQ(ierr);
   ierr = DMPlexGetConeSection(*dmParallel, &newConeSection);CHKERRQ(ierr);
@@ -2902,6 +2904,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
     ierr = VecDestroy(&newCoordinates);CHKERRQ(ierr);
   }
   /* Distribute labels */
+  ierr = PetscLogEventBegin(DMPLEX_DistributeLabels,dm,0,0,0);CHKERRQ(ierr);
   {
     DMLabel  next      = mesh->labels, newNext = pmesh->labels;
     PetscInt numLabels = 0, l;
@@ -3029,6 +3032,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
       if (!rank) next = next->next;
     }
   }
+  ierr = PetscLogEventEnd(DMPLEX_DistributeLabels,dm,0,0,0);CHKERRQ(ierr);
   /* Setup hybrid structure */
   {
     const PetscInt *gpoints;
@@ -3063,6 +3067,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
   ierr = PetscSectionDestroy(&partSection);CHKERRQ(ierr);
   ierr = ISDestroy(&part);CHKERRQ(ierr);
   /* Create point SF for parallel mesh */
+  ierr = PetscLogEventBegin(DMPLEX_DistributeSF,dm,0,0,0);CHKERRQ(ierr);
   {
     const PetscInt *leaves;
     PetscSFNode    *remotePoints, *rowners, *lowners;
@@ -3132,6 +3137,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
     ierr = PetscSFSetGraph((*dmParallel)->sf, pEnd - pStart, numGhostPoints, ghostPoints, PETSC_OWN_POINTER, remotePoints, PETSC_OWN_POINTER);CHKERRQ(ierr);
     ierr = PetscSFSetFromOptions((*dmParallel)->sf);CHKERRQ(ierr);
   }
+  ierr = PetscLogEventEnd(DMPLEX_DistributeSF,dm,0,0,0);CHKERRQ(ierr);
   /* Cleanup */
   ierr = PetscSFDestroy(&pointSF);CHKERRQ(ierr);
   ierr = DMSetFromOptions(*dmParallel);CHKERRQ(ierr);
