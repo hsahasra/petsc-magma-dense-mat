@@ -1,0 +1,69 @@
+lid velocity = 0.0625, prandtl # = 1, grashof # = 1
+  0 SNES Function norm 2.391552133017e-01 
+    0 KSP Residual norm 2.587704613634e-01 
+    1 KSP Residual norm 1.843640737770e-02 
+    2 KSP Residual norm 3.113481392846e-03 
+    3 KSP Residual norm 3.522154040112e-04 
+    4 KSP Residual norm 3.964672276075e-05 
+    5 KSP Residual norm 2.444276295174e-06 
+  1 SNES Function norm 7.260092724333e-05 
+    0 KSP Residual norm 2.510391354083e-05 
+    1 KSP Residual norm 4.756134865482e-06 
+    2 KSP Residual norm 4.382245874957e-07 
+    3 KSP Residual norm 3.458692007484e-08 
+    4 KSP Residual norm 1.270039655189e-09 
+    5 KSP Residual norm 1.779021084186e-10 
+  2 SNES Function norm 1.598168804592e-10 
+SNES Object: 16 MPI processes
+  type: newtonls
+  maximum iterations=50, maximum function evaluations=10000
+  tolerances: relative=1e-08, absolute=1e-50, solution=1e-08
+  total number of linear solver iterations=10
+  total number of function evaluations=3
+  SNESLineSearch Object:   16 MPI processes
+    type: bt
+      interpolation: cubic
+      alpha=1.000000e-04
+    maxstep=1.000000e+08, minlambda=1.000000e-12
+    tolerances: relative=1.000000e-08, absolute=1.000000e-15, lambda=1.000000e-08
+    maximum iterations=40
+  KSP Object:   16 MPI processes
+    type: gmres
+      GMRES: restart=30, using Classical (unmodified) Gram-Schmidt Orthogonalization with no iterative refinement
+      GMRES: happy breakdown tolerance 1e-30
+    maximum iterations=10000, initial guess is zero
+    tolerances:  relative=1e-05, absolute=1e-50, divergence=10000
+    left preconditioning
+    using PRECONDITIONED norm type for convergence test
+  PC Object:   16 MPI processes
+    type: hypre
+      HYPRE BoomerAMG preconditioning
+      HYPRE BoomerAMG: Cycle type V
+      HYPRE BoomerAMG: Maximum number of levels 25
+      HYPRE BoomerAMG: Maximum number of iterations PER hypre call 1
+      HYPRE BoomerAMG: Convergence tolerance PER hypre call 0
+      HYPRE BoomerAMG: Threshold for strong coupling 0.25
+      HYPRE BoomerAMG: Interpolation truncation factor 0
+      HYPRE BoomerAMG: Interpolation: max elements per row 0
+      HYPRE BoomerAMG: Number of levels of aggressive coarsening 0
+      HYPRE BoomerAMG: Number of paths for aggressive coarsening 1
+      HYPRE BoomerAMG: Maximum row sums 0.9
+      HYPRE BoomerAMG: Sweeps down         1
+      HYPRE BoomerAMG: Sweeps up           1
+      HYPRE BoomerAMG: Sweeps on coarse    1
+      HYPRE BoomerAMG: Relax down          symmetric-SOR/Jacobi
+      HYPRE BoomerAMG: Relax up            symmetric-SOR/Jacobi
+      HYPRE BoomerAMG: Relax on coarse     Gaussian-elimination
+      HYPRE BoomerAMG: Relax weight  (all)      1
+      HYPRE BoomerAMG: Outer relax weight (all) 1
+      HYPRE BoomerAMG: Using CF-relaxation
+      HYPRE BoomerAMG: Measure type        local
+      HYPRE BoomerAMG: Coarsen type        Falgout
+      HYPRE BoomerAMG: Interpolation type  classical
+    linear system matrix = precond matrix:
+    Matrix Object:     16 MPI processes
+      type: mpiaij
+      rows=64, cols=64, bs=4
+      total: nonzeros=1024, allocated nonzeros=1024
+      total number of mallocs used during MatSetValues calls =0
+Number of SNES iterations = 2

@@ -1,0 +1,142 @@
+lid velocity = 0.0625, prandtl # = 1, grashof # = 1
+Number of SNES iterations = 2
+************************************************************************************************************************
+***             WIDEN YOUR WINDOW TO 120 CHARACTERS.  Use 'enscript -r -fCourier9' to print this document            ***
+************************************************************************************************************************
+
+---------------------------------------------- PETSc Performance Summary: ----------------------------------------------
+
+ex19 on a arch-fastmath named Q02-I1-J07.vesta.itd with 4 processors, by balay Wed Jul 31 22:19:40 2013
+Using Petsc Release Version 3.4.2, unknown 
+
+                         Max       Max/Min        Avg      Total 
+Time (sec):           2.626e-02      1.00000   2.626e-02
+Objects:              9.200e+01      1.00000   9.200e+01
+Flops:                3.676e+04      1.00707   3.663e+04  1.465e+05
+Flops/sec:            1.400e+06      1.00707   1.395e+06  5.580e+06
+MPI Messages:         1.390e+02      1.00361   1.388e+02  5.550e+02
+MPI Message Lengths:  6.076e+03      1.00033   4.378e+01  2.430e+04
+MPI Reductions:       2.030e+02      1.00000
+
+Flop counting convention: 1 flop = 1 real number operation of type (multiply/divide/add/subtract)
+                            e.g., VecAXPY() for real vectors of length N --> 2N flops
+                            and VecAXPY() for complex vectors of length N --> 8N flops
+
+Summary of Stages:   ----- Time ------  ----- Flops -----  --- Messages ---  -- Message Lengths --  -- Reductions --
+                        Avg     %Total     Avg     %Total   counts   %Total     Avg         %Total   counts   %Total 
+ 0:      Main Stage: 2.6256e-02 100.0%  1.4653e+05 100.0%  5.550e+02 100.0%  4.378e+01      100.0%  2.020e+02  99.5% 
+
+------------------------------------------------------------------------------------------------------------------------
+See the 'Profiling' chapter of the users' manual for details on interpreting output.
+Phase summary info:
+   Count: number of times phase was executed
+   Time and Flops: Max - maximum over all processors
+                   Ratio - ratio of maximum to minimum over all processors
+   Mess: number of messages sent
+   Avg. len: average message length (bytes)
+   Reduct: number of global reductions
+   Global: entire computation
+   Stage: stages of a computation. Set stages with PetscLogStagePush() and PetscLogStagePop().
+      %T - percent time in this phase         %f - percent flops in this phase
+      %M - percent messages in this phase     %L - percent message lengths in this phase
+      %R - percent reductions in this phase
+   Total Mflop/s: 10e-6 * (sum of flops over all processors)/(max time over all processors)
+------------------------------------------------------------------------------------------------------------------------
+Event                Count      Time (sec)     Flops                             --- Global ---  --- Stage ---   Total
+                   Max Ratio  Max     Ratio   Max  Ratio  Mess   Avg len Reduct  %T %f %M %L %R  %T %f %M %L %R Mflop/s
+------------------------------------------------------------------------------------------------------------------------
+
+--- Event Stage 0: Main Stage
+
+SNESSolve              1 1.0 1.5005e-02 1.0 3.68e+04 1.0 5.2e+02 4.6e+01 1.6e+02 57100 94 98 79  57100 94 98 80    10
+SNESFunctionEval       3 1.0 2.3079e-04 1.0 1.01e+03 1.0 2.4e+01 4.0e+01 2.0e+00  1  3  4  4  1   1  3  4  4  1    17
+SNESJacobianEval       2 1.0 7.4663e-03 1.0 1.54e+04 1.0 3.7e+02 4.0e+01 7.9e+01 28 42 67 61 39  28 42 67 61 39     8
+SNESLineSearch         2 1.0 5.3501e-04 1.0 2.01e+03 1.0 3.2e+01 5.2e+01 8.0e+00  2  5  6  7  4   2  5  6  7  4    15
+VecDot                 2 1.0 6.0081e-05 1.0 6.20e+01 1.0 0.0e+00 0.0e+00 2.0e+00  0  0  0  0  1   0  0  0  0  1     4
+VecMDot               14 1.0 4.4036e-04 1.0 1.77e+03 1.0 0.0e+00 0.0e+00 1.4e+01  2  5  0  0  7   2  5  0  0  7    16
+VecNorm               21 1.0 5.9772e-04 1.0 6.72e+02 1.0 0.0e+00 0.0e+00 2.1e+01  2  2  0  0 10   2  2  0  0 10     4
+VecScale              16 1.0 5.6267e-05 1.1 2.56e+02 1.0 0.0e+00 0.0e+00 0.0e+00  0  1  0  0  0   0  1  0  0  0    18
+VecCopy               46 1.0 1.5235e-04 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  1  0  0  0  0   1  0  0  0  0     0
+VecSet                22 1.0 5.5790e-05 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecAXPY               42 1.0 1.2064e-04 1.0 1.34e+03 1.0 0.0e+00 0.0e+00 0.0e+00  0  4  0  0  0   0  4  0  0  0    45
+VecWAXPY               2 1.0 6.1989e-06 1.3 3.20e+01 1.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0    21
+VecMAXPY              16 1.0 6.2466e-05 1.1 2.27e+03 1.0 0.0e+00 0.0e+00 0.0e+00  0  6  0  0  0   0  6  0  0  0   145
+VecScatterBegin       63 1.0 9.7775e-04 1.0 0.00e+00 0.0 5.0e+02 4.7e+01 0.0e+00  4  0 91 97  0   4  0 91 97  0     0
+VecScatterEnd         63 1.0 1.0512e-03 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  4  0  0  0  0   4  0  0  0  0     0
+VecReduceArith         5 1.0 1.7881e-05 1.1 1.55e+02 1.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0    35
+VecReduceComm          3 1.0 8.7023e-05 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 3.0e+00  0  0  0  0  1   0  0  0  0  1     0
+VecNormalize          16 1.0 6.2990e-04 1.0 7.68e+02 1.0 0.0e+00 0.0e+00 1.6e+01  2  2  0  0  8   2  2  0  0  8     5
+MatMult               16 1.0 7.2479e-04 1.0 7.94e+03 1.0 1.3e+02 6.4e+01 0.0e+00  3 22 23 34  0   3 22 23 34  0    44
+MatSolve              16 1.0 1.3113e-04 1.0 5.89e+03 1.0 0.0e+00 0.0e+00 0.0e+00  0 16  0  0  0   0 16  0  0  0   180
+MatLUFactorNum         2 1.0 1.2398e-04 1.0 1.26e+03 1.3 0.0e+00 0.0e+00 0.0e+00  0  3  0  0  0   0  3  0  0  0    36
+MatILUFactorSym        1 1.0 9.7036e-05 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 1.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatAssemblyBegin       3 1.0 2.4414e-04 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 6.0e+00  1  0  0  0  3   1  0  0  0  3     0
+MatAssemblyEnd         3 1.0 5.7197e-04 1.0 0.00e+00 0.0 1.6e+01 1.8e+01 8.0e+00  2  0  3  1  4   2  0  3  1  4     0
+MatGetRowIJ            1 1.0 3.0994e-06 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatGetOrdering         1 1.0 1.8692e-04 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 4.0e+00  1  0  0  0  2   1  0  0  0  2     0
+MatZeroEntries         2 1.0 1.0967e-05 1.2 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatFDColorCreate       1 1.0 3.7601e-03 1.0 0.00e+00 0.0 1.6e+01 1.8e+01 7.1e+01 14  0  3  1 35  14  0  3  1 35     0
+MatFDColorApply        2 1.0 3.5748e-03 1.0 1.54e+04 1.0 3.5e+02 4.1e+01 7.0e+00 14 42 63 60  3  14 42 63 60  3    17
+MatFDColorFunc        42 1.0 2.1784e-03 1.0 1.41e+04 1.0 3.4e+02 4.0e+01 0.0e+00  8 39 61 55  0   8 39 61 55  0    26
+KSPGMRESOrthog        14 1.0 5.8341e-04 1.0 3.59e+03 1.0 0.0e+00 0.0e+00 1.4e+01  2 10  0  0  7   2 10  0  0  7    25
+KSPSetUp               4 1.0 7.7844e-04 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 1.0e+01  3  0  0  0  5   3  0  0  0  5     0
+KSPSolve               2 1.0 6.3620e-03 1.0 1.90e+04 1.0 1.1e+02 6.4e+01 6.7e+01 24 51 20 29 33  24 51 20 29 33    12
+PCSetUp                4 1.0 8.8573e-04 1.0 1.26e+03 1.3 0.0e+00 0.0e+00 7.0e+00  3  3  0  0  3   3  3  0  0  3     5
+PCSetUpOnBlocks        2 1.0 5.6291e-04 1.0 1.26e+03 1.3 0.0e+00 0.0e+00 5.0e+00  2  3  0  0  2   2  3  0  0  2     8
+PCApply               16 1.0 1.0800e-03 1.0 5.89e+03 1.0 0.0e+00 0.0e+00 0.0e+00  4 16  0  0  0   4 16  0  0  0    22
+------------------------------------------------------------------------------------------------------------------------
+
+Memory usage is given in bytes:
+
+Object Type          Creations   Destructions     Memory  Descendants' Mem.
+Reports information only for process 0.
+
+--- Event Stage 0: Main Stage
+
+                SNES     1              1         1308     0
+      SNESLineSearch     1              1          856     0
+              DMSNES     1              1          664     0
+              Vector    34             34        55984     0
+      Vector Scatter     4              4         4208     0
+              Matrix     4              4        16644     0
+  Matrix FD Coloring     1              1         3404     0
+    Distributed Mesh     1              1         5124     0
+     Bipartite Graph     2              2         1584     0
+           Index Set    34             34        26184     0
+   IS L to G Mapping     3              3         1884     0
+       Krylov Solver     2              2        19504     0
+     DMKSP interface     1              1          648     0
+      Preconditioner     2              2         1848     0
+              Viewer     1              0            0     0
+========================================================================================================================
+Average time to get PetscTime(): 6.91414e-07
+Average time for MPI_Barrier(): 2.00272e-06
+Average time for zero size MPI_Send(): 7.98702e-06
+#PETSc Option Table entries:
+-dm_refine 6
+-log_summary
+#End of PETSc Option Table entries
+Compiled without FORTRAN kernels
+Compiled with full precision matrices (default)
+sizeof(short) 2 sizeof(int) 4 sizeof(long) 8 sizeof(void*) 8 sizeof(PetscScalar) 8 sizeof(PetscInt) 4
+Configure run at: Wed Jul 31 16:13:30 2013
+Configure options: PETSC_ARCH=arch-fastmath --prefix=/gpfs/vesta-fs0/projects/FASTMath/install/petsc/3.4.2.1/linux-rhel_6-ppc64-gcc-4.4.6 --with-cmake=/gpfs/vesta-fs0/projects/FASTMath/install/cmake/2.8.11.1/linux-rhel_6-ppc64-gcc-4.4.6/bin/cmake --with-blas-lib=/gpfs/vesta-fs0/projects/FASTMath/install/blas/19Apr11/linux-rhel_6-ppc64-gcc-4.4.6/lib/libblas.a --with-lapack-lib=/gpfs/vesta-fs0/projects/FASTMath/install/lapack/3.4.2/linux-rhel_6-ppc64-gcc-4.4.6/lib/liblapack.a --with-metis-dir=/gpfs/vesta-fs0/projects/FASTMath/install/metis/5.1.0/linux-rhel_6-ppc64-gcc-4.4.6 --with-parmetis-dir=/gpfs/vesta-fs0/projects/FASTMath/install/parmetis/4.0.3/linux-rhel_6-ppc64-gcc-4.4.6 --with-hdf5-dir=/gpfs/vesta-fs0/projects/FASTMath/install/hdf5/1.8.11/linux-rhel_6-ppc64-gcc-4.4.6 --with-superlu_dist-include=/gpfs/vesta-fs0/projects/FASTMath/install/superlu/dist-3.3/linux-rhel_6-ppc64-gcc-4.4.6/include --with-superlu_dist-lib="-L/gpfs/vesta-fs0/projects/FASTMath/install/superlu/dist-3.3/linux-rhel_6-ppc64-gcc-4.4.6/lib -lsuperlu" --with-zoltan-dir=/gpfs/vesta-fs0/projects/FASTMath/install/zoltan/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6 --with-moab-include=/gpfs/vesta-fs0/projects/FASTMath/install/moab/4.6.0/linux-rhel_6-ppc64-gcc-4.4.6/include --with-moab-lib="-L/gpfs/vesta-fs0/projects/FASTMath/install/moab/4.6.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -lMOAB -L/gpfs/vesta-fs0/projects/FASTMath/install/cgma/12.2.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -lcgm -L/gpfs/vesta-fs0/projects/FASTMath/install/zoltan/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/lib -lzoltan -L/gpfs/vesta-fs0/projects/FASTMath/install/parmetis/4.0.3/linux-rhel_6-ppc64-gcc-4.4.6/lib -lparmetis -lmetis -L/gpfs/vesta-fs0/projects/FASTMath/install/hdf5/1.8.11/linux-rhel_6-ppc64-gcc-4.4.6/lib -lhdf5" --with-ml-include=/gpfs/vesta-fs0/projects/FASTMath/install/ml/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/include --with-ml-lib="-L/gpfs/vesta-fs0/projects/FASTMath/install/ml/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/lib -lml -L/gpfs/vesta-fs0/projects/FASTMath/install/parmetis/4.0.3/linux-rhel_6-ppc64-gcc-4.4.6/lib -lparmetis -lmetis" --with-hypre-dir=/gpfs/vesta-fs0/projects/FASTMath/install/hypre/2.9.2a/linux-rhel_6-ppc64-gcc-4.4.6 --with-netcdf-dir=/gpfs/vesta-fs0/projects/FASTMath/install/netcdf/4.3.0/linux-rhel_6-ppc64-gcc-4.4.6 --download-chaco --download-exodusii --with-shared-libraries=0 --with-debugging=0 COPTFLAGS="-g -O2" FOPTFLAGS="-g -O2" CXXOPTFLAGS="-g -O2" --with-etags=0
+-----------------------------------------
+Libraries compiled on Wed Jul 31 16:13:30 2013 on vestalac1 
+Machine characteristics: Linux-2.6.32-358.6.2.el6.ppc64-ppc64-with-redhat-6.3-Santiago
+Using PETSc directory: /home/balay/petsc
+Using PETSc arch: arch-fastmath
+-----------------------------------------
+
+Using C compiler: mpicc  -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -g -O2  ${COPTFLAGS} ${CFLAGS}
+Using Fortran compiler: mpif90  -Wall -Wno-unused-variable -g -O2   ${FOPTFLAGS} ${FFLAGS} 
+-----------------------------------------
+
+Using include paths: -I/home/balay/petsc/arch-fastmath/include -I/home/balay/petsc/include -I/home/balay/petsc/include -I/home/balay/petsc/arch-fastmath/include -I/gpfs/vesta-fs0/projects/FASTMath/install/superlu/dist-3.3/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/hypre/2.9.2a/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/ml/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/zoltan/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/parmetis/4.0.3/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/metis/5.1.0/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/moab/4.6.0/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/netcdf/4.3.0/linux-rhel_6-ppc64-gcc-4.4.6/include -I/gpfs/vesta-fs0/projects/FASTMath/install/hdf5/1.8.11/linux-rhel_6-ppc64-gcc-4.4.6/include -I/bgsys/drivers/V1R2M0/ppc64 -I/bgsys/drivers/V1R2M0/ppc64/comm/sys/include -I/bgsys/drivers/V1R2M0/ppc64/spi/include -I/bgsys/drivers/V1R2M0/ppc64/spi/include/kernel/cnk -I/bgsys/drivers/V1R2M0/ppc64/comm/gcc/include
+-----------------------------------------
+
+Using C linker: mpicc
+Using Fortran linker: mpif90
+Using libraries: -Wl,-rpath,/home/balay/petsc/arch-fastmath/lib -L/home/balay/petsc/arch-fastmath/lib -lpetsc -L/gpfs/vesta-fs0/projects/FASTMath/install/superlu/dist-3.3/linux-rhel_6-ppc64-gcc-4.4.6/lib -lsuperlu -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/hypre/2.9.2a/linux-rhel_6-ppc64-gcc-4.4.6/lib -L/gpfs/vesta-fs0/projects/FASTMath/install/hypre/2.9.2a/linux-rhel_6-ppc64-gcc-4.4.6/lib -lHYPRE -L/bgsys/drivers/V1R2M0/ppc64/spi/lib -L/bgsys/drivers/V1R2M0/ppc64/comm/sys/lib -L/bgsys/drivers/V1R2M0/ppc64/comm/gcc/lib -L/bgsys/drivers/toolchain/V1R2M0-efix23/gnu-linux/lib/gcc/powerpc64-bgq-linux/4.4.6 -L/bgsys/drivers/toolchain/V1R2M0-efix23/gnu-linux/lib/gcc -L/bgsys/drivers/toolchain/V1R2M0-efix23/gnu-linux/powerpc64-bgq-linux/lib -Wl,-rpath,/bgsys/drivers/V1R2M0/ppc64/comm/gcc/lib -lcxxmpich -L/gpfs/vesta-fs0/projects/FASTMath/install/ml/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/lib -lml -L/gpfs/vesta-fs0/projects/FASTMath/install/parmetis/4.0.3/linux-rhel_6-ppc64-gcc-4.4.6/lib -lparmetis -lmetis -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/lapack/3.4.2/linux-rhel_6-ppc64-gcc-4.4.6/lib -L/gpfs/vesta-fs0/projects/FASTMath/install/lapack/3.4.2/linux-rhel_6-ppc64-gcc-4.4.6/lib -llapack -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/blas/19Apr11/linux-rhel_6-ppc64-gcc-4.4.6/lib -L/gpfs/vesta-fs0/projects/FASTMath/install/blas/19Apr11/linux-rhel_6-ppc64-gcc-4.4.6/lib -lblas -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/zoltan/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/lib -L/gpfs/vesta-fs0/projects/FASTMath/install/zoltan/trilinos-11.2.4/linux-rhel_6-ppc64-gcc-4.4.6/lib -lzoltan -Wl,-rpath,/home/balay/petsc/arch-fastmath/lib -L/home/balay/petsc/arch-fastmath/lib -lchaco -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/parmetis/4.0.3/linux-rhel_6-ppc64-gcc-4.4.6/lib -lparmetis -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/metis/5.1.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -L/gpfs/vesta-fs0/projects/FASTMath/install/metis/5.1.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -lmetis -lpthread -lexoIIv2for -lexodus -L/gpfs/vesta-fs0/projects/FASTMath/install/moab/4.6.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -lMOAB -L/gpfs/vesta-fs0/projects/FASTMath/install/cgma/12.2.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -lcgm -lzoltan -lparmetis -lmetis -L/gpfs/vesta-fs0/projects/FASTMath/install/hdf5/1.8.11/linux-rhel_6-ppc64-gcc-4.4.6/lib -lhdf5 -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/netcdf/4.3.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -L/gpfs/vesta-fs0/projects/FASTMath/install/netcdf/4.3.0/linux-rhel_6-ppc64-gcc-4.4.6/lib -lnetcdf -Wl,-rpath,/gpfs/vesta-fs0/projects/FASTMath/install/hdf5/1.8.11/linux-rhel_6-ppc64-gcc-4.4.6/lib -lhdf5_hl -lhdf5 -lm -lmpichf90 -lgfortran -lm -lm -lcxxmpich -ldl -lmpich -lopa -lmpl -lpami -lSPI -lSPI_cnk -lrt -lpthread -lstdc++ -lgcc_eh -lnss_files -lnss_dns -lresolv -ldl 
+-----------------------------------------
+

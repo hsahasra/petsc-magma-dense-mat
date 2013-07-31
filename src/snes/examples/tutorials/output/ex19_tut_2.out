@@ -1,48 +1,32 @@
-lid velocity = 0.00012207, prandtl # = 1, grashof # = 1
-  0 SNES Function norm 1.108854643719e-02 
-    0 KSP Residual norm 3.081132205853e+00 
-    1 KSP Residual norm 8.590745349953e-01 
-    2 KSP Residual norm 1.673666461809e-01 
-    3 KSP Residual norm 5.120243921164e-02 
-    4 KSP Residual norm 2.103731969373e-02 
-    5 KSP Residual norm 6.618498695004e-03 
-    6 KSP Residual norm 1.789846150556e-03 
-    7 KSP Residual norm 3.733007142240e-04 
-    8 KSP Residual norm 9.293575105964e-05 
-    9 KSP Residual norm 2.428175553848e-05 
-  1 SNES Function norm 1.387743798092e-05 
-    0 KSP Residual norm 4.860254555115e-05 
-    1 KSP Residual norm 2.049318728153e-05 
-    2 KSP Residual norm 7.507972666276e-06 
-    3 KSP Residual norm 3.112726197911e-06 
-    4 KSP Residual norm 9.890173328383e-07 
-    5 KSP Residual norm 2.240690092057e-07 
-    6 KSP Residual norm 6.958211845553e-08 
-    7 KSP Residual norm 2.484554623042e-08 
-    8 KSP Residual norm 8.758170996101e-09 
-    9 KSP Residual norm 1.794008911440e-09 
-   10 KSP Residual norm 7.845448481384e-10 
-   11 KSP Residual norm 2.497133829942e-10 
-  2 SNES Function norm 1.762622785554e-10 
-    0 KSP Residual norm 2.497125877379e-10 
-    1 KSP Residual norm 1.424976360467e-10 
-    2 KSP Residual norm 3.923151577121e-11 
-    3 KSP Residual norm 1.317058986958e-11 
-    4 KSP Residual norm 3.952571701949e-12 
-    5 KSP Residual norm 1.480776976756e-12 
-    6 KSP Residual norm 6.450449295772e-13 
-    7 KSP Residual norm 1.352187066856e-13 
-    8 KSP Residual norm 4.039783154414e-14 
-    9 KSP Residual norm 1.702765971517e-14 
-   10 KSP Residual norm 5.041856451402e-15 
-   11 KSP Residual norm 1.359127837711e-15 
-  3 SNES Function norm 1.260396243395e-14 
+lid velocity = 0.0625, prandtl # = 1, grashof # = 1
+  0 SNES Function norm 2.391552133017e-01 
+    0 KSP Residual norm 4.368896006331e-01 
+    1 KSP Residual norm 2.475049454888e-02 
+    2 KSP Residual norm 1.045618491661e-02 
+    3 KSP Residual norm 5.965584410542e-03 
+    4 KSP Residual norm 1.302204512542e-03 
+    5 KSP Residual norm 3.398473313915e-04 
+    6 KSP Residual norm 1.304713271146e-04 
+    7 KSP Residual norm 3.399962519989e-05 
+    8 KSP Residual norm 1.379081503066e-06 
+  1 SNES Function norm 7.158879645345e-05 
+    0 KSP Residual norm 2.931799749097e-05 
+    1 KSP Residual norm 7.278847441902e-06 
+    2 KSP Residual norm 2.082197929520e-06 
+    3 KSP Residual norm 8.059859678995e-07 
+    4 KSP Residual norm 2.222795218452e-07 
+    5 KSP Residual norm 6.924363817569e-08 
+    6 KSP Residual norm 3.013261090315e-08 
+    7 KSP Residual norm 9.565132290701e-09 
+    8 KSP Residual norm 1.402794472612e-09 
+    9 KSP Residual norm 1.945856841397e-10 
+  2 SNES Function norm 5.177388041546e-10 
 SNES Object: 16 MPI processes
   type: newtonls
   maximum iterations=50, maximum function evaluations=10000
   tolerances: relative=1e-08, absolute=1e-50, solution=1e-08
-  total number of linear solver iterations=31
-  total number of function evaluations=4
+  total number of linear solver iterations=17
+  total number of function evaluations=3
   SNESLineSearch Object:   16 MPI processes
     type: bt
       interpolation: cubic
@@ -59,34 +43,49 @@ SNES Object: 16 MPI processes
     left preconditioning
     using PRECONDITIONED norm type for convergence test
   PC Object:   16 MPI processes
-    type: hypre
-      HYPRE BoomerAMG preconditioning
-      HYPRE BoomerAMG: Cycle type V
-      HYPRE BoomerAMG: Maximum number of levels 25
-      HYPRE BoomerAMG: Maximum number of iterations PER hypre call 1
-      HYPRE BoomerAMG: Convergence tolerance PER hypre call 0
-      HYPRE BoomerAMG: Threshold for strong coupling 0.25
-      HYPRE BoomerAMG: Interpolation truncation factor 0
-      HYPRE BoomerAMG: Interpolation: max elements per row 0
-      HYPRE BoomerAMG: Number of levels of aggressive coarsening 0
-      HYPRE BoomerAMG: Number of paths for aggressive coarsening 1
-      HYPRE BoomerAMG: Maximum row sums 0.9
-      HYPRE BoomerAMG: Sweeps down         1
-      HYPRE BoomerAMG: Sweeps up           1
-      HYPRE BoomerAMG: Sweeps on coarse    1
-      HYPRE BoomerAMG: Relax down          symmetric-SOR/Jacobi
-      HYPRE BoomerAMG: Relax up            symmetric-SOR/Jacobi
-      HYPRE BoomerAMG: Relax on coarse     Gaussian-elimination
-      HYPRE BoomerAMG: Relax weight  (all)      1
-      HYPRE BoomerAMG: Outer relax weight (all) 1
-      HYPRE BoomerAMG: Using CF-relaxation
-      HYPRE BoomerAMG: Measure type        local
-      HYPRE BoomerAMG: Coarsen type        Falgout
-      HYPRE BoomerAMG: Interpolation type  classical
+    type: mg
+      MG: type is MULTIPLICATIVE, levels=1 cycles=v
+        Cycles per PCApply=1
+        Not using Galerkin computed coarse grid matrices
+    Coarse grid solver -- level -------------------------------
+      KSP Object:      (mg_levels_0_)       16 MPI processes
+        type: chebyshev
+          Chebyshev: eigenvalue estimates:  min = 0.176663, max = 1.94329
+          Chebyshev: estimated using:  [0 0.1; 0 1.1]
+          KSP Object:          (mg_levels_0_est_)           16 MPI processes
+            type: gmres
+              GMRES: restart=30, using Classical (unmodified) Gram-Schmidt Orthogonalization with no iterative refinement
+              GMRES: happy breakdown tolerance 1e-30
+            maximum iterations=10, initial guess is zero
+            tolerances:  relative=1e-05, absolute=1e-50, divergence=10000
+            left preconditioning
+            using NONE norm type for convergence test
+          PC Object:          (mg_levels_0_)           16 MPI processes
+            type: sor
+              SOR: type = local_symmetric, iterations = 1, local iterations = 1, omega = 1
+            linear system matrix = precond matrix:
+            Matrix Object:             16 MPI processes
+              type: mpiaij
+              rows=64, cols=64, bs=4
+              total: nonzeros=1024, allocated nonzeros=1024
+              total number of mallocs used during MatSetValues calls =0
+        maximum iterations=1, initial guess is zero
+        tolerances:  relative=1e-05, absolute=1e-50, divergence=10000
+        left preconditioning
+        using NONE norm type for convergence test
+      PC Object:      (mg_levels_0_)       16 MPI processes
+        type: sor
+          SOR: type = local_symmetric, iterations = 1, local iterations = 1, omega = 1
+        linear system matrix = precond matrix:
+        Matrix Object:         16 MPI processes
+          type: mpiaij
+          rows=64, cols=64, bs=4
+          total: nonzeros=1024, allocated nonzeros=1024
+          total number of mallocs used during MatSetValues calls =0
     linear system matrix = precond matrix:
     Matrix Object:     16 MPI processes
       type: mpiaij
-      rows=32768, cols=32768, bs=4
-      total: nonzeros=649216, allocated nonzeros=649216
+      rows=64, cols=64, bs=4
+      total: nonzeros=1024, allocated nonzeros=1024
       total number of mallocs used during MatSetValues calls =0
-Number of SNES iterations = 3
+Number of SNES iterations = 2
