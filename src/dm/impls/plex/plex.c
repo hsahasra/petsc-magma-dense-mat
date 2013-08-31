@@ -4354,7 +4354,6 @@ PetscErrorCode DMPlexGetDepth(DM dm, PetscInt *depth)
 @*/
 PetscErrorCode DMPlexGetDepthStratum(DM dm, PetscInt stratumValue, PetscInt *start, PetscInt *end)
 {
-  DM_Plex       *mesh = (DM_Plex*) dm->data;
   DMLabel        label;
   PetscInt       depth;
   PetscErrorCode ierr;
@@ -4408,7 +4407,6 @@ PetscErrorCode DMPlexGetDepthStratum(DM dm, PetscInt stratumValue, PetscInt *sta
 @*/
 PetscErrorCode DMPlexGetHeightStratum(DM dm, PetscInt stratumValue, PetscInt *start, PetscInt *end)
 {
-  DM_Plex       *mesh = (DM_Plex*) dm->data;
   DMLabel        label;
   PetscInt       depth;
   PetscErrorCode ierr;

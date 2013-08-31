@@ -1354,9 +1354,9 @@ static PetscErrorCode DMPlexMarkCohesiveSubmesh_Uninterpolated(DM dm, PetscBool 
   PetscErrorCode  ierr;
 
   PetscFunctionBegin;
-  if (labelname) {ierr = DMPlexGetLabel(dm, labelname, &label);CHKERRQ(ierr);}
   *numFaces = 0;
   *nFV = 0;
+  if (labelname) {ierr = DMPlexGetLabel(dm, labelname, &label);CHKERRQ(ierr);}
   *subCells = NULL;
   ierr = DMPlexGetDimension(dm, &dim);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(dm, 0, NULL, &cEnd);CHKERRQ(ierr);
