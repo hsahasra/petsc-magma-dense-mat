@@ -2493,7 +2493,6 @@ PetscErrorCode DMPlexPartition_ParMetis(DM dm, PetscInt numVertices, PetscInt st
   PetscReal     *tpwgts;                   // The fraction of vertex weights assigned to each partition
   PetscReal     *ubvec;                    // The balance intolerance for vertex weights
   PetscInt       options[5];               // Options
-  PetscInt       maxSize    = 0;
   // Outputs
   PetscInt       edgeCut;                  // The number of edges cut by the partition
   PetscInt      *assignment, *points;
@@ -2504,13 +2503,6 @@ PetscErrorCode DMPlexPartition_ParMetis(DM dm, PetscInt numVertices, PetscInt st
   ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
   ierr = MPI_Comm_size(comm, &commSize);CHKERRQ(ierr);
   ierr = MPI_Comm_rank(comm, &rank);CHKERRQ(ierr);
-  if (!numVertices) {
-    ierr = PetscSectionCreate(comm, partSection);CHKERRQ(ierr);
-    ierr = PetscSectionSetChart(*partSection, 0, commSize);CHKERRQ(ierr);
-    ierr = PetscSectionSetUp(*partSection);CHKERRQ(ierr);
-    ierr = ISCreateGeneral(comm, 0, NULL, PETSC_OWN_POINTER, partition);CHKERRQ(ierr);
-    PetscFunctionReturn(0);
-  }
   nparts = commSize;
   options[0] = 0; /* Use all defaults */
   /* Calculate vertex distribution */
@@ -2531,10 +2523,16 @@ PetscErrorCode DMPlexPartition_ParMetis(DM dm, PetscInt numVertices, PetscInt st
   } else {
     if (vtxdist[1] == vtxdist[nparts]) {
       if (!rank) {
-        PetscStackCallStandard(METIS_PartGraphKway, (&nvtxs, &ncon, xadj, adjncy, vwgt, NULL, adjwgt, &nparts, tpwgts, ubvec, NULL, &edgeCut, assignment));
+        PetscStackPush("METIS_PartGraphKway");
+        ierr = METIS_PartGraphKway(&nvtxs, &ncon, xadj, adjncy, vwgt, NULL, adjwgt, &nparts, tpwgts, ubvec, NULL, &edgeCut, assignment);
+        PetscStackPop;
+        if (ierr != METIS_OK) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in METIS_PartGraphKway()");
       }
     } else {
-      PetscStackCallStandard(ParMETIS_V3_PartKway, (vtxdist, xadj, adjncy, vwgt, adjwgt, &wgtflag, &numflag, &ncon, &nparts, tpwgts, ubvec, options, &edgeCut, assignment, &comm));
+      PetscStackPush("ParMETIS_V3_PartKway");
+      ierr = ParMETIS_V3_PartKway(vtxdist, xadj, adjncy, vwgt, adjwgt, &wgtflag, &numflag, &ncon, &nparts, tpwgts, ubvec, options, &edgeCut, assignment, &comm);
+      PetscStackPop;
+      if (ierr != METIS_OK) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_LIB, "Error in ParMETIS_V3_PartKway()");
     }
   }
   /* Convert to PetscSection+IS */
@@ -2640,8 +2638,10 @@ PetscErrorCode DMPlexEnlargePartition(DM dm, const PetscInt start[], const Petsc
 
 .seealso DMPlexDistribute()
 */
-PetscErrorCode DMPlexCreatePartition(DM dm, PetscInt height, PetscBool enlarge, PetscSection *partSection, IS *partition, PetscSection *origPartSection, IS *origPartition)
+PetscErrorCode DMPlexCreatePartition(DM dm, const char name[], PetscInt height, PetscBool enlarge, PetscSection *partSection, IS *partition, PetscSection *origPartSection, IS *origPartition)
 {
+  char           partname[1024];
+  PetscBool      isChaco = PETSC_FALSE, isMetis = PETSC_FALSE, flg;
   PetscMPIInt    size;
   PetscErrorCode ierr;
 
@@ -2664,21 +2664,29 @@ PetscErrorCode DMPlexCreatePartition(DM dm, PetscInt height, PetscBool enlarge, 
     ierr = ISCreateGeneral(PetscObjectComm((PetscObject)dm), cEnd-cStart, points, PETSC_OWN_POINTER, partition);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
+  ierr = PetscOptionsGetString(((PetscObject) dm)->prefix, "-dm_plex_partitioner", partname, 1024, &flg);CHKERRQ(ierr);
+  if (flg) name = partname;
+  if (name) {
+    ierr = PetscStrcmp(name, "chaco", &isChaco);CHKERRQ(ierr);
+    ierr = PetscStrcmp(name, "metis", &isMetis);CHKERRQ(ierr);
+  }
   if (height == 0) {
     PetscInt  numVertices;
     PetscInt *start     = NULL;
     PetscInt *adjacency = NULL;
 
     ierr = DMPlexCreateNeighborCSR(dm, 0, &numVertices, &start, &adjacency);CHKERRQ(ierr);
-    if (1) {
+    if (!name || isChaco) {
 #if defined(PETSC_HAVE_CHACO)
       ierr = DMPlexPartition_Chaco(dm, numVertices, start, adjacency, partSection, partition);CHKERRQ(ierr);
+#else
+      SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Mesh partitioning needs external package support.\nPlease reconfigure with --download-chaco.");
 #endif
-    } else {
+    } else if (isMetis) {
 #if defined(PETSC_HAVE_PARMETIS)
       ierr = DMPlexPartition_ParMetis(dm, numVertices, start, adjacency, partSection, partition);CHKERRQ(ierr);
 #endif
-    }
+    } else SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Unknown mesh partitioning package %s", name);
     if (enlarge) {
       *origPartSection = *partSection;
       *origPartition   = *partition;
@@ -2864,7 +2872,7 @@ PetscErrorCode DMPlexDistribute(DM dm, const char partitioner[], PetscInt overla
   /* Create cell partition - We need to rewrite to use IS, use the MatPartition stuff */
   ierr = PetscLogEventBegin(DMPLEX_Partition,dm,0,0,0);CHKERRQ(ierr);
   if (overlap > 1) SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Overlap > 1 not yet implemented");
-  ierr = DMPlexCreatePartition(dm, height, overlap > 0 ? PETSC_TRUE : PETSC_FALSE, &cellPartSection, &cellPart, &origCellPartSection, &origCellPart);CHKERRQ(ierr);
+  ierr = DMPlexCreatePartition(dm, partitioner, height, overlap > 0 ? PETSC_TRUE : PETSC_FALSE, &cellPartSection, &cellPart, &origCellPartSection, &origCellPart);CHKERRQ(ierr);
   /* Create SF assuming a serial partition for all processes: Could check for IS length here */
   if (!rank) numRemoteRanks = numProcs;
   else       numRemoteRanks = 0;
@@ -4230,6 +4238,7 @@ PetscErrorCode DMRefine_Plex(DM dm, MPI_Comm comm, DM *dmRefined)
       ierr = PetscMalloc((cEnd - cStart) * sizeof(double), &maxVolumes);CHKERRQ(ierr);
       for (c = 0; c < cEnd-cStart; ++c) maxVolumes[c] = refinementLimit;
       ierr = DMPlexRefine_Triangle(dm, maxVolumes, dmRefined);CHKERRQ(ierr);
+      ierr = PetscFree(maxVolumes);CHKERRQ(ierr);
 #else
       SETERRQ(PetscObjectComm((PetscObject)dm), PETSC_ERR_SUP, "Mesh refinement needs external package support.\nPlease reconfigure with --download-triangle.");
 #endif

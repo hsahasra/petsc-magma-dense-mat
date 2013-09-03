@@ -12,7 +12,6 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateSubmesh(DM, const char[], PetscInt, DM*)
 PETSC_EXTERN PetscErrorCode DMPlexCreateCohesiveSubmesh(DM, PetscBool, const char [], PetscInt, DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromCellList(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, PetscBool, const int[], PetscInt, const double[], DM*);
 PETSC_EXTERN PetscErrorCode DMPlexCreateFromDAG(DM, PetscInt, const PetscInt [], const PetscInt [], const PetscInt [], const PetscInt [], const PetscScalar []);
-PETSC_EXTERN PetscErrorCode DMPlexClone(DM, DM*);
 PETSC_EXTERN PetscErrorCode DMPlexGetDimension(DM, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMPlexSetDimension(DM, PetscInt);
 PETSC_EXTERN PetscErrorCode DMPlexGetChart(DM, PetscInt *, PetscInt *);
@@ -126,7 +125,7 @@ PETSC_EXTERN PetscErrorCode DMPlexInvertCell(PetscInt, PetscInt, int []);
 
 /* Mesh Partitioning and Distribution */
 PETSC_EXTERN PetscErrorCode DMPlexCreateNeighborCSR(DM, PetscInt, PetscInt *, PetscInt **, PetscInt **);
-PETSC_EXTERN PetscErrorCode DMPlexCreatePartition(DM, PetscInt, PetscBool, PetscSection *, IS *, PetscSection *, IS *);
+PETSC_EXTERN PetscErrorCode DMPlexCreatePartition(DM, const char[], PetscInt, PetscBool, PetscSection *, IS *, PetscSection *, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexCreatePartitionClosure(DM, PetscSection, IS, PetscSection *, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexDistribute(DM, const char[], PetscInt, DM*);
 
@@ -135,9 +134,9 @@ PETSC_EXTERN PetscErrorCode DMPlexGetSubpointMap(DM, DMLabel*);
 PETSC_EXTERN PetscErrorCode DMPlexSetSubpointMap(DM, DMLabel);
 PETSC_EXTERN PetscErrorCode DMPlexCreateSubpointIS(DM, IS *);
 
-PETSC_EXTERN PetscErrorCode DMPlexLabelCohesiveComplete(DM, DMLabel, PetscBool, DM);
 PETSC_EXTERN PetscErrorCode DMPlexMarkBoundaryFaces(DM, DMLabel);
 PETSC_EXTERN PetscErrorCode DMPlexLabelComplete(DM, DMLabel);
+PETSC_EXTERN PetscErrorCode DMPlexLabelCohesiveComplete(DM, DMLabel, PetscBool, DM);
 
 /* Mesh Refinement */
 typedef PetscInt CellRefiner;

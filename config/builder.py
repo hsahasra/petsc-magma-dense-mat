@@ -48,11 +48,28 @@ regressionParameters = {'src/dm/impls/patch/examples/tests/ex1': [{'numProcs': 1
                                                                   'setup': './bin/pythonscripts/PetscGenerateFEMQuadrature.py 2 2 2 1 identity src/dm/impls/plex/examples/tests/ex3.h'},
                                                                  {'numProcs': 1, 'args': '-interpolate 1 -order 1'},
                                                                  {'numProcs': 1, 'args': '-interpolate 1 -order 2'}],
-                        'src/dm/impls/plex/examples/tests/ex4': [{'numProcs': 1, 'args': '-dim 2 -dm_view ::ascii_info_detail'},
+                        'src/dm/impls/plex/examples/tests/ex4': [# 2D Simplex 0-3
+                                                                 {'numProcs': 1, 'args': '-dim 2 -cell_hybrid 0 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 1, 'args': '-dim 2 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 2, 'args': '-dim 2 -cell_hybrid 0 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 2, 'args': '-dim 2 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 # 2D Hybrid Simplex 4-7
+                                                                 {'numProcs': 1, 'args': '-dim 2 -dm_view ::ascii_info_detail'},
                                                                  {'numProcs': 1, 'args': '-dim 2 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
                                                                  {'numProcs': 2, 'args': '-dim 2 -dm_view ::ascii_info_detail'},
                                                                  {'numProcs': 2, 'args': '-dim 2 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
-                                                                 {'numProcs': 1, 'args': '-dim 3 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'}],
+                                                                 # 3D Simplex 8-11
+                                                                 {'numProcs': 1, 'args': '-dim 3 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 2, 'args': '-dim 3 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 1, 'args': '-dim 3 -cell_hybrid 0 -test_num 1 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 2, 'args': '-dim 3 -cell_hybrid 0 -test_num 1 -refinement_uniform 1 -dm_view ::ascii_info_detail', 'requires': ['Broken']},
+                                                                 # 2D Quad 12-13
+                                                                 {'numProcs': 1, 'args': '-dim 2 -cell_simplex 0 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 2, 'args': '-dim 2 -cell_simplex 0 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 # 3D hex 14-15
+                                                                 {'numProcs': 1, 'args': '-dim 3 -cell_simplex 0 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+                                                                 {'numProcs': 2, 'args': '-dim 3 -cell_simplex 0 -cell_hybrid 0 -refinement_uniform 1 -dm_view ::ascii_info_detail'},
+],
                         'src/dm/impls/plex/examples/tests/ex5': [{'numProcs': 1, 'args': '-dim 2 -dm_view ::ascii_info_detail'},
                                                                  {'numProcs': 2, 'args': '-dim 2 -dm_view ::ascii_info_detail'},
                                                                  {'numProcs': 1, 'args': '-dim 2 -cell_simplex 0 -dm_view ::ascii_info_detail'},
@@ -1497,7 +1514,8 @@ class PETScMaker(script.Script):
        self.logPrint("MISCONFIGURATION: Regression output file %s (test %s) is missing" % (outputName, testNum), debugSection='screen')
    else:
      with file(outputName) as f:
-       validOutput = f.read().strip() # Jed is now stripping output it appears
+       output      = output.strip()
+       validOutput = f.read().strip().replace('\r', '') # Jed is now stripping output it appears
        if not validOutput == output:
          if replace:
            with file(outputName, 'w') as f:
