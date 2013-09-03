@@ -672,55 +672,6 @@ PetscErrorCode DMPlexCreate(MPI_Comm comm, DM *mesh)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "DMPlexClone"
-/*@
-  DMPlexClone - Creates a DMPlex object with the same mesh as the original.
-
-  Collective on MPI_Comm
-
-  Input Parameter:
-. dm - The original DMPlex object
-
-  Output Parameter:
-. newdm  - The new DMPlex object
-
-  Level: beginner
-
-.keywords: DMPlex, create
-@*/
-PetscErrorCode DMPlexClone(DM dm, DM *newdm)
-{
-  DM_Plex        *mesh;
-  Vec             coords;
-  void           *ctx;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  PetscValidHeaderSpecific(dm, DM_CLASSID, 1);
-  PetscValidPointer(newdm,2);
-  ierr         = DMCreate(PetscObjectComm((PetscObject)dm), newdm);CHKERRQ(ierr);
-  ierr         = PetscSFDestroy(&(*newdm)->sf);CHKERRQ(ierr);
-  ierr         = PetscObjectReference((PetscObject) dm->sf);CHKERRQ(ierr);
-  (*newdm)->sf = dm->sf;
-  mesh         = (DM_Plex*) dm->data;
-  mesh->refct++;
-  (*newdm)->setupcalled = PETSC_TRUE;
-  (*newdm)->data        = mesh;
-  ierr           = PetscObjectChangeTypeName((PetscObject) *newdm, DMPLEX);CHKERRQ(ierr);
-  ierr           = DMInitialize_Plex(*newdm);CHKERRQ(ierr);
-  ierr           = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
-  ierr           = DMSetApplicationContext(*newdm, ctx);CHKERRQ(ierr);
-  ierr           = DMGetCoordinatesLocal(dm, &coords);CHKERRQ(ierr);
-  if (coords) {
-    ierr         = DMSetCoordinatesLocal(*newdm, coords);CHKERRQ(ierr);
-  } else {
-    ierr         = DMGetCoordinates(dm, &coords);CHKERRQ(ierr);
-    if (coords) {ierr = DMSetCoordinates(*newdm, coords);CHKERRQ(ierr);}
-  }
-  PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
 #define __FUNCT__ "DMPlexBuildFromCellList_Private"
 /*
   This takes as input the common mesh generator output, a list of the vertices for each cell
