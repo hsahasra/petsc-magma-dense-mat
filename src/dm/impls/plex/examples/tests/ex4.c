@@ -299,6 +299,7 @@ PetscErrorCode CreateTensorProduct_2D(MPI_Comm comm, PetscInt testNum, DM *dm)
 */
 PetscErrorCode CreateSimplex_3D(MPI_Comm comm, PetscInt testNum, DM *dm)
 {
+  DM             idm;
   PetscInt       depth = 3;
   PetscMPIInt    rank;
   PetscErrorCode ierr;
@@ -320,7 +321,6 @@ PetscErrorCode CreateSimplex_3D(MPI_Comm comm, PetscInt testNum, DM *dm)
     break;
     case 1:
     {
-      DM          idm;
       PetscInt    numPoints[2]        = {5, 2};
       PetscInt    coneSize[7]         = {4, 4, 0, 0, 0, 0, 0};
       PetscInt    cones[8]            = {4, 3, 5, 2,  5, 3, 4, 6};
@@ -331,6 +331,8 @@ PetscErrorCode CreateSimplex_3D(MPI_Comm comm, PetscInt testNum, DM *dm)
       ierr = DMPlexCreateFromDAG(*dm, depth, numPoints, coneSize, cones, coneOrientations, vertexCoords);CHKERRQ(ierr);
       ierr = DMPlexInterpolate(*dm, &idm);CHKERRQ(ierr);
       ierr = DMPlexCopyCoordinates(*dm, idm);CHKERRQ(ierr);
+      ierr = PetscObjectSetOptionsPrefix((PetscObject) idm, "in_");CHKERRQ(ierr);
+      ierr = DMSetFromOptions(idm);CHKERRQ(ierr);
       ierr = DMDestroy(dm);CHKERRQ(ierr);
       *dm  = idm;
     }
@@ -341,6 +343,16 @@ PetscErrorCode CreateSimplex_3D(MPI_Comm comm, PetscInt testNum, DM *dm)
     PetscInt numPoints[4] = {0, 0, 0, 0};
 
     ierr = DMPlexCreateFromDAG(*dm, depth, numPoints, NULL, NULL, NULL, NULL);CHKERRQ(ierr);
+    switch (testNum) {
+    case 1:
+      ierr = DMPlexInterpolate(*dm, &idm);CHKERRQ(ierr);
+      ierr = DMPlexCopyCoordinates(*dm, idm);CHKERRQ(ierr);
+      ierr = PetscObjectSetOptionsPrefix((PetscObject) idm, "in_");CHKERRQ(ierr);
+      ierr = DMSetFromOptions(idm);CHKERRQ(ierr);
+      ierr = DMDestroy(dm);CHKERRQ(ierr);
+      *dm  = idm;
+      break;
+    }
   }
   PetscFunctionReturn(0);
 }
