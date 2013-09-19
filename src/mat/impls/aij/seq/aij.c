@@ -3951,6 +3951,9 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_aij_mumps(Mat,MatFactorType,Mat*);
 #if defined(PETSC_HAVE_SUPERLU)
 PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_superlu(Mat,MatFactorType,Mat*);
 #endif
+#if defined(PETSC_HAVE_SUPERLU_MT)
+PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_superlu_mt(Mat,MatFactorType,Mat*);
+#endif
 #if defined(PETSC_HAVE_SUPERLU_DIST)
 PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_superlu_dist(Mat,MatFactorType,Mat*);
 #endif
@@ -4081,6 +4084,9 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJ(Mat B)
 #endif
 #if defined(PETSC_HAVE_SUPERLU)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_superlu_C",MatGetFactor_seqaij_superlu);CHKERRQ(ierr);
+#endif
+#if defined(PETSC_HAVE_SUPERLU_MT)
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_superlu_mt_C",MatGetFactor_seqaij_superlu_mt);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_SUPERLU_DIST)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_superlu_dist_C",MatGetFactor_seqaij_superlu_dist);CHKERRQ(ierr);
