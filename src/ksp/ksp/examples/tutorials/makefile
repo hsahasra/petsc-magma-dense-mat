@@ -1107,6 +1107,11 @@ runex56_ml:
          ${DIFF} output/ex56_ml.out ex56.tmp || echo ${PWD} "\nPossible problem with with ex56_ml, diffs above \n========================================="; \
         ${RM} -f ex56.tmp
 
+runex56_hypre:
+	-@${MPIEXEC} -n 8 ./ex56 -ne 19 -alpha 1.e-3 -ksp_monitor_short -ksp_type cg -ksp_max_it 50 -pc_type hypre -pc_hypre_type boomeramg -pc_hypre_boomeramg_no_CF -pc_hypre_boomeramg_agg_nl 1 -pc_hypre_boomeramg_coarsen_type HMIS -pc_hypre_boomeramg_interp_type ext+i -pc_hypre_boomeramg_P_max 4 -two_solves > ex56.tmp 2>&1;   \
+        ${DIFF} output/ex56_hypre.out ex56.tmp || echo ${PWD} "\nPossible problem with with ex56_hypre, diffs above \n========================================="; \
+        ${RM} -f ex56.tmp
+
 runex58:
 	-@${MPIEXEC} -n 1 ./ex58 -mat_type aij > ex58.tmp 2>&1;         \
 	${DIFF} output/ex58.out ex58.tmp || echo ${PWD} "\nPossible problem with with ex58, diffs above \n========================================="; \
