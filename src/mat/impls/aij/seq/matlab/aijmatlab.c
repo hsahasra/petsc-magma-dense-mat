@@ -205,8 +205,8 @@ PetscErrorCode MatFactorGetSolverPackage_seqaij_matlab(Mat A,const MatSolverPack
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_matlab"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_matlab(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_matlab"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_matlab(Mat A,MatFactorType ftype,Mat *F)
 {
   PetscErrorCode ierr;
 

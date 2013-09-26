@@ -889,9 +889,9 @@ PetscErrorCode KSPBuildResidualDefault(KSP ksp,Vec t,Vec v,Vec *V)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "KSPGetVecs"
+#define __FUNCT__ "KSPCreateVecs"
 /*@C
-  KSPGetVecs - Gets a number of work vectors.
+  KSPCreateVecs - Gets a number of work vectors.
 
   Input Parameters:
 + ksp  - iterative context
@@ -907,10 +907,10 @@ PetscErrorCode KSPBuildResidualDefault(KSP ksp,Vec t,Vec v,Vec *V)
 
    Level: advanced
 
-.seealso:   MatGetVecs()
+.seealso:   MatCreateVecs()
 
 @*/
-PetscErrorCode KSPGetVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn,Vec **left)
+PetscErrorCode KSPCreateVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn,Vec **left)
 {
   PetscErrorCode ierr;
   Vec            vecr,vecl;
@@ -926,7 +926,7 @@ PetscErrorCode KSPGetVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn,Ve
         Mat mat;
         if (!ksp->pc) {ierr = KSPGetPC(ksp,&ksp->pc);CHKERRQ(ierr);}
         ierr = PCGetOperators(ksp->pc,&mat,NULL,NULL);CHKERRQ(ierr);
-        ierr = MatGetVecs(mat,&vecr,NULL);CHKERRQ(ierr);
+        ierr = MatCreateVecs(mat,&vecr,NULL);CHKERRQ(ierr);
       }
     }
     ierr = VecDuplicateVecs(vecr,rightn,right);CHKERRQ(ierr);
@@ -948,7 +948,7 @@ PetscErrorCode KSPGetVecs(KSP ksp,PetscInt rightn, Vec **right,PetscInt leftn,Ve
         Mat mat;
         if (!ksp->pc) {ierr = KSPGetPC(ksp,&ksp->pc);CHKERRQ(ierr);}
         ierr = PCGetOperators(ksp->pc,&mat,NULL,NULL);CHKERRQ(ierr);
-        ierr = MatGetVecs(mat,NULL,&vecl);CHKERRQ(ierr);
+        ierr = MatCreateVecs(mat,NULL,&vecl);CHKERRQ(ierr);
       }
     }
     ierr = VecDuplicateVecs(vecl,leftn,left);CHKERRQ(ierr);
@@ -982,7 +982,7 @@ PetscErrorCode KSPSetWorkVecs(KSP ksp,PetscInt nw)
   PetscFunctionBegin;
   ierr       = VecDestroyVecs(ksp->nwork,&ksp->work);CHKERRQ(ierr);
   ksp->nwork = nw;
-  ierr       = KSPGetVecs(ksp,nw,&ksp->work,0,NULL);CHKERRQ(ierr);
+  ierr       = KSPCreateVecs(ksp,nw,&ksp->work,0,NULL);CHKERRQ(ierr);
   ierr       = PetscLogObjectParents(ksp,nw,ksp->work);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -47,7 +47,7 @@ int main(int argc,char **args)
   ierr = MatGetOrdering(A,MATORDERINGNATURAL,&perm,&iperm);CHKERRQ(ierr);
 
   if (!rank) printf(" Clique Cholesky:\n");
-  ierr = MatGetFactor(A,MATSOLVERCLIQUE,MAT_FACTOR_CHOLESKY,&F);CHKERRQ(ierr);
+  ierr = MatCreateFactor(A,MATSOLVERCLIQUE,MAT_FACTOR_CHOLESKY,&F);CHKERRQ(ierr);
 
   info.fill = 5.0;
   ierr      = MatCholeskyFactorSymbolic(F,A,perm,&info);CHKERRQ(ierr);

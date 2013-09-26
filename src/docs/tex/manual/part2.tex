@@ -7392,7 +7392,7 @@ we recommend skipping this chapter during an initial reading.
 
 One can extract a (parallel) submatrix from a given (parallel) using
 \begin{tabbing}
-  MatGetSubMatrix(Mat A,IS rows,IS cols,MatReuse call,Mat *B);
+  MatCreateSubMatrix(Mat A,IS rows,IS cols,MatReuse call,Mat *B);
 \end{tabbing}
 This extracts the \trl{rows} and \trl{col}umns of the matrix \trl{A} into \trl{B}. If
 call is  \trl{MAT_INITIAL_MATRIX} \findex{MAT_INITIAL_MATRIX} it will create the matrix
@@ -7487,7 +7487,7 @@ stages
 can also be performed separately, by using the out-of-place mode, first
 one obtains that matrix object that will hold the factor
 \begin{tabbing}
-  MatGetFactor(Mat matrix,const MatSolverPackage package,MatFactorType ftype,Mat *factor);
+  MatCreateFactor(Mat matrix,const MatSolverPackage package,MatFactorType ftype,Mat *factor);
 \end{tabbing}
 and then performs the factorization
 \begin{tabbing}

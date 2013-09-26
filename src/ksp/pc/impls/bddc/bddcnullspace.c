@@ -26,7 +26,7 @@ PetscErrorCode PCBDDCNullSpaceAssembleCoarse(PC pc, Mat coarse_mat, MatNullSpace
       ierr = VecDuplicate(pcbddc->coarse_vec,&coarse_nsp_vecs[i]);CHKERRQ(ierr);
     }
   }
-  ierr = MatGetVecs(pcbddc->ConstraintMatrix,&local_vec,&local_primal_vec);CHKERRQ(ierr);
+  ierr = MatCreateVecs(pcbddc->ConstraintMatrix,&local_vec,&local_primal_vec);CHKERRQ(ierr);
   if (nsp_has_cnst) {
     ierr = VecSet(local_vec,1.0);CHKERRQ(ierr);
     ierr = MatMult(pcbddc->ConstraintMatrix,local_vec,local_primal_vec);CHKERRQ(ierr);

@@ -323,9 +323,9 @@ PetscErrorCode MatFDColoringViewFromOptions(MatFDColoring fd,const char prefix[]
 
   PetscFunctionBegin;
   if (prefix) {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)fd),prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)fd),prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)fd),((PetscObject)fd)->prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)fd),((PetscObject)fd)->prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
   }
   if (flg) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
@@ -377,7 +377,7 @@ PetscErrorCode  MatFDColoringCreate(Mat mat,ISColoring iscoloring,MatFDColoring 
     ierr = (*mat->ops->fdcoloringcreate)(mat,iscoloring,c);CHKERRQ(ierr);
   } else SETERRQ1(PetscObjectComm((PetscObject)mat),PETSC_ERR_SUP,"Code not yet written for matrix type %s",((PetscObject)mat)->type_name);
 
-  ierr = MatGetVecs(mat,NULL,&c->w1);CHKERRQ(ierr);
+  ierr = MatCreateVecs(mat,NULL,&c->w1);CHKERRQ(ierr);
   ierr = PetscLogObjectParent((PetscObject)c,(PetscObject)c->w1);CHKERRQ(ierr);
   ierr = VecDuplicate(c->w1,&c->w2);CHKERRQ(ierr);
   ierr = PetscLogObjectParent((PetscObject)c,(PetscObject)c->w2);CHKERRQ(ierr);

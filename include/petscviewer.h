@@ -124,7 +124,8 @@ PETSC_EXTERN PetscErrorCode PetscViewerPopFormat(PetscViewer);
 PETSC_EXTERN PetscErrorCode PetscViewerGetFormat(PetscViewer,PetscViewerFormat*);
 PETSC_EXTERN PetscErrorCode PetscViewerFlush(PetscViewer);
 
-PETSC_EXTERN PetscErrorCode PetscOptionsGetViewer(MPI_Comm,const char[],const char[],PetscViewer*,PetscViewerFormat*,PetscBool*);
+PETSC_EXTERN PetscErrorCode PetscOptionsCreateViewer(MPI_Comm,const char[],const char[],PetscViewer*,PetscViewerFormat*,PetscBool*);
+PETSC_DEPRECATED("Use PetscOptionsCreateViewer()") PETSC_STATIC_INLINE PetscErrorCode PetscOptionsGetViewer(MPI_Comm comm,const char n[],const char h[],PetscViewer*v,PetscViewerFormat*f,PetscBool*fg) {return PetscOptionsCreateViewer(comm,n,h,v,f,fg);}
 PETSC_EXTERN PetscErrorCode PetscOptionsViewer(const char[],const char[],const char[],PetscViewer*,PetscViewerFormat *,PetscBool *);
 
 /*

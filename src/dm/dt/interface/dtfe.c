@@ -219,9 +219,9 @@ PetscErrorCode PetscSpaceViewFromOptions(PetscSpace sp, const char prefix[], con
 
   PetscFunctionBegin;
   if (prefix) {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) sp), prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject) sp), prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) sp), ((PetscObject) sp)->prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject) sp), ((PetscObject) sp)->prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
   }
   if (flg) {
     ierr = PetscViewerPushFormat(viewer, format);CHKERRQ(ierr);
@@ -925,9 +925,9 @@ PetscErrorCode PetscDualSpaceViewFromOptions(PetscDualSpace sp, const char prefi
 
   PetscFunctionBegin;
   if (prefix) {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) sp), prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject) sp), prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) sp), ((PetscObject) sp)->prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject) sp), ((PetscObject) sp)->prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
   }
   if (flg) {
     ierr = PetscViewerPushFormat(viewer, format);CHKERRQ(ierr);
@@ -1659,9 +1659,9 @@ PetscErrorCode PetscFEViewFromOptions(PetscFE fem, const char prefix[], const ch
 
   PetscFunctionBegin;
   if (prefix) {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) fem), prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject) fem), prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject) fem), ((PetscObject) fem)->prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject) fem), ((PetscObject) fem)->prefix, optionname, &viewer, &format, &flg);CHKERRQ(ierr);
   }
   if (flg) {
     ierr = PetscViewerPushFormat(viewer, format);CHKERRQ(ierr);

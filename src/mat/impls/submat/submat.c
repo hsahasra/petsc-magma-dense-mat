@@ -251,9 +251,9 @@ static PetscErrorCode MatDestroy_SubMatrix(Mat N)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatCreateSubMatrix"
+#define __FUNCT__ "MatCreateSubMatrixDefault"
 /*@
-   MatCreateSubMatrix - Creates a composite matrix that acts as a submatrix
+   MatCreateSubMatrixDefault - Creates a composite matrix that acts as a submatrix
 
    Collective on Mat
 
@@ -268,11 +268,11 @@ static PetscErrorCode MatDestroy_SubMatrix(Mat N)
    Level: developer
 
    Notes:
-   Most will use MatGetSubMatrix which provides a more efficient representation if it is available.
+   Most will use MatCreateSubMatrix which provides a more efficient representation if it is available.
 
-.seealso: MatGetSubMatrix(), MatSubMatrixUpdate()
+.seealso: MatCreateSubMatrix(), MatSubMatrixUpdate()
 @*/
-PetscErrorCode  MatCreateSubMatrix(Mat A,IS isrow,IS iscol,Mat *newmat)
+PetscErrorCode  MatCreateSubMatrixDefault(Mat A,IS isrow,IS iscol,Mat *newmat)
 {
   Vec            left,right;
   PetscInt       m,n;
@@ -316,7 +316,7 @@ PetscErrorCode  MatCreateSubMatrix(Mat A,IS isrow,IS iscol,Mat *newmat)
   ierr = PetscLayoutSetUp(N->rmap);CHKERRQ(ierr);
   ierr = PetscLayoutSetUp(N->cmap);CHKERRQ(ierr);
 
-  ierr = MatGetVecs(A,&Na->rwork,&Na->lwork);CHKERRQ(ierr);
+  ierr = MatCreateVecs(A,&Na->rwork,&Na->lwork);CHKERRQ(ierr);
   ierr = VecCreate(PetscObjectComm((PetscObject)isrow),&left);CHKERRQ(ierr);
   ierr = VecCreate(PetscObjectComm((PetscObject)iscol),&right);CHKERRQ(ierr);
   ierr = VecSetSizes(left,m,PETSC_DETERMINE);CHKERRQ(ierr);
@@ -353,9 +353,9 @@ PetscErrorCode  MatCreateSubMatrix(Mat A,IS isrow,IS iscol,Mat *newmat)
    Level: developer
 
    Notes:
-   Most will use MatGetSubMatrix which provides a more efficient representation if it is available.
+   Most will use MatCreateSubMatrix which provides a more efficient representation if it is available.
 
-.seealso: MatGetSubMatrix(), MatCreateSubMatrix()
+.seealso: MatCreateSubMatrix(), MatCreateSubMatrixDefault()
 @*/
 PetscErrorCode  MatSubMatrixUpdate(Mat N,Mat A,IS isrow,IS iscol)
 {

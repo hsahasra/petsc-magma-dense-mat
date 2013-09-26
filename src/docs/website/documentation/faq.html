@@ -949,7 +949,7 @@ PetscErrorCode mypetscvfprintf(FILE *fd, const char format[], va_list Argp) {
         <li>also create another dense matrix T of the same size.</li>
         <li>
           Then either factor the matrix Kaa directly with MatLUFactor() or
-          MatCholeskyFactor(), or use MatGetFactor() followed by
+          MatCholeskyFactor(), or use MatCreateFactor() followed by
           MatLUFactorSymbolic() followed by MatLUFactorNumeric() if you wish to
           use and external solver package like SuperLU_Dist.  Call the result A.
         </li>

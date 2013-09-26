@@ -1,5 +1,5 @@
 
-static char help[] = "Tests PetscOptionsGetViewer() via checking output of PetscViewerASCIIPrintf().\n\n";
+static char help[] = "Tests PetscOptionsCreateViewer() via checking output of PetscViewerASCIIPrintf().\n\n";
 
 #include <petscviewer.h>
 
@@ -13,14 +13,14 @@ int main(int argc,char **args)
   PetscBool         iascii;
 
   PetscInitialize(&argc,&args,(char*)0,help);
-  ierr = PetscOptionsGetViewer(PETSC_COMM_WORLD,NULL,"-myviewer",&viewer,&format,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PETSC_COMM_WORLD,NULL,"-myviewer",&viewer,&format,NULL);CHKERRQ(ierr);
   ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii);CHKERRQ(ierr);
   if (iascii) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"Testing PetscViewerASCIIPrintf %d\n", 0);CHKERRQ(ierr);
     ierr = PetscViewerPopFormat(viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-    ierr = PetscOptionsGetViewer(PETSC_COMM_WORLD,NULL,"-myviewer",&viewer,&format,NULL);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PETSC_COMM_WORLD,NULL,"-myviewer",&viewer,&format,NULL);CHKERRQ(ierr);
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"Testing PetscViewerASCIIPrintf %d\n", 1);CHKERRQ(ierr);
     ierr = PetscViewerPopFormat(viewer);CHKERRQ(ierr);

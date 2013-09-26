@@ -1,5 +1,5 @@
  
-static char help[] = "Tests MPI parallel matrix creation. Test MatGetRedundantMatrix() \n\n";
+static char help[] = "Tests MPI parallel matrix creation. Test MatCreateRedundantMatrix() \n\n";
 
 #include <petscmat.h>
 
@@ -50,7 +50,7 @@ int main(int argc,char **args)
   ierr = MatAssemblyEnd(C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
   /* Form vectors */
-  ierr = MatGetVecs(C,&x,&y);CHKERRQ(ierr);
+  ierr = MatCreateVecs(C,&x,&y);CHKERRQ(ierr);
   ierr = VecGetLocalSize(x,&ldim);
   ierr = VecGetOwnershipRange(x,&low,&high);CHKERRQ(ierr);
   for (i=0; i<ldim; i++) {
@@ -84,7 +84,7 @@ int main(int argc,char **args)
     ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
 
-  /* Test MatGetRedundantMatrix() */
+  /* Test MatCreateRedundantMatrix() */
   if (size > 1) {
     MPI_Comm       subcomm;
     Mat            Credundant;
@@ -93,8 +93,8 @@ int main(int argc,char **args)
     ierr = PetscOptionsGetInt(NULL,"-nsubcomms",&nsubcomms,NULL);CHKERRQ(ierr);
     if (nsubcomms > size) SETERRQ2(PETSC_COMM_SELF,PETSC_ERR_ARG_WRONG,"nsubcomms %d cannot > ncomms %d",nsubcomms,size);
 
-    ierr = MatGetRedundantMatrix(C,nsubcomms,MPI_COMM_NULL,MAT_INITIAL_MATRIX,&Credundant);CHKERRQ(ierr);
-    ierr = MatGetRedundantMatrix(C,nsubcomms,MPI_COMM_NULL,MAT_REUSE_MATRIX,&Credundant);CHKERRQ(ierr);
+    ierr = MatCreateRedundantMatrix(C,nsubcomms,MPI_COMM_NULL,MAT_INITIAL_MATRIX,&Credundant);CHKERRQ(ierr);
+    ierr = MatCreateRedundantMatrix(C,nsubcomms,MPI_COMM_NULL,MAT_REUSE_MATRIX,&Credundant);CHKERRQ(ierr);
 
     ierr = PetscObjectGetComm((PetscObject)Credundant,&subcomm);CHKERRQ(ierr);
     ierr = MPI_Comm_size(subcomm,&subsize);CHKERRQ(ierr);

@@ -175,13 +175,13 @@ int main(int argc,char **args)
       if (lvl==-1) {  /* Cholesky factor */
         factinfo.fill = 5.0;
 
-        ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
+        ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
         ierr = MatCholeskyFactorSymbolic(sC,A,perm,&factinfo);CHKERRQ(ierr);
       } else {       /* incomplete Cholesky factor */
         factinfo.fill   = 5.0;
         factinfo.levels = lvl;
 
-        ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
+        ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
         ierr = MatICCFactorSymbolic(sC,A,perm,&factinfo);CHKERRQ(ierr);
       }
       ierr = MatCholeskyFactorNumeric(sC,A,&factinfo);CHKERRQ(ierr);
@@ -211,13 +211,13 @@ int main(int argc,char **args)
       if (lvl==-1) {  /* Cholesky factor */
         factinfo.fill = 5.0;
 
-        ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
+        ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
         ierr = MatCholeskyFactorSymbolic(sC,A,perm,&factinfo);CHKERRQ(ierr);
       } else {       /* incomplete Cholesky factor */
         factinfo.fill   = 5.0;
         factinfo.levels = lvl;
 
-        ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
+        ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
         ierr = MatICCFactorSymbolic(sC,A,perm,&factinfo);CHKERRQ(ierr);
       }
       ierr = MatCholeskyFactorNumeric(sC,A,&factinfo);CHKERRQ(ierr);
@@ -245,13 +245,13 @@ int main(int argc,char **args)
     if (lvl==-1) {  /* Cholesky factor */
       factinfo.fill = 5.0;
 
-      ierr = MatGetFactor(sA,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
+      ierr = MatCreateFactor(sA,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
       ierr = MatCholeskyFactorSymbolic(sC,sA,perm,&factinfo);CHKERRQ(ierr);
     } else {       /* incomplete Cholesky factor */
       factinfo.fill   = 5.0;
       factinfo.levels = lvl;
 
-      ierr = MatGetFactor(sA,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
+      ierr = MatCreateFactor(sA,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
       ierr = MatICCFactorSymbolic(sC,sA,perm,&factinfo);CHKERRQ(ierr);
     }
     ierr = MatCholeskyFactorNumeric(sC,sA,&factinfo);CHKERRQ(ierr);

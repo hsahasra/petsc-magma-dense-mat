@@ -262,8 +262,8 @@ PetscErrorCode MatCUSPCopyFromGPU(Mat A, CUSPMATRIX *Agpu)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetVecs_SeqAIJCUSP"
-PetscErrorCode MatGetVecs_SeqAIJCUSP(Mat mat, Vec *right, Vec *left)
+#define __FUNCT__ "MatCreateVecs_SeqAIJCUSP"
+PetscErrorCode MatCreateVecs_SeqAIJCUSP(Mat mat, Vec *right, Vec *left)
 {
   PetscErrorCode ierr;
 
@@ -530,7 +530,7 @@ PetscErrorCode MatCreateSeqAIJCUSPFromTriple(MPI_Comm comm, PetscInt m, PetscInt
 
 extern PetscErrorCode MatSetValuesBatch_SeqAIJCUSP(Mat, PetscInt, PetscInt, PetscInt*,const PetscScalar*);
 
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_cusparse(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_cusparse(Mat,MatFactorType,Mat*);
 PETSC_EXTERN PetscErrorCode MatFactorGetSolverPackage_seqaij_cusparse(Mat,const MatSolverPackage*);
 
 #undef __FUNCT__
@@ -559,14 +559,14 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJCUSP(Mat B)
 
   B->ops->assemblyend    = MatAssemblyEnd_SeqAIJCUSP;
   B->ops->destroy        = MatDestroy_SeqAIJCUSP;
-  B->ops->getvecs        = MatGetVecs_SeqAIJCUSP;
+  B->ops->getvecs        = MatCreateVecs_SeqAIJCUSP;
   B->ops->setvaluesbatch = MatSetValuesBatch_SeqAIJCUSP;
   B->ops->setfromoptions = MatSetFromOptions_SeqAIJCUSP;
 
-  /* Here we overload MatGetFactor_cusparse_C which enables -pc_factor_mat_solver_package cusparse to work with
+  /* Here we overload MatCreateFactor_cusparse_C which enables -pc_factor_mat_solver_package cusparse to work with
      -mat_type aijcusp. That is, an aijcusp matrix can call the cusparse tri solve.
      Note the difference with the implementation in MatCreate_SeqAIJCUSPARSE in ../seqcusparse/aijcusparse.cu */
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_cusparse_C",MatGetFactor_seqaij_cusparse);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_cusparse_C",MatCreateFactor_seqaij_cusparse);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatCUSPSetFormat_C", MatCUSPSetFormat_SeqAIJCUSP);CHKERRQ(ierr);
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQAIJCUSP);CHKERRQ(ierr);
 

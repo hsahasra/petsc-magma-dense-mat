@@ -101,8 +101,8 @@ PetscErrorCode MatGetFactorAvailable_seqaij_petsc(Mat A,MatFactorType ftype,Pets
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_petsc"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_petsc(Mat A,MatFactorType ftype,Mat *B)
+#define __FUNCT__ "MatCreateFactor_seqaij_petsc"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_petsc(Mat A,MatFactorType ftype,Mat *B)
 {
   PetscInt       n = A->rmap->n;
   PetscErrorCode ierr;
@@ -966,7 +966,7 @@ PetscErrorCode MatLUFactor_SeqAIJ(Mat A,IS row,IS col,const MatFactorInfo *info)
   Mat            C;
 
   PetscFunctionBegin;
-  ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&C);CHKERRQ(ierr);
+  ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&C);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic(C,A,row,col,info);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric(C,A,info);CHKERRQ(ierr);
 

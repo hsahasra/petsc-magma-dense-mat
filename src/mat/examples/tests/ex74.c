@@ -301,14 +301,14 @@ int main(int argc,char **args)
     if (lf==-1) {  /* Cholesky factor of sB (duplicate sA) */
       factinfo.fill = 5.0;
 
-      ierr = MatGetFactor(sB,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
+      ierr = MatCreateFactor(sB,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sC);CHKERRQ(ierr);
       ierr = MatCholeskyFactorSymbolic(sC,sB,perm,&factinfo);CHKERRQ(ierr);
     } else if (!doIcc) break;
     else {       /* incomplete Cholesky factor */
       factinfo.fill   = 5.0;
       factinfo.levels = lf;
 
-      ierr = MatGetFactor(sB,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
+      ierr = MatCreateFactor(sB,MATSOLVERPETSC,MAT_FACTOR_ICC,&sC);CHKERRQ(ierr);
       ierr = MatICCFactorSymbolic(sC,sB,perm,&factinfo);CHKERRQ(ierr);
     }
     ierr = MatCholeskyFactorNumeric(sC,sB,&factinfo);CHKERRQ(ierr);

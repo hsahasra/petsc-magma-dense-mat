@@ -202,10 +202,10 @@ PetscErrorCode  PCISSetUp(PC pc)
     [    A_BI   | A_BB ]
   */
 
-  ierr = MatGetSubMatrix(matis->A,pcis->is_I_local,pcis->is_I_local,MAT_INITIAL_MATRIX,&pcis->A_II);CHKERRQ(ierr);
-  ierr = MatGetSubMatrix(matis->A,pcis->is_I_local,pcis->is_B_local,MAT_INITIAL_MATRIX,&pcis->A_IB);CHKERRQ(ierr);
-  ierr = MatGetSubMatrix(matis->A,pcis->is_B_local,pcis->is_I_local,MAT_INITIAL_MATRIX,&pcis->A_BI);CHKERRQ(ierr);
-  ierr = MatGetSubMatrix(matis->A,pcis->is_B_local,pcis->is_B_local,MAT_INITIAL_MATRIX,&pcis->A_BB);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(matis->A,pcis->is_I_local,pcis->is_I_local,MAT_INITIAL_MATRIX,&pcis->A_II);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(matis->A,pcis->is_I_local,pcis->is_B_local,MAT_INITIAL_MATRIX,&pcis->A_IB);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(matis->A,pcis->is_B_local,pcis->is_I_local,MAT_INITIAL_MATRIX,&pcis->A_BI);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(matis->A,pcis->is_B_local,pcis->is_B_local,MAT_INITIAL_MATRIX,&pcis->A_BB);CHKERRQ(ierr);
 
   /*
     Creating work vectors and arrays
@@ -218,7 +218,7 @@ PetscErrorCode  PCISSetUp(PC pc)
   ierr = VecCreateSeq(PETSC_COMM_SELF,pcis->n_B,&pcis->vec1_B);CHKERRQ(ierr);
   ierr = VecDuplicate(pcis->vec1_B,&pcis->vec2_B);CHKERRQ(ierr);
   ierr = VecDuplicate(pcis->vec1_B,&pcis->vec3_B);CHKERRQ(ierr);
-  ierr = MatGetVecs(pc->pmat,&pcis->vec1_global,0);CHKERRQ(ierr);
+  ierr = MatCreateVecs(pc->pmat,&pcis->vec1_global,0);CHKERRQ(ierr);
   ierr = PetscMalloc((pcis->n)*sizeof(PetscScalar),&pcis->work_N);CHKERRQ(ierr);
 
   /* Creating the scatter contexts */
@@ -239,7 +239,7 @@ PetscErrorCode  PCISSetUp(PC pc)
     }
   }
   ierr = VecCopy(pcis->D,pcis->vec1_B);CHKERRQ(ierr);
-  ierr = MatGetVecs(pc->pmat,&counter,0);CHKERRQ(ierr); /* temporary auxiliar vector */
+  ierr = MatCreateVecs(pc->pmat,&counter,0);CHKERRQ(ierr); /* temporary auxiliar vector */
   ierr = VecSet(counter,0.0);CHKERRQ(ierr);
   ierr = VecScatterBegin(pcis->global_to_B,pcis->vec1_B,counter,ADD_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);
   ierr = VecScatterEnd  (pcis->global_to_B,pcis->vec1_B,counter,ADD_VALUES,SCATTER_REVERSE);CHKERRQ(ierr);

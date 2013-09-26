@@ -507,7 +507,7 @@ static PetscErrorCode KSPDGMRESGetNewVectors(KSP ksp,PetscInt it)
 
   dgmres->vv_allocated += nalloc;
 
-  ierr = KSPGetVecs(ksp,nalloc,&dgmres->user_work[nwork],0,NULL);CHKERRQ(ierr);
+  ierr = KSPCreateVecs(ksp,nalloc,&dgmres->user_work[nwork],0,NULL);CHKERRQ(ierr);
   ierr = PetscLogObjectParents(ksp,nalloc,dgmres->user_work[nwork]);CHKERRQ(ierr);
 
   dgmres->mwork_alloc[nwork] = nalloc;
@@ -1211,7 +1211,7 @@ static PetscErrorCode  KSPDGMRESImproveEig_DGMRES(KSP ksp, PetscInt neig)
                                        process
 .   -ksp_dgmres_force - use the deflation at each restart; switch off the adaptive strategy.
 -   -ksp_dgmres_view_deflation_vecs <viewerspec> - View the deflation vectors, where viewerspec is a key that can be
-                                                   parsed by PetscOptionsGetViewer().  If neig > 1, viewerspec should
+                                                   parsed by PetscOptionsCreateViewer().  If neig > 1, viewerspec should
                                                    end with ":append".  No vectors will be viewed if the adaptive
                                                    strategy chooses not to deflate, so -ksp_dgmres_force should also
                                                    be given.

@@ -300,7 +300,7 @@
 
 !  Extract global and local vectors from DMDA; then duplicate for remaining
 !     vectors that are the same types
-      call MatGetVecs(KKTmat,x,PETSC_NULL_OBJECT,ierr)
+      call MatCreateVecs(KKTmat,x,PETSC_NULL_OBJECT,ierr)
       call VecDuplicate(x,r,ierr)
 
       call SNESCreate(PETSC_COMM_WORLD,mysnes,ierr)
@@ -514,7 +514,7 @@
       call DMCompositeGetAccessArray(solver%da,X,ione,PETSC_NULL_INTEGER,Xsub,ierr)
 
 !     Compute entries for the locally owned part of the Jacobian preconditioner.
-      call MatGetSubMatrix(jac_prec,solver%isPhi,solver%isPhi,MAT_INITIAL_MATRIX,Amat,ierr)
+      call MatCreateSubMatrix(jac_prec,solver%isPhi,solver%isPhi,MAT_INITIAL_MATRIX,Amat,ierr)
 
       call FormJacobianLocal(Xsub(1),Amat,solver,.true.,ierr)
       call MatDestroy(Amat,ierr) ! discard our reference

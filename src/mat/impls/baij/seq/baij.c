@@ -2725,7 +2725,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_SeqBAIJ,
                                        MatILUFactor_SeqBAIJ,
                                        0,
                                /* 39*/ MatAXPY_SeqBAIJ,
-                                       MatGetSubMatrices_SeqBAIJ,
+                                       MatCreateSubMatrices_SeqBAIJ,
                                        MatIncreaseOverlap_SeqBAIJ,
                                        MatGetValues_SeqBAIJ,
                                        MatCopy_SeqBAIJ,
@@ -2744,7 +2744,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_SeqBAIJ,
                                        0,
                                        0,
                                        MatSetValuesBlocked_SeqBAIJ,
-                               /* 59*/ MatGetSubMatrix_SeqBAIJ,
+                               /* 59*/ MatCreateSubMatrix_SeqBAIJ,
                                        MatDestroy_SeqBAIJ,
                                        MatView_SeqBAIJ,
                                        0,
@@ -3051,10 +3051,10 @@ PetscErrorCode MatSeqBAIJSetPreallocationCSR_SeqBAIJ(Mat B,PetscInt bs,const Pet
   PetscFunctionReturn(0);
 }
 
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqbaij_petsc(Mat,MatFactorType,Mat*);
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqbaij_bstrm(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqbaij_petsc(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqbaij_bstrm(Mat,MatFactorType,Mat*);
 #if defined(PETSC_HAVE_MUMPS)
-PETSC_EXTERN PetscErrorCode MatGetFactor_baij_mumps(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_baij_mumps(Mat,MatFactorType,Mat*);
 #endif
 extern PetscErrorCode  MatGetFactorAvailable_seqbaij_petsc(Mat,MatFactorType,PetscBool*);
 
@@ -3107,10 +3107,10 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqBAIJ(Mat B)
   B->same_nonzero       = PETSC_FALSE;
 
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactorAvailable_petsc_C",MatGetFactorAvailable_seqbaij_petsc);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_petsc_C",MatGetFactor_seqbaij_petsc);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_bstrm_C",MatGetFactor_seqbaij_bstrm);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_petsc_C",MatCreateFactor_seqbaij_petsc);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_bstrm_C",MatCreateFactor_seqbaij_bstrm);CHKERRQ(ierr);
 #if defined(PETSC_HAVE_MUMPS)
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_mumps_C", MatGetFactor_baij_mumps);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_mumps_C", MatCreateFactor_baij_mumps);CHKERRQ(ierr);
 #endif
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatInvertBlockDiagonal_C",MatInvertBlockDiagonal_SeqBAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatStoreValues_C",MatStoreValues_SeqBAIJ);CHKERRQ(ierr);

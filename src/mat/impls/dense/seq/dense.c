@@ -518,8 +518,8 @@ PetscErrorCode MatLUFactorSymbolic_SeqDense(Mat fact,Mat A,IS row,IS col,const M
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqdense_petsc"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqdense_petsc(Mat A,MatFactorType ftype,Mat *fact)
+#define __FUNCT__ "MatCreateFactor_seqdense_petsc"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqdense_petsc(Mat A,MatFactorType ftype,Mat *fact)
 {
   PetscErrorCode ierr;
 
@@ -1519,8 +1519,8 @@ PetscErrorCode  MatDenseRestoreArray(Mat A,PetscScalar **array)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrix_SeqDense"
-static PetscErrorCode MatGetSubMatrix_SeqDense(Mat A,IS isrow,IS iscol,PetscInt cs,MatReuse scall,Mat *B)
+#define __FUNCT__ "MatCreateSubMatrix_SeqDense"
+static PetscErrorCode MatCreateSubMatrix_SeqDense(Mat A,IS isrow,IS iscol,PetscInt cs,MatReuse scall,Mat *B)
 {
   Mat_SeqDense   *mat = (Mat_SeqDense*)A->data;
   PetscErrorCode ierr;
@@ -1572,8 +1572,8 @@ static PetscErrorCode MatGetSubMatrix_SeqDense(Mat A,IS isrow,IS iscol,PetscInt 
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrices_SeqDense"
-PetscErrorCode MatGetSubMatrices_SeqDense(Mat A,PetscInt n,const IS irow[],const IS icol[],MatReuse scall,Mat *B[])
+#define __FUNCT__ "MatCreateSubMatrices_SeqDense"
+PetscErrorCode MatCreateSubMatrices_SeqDense(Mat A,PetscInt n,const IS irow[],const IS icol[],MatReuse scall,Mat *B[])
 {
   PetscErrorCode ierr;
   PetscInt       i;
@@ -1584,7 +1584,7 @@ PetscErrorCode MatGetSubMatrices_SeqDense(Mat A,PetscInt n,const IS irow[],const
   }
 
   for (i=0; i<n; i++) {
-    ierr = MatGetSubMatrix_SeqDense(A,irow[i],icol[i],PETSC_DECIDE,scall,&(*B)[i]);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix_SeqDense(A,irow[i],icol[i],PETSC_DECIDE,scall,&(*B)[i]);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -2000,7 +2000,7 @@ static struct _MatOps MatOps_Values = { MatSetValues_SeqDense,
                                         0,
                                         0,
                                 /* 39*/ MatAXPY_SeqDense,
-                                        MatGetSubMatrices_SeqDense,
+                                        MatCreateSubMatrices_SeqDense,
                                         0,
                                         MatGetValues_SeqDense,
                                         MatCopy_SeqDense,
@@ -2282,7 +2282,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqDense(Mat B)
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatDenseRestoreArray_C",MatDenseRestoreArray_SeqDense);CHKERRQ(ierr);
 
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatConvert_seqdense_seqaij_C",MatConvert_SeqDense_SeqAIJ);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_petsc_C",MatGetFactor_seqdense_petsc);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_petsc_C",MatCreateFactor_seqdense_petsc);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatSeqDenseSetPreallocation_C",MatSeqDenseSetPreallocation_SeqDense);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatMatMult_seqaij_seqdense_C",MatMatMult_SeqAIJ_SeqDense);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatMatMultSymbolic_seqaij_seqdense_C",MatMatMultSymbolic_SeqAIJ_SeqDense);CHKERRQ(ierr);

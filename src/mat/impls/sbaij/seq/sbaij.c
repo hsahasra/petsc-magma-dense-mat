@@ -1413,7 +1413,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_SeqSBAIJ,
                                        0,
                                        MatICCFactor_SeqSBAIJ,
                                /* 39*/ MatAXPY_SeqSBAIJ,
-                                       MatGetSubMatrices_SeqSBAIJ,
+                                       MatCreateSubMatrices_SeqSBAIJ,
                                        MatIncreaseOverlap_SeqSBAIJ,
                                        MatGetValues_SeqSBAIJ,
                                        MatCopy_SeqSBAIJ,
@@ -1432,7 +1432,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_SeqSBAIJ,
                                        0,
                                        0,
                                        MatSetValuesBlocked_SeqSBAIJ,
-                               /* 59*/ MatGetSubMatrix_SeqSBAIJ,
+                               /* 59*/ MatCreateSubMatrix_SeqSBAIJ,
                                        0,
                                        0,
                                        0,
@@ -1780,8 +1780,8 @@ PETSC_EXTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqAIJ(Mat, MatType,MatReuse,Mat
 PETSC_EXTERN PetscErrorCode MatConvert_SeqSBAIJ_SeqBAIJ(Mat, MatType,MatReuse,Mat*);
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqsbaij_petsc"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_petsc(Mat A,MatFactorType ftype,Mat *B)
+#define __FUNCT__ "MatCreateFactor_seqsbaij_petsc"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqsbaij_petsc(Mat A,MatFactorType ftype,Mat *B)
 {
   PetscInt       n = A->rmap->n;
   PetscErrorCode ierr;
@@ -1817,15 +1817,15 @@ PetscErrorCode MatGetFactorAvailable_seqsbaij_petsc(Mat A,MatFactorType ftype,Pe
 }
 
 #if defined(PETSC_HAVE_MUMPS)
-PETSC_EXTERN PetscErrorCode MatGetFactor_sbaij_mumps(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_sbaij_mumps(Mat,MatFactorType,Mat*);
 #endif
 #if defined(PETSC_HAVE_PASTIX)
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_pastix(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqsbaij_pastix(Mat,MatFactorType,Mat*);
 #endif
 #if defined(PETSC_HAVE_CHOLMOD)
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_cholmod(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqsbaij_cholmod(Mat,MatFactorType,Mat*);
 #endif
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_sbstrm(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqsbaij_sbstrm(Mat,MatFactorType,Mat*);
 
 /*MC
   MATSEQSBAIJ - MATSEQSBAIJ = "seqsbaij" - A matrix type to be used for sequential symmetric block sparse matrices,
@@ -1901,17 +1901,17 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqSBAIJ(Mat B)
   ierr = PetscOptionsGetBool(((PetscObject)B)->prefix,"-mat_getrow_uppertriangular",&b->getrow_utriangular,NULL);CHKERRQ(ierr);
 
 #if defined(PETSC_HAVE_PASTIX)
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_pastix_C",MatGetFactor_seqsbaij_pastix);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_pastix_C",MatCreateFactor_seqsbaij_pastix);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_MUMPS)
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_mumps_C",MatGetFactor_sbaij_mumps);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_mumps_C",MatCreateFactor_sbaij_mumps);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_CHOLMOD)
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_cholmod_C",MatGetFactor_seqsbaij_cholmod);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_cholmod_C",MatCreateFactor_seqsbaij_cholmod);CHKERRQ(ierr);
 #endif
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactorAvailable_petsc_C",MatGetFactorAvailable_seqsbaij_petsc);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_petsc_C",MatGetFactor_seqsbaij_petsc);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_sbstrm_C",MatGetFactor_seqsbaij_sbstrm);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_petsc_C",MatCreateFactor_seqsbaij_petsc);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_sbstrm_C",MatCreateFactor_seqsbaij_sbstrm);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatStoreValues_C",MatStoreValues_SeqSBAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatRetrieveValues_C",MatRetrieveValues_SeqSBAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatSeqSBAIJSetColumnIndices_C",MatSeqSBAIJSetColumnIndices_SeqSBAIJ);CHKERRQ(ierr);

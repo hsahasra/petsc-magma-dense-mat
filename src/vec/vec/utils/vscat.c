@@ -1521,7 +1521,7 @@ PetscErrorCode  VecScatterCreate(Vec xin,IS ix,Vec yin,IS iy,VecScatter *newctx)
   ierr = ISDestroy(&tix);CHKERRQ(ierr);
   ierr = ISDestroy(&tiy);CHKERRQ(ierr);
 
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ctx),((PetscObject)ctx)->prefix,"-vecscatter_view",&viewer,&format,&flag);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ctx),((PetscObject)ctx)->prefix,"-vecscatter_view",&viewer,&format,&flag);CHKERRQ(ierr);
   if (flag) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = VecScatterView(ctx,viewer);CHKERRQ(ierr);

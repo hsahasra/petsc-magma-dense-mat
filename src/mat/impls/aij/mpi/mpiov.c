@@ -527,14 +527,14 @@ static PetscErrorCode MatIncreaseOverlap_MPIAIJ_Receive(Mat C,PetscInt nrqr,Pets
   PetscFunctionReturn(0);
 }
 /* -------------------------------------------------------------------------*/
-extern PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat,PetscInt,const IS[],const IS[],MatReuse,PetscBool*,Mat*);
+extern PetscErrorCode MatCreateSubMatrices_MPIAIJ_Local(Mat,PetscInt,const IS[],const IS[],MatReuse,PetscBool*,Mat*);
 extern PetscErrorCode MatAssemblyEnd_SeqAIJ(Mat,MatAssemblyType);
 /*
     Every processor gets the entire matrix
 */
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrix_MPIAIJ_All"
-PetscErrorCode MatGetSubMatrix_MPIAIJ_All(Mat A,MatGetSubMatrixOption flag,MatReuse scall,Mat *Bin[])
+#define __FUNCT__ "MatCreateSubMatrix_MPIAIJ_All"
+PetscErrorCode MatCreateSubMatrix_MPIAIJ_All(Mat A,MatCreateSubMatrixOption flag,MatReuse scall,Mat *Bin[])
 {
   Mat            B;
   Mat_MPIAIJ     *a = (Mat_MPIAIJ*)A->data;
@@ -720,8 +720,8 @@ PetscErrorCode MatGetSubMatrix_MPIAIJ_All(Mat A,MatGetSubMatrixOption flag,MatRe
 
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrices_MPIAIJ"
-PetscErrorCode MatGetSubMatrices_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[])
+#define __FUNCT__ "MatCreateSubMatrices_MPIAIJ"
+PetscErrorCode MatCreateSubMatrices_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[])
 {
   PetscErrorCode ierr;
   PetscInt       nmax,nstages_local,nstages,i,pos,max_no,nrow,ncol;
@@ -729,8 +729,8 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],co
 
   PetscFunctionBegin;
   /* Currently, unsorted column indices will result in inverted column indices in the resulting submatrices. */
-  /* It would make sense to error out in MatGetSubMatrices_MPIAIJ_Local(), the most impl-specific level.
-     However, there are more careful users of MatGetSubMatrices_MPIAIJ_Local() -- MatPermute_MPIAIJ() -- that
+  /* It would make sense to error out in MatCreateSubMatrices_MPIAIJ_Local(), the most impl-specific level.
+     However, there are more careful users of MatCreateSubMatrices_MPIAIJ_Local() -- MatPermute_MPIAIJ() -- that
      take care to order the result correctly by assembling it with MatSetValues() (after preallocating).
    */
   for (i = 0; i < ismax; ++i) {
@@ -755,7 +755,7 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],co
   }
   ierr = MPI_Allreduce(&wantallmatrix,&twantallmatrix,1,MPIU_BOOL,MPI_MIN,PetscObjectComm((PetscObject)C));CHKERRQ(ierr);
   if (twantallmatrix) {
-    ierr = MatGetSubMatrix_MPIAIJ_All(C,MAT_GET_VALUES,scall,submat);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix_MPIAIJ_All(C,MAT_GET_VALUES,scall,submat);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
 
@@ -794,7 +794,7 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],co
     if (pos+nmax <= ismax) max_no = nmax;
     else if (pos == ismax) max_no = 0;
     else                   max_no = ismax-pos;
-    ierr = MatGetSubMatrices_MPIAIJ_Local(C,max_no,isrow+pos,iscol+pos,scall,allcolumns+pos,*submat+pos);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrices_MPIAIJ_Local(C,max_no,isrow+pos,iscol+pos,scall,allcolumns+pos,*submat+pos);CHKERRQ(ierr);
     pos += max_no;
   }
 
@@ -804,8 +804,8 @@ PetscErrorCode MatGetSubMatrices_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],co
 
 /* -------------------------------------------------------------------------*/
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrices_MPIAIJ_Local"
-PetscErrorCode MatGetSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,PetscBool *allcolumns,Mat *submats)
+#define __FUNCT__ "MatCreateSubMatrices_MPIAIJ_Local"
+PetscErrorCode MatCreateSubMatrices_MPIAIJ_Local(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,PetscBool *allcolumns,Mat *submats)
 {
   Mat_MPIAIJ     *c = (Mat_MPIAIJ*)C->data;
   Mat            A  = c->A;
@@ -1585,8 +1585,8 @@ PetscErrorCode MatMPIAIJExtractSeqMatrices_Private(Mat C, Mat *A, Mat *B)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatricesParallel_MPIXAIJ"
-PetscErrorCode MatGetSubMatricesParallel_MPIXAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[],
+#define __FUNCT__ "MatCreateSubMatricesParallel_MPIXAIJ"
+PetscErrorCode MatCreateSubMatricesParallel_MPIXAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[],
                                                  PetscErrorCode(*getsubmats_seq)(Mat, PetscInt, const IS[], const IS[], MatReuse, Mat**),
                                                  PetscErrorCode(*makefromseq)(MPI_Comm, Mat, Mat,Mat*),
                                                  PetscErrorCode(*extractseq)(Mat, Mat*, Mat*))
@@ -1688,17 +1688,17 @@ PetscErrorCode MatGetSubMatricesParallel_MPIXAIJ(Mat C,PetscInt ismax,const IS i
     ierr = PetscFree(B);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
-} /* MatGetSubMatricesParallel_MPIXAIJ() */
+} /* MatCreateSubMatricesParallel_MPIXAIJ() */
 
 
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatricesParallel_MPIAIJ"
-PetscErrorCode MatGetSubMatricesParallel_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[])
+#define __FUNCT__ "MatCreateSubMatricesParallel_MPIAIJ"
+PetscErrorCode MatCreateSubMatricesParallel_MPIAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[])
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MatGetSubMatricesParallel_MPIXAIJ(C,ismax,isrow,iscol,scall,submat,MatGetSubMatrices_MPIAIJ,MatCreateMPIAIJFromSeqMatrices_Private,MatMPIAIJExtractSeqMatrices_Private);CHKERRQ(ierr);
+  ierr = MatCreateSubMatricesParallel_MPIXAIJ(C,ismax,isrow,iscol,scall,submat,MatCreateSubMatrices_MPIAIJ,MatCreateMPIAIJFromSeqMatrices_Private,MatMPIAIJExtractSeqMatrices_Private);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

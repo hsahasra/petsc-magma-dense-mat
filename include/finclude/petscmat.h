@@ -24,7 +24,7 @@
       parameter(MAT_FACTOR_CHOLESKY=2,MAT_FACTOR_ILU=3)
       parameter(MAT_FACTOR_ICC=4)
 
-! MatGetSubMatrixOption
+! MatCreateSubMatrixOption
       PetscEnum MAT_DO_NOT_GET_VALUES
       PetscEnum MAT_GET_VALUES
       parameter(MAT_DO_NOT_GET_VALUES=0,MAT_GET_VALUES=1)

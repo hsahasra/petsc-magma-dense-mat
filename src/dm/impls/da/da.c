@@ -791,9 +791,9 @@ PetscErrorCode  DMDAGetRefinementFactor(DM da, PetscInt *refine_x, PetscInt *ref
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "DMDASetGetMatrix"
+#define __FUNCT__ "DMSetCreateMatrix"
 /*@C
-     DMDASetGetMatrix - Sets the routine used by the DMDA to allocate a matrix.
+     DMSetCreateMatrix - Sets the routine used by the DMDA to allocate a matrix.
 
     Logically Collective on DMDA
 
@@ -808,7 +808,7 @@ PetscErrorCode  DMDAGetRefinementFactor(DM da, PetscInt *refine_x, PetscInt *ref
 
 .seealso: DMCreateMatrix(), DMDASetBlockFills()
 @*/
-PetscErrorCode  DMDASetGetMatrix(DM da,PetscErrorCode (*f)(DM, MatType,Mat*))
+PetscErrorCode  DMSetCreateMatrix(DM da,PetscErrorCode (*f)(DM, MatType,Mat*))
 {
   PetscFunctionBegin;
   PetscValidHeaderSpecific(da,DM_CLASSID,1);

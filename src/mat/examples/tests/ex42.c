@@ -82,8 +82,8 @@ int main(int argc,char **args)
     ierr = ISSort(is2[i]);CHKERRQ(ierr);
   }
 
-  ierr = MatGetSubMatrices(A,nd,is1,is1,MAT_INITIAL_MATRIX,&submatA);CHKERRQ(ierr);
-  ierr = MatGetSubMatrices(B,nd,is2,is2,MAT_INITIAL_MATRIX,&submatB);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrices(A,nd,is1,is1,MAT_INITIAL_MATRIX,&submatA);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrices(B,nd,is2,is2,MAT_INITIAL_MATRIX,&submatB);CHKERRQ(ierr);
 
   /* Now see if the serial and parallel case have the same answers */
   for (i=0; i<nd; ++i) {

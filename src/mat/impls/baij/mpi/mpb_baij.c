@@ -1,8 +1,8 @@
 #include <../src/mat/impls/baij/mpi/mpibaij.h>
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetMultiProcBlock_MPIBAIJ"
-PetscErrorCode  MatGetMultiProcBlock_MPIBAIJ(Mat mat, MPI_Comm subComm, MatReuse scall,Mat *subMat)
+#define __FUNCT__ "MatCreateMultiProcBlock_MPIBAIJ"
+PetscErrorCode  MatCreateMultiProcBlock_MPIBAIJ(Mat mat, MPI_Comm subComm, MatReuse scall,Mat *subMat)
 {
   PetscErrorCode ierr;
   Mat_MPIBAIJ    *aij  = (Mat_MPIBAIJ*)mat->data;

@@ -662,7 +662,7 @@ static PetscErrorCode  MatLUFactorNumeric_Elemental(Mat F,Mat A,const MatFactorI
 static PetscErrorCode  MatLUFactorSymbolic_Elemental(Mat F,Mat A,IS r,IS c,const MatFactorInfo *info)
 {
   PetscFunctionBegin;
-  /* F is create and allocated by MatGetFactor_elemental_petsc(), skip this routine. */
+  /* F is create and allocated by MatCreateFactor_elemental_petsc(), skip this routine. */
   PetscFunctionReturn(0);
 }
 
@@ -697,7 +697,7 @@ static PetscErrorCode MatCholeskyFactorNumeric_Elemental(Mat F,Mat A,const MatFa
 static PetscErrorCode MatCholeskyFactorSymbolic_Elemental(Mat F,Mat A,IS perm,const MatFactorInfo *info)
 {
   PetscFunctionBegin;
-  /* F is create and allocated by MatGetFactor_elemental_petsc(), skip this routine. */
+  /* F is create and allocated by MatCreateFactor_elemental_petsc(), skip this routine. */
   PetscFunctionReturn(0);
 }
 
@@ -711,8 +711,8 @@ PetscErrorCode MatFactorGetSolverPackage_elemental_elemental(Mat A,const MatSolv
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_elemental_elemental"
-static PetscErrorCode MatGetFactor_elemental_elemental(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_elemental_elemental"
+static PetscErrorCode MatCreateFactor_elemental_elemental(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;
@@ -870,7 +870,7 @@ static PetscErrorCode MatDestroy_Elemental(Mat A)
   }
   ierr = PetscCommDestroy(&icomm);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatGetOwnershipIS_C",NULL);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)A,"MatGetFactor_petsc_C",NULL);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)A,"MatCreateFactor_petsc_C",NULL);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatFactorGetSolverPackage_C",NULL);CHKERRQ(ierr);
   ierr = PetscFree(A->data);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -1137,7 +1137,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_Elemental(Mat A)
   a->interface->Attach(elem::LOCAL_TO_GLOBAL,*(a->emat));
 
   ierr = PetscObjectComposeFunction((PetscObject)A,"MatGetOwnershipIS_C",MatGetOwnershipIS_Elemental);CHKERRQ(ierr);
-  ierr = PetscObjectComposeFunction((PetscObject)A,"MatGetFactor_elemental_C",MatGetFactor_elemental_elemental);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)A,"MatCreateFactor_elemental_C",MatCreateFactor_elemental_elemental);CHKERRQ(ierr);
 
   ierr = PetscObjectChangeTypeName((PetscObject)A,MATELEMENTAL);CHKERRQ(ierr);
   PetscFunctionReturn(0);

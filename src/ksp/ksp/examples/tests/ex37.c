@@ -1,5 +1,5 @@
 
-static char help[] = "Test MatGetMultiProcBlock() and MatGetRedundantMatrix() \n\
+static char help[] = "Test MatCreateMultiProcBlock() and MatCreateRedundantMatrix() \n\
 Reads a PETSc matrix and vector from a file and solves a linear system.\n\n";
 /*
   Example:
@@ -54,7 +54,7 @@ int main(int argc,char **args)
   ierr = VecDuplicate(b,&u);CHKERRQ(ierr);
   ierr = VecSet(x,0.0);CHKERRQ(ierr);
 
-  /* Test MatGetMultiProcBlock() */
+  /* Test MatCreateMultiProcBlock() */
   ierr = PetscOptionsGetInt(NULL,"-nsubcomm",&nsubcomm,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-subcomm_type",&type,NULL);CHKERRQ(ierr);
 
@@ -76,16 +76,16 @@ int main(int argc,char **args)
   ierr = PetscSubcommSetFromOptions(psubcomm);CHKERRQ(ierr);
   subcomm = psubcomm->comm;
 
-  /* Test MatGetRedundantMatrix() */
+  /* Test MatCreateRedundantMatrix() */
   if (size > 1) {
-    ierr = MatGetRedundantMatrix(A,nsubcomm,subcomm,MAT_INITIAL_MATRIX,&subA);CHKERRQ(ierr);
-    ierr = MatGetRedundantMatrix(A,nsubcomm,subcomm,MAT_REUSE_MATRIX,&subA);CHKERRQ(ierr);
+    ierr = MatCreateRedundantMatrix(A,nsubcomm,subcomm,MAT_INITIAL_MATRIX,&subA);CHKERRQ(ierr);
+    ierr = MatCreateRedundantMatrix(A,nsubcomm,subcomm,MAT_REUSE_MATRIX,&subA);CHKERRQ(ierr);
     ierr = MatDestroy(&subA);CHKERRQ(ierr);
   }
 
   /* Create subA */
-  ierr = MatGetMultiProcBlock(A,subcomm,MAT_INITIAL_MATRIX,&subA);CHKERRQ(ierr);
-  ierr = MatGetMultiProcBlock(A,subcomm,MAT_REUSE_MATRIX,&subA);CHKERRQ(ierr);
+  ierr = MatCreateMultiProcBlock(A,subcomm,MAT_INITIAL_MATRIX,&subA);CHKERRQ(ierr);
+  ierr = MatCreateMultiProcBlock(A,subcomm,MAT_REUSE_MATRIX,&subA);CHKERRQ(ierr);
 
   /* Create sub vectors without arrays. Place b's and x's local arrays into subb and subx */
   ierr = MatGetLocalSize(subA,&m,&n);CHKERRQ(ierr);

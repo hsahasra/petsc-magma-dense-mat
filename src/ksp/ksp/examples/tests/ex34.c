@@ -85,7 +85,7 @@ int main(int argc,char **args)
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
   /* Create work vectors for matrix-vector product */
-  ierr = MatGetVecs(ctx.A,&ctx.x,&ctx.y);CHKERRQ(ierr);
+  ierr = MatCreateVecs(ctx.A,&ctx.x,&ctx.y);CHKERRQ(ierr);
   ierr = VecGetOwnershipRanges(ctx.x,&ns);CHKERRQ(ierr);
   if (!(rank % nodesize)) { /* I am master process; I will own all vector elements on all my worker processes*/
     for (i=0; i<nodesize; i++) n += ns[rank+i+1] - ns[rank+i];

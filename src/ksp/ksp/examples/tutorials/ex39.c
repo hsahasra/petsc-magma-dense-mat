@@ -236,7 +236,7 @@ PetscErrorCode computeMaxEigVal(Mat A, PetscInt its, PetscScalar *eig)
   PetscFunctionBeginUser;
   ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);CHKERRQ(ierr);
   ierr = PetscRandomSetFromOptions(rctx);CHKERRQ(ierr);
-  ierr = MatGetVecs(A, &x_1, &x);CHKERRQ(ierr);
+  ierr = MatCreateVecs(A, &x_1, &x);CHKERRQ(ierr);
   ierr = VecSetRandom(x, rctx);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &x0);CHKERRQ(ierr);
   ierr = VecCopy(x, x0);CHKERRQ(ierr);

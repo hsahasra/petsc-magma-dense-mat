@@ -203,7 +203,7 @@ int main(int argc,char **args)
     b    = tmp;
   }
 
-  ierr = MatGetVecs(A,&x,NULL);CHKERRQ(ierr);
+  ierr = MatCreateVecs(A,&x,NULL);CHKERRQ(ierr);
   ierr = VecDuplicate(b,&u);CHKERRQ(ierr);
   if (initialguessfile) {
     PetscViewer viewer2;

@@ -79,9 +79,9 @@ PetscErrorCode  DMDAGetLogicalCoordinate(DM da,PetscScalar x,PetscScalar y,Petsc
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "DMDAGetRay"
+#define __FUNCT__ "DMDACreateRay"
 /*@C
-   DMDAGetRay - Returns a vector on process zero that contains a row or column of the values in a DMDA vector
+   DMDACreateRay - Returns a vector on process zero that contains a row or column of the values in a DMDA vector
 
    Collective on DMDA
 
@@ -102,7 +102,7 @@ PetscErrorCode  DMDAGetLogicalCoordinate(DM da,PetscScalar x,PetscScalar y,Petsc
 
 .keywords: distributed array, get, processor subset
 @*/
-PetscErrorCode  DMDAGetRay(DM da,DMDADirection dir,PetscInt gp,Vec *newvec,VecScatter *scatter)
+PetscErrorCode  DMDACreateRay(DM da,DMDADirection dir,PetscInt gp,Vec *newvec,VecScatter *scatter)
 {
   PetscMPIInt    rank;
   DM_DA          *dd = (DM_DA*)da->data;

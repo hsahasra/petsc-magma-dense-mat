@@ -7,9 +7,9 @@
 PetscFunctionList PetscViewerList = 0;
 
 #undef __FUNCT__
-#define __FUNCT__ "PetscOptionsGetViewer"
+#define __FUNCT__ "PetscOptionsCreateViewer"
 /*@C
-   PetscOptionsGetViewer - Gets a viewer appropriate for the type indicated by the user
+   PetscOptionsCreateViewer - Gets a viewer appropriate for the type indicated by the user
 
    Collective on MPI_Comm
 
@@ -43,7 +43,7 @@ $       ams[:communicatorname]         publishes object to the AMS (Argonne Memo
           PetscOptionsBoolGroupBegin(), PetscOptionsBoolGroup(), PetscOptionsBoolGroupEnd(),
           PetscOptionsList(), PetscOptionsEList()
 @*/
-PetscErrorCode  PetscOptionsGetViewer(MPI_Comm comm,const char pre[],const char name[],PetscViewer *viewer,PetscViewerFormat *format,PetscBool  *set)
+PetscErrorCode  PetscOptionsCreateViewer(MPI_Comm comm,const char pre[],const char name[],PetscViewer *viewer,PetscViewerFormat *format,PetscBool  *set)
 {
   char           *value;
   PetscErrorCode ierr;

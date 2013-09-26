@@ -13,7 +13,7 @@ PetscErrorCode PCFactorSetUpMatSolverPackage_Factor(PC pc)
 
   PetscFunctionBegin;
   if (!pc->setupcalled && !((PC_Factor*)icc)->fact) {
-    ierr = MatGetFactor(pc->pmat,((PC_Factor*)icc)->solvertype,((PC_Factor*)icc)->factortype,&((PC_Factor*)icc)->fact);CHKERRQ(ierr);
+    ierr = MatCreateFactor(pc->pmat,((PC_Factor*)icc)->solvertype,((PC_Factor*)icc)->factortype,&((PC_Factor*)icc)->fact);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -267,7 +267,7 @@ PetscErrorCode  PCSetFromOptions_Factor(PC pc)
   }
 
   /* maybe should have MatGetSolverTypes(Mat,&list) like the ordering list */
-  ierr = PetscOptionsString("-pc_factor_mat_solver_package","Specific direct solver to use","MatGetFactor",((PC_Factor*)factor)->solvertype,solvertype,64,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsString("-pc_factor_mat_solver_package","Specific direct solver to use","MatCreateFactor",((PC_Factor*)factor)->solvertype,solvertype,64,&flg);CHKERRQ(ierr);
   if (flg) {
     ierr = PCFactorSetMatSolverPackage(pc,solvertype);CHKERRQ(ierr);
   }
@@ -323,7 +323,7 @@ PetscErrorCode PCView_Factor(PC pc,PetscViewer viewer)
 
   } else if (isstring) {
     MatFactorType t;
-    ierr = MatGetFactorType(factor->fact,&t);CHKERRQ(ierr);
+    ierr = MatCreateFactorType(factor->fact,&t);CHKERRQ(ierr);
     if (t == MAT_FACTOR_ILU || t == MAT_FACTOR_ICC) {
       ierr = PetscViewerStringSPrintf(viewer," lvls=%D,order=%s",(PetscInt)factor->info.levels,factor->ordering);CHKERRQ(ierr);CHKERRQ(ierr);
     }

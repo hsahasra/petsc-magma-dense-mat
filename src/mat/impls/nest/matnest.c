@@ -3,7 +3,7 @@
 #include <petscsf.h>
 
 static PetscErrorCode MatSetUp_NestIS_Private(Mat,PetscInt,const IS[],PetscInt,const IS[]);
-static PetscErrorCode MatGetVecs_Nest(Mat A,Vec *right,Vec *left);
+static PetscErrorCode MatCreateVecs_Nest(Mat A,Vec *right,Vec *left);
 
 /* private functions */
 #undef __FUNCT__
@@ -376,8 +376,8 @@ static PetscErrorCode MatNestFindSubMat(Mat A,struct MatNestISPair *is,IS isrow,
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrix_Nest"
-static PetscErrorCode MatGetSubMatrix_Nest(Mat A,IS isrow,IS iscol,MatReuse reuse,Mat *B)
+#define __FUNCT__ "MatCreateSubMatrix_Nest"
+static PetscErrorCode MatCreateSubMatrix_Nest(Mat A,IS isrow,IS iscol,MatReuse reuse,Mat *B)
 {
   PetscErrorCode ierr;
   Mat_Nest       *vs = (Mat_Nest*)A->data;
@@ -517,8 +517,8 @@ static PetscErrorCode MatShift_Nest(Mat A,PetscScalar a)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetVecs_Nest"
-static PetscErrorCode MatGetVecs_Nest(Mat A,Vec *right,Vec *left)
+#define __FUNCT__ "MatCreateVecs_Nest"
+static PetscErrorCode MatCreateVecs_Nest(Mat A,Vec *right,Vec *left)
 {
   Mat_Nest       *bA = (Mat_Nest*)A->data;
   Vec            *L,*R;
@@ -535,7 +535,7 @@ static PetscErrorCode MatGetVecs_Nest(Mat A,Vec *right,Vec *left)
     for (j=0; j<bA->nc; j++) {
       for (i=0; i<bA->nr; i++) {
         if (bA->m[i][j]) {
-          ierr = MatGetVecs(bA->m[i][j],&R[j],NULL);CHKERRQ(ierr);
+          ierr = MatCreateVecs(bA->m[i][j],&R[j],NULL);CHKERRQ(ierr);
           break;
         }
       }
@@ -559,7 +559,7 @@ static PetscErrorCode MatGetVecs_Nest(Mat A,Vec *right,Vec *left)
     for (i=0; i<bA->nr; i++) {
       for (j=0; j<bA->nc; j++) {
         if (bA->m[i][j]) {
-          ierr = MatGetVecs(bA->m[i][j],NULL,&L[i]);CHKERRQ(ierr);
+          ierr = MatCreateVecs(bA->m[i][j],NULL,&L[i]);CHKERRQ(ierr);
           break;
         }
       }
@@ -961,7 +961,7 @@ PetscErrorCode  MatNestSetVecType_Nest(Mat A,VecType vtype)
   PetscFunctionBegin;
   ierr = PetscStrcmp(vtype,VECNEST,&flg);CHKERRQ(ierr);
   /* In reality, this only distinguishes VECNEST and "other" */
-  if (flg) A->ops->getvecs = MatGetVecs_Nest;
+  if (flg) A->ops->getvecs = MatCreateVecs_Nest;
   else A->ops->getvecs = (PetscErrorCode (*)(Mat,Vec*,Vec*)) 0;
   PetscFunctionReturn(0);
 }
@@ -969,7 +969,7 @@ PetscErrorCode  MatNestSetVecType_Nest(Mat A,VecType vtype)
 #undef __FUNCT__
 #define __FUNCT__ "MatNestSetVecType"
 /*@C
- MatNestSetVecType - Sets the type of Vec returned by MatGetVecs()
+ MatNestSetVecType - Sets the type of Vec returned by MatCreateVecs()
 
  Not collective
 
@@ -981,7 +981,7 @@ PetscErrorCode  MatNestSetVecType_Nest(Mat A,VecType vtype)
 
  Level: developer
 
-.seealso: MatGetVecs()
+.seealso: MatCreateVecs()
 @*/
 PetscErrorCode  MatNestSetVecType(Mat A,VecType vtype)
 {
@@ -1540,7 +1540,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_Nest(Mat A)
   A->ops->assemblyend           = MatAssemblyEnd_Nest;
   A->ops->zeroentries           = MatZeroEntries_Nest;
   A->ops->duplicate             = MatDuplicate_Nest;
-  A->ops->getsubmatrix          = MatGetSubMatrix_Nest;
+  A->ops->getsubmatrix          = MatCreateSubMatrix_Nest;
   A->ops->destroy               = MatDestroy_Nest;
   A->ops->view                  = MatView_Nest;
   A->ops->getvecs               = 0; /* Use VECNEST by calling MatNestSetVecType(A,VECNEST) */

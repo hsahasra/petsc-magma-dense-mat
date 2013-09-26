@@ -151,8 +151,8 @@ PetscErrorCode MatViennaCLCopyFromGPU(Mat A, const ViennaCLAIJMatrix *Agpu)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetVecs_SeqAIJViennaCL"
-PetscErrorCode MatGetVecs_SeqAIJViennaCL(Mat mat, Vec *right, Vec *left)
+#define __FUNCT__ "MatCreateVecs_SeqAIJViennaCL"
+PetscErrorCode MatCreateVecs_SeqAIJViennaCL(Mat mat, Vec *right, Vec *left)
 {
   PetscErrorCode ierr;
 
@@ -362,7 +362,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJViennaCL(Mat B)
 
   B->ops->assemblyend    = MatAssemblyEnd_SeqAIJViennaCL;
   B->ops->destroy        = MatDestroy_SeqAIJViennaCL;
-  B->ops->getvecs        = MatGetVecs_SeqAIJViennaCL;
+  B->ops->getvecs        = MatCreateVecs_SeqAIJViennaCL;
 
   ierr = MatSetFromOptions_SeqViennaCL(B);CHKERRQ(ierr); /* Allows to set device type before allocating any objects */
   ierr = PetscObjectChangeTypeName((PetscObject)B,MATSEQAIJVIENNACL);CHKERRQ(ierr);

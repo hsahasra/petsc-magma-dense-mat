@@ -528,9 +528,9 @@ PetscErrorCode AOViewFromOptions(AO ao,const char *prefix,const char *optionname
 
   PetscFunctionBegin;
   if (prefix) {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ao),prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ao),prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ao),((PetscObject)ao)->prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ao),((PetscObject)ao)->prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
   }
   if (flg) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);

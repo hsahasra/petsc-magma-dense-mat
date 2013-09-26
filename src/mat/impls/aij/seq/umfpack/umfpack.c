@@ -376,8 +376,8 @@ PetscErrorCode MatFactorGetSolverPackage_seqaij_umfpack(Mat A,const MatSolverPac
 M*/
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_umfpack"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_umfpack(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_umfpack"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_umfpack(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   Mat_UMFPACK    *lu;

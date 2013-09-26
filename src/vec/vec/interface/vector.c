@@ -251,9 +251,9 @@ PetscErrorCode  VecViewFromOptions(Vec vec,const char prefix[],const char option
 
   PetscFunctionBegin;
   if (prefix) {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)vec),prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)vec),prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)vec),((PetscObject)vec)->prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
+    ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)vec),((PetscObject)vec)->prefix,optionname,&viewer,&format,&flg);CHKERRQ(ierr);
   }
   if (flg) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);

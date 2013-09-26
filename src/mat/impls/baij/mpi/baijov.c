@@ -534,8 +534,8 @@ static PetscErrorCode MatIncreaseOverlap_MPIBAIJ_Receive(Mat C,PetscInt nrqr,Pet
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrices_MPIBAIJ"
-PetscErrorCode MatGetSubMatrices_MPIBAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[])
+#define __FUNCT__ "MatCreateSubMatrices_MPIBAIJ"
+PetscErrorCode MatCreateSubMatrices_MPIBAIJ(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,Mat *submat[])
 {
   IS             *isrow_new,*iscol_new;
   Mat_MPIBAIJ    *c = (Mat_MPIBAIJ*)C->data;
@@ -585,7 +585,7 @@ PetscErrorCode MatGetSubMatrices_MPIBAIJ(Mat C,PetscInt ismax,const IS isrow[],c
     if (pos+nmax <= ismax) max_no = nmax;
     else if (pos == ismax) max_no = 0;
     else                   max_no = ismax-pos;
-    ierr = MatGetSubMatrices_MPIBAIJ_local(C,max_no,isrow_new+pos,iscol_new+pos,scall,allrows+pos,allcolumns+pos,*submat+pos);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrices_MPIBAIJ_local(C,max_no,isrow_new+pos,iscol_new+pos,scall,allrows+pos,allcolumns+pos,*submat+pos);CHKERRQ(ierr);
     pos += max_no;
   }
 
@@ -622,8 +622,8 @@ PetscErrorCode PetscGetProc(const PetscInt row, const PetscMPIInt size, const Pe
 /* -------------------------------------------------------------------------*/
 /* This code is used for BAIJ and SBAIJ matrices (unfortunate dependency) */
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrices_MPIBAIJ_local"
-PetscErrorCode MatGetSubMatrices_MPIBAIJ_local(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,PetscBool *allrows,PetscBool *allcolumns,Mat *submats)
+#define __FUNCT__ "MatCreateSubMatrices_MPIBAIJ_local"
+PetscErrorCode MatCreateSubMatrices_MPIBAIJ_local(Mat C,PetscInt ismax,const IS isrow[],const IS iscol[],MatReuse scall,PetscBool *allrows,PetscBool *allcolumns,Mat *submats)
 {
   Mat_MPIBAIJ    *c = (Mat_MPIBAIJ*)C->data;
   Mat            A  = c->A;

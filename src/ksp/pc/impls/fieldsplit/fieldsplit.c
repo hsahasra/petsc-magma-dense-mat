@@ -505,7 +505,7 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
   if (!jac->pmat) {
     Vec xtmp;
 
-    ierr = MatGetVecs(pc->pmat,&xtmp,NULL);CHKERRQ(ierr);
+    ierr = MatCreateVecs(pc->pmat,&xtmp,NULL);CHKERRQ(ierr);
     ierr = PetscMalloc(nsplit*sizeof(Mat),&jac->pmat);CHKERRQ(ierr);
     ierr = PetscMalloc2(nsplit,Vec,&jac->x,nsplit,Vec,&jac->y);CHKERRQ(ierr);
     for (i=0; i<nsplit; i++) {
@@ -521,10 +521,10 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
           ierr = PetscObjectReference((PetscObject) jac->schur_user);CHKERRQ(ierr);
         }
       } else {
-        ierr = MatGetSubMatrix(pc->pmat,ilink->is,ilink->is_col,MAT_INITIAL_MATRIX,&jac->pmat[i]);CHKERRQ(ierr);
+        ierr = MatCreateSubMatrix(pc->pmat,ilink->is,ilink->is_col,MAT_INITIAL_MATRIX,&jac->pmat[i]);CHKERRQ(ierr);
       }
       /* create work vectors for each split */
-      ierr     = MatGetVecs(jac->pmat[i],&jac->x[i],&jac->y[i]);CHKERRQ(ierr);
+      ierr     = MatCreateVecs(jac->pmat[i],&jac->x[i],&jac->y[i]);CHKERRQ(ierr);
       ilink->x = jac->x[i]; ilink->y = jac->y[i]; ilink->z = NULL;
       /* compute scatter contexts needed by multiplicative versions and non-default splits */
       ierr = VecScatterCreate(xtmp,ilink->is,jac->x[i],NULL,&ilink->sctx);CHKERRQ(ierr);
@@ -547,7 +547,7 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
       /* Check for preconditioning matrix attached to IS */
       ierr = PetscObjectQuery((PetscObject) ilink->is, "pmat", (PetscObject*) &pmat);CHKERRQ(ierr);
       if (!pmat) {
-        ierr = MatGetSubMatrix(pc->pmat,ilink->is,ilink->is_col,MAT_REUSE_MATRIX,&jac->pmat[i]);CHKERRQ(ierr);
+        ierr = MatCreateSubMatrix(pc->pmat,ilink->is,ilink->is_col,MAT_REUSE_MATRIX,&jac->pmat[i]);CHKERRQ(ierr);
       }
       ilink = ilink->next;
     }
@@ -557,12 +557,12 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
     if (!jac->mat) {
       ierr = PetscMalloc(nsplit*sizeof(Mat),&jac->mat);CHKERRQ(ierr);
       for (i=0; i<nsplit; i++) {
-        ierr  = MatGetSubMatrix(pc->mat,ilink->is,ilink->is_col,MAT_INITIAL_MATRIX,&jac->mat[i]);CHKERRQ(ierr);
+        ierr  = MatCreateSubMatrix(pc->mat,ilink->is,ilink->is_col,MAT_INITIAL_MATRIX,&jac->mat[i]);CHKERRQ(ierr);
         ilink = ilink->next;
       }
     } else {
       for (i=0; i<nsplit; i++) {
-        if (jac->mat[i]) {ierr = MatGetSubMatrix(pc->mat,ilink->is,ilink->is_col,MAT_REUSE_MATRIX,&jac->mat[i]);CHKERRQ(ierr);}
+        if (jac->mat[i]) {ierr = MatCreateSubMatrix(pc->mat,ilink->is,ilink->is_col,MAT_REUSE_MATRIX,&jac->mat[i]);CHKERRQ(ierr);}
         ilink = ilink->next;
       }
     }
@@ -576,12 +576,12 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
     if (!jac->Afield) {
       ierr = PetscMalloc(nsplit*sizeof(Mat),&jac->Afield);CHKERRQ(ierr);
       for (i=0; i<nsplit; i++) {
-        ierr  = MatGetSubMatrix(pc->mat,ilink->is,NULL,MAT_INITIAL_MATRIX,&jac->Afield[i]);CHKERRQ(ierr);
+        ierr  = MatCreateSubMatrix(pc->mat,ilink->is,NULL,MAT_INITIAL_MATRIX,&jac->Afield[i]);CHKERRQ(ierr);
         ilink = ilink->next;
       }
     } else {
       for (i=0; i<nsplit; i++) {
-        ierr  = MatGetSubMatrix(pc->mat,ilink->is,NULL,MAT_REUSE_MATRIX,&jac->Afield[i]);CHKERRQ(ierr);
+        ierr  = MatCreateSubMatrix(pc->mat,ilink->is,NULL,MAT_REUSE_MATRIX,&jac->Afield[i]);CHKERRQ(ierr);
         ilink = ilink->next;
       }
     }
@@ -605,11 +605,11 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
       ierr  = MatSchurComplementGetKSP(jac->schur, &kspInner);CHKERRQ(ierr);
       ilink = jac->head;
       ierr  = ISComplement(ilink->is_col,rstart,rend,&ccis);CHKERRQ(ierr);
-      ierr  = MatGetSubMatrix(pc->mat,ilink->is,ccis,MAT_REUSE_MATRIX,&jac->B);CHKERRQ(ierr);
+      ierr  = MatCreateSubMatrix(pc->mat,ilink->is,ccis,MAT_REUSE_MATRIX,&jac->B);CHKERRQ(ierr);
       ierr  = ISDestroy(&ccis);CHKERRQ(ierr);
       ilink = ilink->next;
       ierr  = ISComplement(ilink->is_col,rstart,rend,&ccis);CHKERRQ(ierr);
-      ierr  = MatGetSubMatrix(pc->mat,ilink->is,ccis,MAT_REUSE_MATRIX,&jac->C);CHKERRQ(ierr);
+      ierr  = MatCreateSubMatrix(pc->mat,ilink->is,ccis,MAT_REUSE_MATRIX,&jac->C);CHKERRQ(ierr);
       ierr  = ISDestroy(&ccis);CHKERRQ(ierr);
       ierr  = MatSchurComplementUpdate(jac->schur,jac->mat[0],jac->pmat[0],jac->B,jac->C,jac->mat[1],pc->flag);CHKERRQ(ierr);
       if (kspA != kspInner) {
@@ -629,11 +629,11 @@ static PetscErrorCode PCSetUp_FieldSplit(PC pc)
       /* extract the A01 and A10 matrices */
       ilink = jac->head;
       ierr  = ISComplement(ilink->is_col,rstart,rend,&ccis);CHKERRQ(ierr);
-      ierr  = MatGetSubMatrix(pc->mat,ilink->is,ccis,MAT_INITIAL_MATRIX,&jac->B);CHKERRQ(ierr);
+      ierr  = MatCreateSubMatrix(pc->mat,ilink->is,ccis,MAT_INITIAL_MATRIX,&jac->B);CHKERRQ(ierr);
       ierr  = ISDestroy(&ccis);CHKERRQ(ierr);
       ilink = ilink->next;
       ierr  = ISComplement(ilink->is_col,rstart,rend,&ccis);CHKERRQ(ierr);
-      ierr  = MatGetSubMatrix(pc->mat,ilink->is,ccis,MAT_INITIAL_MATRIX,&jac->C);CHKERRQ(ierr);
+      ierr  = MatCreateSubMatrix(pc->mat,ilink->is,ccis,MAT_INITIAL_MATRIX,&jac->C);CHKERRQ(ierr);
       ierr  = ISDestroy(&ccis);CHKERRQ(ierr);
 
       /* Use mat[0] (diagonal block of Amat) preconditioned by pmat[0] to define Schur complement */

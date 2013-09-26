@@ -56,7 +56,7 @@ int main(int argc,char **args)
      orderings from the options database */
   ierr = MatGetOrdering(C,MATORDERINGQMD,&row,&col);CHKERRQ(ierr);
 
-  ierr = MatGetFactor(C,MATSOLVERPETSC,MAT_FACTOR_LU,&A);CHKERRQ(ierr);
+  ierr = MatCreateFactor(C,MATSOLVERPETSC,MAT_FACTOR_LU,&A);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic(A,C,row,col,NULL);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric(A,C,NULL);CHKERRQ(ierr);
   ierr = MatSolveTranspose(A,b,x);CHKERRQ(ierr);

@@ -109,6 +109,14 @@
       </ul>
       <h4>Mat:</h4>
       <ul>
+        <li>The Get in all the following routines has been changed to
+        create: MatGetSubMatrixOption, MatGetFactor(), MatGetVecs(), MatGetFactor(),
+        MatGetVecs(), KSPGetVecs(), PetscOptionsGetViewer(),
+        DMDAGetRay(), DMSetGetMatrix(), DMSetCreateMatrix(),
+        MatGetSubMatrix(), MatGetRedundantMatrix(),
+        MatGetMultiProcBlock(), MatGetSubMatrices(),
+        MatGetSubMatricesParallel()</li>
+
         <li>Removed third argument to MatNullSpaceRemove().  Use
       VecDuplicate() and VecCopy() if the original Vec must be kept.</li>
         <li>MatGetRedundantMatrix(Mat mat,PetscInt nsubcomm,MPI_Comm
@@ -121,6 +129,7 @@
       </ul>
       <h4>KSP:</h4>
       <ul>
+        <li>KSPGetVecs() changed to KSPCreateVecs()</li>
         <li><tt>KSPSkipConverged()</tt> renamed to <tt>KSPConvergedSkip()</tt>.</li>
         <li><tt>KSPDefaultConverged()</tt>, <tt>KSPDefaultConvergedDestroy()</tt>, <tt>KSPDefaultConvergedCreate()</tt>, <tt>KSPDefaultConvergedSetUIRNorm()</tt>, and <tt>KSPDefaultConvergedSetUMIRNorm()</tt> are now <tt>KSPConvergedDefault()</tt>, <tt>KSPConvergedDefaultDestroy()</tt>, <tt>KSPConvergedDefaultCreate()</tt>, <tt>KSPConvergedDefaultSetUIRNorm()</tt>, and <tt>KSPConvergedDefaultSetUMIRNorm()</tt>. for consistency.</li>
       </ul>
@@ -132,10 +141,15 @@
       <h4>SNESLineSearch:</h4>
       <h4>TS:</h4>
       <h4>DM/DA:</h4>
+        <li>DMDASetGetMatrix() changed to DMSetCreateMatrix()</li>
+        <li>DMDAGetRay() changed to DMDACreateRay()</li>
       <h4>DMComplex/DMPlex:</h4>
       <h4>DMMesh:</h4>
       <h4>DMMG:</h4>
       <h4>PetscViewer:</h4>
+     <ul>
+        <li>PetscOptionsGetViewer() changed to PetscOptionsCreateViewer()</li>
+      </ul>
       <h4>SYS:</h4>
       <h4>AO:</h4>
       <h4>Sieve:</h4>

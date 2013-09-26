@@ -360,7 +360,7 @@ static PetscErrorCode PCSetUp_GASM(PC pc)
       on  += oni;
     }
     ierr = ISCreateGeneral(((PetscObject)(pc))->comm, on, oidx, PETSC_OWN_POINTER, &gois);CHKERRQ(ierr);
-    ierr = MatGetVecs(pc->pmat,&x,&y);CHKERRQ(ierr);
+    ierr = MatCreateVecs(pc->pmat,&x,&y);CHKERRQ(ierr);
     ierr = VecCreateMPI(PetscObjectComm((PetscObject)pc), on, PETSC_DECIDE, &osm->gx);CHKERRQ(ierr);
     ierr = VecDuplicate(osm->gx,&osm->gy);CHKERRQ(ierr);
     ierr = VecGetOwnershipRange(osm->gx, &gofirst, NULL);CHKERRQ(ierr);
@@ -460,9 +460,9 @@ static PetscErrorCode PCSetUp_GASM(PC pc)
      Extract out the submatrices.
   */
   if (size > 1) {
-    ierr = MatGetSubMatricesParallel(pc->pmat,osm->n,osm->ois, osm->ois,scall,&osm->pmat);CHKERRQ(ierr);
+    ierr = MatCreateSubMatricesParallel(pc->pmat,osm->n,osm->ois, osm->ois,scall,&osm->pmat);CHKERRQ(ierr);
   } else {
-    ierr = MatGetSubMatrices(pc->pmat,osm->n,osm->ois, osm->ois,scall,&osm->pmat);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrices(pc->pmat,osm->n,osm->ois, osm->ois,scall,&osm->pmat);CHKERRQ(ierr);
   }
   if (scall == MAT_INITIAL_MATRIX) {
     ierr = PetscObjectGetOptionsPrefix((PetscObject)pc->pmat,&pprefix);CHKERRQ(ierr);

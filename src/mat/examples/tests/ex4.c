@@ -1,5 +1,5 @@
 
-static char help[] = "Creates a matrix, inserts some values, and tests MatGetSubMatrices() and MatZeroEntries().\n\n";
+static char help[] = "Creates a matrix, inserts some values, and tests MatCreateSubMatrices() and MatZeroEntries().\n\n";
 
 #include <petscmat.h>
 
@@ -33,7 +33,7 @@ int main(int argc,char **argv)
   /* Form submatrix with rows 2-4 and columns 4-8 */
   ierr   = ISCreateStride(PETSC_COMM_SELF,3,2,1,&irkeep);CHKERRQ(ierr);
   ierr   = ISCreateStride(PETSC_COMM_SELF,5,4,1,&ickeep);CHKERRQ(ierr);
-  ierr   = MatGetSubMatrices(mat,1,&irkeep,&ickeep,MAT_INITIAL_MATRIX,&submatrices);CHKERRQ(ierr);
+  ierr   = MatCreateSubMatrices(mat,1,&irkeep,&ickeep,MAT_INITIAL_MATRIX,&submatrices);CHKERRQ(ierr);
   submat = *submatrices;
   ierr   = PetscFree(submatrices);CHKERRQ(ierr);
   /*

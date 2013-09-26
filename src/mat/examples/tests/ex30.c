@@ -60,7 +60,7 @@ int main(int argc,char **args)
   if (!flg) SETERRQ(PETSC_COMM_SELF,1,"C is non-symmetric");
 
   /* Create vectors for error checking */
-  ierr = MatGetVecs(C,&x,&b);CHKERRQ(ierr);
+  ierr = MatCreateVecs(C,&x,&b);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&y);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&ytmp);CHKERRQ(ierr);
   ierr = PetscRandomCreate(PETSC_COMM_SELF,&rdm);CHKERRQ(ierr);
@@ -95,13 +95,13 @@ int main(int argc,char **args)
   ierr = PetscOptionsHasName(NULL,"-lu",&LU);CHKERRQ(ierr);
   if (LU) {
     printf("Test LU...\n");
-    ierr = MatGetFactor(C,MATSOLVERPETSC,MAT_FACTOR_LU,&A);CHKERRQ(ierr);
+    ierr = MatCreateFactor(C,MATSOLVERPETSC,MAT_FACTOR_LU,&A);CHKERRQ(ierr);
     ierr = MatLUFactorSymbolic(A,C,row,col,&info);CHKERRQ(ierr);
   } else {
     printf("Test ILU...\n");
     info.levels = lf;
 
-    ierr = MatGetFactor(C,MATSOLVERPETSC,MAT_FACTOR_ILU,&A);CHKERRQ(ierr);
+    ierr = MatCreateFactor(C,MATSOLVERPETSC,MAT_FACTOR_ILU,&A);CHKERRQ(ierr);
     ierr = MatILUFactorSymbolic(A,C,row,col,&info);CHKERRQ(ierr);
   }
   ierr = MatLUFactorNumeric(A,C,&info);CHKERRQ(ierr);
@@ -141,7 +141,7 @@ int main(int argc,char **args)
   if (CHOLESKY) {
     printf("Test Cholesky...\n");
     lf   = -1;
-    ierr = MatGetFactor(C,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&A);CHKERRQ(ierr);
+    ierr = MatCreateFactor(C,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&A);CHKERRQ(ierr);
     ierr = MatCholeskyFactorSymbolic(A,C,row,&info);CHKERRQ(ierr);
   } else {
     printf("Test ICC...\n");
@@ -150,7 +150,7 @@ int main(int argc,char **args)
     info.diagonal_fill = 0;
     info.zeropivot     = 0.0;
 
-    ierr = MatGetFactor(C,MATSOLVERPETSC,MAT_FACTOR_ICC,&A);CHKERRQ(ierr);
+    ierr = MatCreateFactor(C,MATSOLVERPETSC,MAT_FACTOR_ICC,&A);CHKERRQ(ierr);
     ierr = MatICCFactorSymbolic(A,C,row,&info);CHKERRQ(ierr);
   }
   ierr = MatCholeskyFactorNumeric(A,C,&info);CHKERRQ(ierr);

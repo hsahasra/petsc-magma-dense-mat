@@ -500,7 +500,7 @@ static PetscErrorCode MatSuperluSetILUDropTol_SuperLU(Mat F,PetscReal dtol)
    Logically Collective on Mat
 
    Input Parameters:
-+  F - the factored matrix obtained by calling MatGetFactor() from PETSc-SuperLU interface
++  F - the factored matrix obtained by calling MatCreateFactor() from PETSc-SuperLU interface
 -  dtol - drop tolerance
 
   Options Database:
@@ -510,7 +510,7 @@ static PetscErrorCode MatSuperluSetILUDropTol_SuperLU(Mat F,PetscReal dtol)
 
    References: SuperLU Users' Guide
 
-.seealso: MatGetFactor()
+.seealso: MatCreateFactor()
 @*/
 PetscErrorCode MatSuperluSetILUDropTol(Mat F,PetscReal dtol)
 {
@@ -566,8 +566,8 @@ PetscErrorCode MatFactorGetSolverPackage_seqaij_superlu(Mat A,const MatSolverPac
 M*/
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_superlu"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_superlu(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_superlu"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_superlu(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   Mat_SuperLU    *lu;

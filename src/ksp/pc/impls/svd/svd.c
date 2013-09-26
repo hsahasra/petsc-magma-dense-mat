@@ -51,14 +51,14 @@ static PetscErrorCode PCSetUp_SVD(PC pc)
   ierr = MPI_Comm_size(((PetscObject)pc->pmat)->comm,&size);CHKERRQ(ierr);
   if (size > 1) {
     Mat          redmat;
-    ierr = MatGetRedundantMatrix(pc->pmat,size,PETSC_COMM_SELF,MAT_INITIAL_MATRIX,&redmat);CHKERRQ(ierr);
+    ierr = MatCreateRedundantMatrix(pc->pmat,size,PETSC_COMM_SELF,MAT_INITIAL_MATRIX,&redmat);CHKERRQ(ierr);
     ierr = MatConvert(redmat,MATSEQDENSE,MAT_INITIAL_MATRIX,&jac->A);CHKERRQ(ierr);
     ierr = MatDestroy(&redmat);CHKERRQ(ierr);
   } else {
     ierr = MatConvert(pc->pmat,MATSEQDENSE,MAT_INITIAL_MATRIX,&jac->A);CHKERRQ(ierr);
   }
   if (!jac->diag) {    /* assume square matrices */
-    ierr = MatGetVecs(jac->A,&jac->diag,&jac->work);CHKERRQ(ierr);
+    ierr = MatCreateVecs(jac->A,&jac->diag,&jac->work);CHKERRQ(ierr);
   }
   if (!jac->U) {
     ierr = MatDuplicate(jac->A,MAT_DO_NOT_COPY_VALUES,&jac->U);CHKERRQ(ierr);

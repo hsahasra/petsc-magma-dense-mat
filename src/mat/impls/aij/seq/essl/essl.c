@@ -150,8 +150,8 @@ PetscErrorCode MatFactorGetSolverPackage_essl(Mat A,const MatSolverPackage *type
 M*/
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_essl"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_essl(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_essl"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_essl(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;

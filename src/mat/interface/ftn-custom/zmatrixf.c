@@ -4,7 +4,7 @@
 
 #if defined(PETSC_HAVE_FORTRAN_CAPS)
 #define matdestroymatrices_              MATDESTROYMATRICES
-#define matgetfactor_                    MATGETFACTOR
+#define matcreatefactor_                 MATCREATEFACTOR
 #define matfactorgetsolverpackage_       MATFACTORGETSOLVERPACKAGE
 #define matgetrowij_                     MATGETROWIJ
 #define matrestorerowij_                 MATRESTOREROWIJ
@@ -17,7 +17,7 @@
 #define matdensegetarray_                MATDENSEGETARRAY
 #define matdenserestorearray_            MATDENSERESTOREARRAY
 #define matconvert_                      MATCONVERT
-#define matgetsubmatrices_               MATGETSUBMATRICES
+#define matcreatesubmatrices_            MATCREATESUBMATRICES
 #define matzerorowscolumns_              MATZEROROWSCOLUMNS
 #define matzerorowscolumnsis_            MATZEROROWSCOLUMNSIS
 #define matzerorowsstencil_              MATZEROROWSSTENCIL
@@ -29,7 +29,7 @@
 #define matzerorowscolumnslocal_         MATZEROROWSCOLUMNSLOCAL
 #define matzerorowscolumnslocalis_       MATZEROROWSCOLUMNSLOCALIS
 #define matsetoptionsprefix_             MATSETOPTIONSPREFIX
-#define matgetvecs_                      MATGETVECS
+#define matcreatevecs_                   MATCREATEVECS
 #define matnullspaceremove_              MATNULLSPACEREMOVE
 #define matgetinfo_                      MATGETINFO
 #define matlufactor_                     MATLUFACTOR
@@ -47,9 +47,9 @@
 #define matfindnonzerorows_              MATFINDNONZEROROWS
 #elif !defined(PETSC_HAVE_FORTRAN_UNDERSCORE)
 #define matdestroymatrices_              matdestroymatrices_
-#define matgetfactor_                    matgetfactor
+#define matcreatefactor_                 matcreatefactor
 #define matfactorgetsolverpackage_       matfactorgetsolverpackage
-#define matgetvecs_                      matgetvecs
+#define matcreatevecs_                   matcreatevecs
 #define matgetrowij_                     matgetrowij
 #define matrestorerowij_                 matrestorerowij
 #define matgetrow_                       matgetrow
@@ -57,11 +57,11 @@
 #define matview_                         matview
 #define matload_                         matload
 #define matseqaijgetarray_               matseqaijgetarray
-#define matseqaijrestorearray_                 matseqaijrestorearray
-#define matdensegetarray_             matdensegetarray
-#define matdenserestorearray_         matdenserestorearray
+#define matseqaijrestorearray_           matseqaijrestorearray
+#define matdensegetarray_                matdensegetarray
+#define matdenserestorearray_            matdenserestorearray
 #define matconvert_                      matconvert
-#define matgetsubmatrices_               matgetsubmatrices
+#define matcreatesubmatrices_            matcreatesubmatrices
 #define matzerorowscolumns_              matzerorowscolumns
 #define matzerorowscolumnsis_            matzerorowscolumnsis
 #define matzerorowsstencil_              matzerorowsstencil
@@ -105,11 +105,11 @@ PETSC_EXTERN void PETSC_STDCALL matnullspacesetfunction_(MatNullSpace *sp, Petsc
   *ierr = MatNullSpaceSetFunction(*sp,ournullfunction,ctx);
 }
 
-PETSC_EXTERN void PETSC_STDCALL matgetvecs_(Mat *mat,Vec *right,Vec *left, int *ierr)
+PETSC_EXTERN void PETSC_STDCALL matcreatevecs_(Mat *mat,Vec *right,Vec *left, int *ierr)
 {
   CHKFORTRANNULLOBJECT(right);
   CHKFORTRANNULLOBJECT(left);
-  *ierr = MatGetVecs(*mat,right,left);
+  *ierr = MatCreateVecs(*mat,right,left);
 }
 
 PETSC_EXTERN void PETSC_STDCALL matgetrowij_(Mat *B,PetscInt *shift,PetscBool *sym,PetscBool *blockcompressed,PetscInt *n,PetscInt *ia,size_t *iia,
@@ -245,11 +245,11 @@ PETSC_EXTERN void PETSC_STDCALL matfactorgetsolverpackage_(Mat *mat,CHAR name PE
   FIXRETURNCHAR(PETSC_TRUE,name,len);
 }
 
-PETSC_EXTERN void PETSC_STDCALL matgetfactor_(Mat *mat,CHAR outtype PETSC_MIXED_LEN(len),MatFactorType *ftype,Mat *M,PetscErrorCode *ierr PETSC_END_LEN(len))
+PETSC_EXTERN void PETSC_STDCALL matcreatefactor_(Mat *mat,CHAR outtype PETSC_MIXED_LEN(len),MatFactorType *ftype,Mat *M,PetscErrorCode *ierr PETSC_END_LEN(len))
 {
   char *t;
   FIXCHAR(outtype,len,t);
-  *ierr = MatGetFactor(*mat,t,*ftype,M);
+  *ierr = MatCreateFactor(*mat,t,*ftype,M);
   FREECHAR(outtype,t);
 }
 
@@ -262,30 +262,30 @@ PETSC_EXTERN void PETSC_STDCALL matconvert_(Mat *mat,CHAR outtype PETSC_MIXED_LE
 }
 
 /*
-    MatGetSubmatrices() is slightly different from C since the
+    MatCreatesubmatrices() is slightly different from C since the
     Fortran provides the array to hold the submatrix objects,while in C that
-    array is allocated by the MatGetSubmatrices()
+    array is allocated by the MatCreatesubmatrices()
 */
-PETSC_EXTERN void PETSC_STDCALL matgetsubmatrices_(Mat *mat,PetscInt *n,IS *isrow,IS *iscol,MatReuse *scall,Mat *smat,PetscErrorCode *ierr)
+PETSC_EXTERN void PETSC_STDCALL matcreatesubmatrices_(Mat *mat,PetscInt *n,IS *isrow,IS *iscol,MatReuse *scall,Mat *smat,PetscErrorCode *ierr)
 {
   Mat      *lsmat;
   PetscInt i;
 
   if (*scall == MAT_INITIAL_MATRIX) {
-    *ierr = MatGetSubMatrices(*mat,*n,isrow,iscol,*scall,&lsmat);
+    *ierr = MatCreateSubMatrices(*mat,*n,isrow,iscol,*scall,&lsmat);
     for (i=0; i<*n; i++) {
       smat[i] = lsmat[i];
     }
     *ierr = PetscFree(lsmat);
   } else {
-    *ierr = MatGetSubMatrices(*mat,*n,isrow,iscol,*scall,&smat);
+    *ierr = MatCreateSubMatrices(*mat,*n,isrow,iscol,*scall,&smat);
   }
 }
 
 /*
     MatDestroyMatrices() is slightly different from C since the
     Fortran provides the array to hold the submatrix objects,while in C that
-    array is allocated by the MatGetSubmatrices()
+    array is allocated by the MatCreatesubmatrices()
 */
 PETSC_EXTERN void PETSC_STDCALL matdestroymatrices_(Mat *mat,PetscInt *n,Mat *smat,PetscErrorCode *ierr)
 {

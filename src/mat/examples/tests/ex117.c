@@ -64,7 +64,7 @@ int main(int argc,char **args)
 
   info.fill=1.0;
 
-  ierr = MatGetFactor(mat,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&fact);CHKERRQ(ierr);
+  ierr = MatCreateFactor(mat,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&fact);CHKERRQ(ierr);
   ierr = MatCholeskyFactorSymbolic(fact,mat,perm,&info);CHKERRQ(ierr);
   ierr = MatCholeskyFactorNumeric(fact,mat,&info);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Chol factor: \n");

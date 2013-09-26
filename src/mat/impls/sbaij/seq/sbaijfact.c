@@ -1614,7 +1614,7 @@ PetscErrorCode MatCholeskyFactor_SeqSBAIJ(Mat A,IS perm,const MatFactorInfo *inf
   Mat            C;
 
   PetscFunctionBegin;
-  ierr = MatGetFactor(A,"petsc",MAT_FACTOR_CHOLESKY,&C);CHKERRQ(ierr);
+  ierr = MatCreateFactor(A,"petsc",MAT_FACTOR_CHOLESKY,&C);CHKERRQ(ierr);
   ierr = MatCholeskyFactorSymbolic(C,A,perm,info);CHKERRQ(ierr);
   ierr = MatCholeskyFactorNumeric(C,A,info);CHKERRQ(ierr);
 

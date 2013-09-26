@@ -404,7 +404,7 @@ static PetscErrorCode SNESSetUpMatrixFree_Private(SNES snes, PetscBool hasOperat
 
   if (!snes->vec_func && (snes->jacobian || snes->jacobian_pre)) {
     Mat A = snes->jacobian, B = snes->jacobian_pre;
-    ierr = MatGetVecs(A ? A : B, NULL,&snes->vec_func);CHKERRQ(ierr);
+    ierr = MatCreateVecs(A ? A : B, NULL,&snes->vec_func);CHKERRQ(ierr);
   }
 
   if (version == 1) {
@@ -3752,7 +3752,7 @@ PetscErrorCode  SNESSolve(SNES snes,Vec b,Vec x)
     x    = xcreated;
   }
 
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)snes),((PetscObject)snes)->prefix,"-snes_view_pre",&viewer,&format,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)snes),((PetscObject)snes)->prefix,"-snes_view_pre",&viewer,&format,&flg);CHKERRQ(ierr);
   if (flg && !PetscPreLoadingOn) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = SNESView(snes,viewer);CHKERRQ(ierr);
@@ -3832,7 +3832,7 @@ PetscErrorCode  SNESSolve(SNES snes,Vec b,Vec x)
     }
   }
   /* monitoring and viewing */
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)snes),((PetscObject)snes)->prefix,"-snes_view",&viewer,&format,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)snes),((PetscObject)snes)->prefix,"-snes_view",&viewer,&format,&flg);CHKERRQ(ierr);
   if (flg && !PetscPreLoadingOn) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = SNESView(snes,viewer);CHKERRQ(ierr);

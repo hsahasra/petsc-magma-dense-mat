@@ -1,4 +1,4 @@
-static const char help[] = "Tests MatGetSubMatrix with MatSubMatrix versus MatAIJ, non-square\n";
+static const char help[] = "Tests MatCreateSubMatrix with MatSubMatrix versus MatAIJ, non-square\n";
 
 #include <petscmat.h>
 
@@ -133,10 +133,10 @@ int main(int argc, char *argv[])
   idxcol[3] = ms+5;
   ierr      = ISCreateGeneral(PETSC_COMM_WORLD,4,idxcol,PETSC_USE_POINTER,&iscol);CHKERRQ(ierr);
 
-  ierr = MatGetSubMatrix(A,isrow,iscol,MAT_INITIAL_MATRIX,&Asub);CHKERRQ(ierr);
-  ierr = MatGetSubMatrix(B,isrow,iscol,MAT_INITIAL_MATRIX,&Bsub);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(A,isrow,iscol,MAT_INITIAL_MATRIX,&Asub);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(B,isrow,iscol,MAT_INITIAL_MATRIX,&Bsub);CHKERRQ(ierr);
 
-  ierr = MatGetVecs(Asub,&right,&left);CHKERRQ(ierr);
+  ierr = MatCreateVecs(Asub,&right,&left);CHKERRQ(ierr);
   ierr = VecDuplicate(right,&X);CHKERRQ(ierr);
   ierr = VecDuplicate(right,&X1);CHKERRQ(ierr);
   ierr = VecDuplicate(left,&Y);CHKERRQ(ierr);

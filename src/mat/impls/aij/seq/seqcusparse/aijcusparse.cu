@@ -93,8 +93,8 @@ PetscErrorCode MatFactorGetSolverPackage_seqaij_cusparse(Mat A,const MatSolverPa
 M*/
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_cusparse"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_cusparse(Mat A,MatFactorType ftype,Mat *B)
+#define __FUNCT__ "MatCreateFactor_seqaij_cusparse"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_cusparse(Mat A,MatFactorType ftype,Mat *B)
 {
   PetscErrorCode ierr;
   PetscInt       n = A->rmap->n;
@@ -1336,8 +1336,8 @@ static PetscErrorCode MatSeqAIJCUSPARSECopyToGPU(Mat A)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetVecs_SeqAIJCUSPARSE"
-static PetscErrorCode MatGetVecs_SeqAIJCUSPARSE(Mat mat, Vec *right, Vec *left)
+#define __FUNCT__ "MatCreateVecs_SeqAIJCUSPARSE"
+static PetscErrorCode MatCreateVecs_SeqAIJCUSPARSE(Mat mat, Vec *right, Vec *left)
 {
   PetscErrorCode ierr;
 
@@ -1847,14 +1847,14 @@ PETSC_EXTERN PetscErrorCode MatCreate_SeqAIJCUSPARSE(Mat B)
     ((Mat_SeqAIJCUSPARSETriFactors*)B->spptr)->nnz                     = 0;
   }
 
-  /* Here we overload MatGetFactor_petsc_C which enables -mat_type aijcusparse to use the
+  /* Here we overload MatCreateFactor_petsc_C which enables -mat_type aijcusparse to use the
      default cusparse tri solve. Note the difference with the implementation in
      MatCreate_SeqAIJCUSP in ../seqcusp/aijcusp.cu */
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_petsc_C",MatGetFactor_seqaij_cusparse);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_petsc_C",MatCreateFactor_seqaij_cusparse);CHKERRQ(ierr);
 
   B->ops->assemblyend      = MatAssemblyEnd_SeqAIJCUSPARSE;
   B->ops->destroy          = MatDestroy_SeqAIJCUSPARSE;
-  B->ops->getvecs          = MatGetVecs_SeqAIJCUSPARSE;
+  B->ops->getvecs          = MatCreateVecs_SeqAIJCUSPARSE;
   B->ops->setfromoptions   = MatSetFromOptions_SeqAIJCUSPARSE;
   B->ops->mult             = MatMult_SeqAIJCUSPARSE;
   B->ops->multadd          = MatMultAdd_SeqAIJCUSPARSE;

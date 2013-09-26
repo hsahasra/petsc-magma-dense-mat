@@ -421,7 +421,7 @@ PetscErrorCode MatFactorNumeric_PaStiX(Mat F,Mat A,const MatFactorInfo *info)
 
   /* convert mpi A to seq mat A */
   ierr = ISCreateStride(PETSC_COMM_SELF,M,0,1,&isrow);CHKERRQ(ierr);
-  ierr = MatGetSubMatrices(A,1,&isrow,&isrow,MAT_INITIAL_MATRIX,&tseq);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrices(A,1,&isrow,&isrow,MAT_INITIAL_MATRIX,&tseq);CHKERRQ(ierr);
   ierr = ISDestroy(&isrow);CHKERRQ(ierr);
 
   ierr = MatConvertToCSC(*tseq,valOnly, &lu->n, &lu->colptr, &lu->row, &lu->val);CHKERRQ(ierr);
@@ -614,8 +614,8 @@ PetscErrorCode MatFactorGetSolverPackage_pastix(Mat A,const MatSolverPackage *ty
     The seq and mpi versions of this function are the same
 */
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_pastix"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_pastix(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_pastix"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_pastix(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;
@@ -652,8 +652,8 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_pastix(Mat A,MatFactorType ftype
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_mpiaij_pastix"
-PETSC_EXTERN PetscErrorCode MatGetFactor_mpiaij_pastix(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_mpiaij_pastix"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_mpiaij_pastix(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;
@@ -690,8 +690,8 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_mpiaij_pastix(Mat A,MatFactorType ftype
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqsbaij_pastix"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_pastix(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqsbaij_pastix"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqsbaij_pastix(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;
@@ -728,8 +728,8 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_pastix(Mat A,MatFactorType fty
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_mpisbaij_pastix"
-PETSC_EXTERN PetscErrorCode MatGetFactor_mpisbaij_pastix(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_mpisbaij_pastix"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_mpisbaij_pastix(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;

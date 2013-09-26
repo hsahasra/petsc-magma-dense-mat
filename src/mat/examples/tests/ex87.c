@@ -1,5 +1,5 @@
 
-static char help[] = "Tests MatGetSubMatrices() for SBAIJ matrices\n\n";
+static char help[] = "Tests MatCreateSubMatrices() for SBAIJ matrices\n\n";
 
 #include <petscmat.h>
 
@@ -33,8 +33,8 @@ int main(int argc,char **args)
   issize = 9;
   ierr   = ISCreateStride(PETSC_COMM_SELF,issize,0,1,&is);CHKERRQ(ierr);
   iss[0] = is;iss[1] = is;
-  ierr   = MatGetSubMatrices(BAIJ,n,iss,iss,MAT_INITIAL_MATRIX,&subBAIJ);CHKERRQ(ierr);
-  ierr   = MatGetSubMatrices(SBAIJ,n,iss,iss,MAT_INITIAL_MATRIX,&subSBAIJ);CHKERRQ(ierr);
+  ierr   = MatCreateSubMatrices(BAIJ,n,iss,iss,MAT_INITIAL_MATRIX,&subBAIJ);CHKERRQ(ierr);
+  ierr   = MatCreateSubMatrices(SBAIJ,n,iss,iss,MAT_INITIAL_MATRIX,&subSBAIJ);CHKERRQ(ierr);
 
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
 #if defined(PETSC_USE_SOCKET_VIEWER)

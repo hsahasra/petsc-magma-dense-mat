@@ -57,7 +57,7 @@ int main(int argc,char **args)
   ierr = MatConvert(C,MATSEQSBAIJ,MAT_INITIAL_MATRIX,&sC);CHKERRQ(ierr);
 
   /* Create vectors for error checking */
-  ierr = MatGetVecs(C,&x,&b);CHKERRQ(ierr);
+  ierr = MatCreateVecs(C,&x,&b);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&y);CHKERRQ(ierr);
   ierr = VecDuplicate(x,&ytmp);CHKERRQ(ierr);
   ierr = PetscRandomCreate(PETSC_COMM_SELF,&rdm);CHKERRQ(ierr);
@@ -77,13 +77,13 @@ int main(int argc,char **args)
   ierr = PetscOptionsHasName(NULL,"-cholesky",&CHOLESKY);CHKERRQ(ierr);
   if (CHOLESKY) {
     printf("Test CHOLESKY...\n");
-    ierr = MatGetFactor(sC,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sA);CHKERRQ(ierr);
+    ierr = MatCreateFactor(sC,MATSOLVERPETSC,MAT_FACTOR_CHOLESKY,&sA);CHKERRQ(ierr);
     ierr = MatCholeskyFactorSymbolic(sA,sC,row,&info);CHKERRQ(ierr);
   } else {
     printf("Test ICC...\n");
     info.levels = lf;
 
-    ierr = MatGetFactor(sC,MATSOLVERPETSC,MAT_FACTOR_ICC,&sA);CHKERRQ(ierr);
+    ierr = MatCreateFactor(sC,MATSOLVERPETSC,MAT_FACTOR_ICC,&sA);CHKERRQ(ierr);
     ierr = MatICCFactorSymbolic(sA,sC,row,&info);CHKERRQ(ierr);
   }
   ierr = MatCholeskyFactorNumeric(sA,sC,&info);CHKERRQ(ierr);

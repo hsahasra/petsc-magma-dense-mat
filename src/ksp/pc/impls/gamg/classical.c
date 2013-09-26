@@ -269,7 +269,7 @@ PetscErrorCode PCGAMGProlongator_Classical(PC pc, const Mat A, const Mat G, Pets
   ierr = MatGetOwnershipRange(A,&fs,&fe); CHKERRQ(ierr);
   fn = (fe - fs);
 
-  ierr = MatGetVecs(A,&F,NULL);CHKERRQ(ierr);
+  ierr = MatCreateVecs(A,&F,NULL);CHKERRQ(ierr);
 
   /* get the number of local unknowns and the indices of the local unknowns */
 

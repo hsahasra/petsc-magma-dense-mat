@@ -253,7 +253,7 @@ PetscErrorCode  KSPSetUp(KSP ksp)
     if (!ksp->pc) {ierr = KSPGetPC(ksp,&ksp->pc);CHKERRQ(ierr);}
     ierr = PCGetOperators(ksp->pc,&mat,&pmat,NULL);CHKERRQ(ierr);
     if (!ksp->diagonal) { /* allocate vector to hold diagonal */
-      ierr = MatGetVecs(pmat,&ksp->diagonal,0);CHKERRQ(ierr);
+      ierr = MatCreateVecs(pmat,&ksp->diagonal,0);CHKERRQ(ierr);
     }
     ierr = MatGetDiagonal(pmat,ksp->diagonal);CHKERRQ(ierr);
     ierr = VecGetLocalSize(ksp->diagonal,&n);CHKERRQ(ierr);
@@ -374,7 +374,7 @@ PetscErrorCode  KSPSolve(KSP ksp,Vec b,Vec x)
     ksp->vec_sol = x;
   }
 
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ksp),((PetscObject)ksp)->prefix,"-ksp_view_pre",&viewer,&format,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ksp),((PetscObject)ksp)->prefix,"-ksp_view_pre",&viewer,&format,&flg);CHKERRQ(ierr);
   if (flg && !PetscPreLoadingOn) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = KSPView(ksp,viewer);CHKERRQ(ierr);
@@ -607,7 +607,7 @@ PetscErrorCode  KSPSolve(KSP ksp,Vec b,Vec x)
     ierr = MatViewFromOptions(B,((PetscObject)ksp)->prefix,"-ksp_view_preconditioned_operator_explicit");CHKERRQ(ierr);
     ierr = MatDestroy(&B);CHKERRQ(ierr);
   }
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ksp),((PetscObject)ksp)->prefix,"-ksp_view",&viewer,&format,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ksp),((PetscObject)ksp)->prefix,"-ksp_view",&viewer,&format,&flg);CHKERRQ(ierr);
   if (flg && !PetscPreLoadingOn) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = KSPView(ksp,viewer);CHKERRQ(ierr);

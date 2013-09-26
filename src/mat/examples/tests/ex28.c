@@ -41,7 +41,7 @@ int main(int argc,char **args)
   ierr = PetscPrintf(PETSC_COMM_SELF,"column and row perms\n");CHKERRQ(ierr);
   ierr = ISView(rowperm,0);CHKERRQ(ierr);
   ierr = ISView(colperm,0);CHKERRQ(ierr);
-  ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&LU);CHKERRQ(ierr);
+  ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&LU);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic(LU,A,rowperm,colperm,NULL);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric(LU,A,NULL);CHKERRQ(ierr);
   ierr = MatView(LU,PETSC_VIEWER_STDOUT_SELF);CHKERRQ(ierr);

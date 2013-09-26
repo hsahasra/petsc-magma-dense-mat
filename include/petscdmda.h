@@ -59,7 +59,8 @@ PETSC_EXTERN PetscErrorCode DMDAGetGhostCorners(DM,PetscInt*,PetscInt*,PetscInt*
 PETSC_EXTERN PetscErrorCode DMDAGetInfo(DM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,DMDABoundaryType*,DMDABoundaryType*,DMDABoundaryType*,DMDAStencilType*);
 PETSC_EXTERN PetscErrorCode DMDAGetProcessorSubset(DM,DMDADirection,PetscInt,MPI_Comm*);
 PETSC_EXTERN PetscErrorCode DMDAGetProcessorSubsets(DM,DMDADirection,MPI_Comm*);
-PETSC_EXTERN PetscErrorCode DMDAGetRay(DM,DMDADirection,PetscInt,Vec*,VecScatter*);
+PETSC_EXTERN PetscErrorCode DMDACreateRay(DM,DMDADirection,PetscInt,Vec*,VecScatter*);
+PETSC_DEPRECATED("Use DMDACreateRay()") PETSC_STATIC_INLINE PetscErrorCode DMDAGetRay(DM dm,DMDADirection d,PetscInt i,Vec *v,VecScatter *s) {return DMDACreateRay(dm,d,i,v,s); }
 
 PETSC_EXTERN PetscErrorCode DMDAGlobalToNaturalAllCreate(DM,VecScatter*);
 PETSC_EXTERN PetscErrorCode DMDANaturalAllToGlobalCreate(DM,VecScatter*);
@@ -173,7 +174,6 @@ PETSC_EXTERN PetscErrorCode MatRegisterDAAD(void);
 PETSC_EXTERN PetscErrorCode MatCreateDAAD(DM,Mat*);
 PETSC_EXTERN PetscErrorCode MatCreateSeqUSFFT(Vec,DM,Mat*);
 
-PETSC_EXTERN PetscErrorCode DMDASetGetMatrix(DM,PetscErrorCode (*)(DM, MatType,Mat *));
 PETSC_EXTERN PetscErrorCode DMDASetBlockFills(DM,const PetscInt*,const PetscInt*);
 PETSC_EXTERN PetscErrorCode DMDASetRefinementFactor(DM,PetscInt,PetscInt,PetscInt);
 PETSC_EXTERN PetscErrorCode DMDAGetRefinementFactor(DM,PetscInt*,PetscInt*,PetscInt*);

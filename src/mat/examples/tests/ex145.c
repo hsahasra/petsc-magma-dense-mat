@@ -176,7 +176,7 @@ int main(int argc,char **argv)
   ierr = MatDestroy(&G);CHKERRQ(ierr);
 
   /* Out-place Cholesky */
-  ierr = MatGetFactor(Aher,MATSOLVERELEMENTAL,MAT_FACTOR_CHOLESKY,&G);CHKERRQ(ierr);
+  ierr = MatCreateFactor(Aher,MATSOLVERELEMENTAL,MAT_FACTOR_CHOLESKY,&G);CHKERRQ(ierr);
   ierr = MatCholeskyFactorSymbolic(G,Aher,0,&finfo);CHKERRQ(ierr);
   ierr = MatCholeskyFactorNumeric(G,Aher,&finfo);CHKERRQ(ierr);
   if (mats_view) {
@@ -252,7 +252,7 @@ int main(int argc,char **argv)
   }
 
   /* Out-place LU */
-  ierr = MatGetFactor(A,MATSOLVERELEMENTAL,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
+  ierr = MatCreateFactor(A,MATSOLVERELEMENTAL,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic(F,A,0,0,&finfo);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric(F,A,&finfo);CHKERRQ(ierr);
   if (mats_view) {

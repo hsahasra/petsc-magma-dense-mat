@@ -59,6 +59,8 @@ PETSC_EXTERN PetscErrorCode DMCreateFieldIS(DM,PetscInt*,char***,IS**);
 PETSC_EXTERN PetscErrorCode DMGetBlockSize(DM,PetscInt*);
 PETSC_EXTERN PetscErrorCode DMCreateColoring(DM,ISColoringType,MatType,ISColoring*);
 PETSC_EXTERN PetscErrorCode DMCreateMatrix(DM,MatType,Mat*);
+PETSC_EXTERN PetscErrorCode DMSetCreateMatrix(DM,PetscErrorCode (*)(DM, MatType,Mat *));
+PETSC_DEPRECATED("Use DMSetCreateMatrix()") PETSC_STATIC_INLINE PetscErrorCode DMDASetGetMatrix(DM dm,PetscErrorCode (*f)(DM, MatType,Mat *)) {return DMSetCreateMatrix(dm,f);}
 PETSC_EXTERN PetscErrorCode DMSetMatrixPreallocateOnly(DM,PetscBool);
 PETSC_EXTERN PetscErrorCode DMCreateInterpolation(DM,DM,Mat*,Vec*);
 PETSC_EXTERN PetscErrorCode DMCreateInjection(DM,DM,VecScatter*);

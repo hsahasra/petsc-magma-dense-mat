@@ -1401,8 +1401,8 @@ PetscErrorCode MatAXPY_MPISBAIJ(Mat Y,PetscScalar a,Mat X,MatStructure str)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetSubMatrices_MPISBAIJ"
-PetscErrorCode MatGetSubMatrices_MPISBAIJ(Mat A,PetscInt n,const IS irow[],const IS icol[],MatReuse scall,Mat *B[])
+#define __FUNCT__ "MatCreateSubMatrices_MPISBAIJ"
+PetscErrorCode MatCreateSubMatrices_MPISBAIJ(Mat A,PetscInt n,const IS irow[],const IS icol[],MatReuse scall,Mat *B[])
 {
   PetscErrorCode ierr;
   PetscInt       i;
@@ -1413,7 +1413,7 @@ PetscErrorCode MatGetSubMatrices_MPISBAIJ(Mat A,PetscInt n,const IS irow[],const
     ierr = ISEqual(irow[i],icol[i],&flg);CHKERRQ(ierr);
     if (!flg) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_SUP,"Can only get symmetric submatrix for MPISBAIJ matrices");
   }
-  ierr = MatGetSubMatrices_MPIBAIJ(A,n,irow,icol,scall,B);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrices_MPIBAIJ(A,n,irow,icol,scall,B);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1459,7 +1459,7 @@ static struct _MatOps MatOps_Values = {MatSetValues_MPISBAIJ,
                                        0,
                                        0,
                                /* 39*/ MatAXPY_MPISBAIJ,
-                                       MatGetSubMatrices_MPISBAIJ,
+                                       MatCreateSubMatrices_MPISBAIJ,
                                        MatIncreaseOverlap_MPISBAIJ,
                                        MatGetValues_MPISBAIJ,
                                        MatCopy_MPISBAIJ,
@@ -1693,10 +1693,10 @@ PetscErrorCode MatMPISBAIJSetPreallocationCSR_MPISBAIJ(Mat B,PetscInt bs,const P
 }
 
 #if defined(PETSC_HAVE_MUMPS)
-PETSC_EXTERN PetscErrorCode MatGetFactor_sbaij_mumps(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_sbaij_mumps(Mat,MatFactorType,Mat*);
 #endif
 #if defined(PETSC_HAVE_PASTIX)
-PETSC_EXTERN PetscErrorCode MatGetFactor_mpisbaij_pastix(Mat,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor_mpisbaij_pastix(Mat,MatFactorType,Mat*);
 #endif
 
 /*MC
@@ -1776,7 +1776,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   b->ht_total_ct  = 0;
   b->ht_insert_ct = 0;
 
-  /* stuff for MatGetSubMatrices_MPIBAIJ_local() */
+  /* stuff for MatCreateSubMatrices_MPIBAIJ_local() */
   b->ijonly = PETSC_FALSE;
 
   b->in_loc = 0;
@@ -1795,10 +1795,10 @@ PETSC_EXTERN PetscErrorCode MatCreate_MPISBAIJ(Mat B)
   ierr = PetscOptionsEnd();CHKERRQ(ierr);
 
 #if defined(PETSC_HAVE_PASTIX)
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_pastix_C",MatGetFactor_mpisbaij_pastix);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_pastix_C",MatCreateFactor_mpisbaij_pastix);CHKERRQ(ierr);
 #endif
 #if defined(PETSC_HAVE_MUMPS)
-  ierr = PetscObjectComposeFunction((PetscObject)B,"MatGetFactor_mumps_C",MatGetFactor_sbaij_mumps);CHKERRQ(ierr);
+  ierr = PetscObjectComposeFunction((PetscObject)B,"MatCreateFactor_mumps_C",MatCreateFactor_sbaij_mumps);CHKERRQ(ierr);
 #endif
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatStoreValues_C",MatStoreValues_MPISBAIJ);CHKERRQ(ierr);
   ierr = PetscObjectComposeFunction((PetscObject)B,"MatRetrieveValues_C",MatRetrieveValues_MPISBAIJ);CHKERRQ(ierr);
@@ -2610,7 +2610,7 @@ PetscErrorCode MatSOR_MPISBAIJ(Mat matin,Vec bb,PetscReal omega,MatSORType flag,
 
     if (!mat->diag) {
       /* this is wrong for same matrix with new nonzero values */
-      ierr = MatGetVecs(matin,&mat->diag,NULL);CHKERRQ(ierr);
+      ierr = MatCreateVecs(matin,&mat->diag,NULL);CHKERRQ(ierr);
       ierr = MatGetDiagonal(matin,mat->diag);CHKERRQ(ierr);
     }
     ierr = MatHasOperation(matin,MATOP_MULT_DIAGONAL_BLOCK,&hasop);CHKERRQ(ierr);

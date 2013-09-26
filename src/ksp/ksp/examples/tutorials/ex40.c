@@ -281,7 +281,7 @@ PetscErrorCode computeMinEigVal(Mat A, PetscInt its, PetscScalar *eig)
   ierr = MatShift(G, -norm);CHKERRQ(ierr);
   ierr = MatScale(G, -1./norm);CHKERRQ(ierr);
 
-  ierr = MatGetVecs(G, &x_1, &x);CHKERRQ(ierr);
+  ierr = MatCreateVecs(G, &x_1, &x);CHKERRQ(ierr);
   ierr = VecSetRandom(x, rctx);CHKERRQ(ierr);
   ierr = VecDuplicate(x, &x0);CHKERRQ(ierr);
   ierr = VecCopy(x, x0);CHKERRQ(ierr);

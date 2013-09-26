@@ -431,8 +431,8 @@ PetscErrorCode MatFactorGetSolverPackage_seqaij_lusol(Mat A,const MatSolverPacka
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_lusol"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_lusol(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_lusol"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_lusol(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   Mat_LUSOL      *lusol;

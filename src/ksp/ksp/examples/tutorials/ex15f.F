@@ -297,7 +297,7 @@
 
       call PCGetOperators(pc,PETSC_NULL_OBJECT,pmat,PETSC_NULL_INTEGER,     &
      &                    ierr)
-      call MatGetVecs(pmat,diag,PETSC_NULL_OBJECT,ierr)
+      call MatCreateVecs(pmat,diag,PETSC_NULL_OBJECT,ierr)
       call MatGetDiagonal(pmat,diag,ierr)
       call VecReciprocal(diag,ierr)
 

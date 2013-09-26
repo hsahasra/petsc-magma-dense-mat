@@ -261,7 +261,7 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
       }
     }
     /* Create the local work vectors and scatter contexts */
-    ierr = MatGetVecs(pc->pmat,&vec,0);CHKERRQ(ierr);
+    ierr = MatCreateVecs(pc->pmat,&vec,0);CHKERRQ(ierr);
     ierr = PetscMalloc(osm->n_local*sizeof(VecScatter),&osm->restriction);CHKERRQ(ierr);
     if (osm->is_local) {ierr = PetscMalloc(osm->n_local*sizeof(VecScatter),&osm->localization);CHKERRQ(ierr);}
     ierr = PetscMalloc(osm->n_local*sizeof(VecScatter),&osm->prolongation);CHKERRQ(ierr);
@@ -368,7 +368,7 @@ static PetscErrorCode PCSetUp_ASM(PC pc)
   /*
      Extract out the submatrices
   */
-  ierr = MatGetSubMatrices(pc->pmat,osm->n_local_true,osm->is,osm->is,scall,&osm->pmat);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrices(pc->pmat,osm->n_local_true,osm->is,osm->is,scall,&osm->pmat);CHKERRQ(ierr);
   if (scall == MAT_INITIAL_MATRIX) {
     ierr = PetscObjectGetOptionsPrefix((PetscObject)pc->pmat,&pprefix);CHKERRQ(ierr);
     for (i=0; i<osm->n_local_true; i++) {

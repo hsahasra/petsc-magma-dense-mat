@@ -277,7 +277,7 @@ PetscErrorCode  TSSetFromOptions(TS ts)
     ierr = PetscInfo2(((PetscObject)ts),"Displaying DMDA ray %c = %D\n",dir[0],ray);CHKERRQ(ierr);
     ierr = PetscNew(TSMonitorDMDARayCtx,&rayctx);CHKERRQ(ierr);
     ierr = TSGetDM(ts,&da);CHKERRQ(ierr);
-    ierr = DMDAGetRay(da,ddir,ray,&rayctx->ray,&rayctx->scatter);CHKERRQ(ierr);
+    ierr = DMDACreateRay(da,ddir,ray,&rayctx->ray,&rayctx->scatter);CHKERRQ(ierr);
     ierr = MPI_Comm_rank(PetscObjectComm((PetscObject)ts),&rank);CHKERRQ(ierr);
     if (!rank) {
       ierr = PetscViewerDrawOpen(PETSC_COMM_SELF,0,0,0,0,600,300,&rayctx->viewer);CHKERRQ(ierr);
@@ -2611,7 +2611,7 @@ PetscErrorCode TSSolve(TS ts,Vec u)
   ts->reject            = 0;
   ts->reason            = TS_CONVERGED_ITERATING;
 
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ts),((PetscObject)ts)->prefix,"-ts_view_pre",&viewer,&format,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ts),((PetscObject)ts)->prefix,"-ts_view_pre",&viewer,&format,&flg);CHKERRQ(ierr);
   if (flg && !PetscPreLoadingOn) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = TSView(ts,viewer);CHKERRQ(ierr);
@@ -2643,7 +2643,7 @@ PetscErrorCode TSSolve(TS ts,Vec u)
     }
     ierr = TSMonitor(ts,ts->steps,ts->solvetime,solution);CHKERRQ(ierr);
   }
-  ierr = PetscOptionsGetViewer(PetscObjectComm((PetscObject)ts),((PetscObject)ts)->prefix,"-ts_view",&viewer,&format,&flg);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscObjectComm((PetscObject)ts),((PetscObject)ts)->prefix,"-ts_view",&viewer,&format,&flg);CHKERRQ(ierr);
   if (flg && !PetscPreLoadingOn) {
     ierr = PetscViewerPushFormat(viewer,format);CHKERRQ(ierr);
     ierr = TSView(ts,viewer);CHKERRQ(ierr);

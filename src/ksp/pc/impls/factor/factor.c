@@ -4,7 +4,7 @@
 #undef __FUNCT__
 #define __FUNCT__ "PCFactorSetUpMatSolverPackage"
 /*@
-    PCFactorSetUpMatSolverPackage - Can be called after KSPSetOperators() or PCSetOperators(), causes MatGetFactor() to be called so then one may
+    PCFactorSetUpMatSolverPackage - Can be called after KSPSetOperators() or PCSetOperators(), causes MatCreateFactor() to be called so then one may
        set the options for that particular factorization object.
 
   Input Parameter:
@@ -300,7 +300,7 @@ PetscErrorCode  PCFactorReorderForNonzeroDiagonal(PC pc,PetscReal rtol)
 
 .keywords: PC, set, factorization, direct, fill
 
-.seealso: MatGetFactor(), MatSolverPackage, PCFactorGetMatSolverPackage()
+.seealso: MatCreateFactor(), MatSolverPackage, PCFactorGetMatSolverPackage()
 
 @*/
 PetscErrorCode  PCFactorSetMatSolverPackage(PC pc,const MatSolverPackage stype)
@@ -331,7 +331,7 @@ PetscErrorCode  PCFactorSetMatSolverPackage(PC pc,const MatSolverPackage stype)
 
 .keywords: PC, set, factorization, direct, fill
 
-.seealso: MatGetFactor(), MatSolverPackage, PCFactorGetMatSolverPackage()
+.seealso: MatCreateFactor(), MatSolverPackage, PCFactorGetMatSolverPackage()
 
 @*/
 PetscErrorCode  PCFactorGetMatSolverPackage(PC pc,const MatSolverPackage *stype)

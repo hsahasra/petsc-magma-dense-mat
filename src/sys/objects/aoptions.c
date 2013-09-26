@@ -1483,7 +1483,7 @@ $       socket[:port]    defaults to the standard output port
 
    Use PetscRestoreViewerDestroy() after using the viewer, otherwise a memory leak will occur
 
-.seealso: PetscOptionsGetViewer(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
+.seealso: PetscOptionsCreateViewer(), PetscOptionsHasName(), PetscOptionsGetString(), PetscOptionsGetInt(),
           PetscOptionsGetIntArray(), PetscOptionsGetRealArray(), PetscOptionsBool()
           PetscOptionsInt(), PetscOptionsString(), PetscOptionsReal(), PetscOptionsBool(),
           PetscOptionsName(), PetscOptionsBegin(), PetscOptionsEnd(), PetscOptionsHead(),
@@ -1503,7 +1503,7 @@ PetscErrorCode  PetscOptionsViewer(const char opt[],const char text[],const char
 
     *(const char**)amsopt->data = "";
   }
-  ierr = PetscOptionsGetViewer(PetscOptionsObject.comm,PetscOptionsObject.prefix,opt,viewer,format,set);CHKERRQ(ierr);
+  ierr = PetscOptionsCreateViewer(PetscOptionsObject.comm,PetscOptionsObject.prefix,opt,viewer,format,set);CHKERRQ(ierr);
   if (PetscOptionsObject.printhelp && PetscOptionsPublishCount == 1 && !PetscOptionsObject.alreadyprinted) {
     ierr = (*PetscHelpPrintf)(PetscOptionsObject.comm,"  -%s%s <%s>: %s (%s)\n",PetscOptionsObject.prefix ? PetscOptionsObject.prefix : "",opt+1,"",text,ManSection(man));CHKERRQ(ierr);
   }

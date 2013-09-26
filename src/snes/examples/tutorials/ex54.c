@@ -401,7 +401,7 @@ PetscErrorCode SetUpMatrices(AppCtx *user)
   ierr = ISCreateStride(PETSC_COMM_WORLD,n/2,rstart+1,2,&iscol);CHKERRQ(ierr);
 
   /* Extract M_0 from M */
-  ierr = MatGetSubMatrix(M,isrow,iscol,MAT_INITIAL_MATRIX,&user->M_0);CHKERRQ(ierr);
+  ierr = MatCreateSubMatrix(M,isrow,iscol,MAT_INITIAL_MATRIX,&user->M_0);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_WORLD,&user->u);CHKERRQ(ierr);
   ierr = VecSetSizes(user->u,n/2,PETSC_DECIDE);CHKERRQ(ierr);
   ierr = VecSetFromOptions(user->u);CHKERRQ(ierr);

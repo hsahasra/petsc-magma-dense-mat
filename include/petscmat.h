@@ -96,7 +96,7 @@ typedef const char* MatType;
 
    Level: beginner
 
-.seealso: MatGetFactor(), Mat, MatSetType(), MatType
+.seealso: MatCreateFactor(), Mat, MatSetType(), MatType
 J*/
 #define MatSolverPackage char*
 #define MATSOLVERSUPERLU      "superlu"
@@ -123,15 +123,16 @@ J*/
 
    Any additions/changes here MUST also be made in include/finclude/petscmat.h
 
-.seealso: MatSolverPackage, MatGetFactor()
+.seealso: MatSolverPackage, MatCreateFactor()
 E*/
 typedef enum {MAT_FACTOR_NONE, MAT_FACTOR_LU, MAT_FACTOR_CHOLESKY, MAT_FACTOR_ILU, MAT_FACTOR_ICC,MAT_FACTOR_ILUDT} MatFactorType;
 PETSC_EXTERN const char *const MatFactorTypes[];
 
-PETSC_EXTERN PetscErrorCode MatGetFactor(Mat,const MatSolverPackage,MatFactorType,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateFactor(Mat,const MatSolverPackage,MatFactorType,Mat*);
+PETSC_DEPRECATED("Use MatCreateFactor()") PETSC_STATIC_INLINE PetscErrorCode MatGetFactor(Mat A,const MatSolverPackage p,MatFactorType t,Mat *f) {return MatCreateFactor(A,p,t,f);}
 PETSC_EXTERN PetscErrorCode MatGetFactorAvailable(Mat,const MatSolverPackage,MatFactorType,PetscBool *);
 PETSC_EXTERN PetscErrorCode MatFactorGetSolverPackage(Mat,const MatSolverPackage*);
-PETSC_EXTERN PetscErrorCode MatGetFactorType(Mat,MatFactorType*);
+PETSC_EXTERN PetscErrorCode MatCreateFactorType(Mat,MatFactorType*);
 
 /* Logging support */
 #define    MAT_FILE_CLASSID 1211216    /* used to indicate matrices in binary files */
@@ -144,27 +145,27 @@ PETSC_EXTERN PetscClassId MAT_NULLSPACE_CLASSID;
 PETSC_EXTERN PetscClassId MATMFFD_CLASSID;
 
 /*E
-    MatReuse - Indicates if matrices obtained from a previous call to MatGetSubMatrices()
-     or MatGetSubMatrix() are to be reused to store the new matrix values. For MatConvert() is used to indicate
+    MatReuse - Indicates if matrices obtained from a previous call to MatCreateSubMatrices()
+     or MatCreateSubMatrix() are to be reused to store the new matrix values. For MatConvert() is used to indicate
      that the input matrix is to be replaced with the converted matrix.
 
     Level: beginner
 
    Any additions/changes here MUST also be made in include/finclude/petscmat.h
 
-.seealso: MatGetSubMatrices(), MatGetSubMatrix(), MatDestroyMatrices(), MatConvert()
+.seealso: MatCreateSubMatrices(), MatCreateSubMatrix(), MatDestroyMatrices(), MatConvert()
 E*/
 typedef enum {MAT_INITIAL_MATRIX,MAT_REUSE_MATRIX,MAT_IGNORE_MATRIX} MatReuse;
 
 /*E
-    MatGetSubMatrixOption - Indicates if matrices obtained from a call to MatGetSubMatrices()
+    MatCreateSubMatrixOption - Indicates if matrices obtained from a call to MatCreateSubMatrices()
      include the matrix values. Currently it is only used by MatGetSeqNonzerostructure().
 
     Level: beginner
 
 .seealso: MatGetSeqNonzerostructure()
 E*/
-typedef enum {MAT_DO_NOT_GET_VALUES,MAT_GET_VALUES} MatGetSubMatrixOption;
+typedef enum {MAT_DO_NOT_GET_VALUES,MAT_GET_VALUES} MatCreateSubMatrixOption;
 
 PETSC_EXTERN PetscErrorCode MatInitializePackage(void);
 
@@ -242,7 +243,7 @@ PETSC_EXTERN PetscErrorCode MatCreateFFT(MPI_Comm,PetscInt,const PetscInt[],MatT
 PETSC_EXTERN PetscErrorCode MatCreateSeqCUFFT(MPI_Comm,PetscInt,const PetscInt[],Mat*);
 
 PETSC_EXTERN PetscErrorCode MatCreateTranspose(Mat,Mat*);
-PETSC_EXTERN PetscErrorCode MatCreateSubMatrix(Mat,IS,IS,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateSubMatrixDefault(Mat,IS,IS,Mat*);
 PETSC_EXTERN PetscErrorCode MatSubMatrixUpdate(Mat,Mat,IS,IS);
 PETSC_EXTERN PetscErrorCode MatCreateLocalRef(Mat,IS,IS,Mat*);
 
@@ -480,10 +481,13 @@ PETSC_EXTERN PetscErrorCode MatGetOwnershipRangeColumn(Mat,PetscInt*,PetscInt*);
 PETSC_EXTERN PetscErrorCode MatGetOwnershipRangesColumn(Mat,const PetscInt**);
 PETSC_EXTERN PetscErrorCode MatGetOwnershipIS(Mat,IS*,IS*);
 
-PETSC_EXTERN PetscErrorCode MatGetSubMatrices(Mat,PetscInt,const IS[],const IS[],MatReuse,Mat *[]);
-PETSC_EXTERN PetscErrorCode MatGetSubMatricesParallel(Mat,PetscInt,const IS[],const IS[],MatReuse,Mat *[]);
+PETSC_EXTERN PetscErrorCode MatCreateSubMatrices(Mat,PetscInt,const IS[],const IS[],MatReuse,Mat *[]);
+PETSC_DEPRECATED("Use MatCreateMatrices()") PETSC_STATIC_INLINE PetscErrorCode MatGetSubMatrices(Mat a,PetscInt b,const IS c[],const IS d[],MatReuse e,Mat *f[]) {return MatCreateSubMatrices(a,b,c,d,e,f);}
+PETSC_EXTERN PetscErrorCode MatCreateSubMatricesParallel(Mat,PetscInt,const IS[],const IS[],MatReuse,Mat *[]);
+PETSC_DEPRECATED("Use MatCreateSubMatricesParallel()") PETSC_STATIC_INLINE PetscErrorCode MatGetSubMatricesParallel(Mat a,PetscInt b,const IS c[],const IS d[],MatReuse e,Mat *f[]) {return MatCreateSubMatricesParallel(a,b,c,d,e,f);}
 PETSC_EXTERN PetscErrorCode MatDestroyMatrices(PetscInt,Mat *[]);
-PETSC_EXTERN PetscErrorCode MatGetSubMatrix(Mat,IS,IS,MatReuse,Mat *);
+PETSC_EXTERN PetscErrorCode MatCreateSubMatrix(Mat,IS,IS,MatReuse,Mat *);
+PETSC_DEPRECATED("Use MatCreateSubMatrix()") PETSC_STATIC_INLINE PetscErrorCode MatGetSubMatrix(Mat a,IS b,IS c,MatReuse d,Mat *e) {return MatCreateSubMatrix(a,b,c,d,e);}
 PETSC_EXTERN PetscErrorCode MatGetLocalSubMatrix(Mat,IS,IS,Mat*);
 PETSC_EXTERN PetscErrorCode MatRestoreLocalSubMatrix(Mat,IS,IS,Mat*);
 PETSC_EXTERN PetscErrorCode MatGetSeqNonzeroStructure(Mat,Mat*);
@@ -547,9 +551,12 @@ PETSC_EXTERN PetscErrorCode MatStashGetInfo(Mat,PetscInt*,PetscInt*,PetscInt*,Pe
 PETSC_EXTERN PetscErrorCode MatInterpolate(Mat,Vec,Vec);
 PETSC_EXTERN PetscErrorCode MatInterpolateAdd(Mat,Vec,Vec,Vec);
 PETSC_EXTERN PetscErrorCode MatRestrict(Mat,Vec,Vec);
-PETSC_EXTERN PetscErrorCode MatGetVecs(Mat,Vec*,Vec*);
-PETSC_EXTERN PetscErrorCode MatGetRedundantMatrix(Mat,PetscInt,MPI_Comm,MatReuse,Mat*);
-PETSC_EXTERN PetscErrorCode MatGetMultiProcBlock(Mat,MPI_Comm,MatReuse,Mat*);
+PETSC_EXTERN PetscErrorCode MatCreateVecs(Mat,Vec*,Vec*);
+PETSC_DEPRECATED("Use MatCreateVecs()") PETSC_STATIC_INLINE PetscErrorCode MatGetVecs(Mat A,Vec *x,Vec *y) {return MatCreateVecs(A,x,y);}
+PETSC_EXTERN PetscErrorCode MatCreateRedundantMatrix(Mat,PetscInt,MPI_Comm,MatReuse,Mat*);
+PETSC_DEPRECATED("Use MatCreateRedundantMatrix()") PETSC_STATIC_INLINE PetscErrorCode MatGetRedundantMatrix(Mat a,PetscInt b,MPI_Comm c,MatReuse d,Mat *e) {return MatCreateRedundantMatrix(a,b,c,d,e);}
+PETSC_EXTERN PetscErrorCode MatCreateMultiProcBlock(Mat,MPI_Comm,MatReuse,Mat*);
+PETSC_DEPRECATED("Use MatCreateMultiProcBlock()") PETSC_STATIC_INLINE PetscErrorCode MatGetMultiProcBlock(Mat a,MPI_Comm b,MatReuse c,Mat *d) {return MatCreateMultiProcBlock(a,b,c,d);}
 PETSC_EXTERN PetscErrorCode MatFindZeroDiagonals(Mat,IS*);
 
 /*MC
@@ -1620,7 +1627,7 @@ PETSC_EXTERN PetscErrorCode MatCreateAIJViennaCL(MPI_Comm,PetscInt,PetscInt,Pets
 #if defined(PETSC_HAVE_FFTW)
 PETSC_EXTERN PetscErrorCode VecScatterPetscToFFTW(Mat,Vec,Vec);
 PETSC_EXTERN PetscErrorCode VecScatterFFTWToPetsc(Mat,Vec,Vec);
-PETSC_EXTERN PetscErrorCode MatGetVecsFFTW(Mat,Vec*,Vec*,Vec*);
+PETSC_EXTERN PetscErrorCode MatCreateVecsFFTW(Mat,Vec*,Vec*,Vec*);
 #endif
 
 #if defined(PETSC_HAVE_ELEMENTAL)

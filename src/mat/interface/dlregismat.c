@@ -134,12 +134,12 @@ PetscErrorCode  MatInitializePackage(void)
   ierr = PetscLogEventRegister("MatGetValues",     MAT_CLASSID,&MAT_GetValues);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatGetRow",        MAT_CLASSID,&MAT_GetRow);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatGetRowIJ",      MAT_CLASSID,&MAT_GetRowIJ);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("MatGetSubMatrice", MAT_CLASSID,&MAT_GetSubMatrices);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MatCreateSubMatr", MAT_CLASSID,&MAT_GetSubMatrices);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatGetColoring",   MAT_CLASSID,&MAT_GetColoring);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatGetOrdering",   MAT_CLASSID,&MAT_GetOrdering);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatIncreaseOvrlp", MAT_CLASSID,&MAT_IncreaseOverlap);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatPartitioning",  MAT_PARTITIONING_CLASSID,&MAT_Partitioning);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("MatCoarsen",  MAT_COARSEN_CLASSID,&MAT_Coarsen);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MatCoarsen",       MAT_COARSEN_CLASSID,&MAT_Coarsen);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatZeroEntries",   MAT_CLASSID,&MAT_ZeroEntries);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatLoad",          MAT_CLASSID,&MAT_Load);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatView",          MAT_CLASSID,&MAT_View);CHKERRQ(ierr);
@@ -167,10 +167,10 @@ PetscErrorCode  MatInitializePackage(void)
   ierr = PetscLogEventRegister("MatTrnMatMult",    MAT_CLASSID,&MAT_TransposeMatMult);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatTrnMatMultSym", MAT_CLASSID,&MAT_TransposeMatMultSymbolic);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatTrnMatMultNum", MAT_CLASSID,&MAT_TransposeMatMultNumeric);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("MatTrnColorCreate", MAT_CLASSID,&MAT_TransposeColoringCreate);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("MatGetRedundant",  MAT_CLASSID,&MAT_GetRedundantMatrix);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MatTrnColorCreat", MAT_CLASSID,&MAT_TransposeColoringCreate);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MatCreateRedund",  MAT_CLASSID,&MAT_GetRedundantMatrix);CHKERRQ(ierr);
   ierr = PetscLogEventRegister("MatGetSeqNZStrct", MAT_CLASSID,&MAT_GetSequentialNonzeroStructure);CHKERRQ(ierr);
-  ierr = PetscLogEventRegister("MatGetMultiProcBlock", MAT_CLASSID,&MAT_GetMultiProcBlock);CHKERRQ(ierr);
+  ierr = PetscLogEventRegister("MatCreateMultiPB", MAT_CLASSID,&MAT_GetMultiProcBlock);CHKERRQ(ierr);
 
 
   /* these may be specific to MPIAIJ matrices */

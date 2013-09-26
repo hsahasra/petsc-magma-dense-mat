@@ -358,7 +358,7 @@ static PetscErrorCode createLevel(const PC pc,const Mat Amat_fine,const PetscInt
 #endif
 
     /*
-      Invert for MatGetSubMatrix
+      Invert for MatCreateSubMatrix
     */
     ierr = ISInvertPermutation(is_eq_num, ncrs_eq_new, &new_eq_indices);CHKERRQ(ierr);
     ierr = ISSort(new_eq_indices);CHKERRQ(ierr); /* is this needed? */
@@ -374,7 +374,7 @@ static PetscErrorCode createLevel(const PC pc,const Mat Amat_fine,const PetscInt
     /* 'a_Amat_crs' output */
     {
       Mat mat;
-      ierr        = MatGetSubMatrix(Cmat, new_eq_indices, new_eq_indices, MAT_INITIAL_MATRIX, &mat);CHKERRQ(ierr);
+      ierr        = MatCreateSubMatrix(Cmat, new_eq_indices, new_eq_indices, MAT_INITIAL_MATRIX, &mat);CHKERRQ(ierr);
       *a_Amat_crs = mat;
 
       if (!PETSC_TRUE) {
@@ -401,7 +401,7 @@ static PetscErrorCode createLevel(const PC pc,const Mat Amat_fine,const PetscInt
 #endif
       ierr = ISCreateStride(comm,Iend-Istart,Istart,1,&findices);CHKERRQ(ierr);
       ierr = ISSetBlockSize(findices,f_bs);CHKERRQ(ierr);
-      ierr = MatGetSubMatrix(Pold, findices, new_eq_indices, MAT_INITIAL_MATRIX, &Pnew);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrix(Pold, findices, new_eq_indices, MAT_INITIAL_MATRIX, &Pnew);CHKERRQ(ierr);
       ierr = ISDestroy(&findices);CHKERRQ(ierr);
 
       if (!PETSC_TRUE) {
@@ -785,8 +785,8 @@ PetscErrorCode PCSetUp_GAMG(PC pc)
           Mat Lmat = Aarr[level];
           Vec bb, xx;
 
-          ierr = MatGetVecs(Lmat, &bb, 0);CHKERRQ(ierr);
-          ierr = MatGetVecs(Lmat, &xx, 0);CHKERRQ(ierr);
+          ierr = MatCreateVecs(Lmat, &bb, 0);CHKERRQ(ierr);
+          ierr = MatCreateVecs(Lmat, &xx, 0);CHKERRQ(ierr);
           {
             PetscRandom rctx;
             ierr = PetscRandomCreate(comm,&rctx);CHKERRQ(ierr);

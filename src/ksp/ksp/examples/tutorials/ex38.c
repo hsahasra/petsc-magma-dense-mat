@@ -26,8 +26,8 @@ int main(int Argc,char **Args)
 
   ierr = PetscOptionsGetInt(NULL,"-n",&n,NULL);CHKERRQ(ierr);
   ierr = Create1dLaplacian(n,&cmat);CHKERRQ(ierr);
-  ierr = MatGetVecs(cmat,&x,0);CHKERRQ(ierr);
-  ierr = MatGetVecs(cmat,&b,0);CHKERRQ(ierr);
+  ierr = MatCreateVecs(cmat,&x,0);CHKERRQ(ierr);
+  ierr = MatCreateVecs(cmat,&b,0);CHKERRQ(ierr);
   ierr = CalculateRhs(b);CHKERRQ(ierr);
   ierr = VecSet(x,0.0);CHKERRQ(ierr);
 

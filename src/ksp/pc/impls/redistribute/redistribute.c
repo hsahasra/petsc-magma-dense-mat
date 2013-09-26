@@ -65,7 +65,7 @@ static PetscErrorCode PCSetUp_Redistribute(PC pc)
   PetscFunctionBegin;
   if (pc->setupcalled) {
     ierr = KSPGetOperators(red->ksp,NULL,&tmat,NULL);CHKERRQ(ierr);
-    ierr = MatGetSubMatrix(pc->pmat,red->is,red->is,MAT_REUSE_MATRIX,&tmat);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(pc->pmat,red->is,red->is,MAT_REUSE_MATRIX,&tmat);CHKERRQ(ierr);
     ierr = KSPSetOperators(red->ksp,tmat,tmat,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
   } else {
     PetscInt NN;
@@ -197,17 +197,17 @@ static PetscErrorCode PCSetUp_Redistribute(PC pc)
 
     ierr = VecCreateMPI(comm,slen,PETSC_DETERMINE,&red->b);CHKERRQ(ierr);
     ierr = VecDuplicate(red->b,&red->x);CHKERRQ(ierr);
-    ierr = MatGetVecs(pc->pmat,&tvec,NULL);CHKERRQ(ierr);
+    ierr = MatCreateVecs(pc->pmat,&tvec,NULL);CHKERRQ(ierr);
     ierr = VecScatterCreate(tvec,red->is,red->b,NULL,&red->scatter);CHKERRQ(ierr);
     ierr = VecDestroy(&tvec);CHKERRQ(ierr);
-    ierr = MatGetSubMatrix(pc->pmat,red->is,red->is,MAT_INITIAL_MATRIX,&tmat);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(pc->pmat,red->is,red->is,MAT_INITIAL_MATRIX,&tmat);CHKERRQ(ierr);
     ierr = KSPSetOperators(red->ksp,tmat,tmat,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatDestroy(&tmat);CHKERRQ(ierr);
   }
 
   /* get diagonal portion of matrix */
   ierr = PetscMalloc(red->dcnt*sizeof(PetscScalar),&red->diag);CHKERRQ(ierr);
-  ierr = MatGetVecs(pc->pmat,&diag,NULL);CHKERRQ(ierr);
+  ierr = MatCreateVecs(pc->pmat,&diag,NULL);CHKERRQ(ierr);
   ierr = MatGetDiagonal(pc->pmat,diag);CHKERRQ(ierr);
   ierr = VecGetArrayRead(diag,&d);CHKERRQ(ierr);
   for (i=0; i<red->dcnt; i++) red->diag[i] = 1.0/d[red->drows[i]];

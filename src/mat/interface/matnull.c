@@ -403,7 +403,7 @@ PetscErrorCode  MatNullSpaceTest(MatNullSpace sp,Mat mat,PetscBool  *isNull)
   if (n) {
     ierr = VecDuplicate(sp->vecs[0],&l);CHKERRQ(ierr);
   } else {
-    ierr = MatGetVecs(mat,&l,NULL);CHKERRQ(ierr);
+    ierr = MatCreateVecs(mat,&l,NULL);CHKERRQ(ierr);
   }
 
   ierr = PetscViewerASCIIGetStdout(PetscObjectComm((PetscObject)sp),&viewer);CHKERRQ(ierr);

@@ -1306,7 +1306,7 @@ PetscErrorCode MatMumpsSetIcntl_MUMPS(Mat F,PetscInt icntl,PetscInt ival)
    Logically Collective on Mat
 
    Input Parameters:
-+  F - the factored matrix obtained by calling MatGetFactor() from PETSc-MUMPS interface
++  F - the factored matrix obtained by calling MatCreateFactor() from PETSc-MUMPS interface
 .  icntl - index of MUMPS parameter array ICNTL()
 -  ival - value of MUMPS ICNTL(icntl)
 
@@ -1317,7 +1317,7 @@ PetscErrorCode MatMumpsSetIcntl_MUMPS(Mat F,PetscInt icntl,PetscInt ival)
 
    References: MUMPS Users' Guide
 
-.seealso: MatGetFactor()
+.seealso: MatCreateFactor()
 @*/
 PetscErrorCode MatMumpsSetIcntl(Mat F,PetscInt icntl,PetscInt ival)
 {
@@ -1350,7 +1350,7 @@ PetscErrorCode MatMumpsSetCntl_MUMPS(Mat F,PetscInt icntl,PetscReal val)
    Logically Collective on Mat
 
    Input Parameters:
-+  F - the factored matrix obtained by calling MatGetFactor() from PETSc-MUMPS interface
++  F - the factored matrix obtained by calling MatCreateFactor() from PETSc-MUMPS interface
 .  icntl - index of MUMPS parameter array CNTL()
 -  val - value of MUMPS CNTL(icntl)
 
@@ -1361,7 +1361,7 @@ PetscErrorCode MatMumpsSetCntl_MUMPS(Mat F,PetscInt icntl,PetscReal val)
 
    References: MUMPS Users' Guide
 
-.seealso: MatGetFactor()
+.seealso: MatCreateFactor()
 @*/
 PetscErrorCode MatMumpsSetCntl(Mat F,PetscInt icntl,PetscReal val)
 {
@@ -1410,10 +1410,10 @@ static PetscErrorCode MatFactorGetSolverPackage_mumps(Mat A,const MatSolverPacka
   PetscFunctionReturn(0);
 }
 
-/* MatGetFactor for Seq and MPI AIJ matrices */
+/* MatCreateFactor for Seq and MPI AIJ matrices */
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_aij_mumps"
-PETSC_EXTERN PetscErrorCode MatGetFactor_aij_mumps(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_aij_mumps"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_aij_mumps(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;
@@ -1466,10 +1466,10 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_aij_mumps(Mat A,MatFactorType ftype,Mat
   PetscFunctionReturn(0);
 }
 
-/* MatGetFactor for Seq and MPI SBAIJ matrices */
+/* MatCreateFactor for Seq and MPI SBAIJ matrices */
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_sbaij_mumps"
-PETSC_EXTERN PetscErrorCode MatGetFactor_sbaij_mumps(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_sbaij_mumps"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_sbaij_mumps(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;
@@ -1518,8 +1518,8 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_sbaij_mumps(Mat A,MatFactorType ftype,M
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_baij_mumps"
-PETSC_EXTERN PetscErrorCode MatGetFactor_baij_mumps(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_baij_mumps"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_baij_mumps(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   PetscErrorCode ierr;

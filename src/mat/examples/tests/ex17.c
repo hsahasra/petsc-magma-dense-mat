@@ -52,7 +52,7 @@ int main(int argc,char **args)
   ierr = MatGetOrdering(C,MATORDERINGQMD,&row,&col);CHKERRQ(ierr);
 
   ierr = MatFactorInfoInitialize(&info);CHKERRQ(ierr);
-  ierr = MatGetFactor(C,MATSOLVERPETSC,MAT_FACTOR_LU,&A);CHKERRQ(ierr);
+  ierr = MatCreateFactor(C,MATSOLVERPETSC,MAT_FACTOR_LU,&A);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic(A,C,row,col,&info);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric(A,C,&info);CHKERRQ(ierr);
   ierr = MatSolveTranspose(A,b,x);CHKERRQ(ierr);

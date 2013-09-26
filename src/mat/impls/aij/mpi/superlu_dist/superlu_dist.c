@@ -283,7 +283,7 @@ PetscErrorCode MatLUFactorNumeric_SuperLU_DIST(Mat F,Mat A,const MatFactorInfo *
   if (lu->MatInputMode == GLOBAL) { /* global mat input */
     if (size > 1) { /* convert mpi A to seq mat A */
       ierr = ISCreateStride(PETSC_COMM_SELF,M,0,1,&isrow);CHKERRQ(ierr);
-      ierr = MatGetSubMatrices(A,1,&isrow,&isrow,MAT_INITIAL_MATRIX,&tseq);CHKERRQ(ierr);
+      ierr = MatCreateSubMatrices(A,1,&isrow,&isrow,MAT_INITIAL_MATRIX,&tseq);CHKERRQ(ierr);
       ierr = ISDestroy(&isrow);CHKERRQ(ierr);
 
       A_seq = *tseq;
@@ -473,8 +473,8 @@ PetscErrorCode MatFactorGetSolverPackage_aij_superlu_dist(Mat A,const MatSolverP
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_aij_superlu_dist"
-PETSC_EXTERN PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_aij_superlu_dist"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_aij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat               B;
   Mat_SuperLU_DIST  *lu;
@@ -629,24 +629,24 @@ PETSC_EXTERN PetscErrorCode MatGetFactor_aij_superlu_dist(Mat A,MatFactorType ft
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqaij_superlu_dist"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqaij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqaij_superlu_dist"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqaij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MatGetFactor_aij_superlu_dist(A,ftype,F);CHKERRQ(ierr);
+  ierr = MatCreateFactor_aij_superlu_dist(A,ftype,F);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_mpiaij_superlu_dist"
-PETSC_EXTERN PetscErrorCode MatGetFactor_mpiaij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_mpiaij_superlu_dist"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_mpiaij_superlu_dist(Mat A,MatFactorType ftype,Mat *F)
 {
   PetscErrorCode ierr;
 
   PetscFunctionBegin;
-  ierr = MatGetFactor_aij_superlu_dist(A,ftype,F);CHKERRQ(ierr);
+  ierr = MatCreateFactor_aij_superlu_dist(A,ftype,F);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

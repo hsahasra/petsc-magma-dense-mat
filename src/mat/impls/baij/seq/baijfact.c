@@ -666,8 +666,8 @@ PetscErrorCode MatLUFactorNumeric_SeqBAIJ_1_inplace(Mat C,Mat A,const MatFactorI
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqbaij_petsc"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqbaij_petsc(Mat A,MatFactorType ftype,Mat *B)
+#define __FUNCT__ "MatCreateFactor_seqbaij_petsc"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqbaij_petsc(Mat A,MatFactorType ftype,Mat *B)
 {
   PetscInt       n = A->rmap->n;
   PetscErrorCode ierr;
@@ -712,7 +712,7 @@ PetscErrorCode MatLUFactor_SeqBAIJ(Mat A,IS row,IS col,const MatFactorInfo *info
   Mat            C;
 
   PetscFunctionBegin;
-  ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&C);CHKERRQ(ierr);
+  ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&C);CHKERRQ(ierr);
   ierr = MatLUFactorSymbolic(C,A,row,col,info);CHKERRQ(ierr);
   ierr = MatLUFactorNumeric(C,A,info);CHKERRQ(ierr);
 
@@ -1003,7 +1003,7 @@ PetscErrorCode MatICCFactorSymbolic_SeqBAIJ(Mat fact,Mat A,IS perm,const MatFact
     if (!a->sbaijMat) {
       ierr = MatConvert(A,MATSEQSBAIJ,MAT_INITIAL_MATRIX,&a->sbaijMat);CHKERRQ(ierr);
     }
-    (fact)->ops->iccfactorsymbolic = MatICCFactorSymbolic_SeqSBAIJ;  /* undue the change made in MatGetFactor_seqbaij_petsc */
+    (fact)->ops->iccfactorsymbolic = MatICCFactorSymbolic_SeqSBAIJ;  /* undue the change made in MatCreateFactor_seqbaij_petsc */
 
     ierr = MatICCFactorSymbolic(fact,a->sbaijMat,perm,info);CHKERRQ(ierr);
     PetscFunctionReturn(0);
@@ -1227,7 +1227,7 @@ PetscErrorCode MatCholeskyFactorSymbolic_SeqBAIJ(Mat fact,Mat A,IS perm,const Ma
     if (!a->sbaijMat) {
       ierr = MatConvert(A,MATSEQSBAIJ,MAT_INITIAL_MATRIX,&a->sbaijMat);CHKERRQ(ierr);
     }
-    (fact)->ops->choleskyfactorsymbolic = MatCholeskyFactorSymbolic_SeqSBAIJ; /* undue the change made in MatGetFactor_seqbaij_petsc */
+    (fact)->ops->choleskyfactorsymbolic = MatCholeskyFactorSymbolic_SeqSBAIJ; /* undue the change made in MatCreateFactor_seqbaij_petsc */
 
     ierr = MatCholeskyFactorSymbolic(fact,a->sbaijMat,perm,info);CHKERRQ(ierr);
     PetscFunctionReturn(0);

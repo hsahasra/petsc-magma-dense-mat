@@ -71,7 +71,7 @@ int main(int argc,char **args)
   ierr = PetscOptionsGetBool(NULL,"-inplacelu",&InplaceLU,NULL);CHKERRQ(ierr);
   ierr = MatFactorInfoInitialize(&info);CHKERRQ(ierr);
   if (!InplaceLU) {
-    ierr      = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
+    ierr      = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
     info.fill = 5.0;
     ierr      = MatLUFactorSymbolic(F,A,perm,iperm,&info);CHKERRQ(ierr);
     ierr      = MatLUFactorNumeric(F,A,&info);CHKERRQ(ierr);

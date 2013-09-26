@@ -389,8 +389,8 @@ PetscErrorCode MatFactorGetSolverPackage_seqsbaij_cholmod(Mat A,const MatSolverP
 M*/
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetFactor_seqsbaij_cholmod"
-PETSC_EXTERN PetscErrorCode MatGetFactor_seqsbaij_cholmod(Mat A,MatFactorType ftype,Mat *F)
+#define __FUNCT__ "MatCreateFactor_seqsbaij_cholmod"
+PETSC_EXTERN PetscErrorCode MatCreateFactor_seqsbaij_cholmod(Mat A,MatFactorType ftype,Mat *F)
 {
   Mat            B;
   Mat_CHOLMOD    *chol;

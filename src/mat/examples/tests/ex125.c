@@ -70,19 +70,19 @@ int main(int argc,char **args)
 #if defined(PETSC_HAVE_SUPERLU)
   case 0:
     if (!rank) printf(" SUPERLU LU:\n");
-    ierr = MatGetFactor(A,MATSOLVERSUPERLU,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
+    ierr = MatCreateFactor(A,MATSOLVERSUPERLU,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
     break;
 #endif
 #if defined(PETSC_HAVE_SUPERLU_DIST)
   case 1:
     if (!rank) printf(" SUPERLU_DIST LU:\n");
-    ierr = MatGetFactor(A,MATSOLVERSUPERLU_DIST,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
+    ierr = MatCreateFactor(A,MATSOLVERSUPERLU_DIST,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
     break;
 #endif
 #if defined(PETSC_HAVE_MUMPS)
   case 2:
     if (!rank) printf(" MUMPS LU:\n");
-    ierr = MatGetFactor(A,MATSOLVERMUMPS,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
+    ierr = MatCreateFactor(A,MATSOLVERMUMPS,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
     {
       /* test mumps options */
       PetscInt icntl_7 = 5;
@@ -92,7 +92,7 @@ int main(int argc,char **args)
 #endif
   default:
     if (!rank) printf(" PETSC LU:\n");
-    ierr = MatGetFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
+    ierr = MatCreateFactor(A,MATSOLVERPETSC,MAT_FACTOR_LU,&F);CHKERRQ(ierr);
   }
 
   info.fill = 5.0;

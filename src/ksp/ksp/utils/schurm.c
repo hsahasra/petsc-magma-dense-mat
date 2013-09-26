@@ -9,22 +9,22 @@ typedef struct {
 } Mat_SchurComplement;
 
 #undef __FUNCT__
-#define __FUNCT__ "MatGetVecs_SchurComplement"
-PetscErrorCode MatGetVecs_SchurComplement(Mat N,Vec *right,Vec *left)
+#define __FUNCT__ "MatCreateVecs_SchurComplement"
+PetscErrorCode MatCreateVecs_SchurComplement(Mat N,Vec *right,Vec *left)
 {
   Mat_SchurComplement *Na = (Mat_SchurComplement*)N->data;
   PetscErrorCode      ierr;
 
   PetscFunctionBegin;
   if (Na->D) {
-    ierr = MatGetVecs(Na->D,right,left);CHKERRQ(ierr);
+    ierr = MatCreateVecs(Na->D,right,left);CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
   if (right) {
-    ierr = MatGetVecs(Na->B,right,NULL);CHKERRQ(ierr);
+    ierr = MatCreateVecs(Na->B,right,NULL);CHKERRQ(ierr);
   }
   if (left) {
-    ierr = MatGetVecs(Na->C,NULL,left);CHKERRQ(ierr);
+    ierr = MatCreateVecs(Na->C,NULL,left);CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -73,8 +73,8 @@ PetscErrorCode MatMult_SchurComplement(Mat N,Vec x,Vec y)
   PetscErrorCode      ierr;
 
   PetscFunctionBegin;
-  if (!Na->work1) {ierr = MatGetVecs(Na->A,&Na->work1,NULL);CHKERRQ(ierr);}
-  if (!Na->work2) {ierr = MatGetVecs(Na->A,&Na->work2,NULL);CHKERRQ(ierr);}
+  if (!Na->work1) {ierr = MatCreateVecs(Na->A,&Na->work1,NULL);CHKERRQ(ierr);}
+  if (!Na->work2) {ierr = MatCreateVecs(Na->A,&Na->work2,NULL);CHKERRQ(ierr);}
   ierr = MatMult(Na->B,x,Na->work1);CHKERRQ(ierr);
   ierr = KSPSolve(Na->ksp,Na->work1,Na->work2);CHKERRQ(ierr);
   ierr = MatMult(Na->C,Na->work2,y);CHKERRQ(ierr);
@@ -96,8 +96,8 @@ PetscErrorCode MatMultAdd_SchurComplement(Mat N,Vec x,Vec y,Vec z)
   PetscErrorCode      ierr;
 
   PetscFunctionBegin;
-  if (!Na->work1) {ierr = MatGetVecs(Na->A,&Na->work1,NULL);CHKERRQ(ierr);}
-  if (!Na->work2) {ierr = MatGetVecs(Na->A,&Na->work2,NULL);CHKERRQ(ierr);}
+  if (!Na->work1) {ierr = MatCreateVecs(Na->A,&Na->work1,NULL);CHKERRQ(ierr);}
+  if (!Na->work2) {ierr = MatCreateVecs(Na->A,&Na->work2,NULL);CHKERRQ(ierr);}
   ierr = MatMult(Na->B,x,Na->work1);CHKERRQ(ierr);
   ierr = KSPSolve(Na->ksp,Na->work1,Na->work2);CHKERRQ(ierr);
   if (y == z) {
@@ -471,10 +471,10 @@ PetscErrorCode MatGetSchurComplement_Basic(Mat mat,IS isrow0,IS iscol0,IS isrow1
       if (A != Ap) SETERRQ(PetscObjectComm((PetscObject)mat),PETSC_ERR_ARG_WRONGSTATE,"Preconditioning matrix does not match operator");
       ierr = MatDestroy(&Ap);CHKERRQ(ierr); /* get rid of extra reference */
     }
-    ierr = MatGetSubMatrix(mat,isrow0,iscol0,mreuse,&A);CHKERRQ(ierr);
-    ierr = MatGetSubMatrix(mat,isrow0,iscol1,mreuse,&B);CHKERRQ(ierr);
-    ierr = MatGetSubMatrix(mat,isrow1,iscol0,mreuse,&C);CHKERRQ(ierr);
-    ierr = MatGetSubMatrix(mat,isrow1,iscol1,mreuse,&D);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(mat,isrow0,iscol0,mreuse,&A);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(mat,isrow0,iscol1,mreuse,&B);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(mat,isrow1,iscol0,mreuse,&C);CHKERRQ(ierr);
+    ierr = MatCreateSubMatrix(mat,isrow1,iscol1,mreuse,&D);CHKERRQ(ierr);
     switch (mreuse) {
     case MAT_INITIAL_MATRIX:
       ierr = MatCreateSchurComplement(A,A,B,C,D,newmat);CHKERRQ(ierr);
@@ -494,12 +494,12 @@ PetscErrorCode MatGetSchurComplement_Basic(Mat mat,IS isrow0,IS iscol0,IS isrow1
     PetscScalar *x;
 
     /* We could compose these with newpmat so that the matrices can be reused. */
-    if (!A) {ierr = MatGetSubMatrix(mat,isrow0,iscol0,MAT_INITIAL_MATRIX,&A);CHKERRQ(ierr);}
-    if (!B) {ierr = MatGetSubMatrix(mat,isrow0,iscol1,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);}
-    if (!C) {ierr = MatGetSubMatrix(mat,isrow1,iscol0,MAT_INITIAL_MATRIX,&C);CHKERRQ(ierr);}
-    if (!D) {ierr = MatGetSubMatrix(mat,isrow1,iscol1,MAT_INITIAL_MATRIX,&D);CHKERRQ(ierr);}
+    if (!A) {ierr = MatCreateSubMatrix(mat,isrow0,iscol0,MAT_INITIAL_MATRIX,&A);CHKERRQ(ierr);}
+    if (!B) {ierr = MatCreateSubMatrix(mat,isrow0,iscol1,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);}
+    if (!C) {ierr = MatCreateSubMatrix(mat,isrow1,iscol0,MAT_INITIAL_MATRIX,&C);CHKERRQ(ierr);}
+    if (!D) {ierr = MatCreateSubMatrix(mat,isrow1,iscol1,MAT_INITIAL_MATRIX,&D);CHKERRQ(ierr);}
 
-    ierr = MatGetVecs(A,&diag,NULL);CHKERRQ(ierr);
+    ierr = MatCreateVecs(A,&diag,NULL);CHKERRQ(ierr);
     ierr = MatGetDiagonal(A,diag);CHKERRQ(ierr);
     ierr = VecReciprocal(diag);CHKERRQ(ierr);
     ierr = MatGetLocalSize(A,&m,&n);CHKERRQ(ierr);
@@ -571,7 +571,7 @@ PetscErrorCode MatGetSchurComplement_Basic(Mat mat,IS isrow0,IS iscol0,IS isrow1
 
     Concepts: matrices^submatrices
 
-.seealso: MatGetSubMatrix(), PCFIELDSPLIT, MatCreateSchurComplement()
+.seealso: MatCreateSubMatrix(), PCFIELDSPLIT, MatCreateSchurComplement()
 @*/
 PetscErrorCode  MatGetSchurComplement(Mat mat,IS isrow0,IS iscol0,IS isrow1,IS iscol1,MatReuse mreuse,Mat *newmat,MatReuse preuse,Mat *newpmat)
 {
@@ -609,7 +609,7 @@ PETSC_EXTERN PetscErrorCode MatCreate_SchurComplement(Mat N)
   N->data = (void*) Na;
 
   N->ops->destroy        = MatDestroy_SchurComplement;
-  N->ops->getvecs        = MatGetVecs_SchurComplement;
+  N->ops->getvecs        = MatCreateVecs_SchurComplement;
   N->ops->view           = MatView_SchurComplement;
   N->ops->mult           = MatMult_SchurComplement;
   N->ops->multadd        = MatMultAdd_SchurComplement;

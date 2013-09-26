@@ -66,7 +66,7 @@ PetscErrorCode maxIndSetAgg(IS perm,Mat Gmat,PetscBool strict_aggs,PetscInt verb
     matA = (Mat_SeqAIJ*)Gmat->data;
   }
   /* get vector */
-  ierr = MatGetVecs(Gmat, &locState, 0);CHKERRQ(ierr);
+  ierr = MatCreateVecs(Gmat, &locState, 0);CHKERRQ(ierr);
 
   ierr = MatGetOwnershipRange(Gmat,&my0,&Iend);CHKERRQ(ierr);
 
