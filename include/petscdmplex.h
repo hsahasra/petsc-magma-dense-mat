@@ -126,12 +126,14 @@ PETSC_EXTERN PetscErrorCode DMPlexCreateBoxMesh(MPI_Comm, PetscInt, PetscBool, D
 PETSC_EXTERN PetscErrorCode DMPlexCreateHexBoxMesh(MPI_Comm,PetscInt,const PetscInt[],DM *);
 PETSC_EXTERN PetscErrorCode DMPlexCreateConeSection(DM, PetscSection *);
 PETSC_EXTERN PetscErrorCode DMPlexInvertCell(PetscInt, PetscInt, int []);
+PETSC_EXTERN PetscErrorCode DMPlexCheckSymmetry(DM);
+PETSC_EXTERN PetscErrorCode DMPlexCheckSkeleton(DM, PetscBool);
 
 /* Mesh Partitioning and Distribution */
 PETSC_EXTERN PetscErrorCode DMPlexCreateNeighborCSR(DM, PetscInt, PetscInt *, PetscInt **, PetscInt **);
 PETSC_EXTERN PetscErrorCode DMPlexCreatePartition(DM, const char[], PetscInt, PetscBool, PetscSection *, IS *, PetscSection *, IS *);
 PETSC_EXTERN PetscErrorCode DMPlexCreatePartitionClosure(DM, PetscSection, IS, PetscSection *, IS *);
-PETSC_EXTERN PetscErrorCode DMPlexDistribute(DM, const char[], PetscInt, DM*);
+PETSC_EXTERN PetscErrorCode DMPlexDistribute(DM, const char[], PetscInt, PetscSF*, DM*);
 PETSC_EXTERN PetscErrorCode DMPlexDistributeField(DM,PetscSF,PetscSection,Vec,PetscSection,Vec);
 PETSC_EXTERN PetscErrorCode DMPlexDistributeData(DM,PetscSF,PetscSection,MPI_Datatype,void*,PetscSection,void**);
 
